@@ -22,7 +22,10 @@ for destination validation, recovery and interruption contracts.
 M06 adds local plain-text Notes, stable ID-based readers/editors, committed-save
 feedback and persistent recovery drafts in schema 3 of the same database. See
 [Notes writing and recovery](docs/notes-writing.md) for revision protection,
-deletion retention, failure behavior and offline verification.
+deletion retention, failure behavior and offline verification. M07 extends Notes
+with local keyword/tag/pin filters, Trash/restore, typed permanent deletion and
+safe Markdown preview. Schema 4 preserves all existing writing and settings;
+the required pack adds the single Notes create illustration.
 
 Use Flutter 3.47.5 / Dart 3.13.4 (the verified local baseline). From the workspace
 root:
@@ -64,7 +67,8 @@ dart format lib test
 
 M02 establishes schema version 1; M05 migrates to schema 2 while retaining
 appearance settings. M06 extends it to schema 3 for Notes and recovery drafts,
-preserving settings and onboarding. Each subsequent schema change needs a version
+preserving settings and onboarding. M07 adds pins and tags in schema 4 and tests
+upgrades from versions 1–3. Each subsequent schema change needs a version
 bump and migration/data-preservation tests. Preserve historical snapshots after
 shipping that version. Keep generated Drift code and schema helpers with source.
 For Android packaging verification, run

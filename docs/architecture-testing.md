@@ -40,7 +40,7 @@ Feature domain types have no Flutter/database/plugin dependencies. Data adapters
 map rows; controllers observe authoritative snapshots and coordinate saves. See
 [appearance and persistence](appearance-persistence.md) for ownership, schema,
 recovery, lifecycle, and generation contracts. M06 extends this same database to
-schema 3 for Notes and recovery drafts. Notes repository/clock/ID composition
+schema 3 for Notes and recovery drafts; M07 adds pins/tags in schema 4. Notes repository/clock/ID composition
 lives in `features/notes/application/notes_providers.dart`.
 
 ## Tests and commands
@@ -75,9 +75,9 @@ dart run tool/validate_assets.dart assets/catalog/presentation-v1.json tool/asse
   settings, and real background SQLite close/reopen. UI tests check themes,
   live system/app changes, mid-transition reduction, back, flat paper, contrast,
   and narrow/large-text/inset layouts in both themes.
-- `test/core` checks schema 3 against its snapshot, upgrades from versions 1 and 2,
+- `test/core` checks schema 4 against its snapshot, upgrades from versions 1, 2 and 3,
   appearance/onboarding preservation, empty writing tables, SQL constraints,
-  all OS/app/lifecycle combinations, both OS flags live, inactive/offscreen
+  retained source/draft tokens and tombstones, all OS/app/lifecycle combinations, both OS flags live, inactive/offscreen
   ticker gating, resumption, and disposal.
 - `test/support/pump_app.dart` creates a fresh scope with a small observable fake
   appearance repository, fake onboarding repository and fake required-assets
@@ -102,7 +102,11 @@ dart run tool/validate_assets.dart assets/catalog/presentation-v1.json tool/asse
 - `test/features/notes` checks CRUD, transactional rollback, failed saves and
   recovery, Unicode/large bodies, background close/reopen, stale source/draft
   tokens, copy/discard, navigation and ID switching, missing/deleted IDs and
-  both rendering modes. Widget tests use disposable SQLite and a small
+  both rendering modes. M07 adds 120 filter combinations, persisted tags/pins,
+  trash/restore/typed permanent deletion with draft-token protection, safe/failed
+  external launches, malformed/long Markdown, omitted images, 2,000-record
+  queries/lazy lists, bounded artwork decoding and scrollable large-text dialogs.
+  Widget tests use disposable SQLite and a small
   failure/commit-gate decorator, disposed before database teardown.
 
 The [README](../README.md) documents schema generation and native build commands.
@@ -128,7 +132,8 @@ gesture qualification remain unverified. M06 adds Notes and native Android
 emulator offline creation, draft recovery after force-stop, committed edits and
 deletion evidence. Physical-device accessibility, native iOS writing journeys,
 release/minimum-OS and power-loss/storage-failure qualification remain gaps.
-M07 is next and is not implemented by M06.
+M07 adds Notes organization and preview; its native evidence and remaining gaps
+are recorded separately. M08 — Diary is next.
 
 ## References
 

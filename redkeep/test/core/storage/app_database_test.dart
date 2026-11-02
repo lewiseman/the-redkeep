@@ -10,12 +10,16 @@ import 'package:redkeep/features/appearance/domain/appearance_preferences.dart';
 import 'generated/schema.dart';
 import 'generated/schema_v1.dart' as v1;
 import 'generated/schema_v2.dart' as v2;
+import 'generated/schema_v3.dart' as v3;
+
+import 'package:redkeep/features/notes/data/drift_notes_repository.dart';
+import 'package:redkeep/features/notes/domain/note_document.dart';
 
 void main() {
-  test('fresh schema matches the committed version 3 snapshot', () async {
+  test('fresh schema matches the committed version 4 snapshot', () async {
     final database = AppDatabase(NativeDatabase.memory());
     addTearDown(database.close);
-    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 3);
+    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 4);
   });
 
   test('version 1 upgrade preserves every saved appearance choice', () async {
@@ -30,7 +34,7 @@ void main() {
       await old.close();
       final database = AppDatabase(schema.newConnection());
       try {
-        await verifier.migrateAndValidate(database, 3);
+        await verifier.migrateAndValidate(database, 4);
         expect(
           await DriftAppearanceRepository(database).watch().first,
           AppearancePreferences(
@@ -64,7 +68,7 @@ void main() {
       await old.close();
       final database = AppDatabase(schema.newConnection());
       try {
-        await verifier.migrateAndValidate(database, 3);
+        await verifier.migrateAndValidate(database, 4);
         expect(
           await DriftAppearanceRepository(database).watch().first,
           const AppearancePreferences(
@@ -84,6 +88,66 @@ void main() {
       }
     }
   });
+
+  test(
+    'version 3 preserves text, tombstones, revisions and draft tokens',
+    () async {
+      final verifier = SchemaVerifier(GeneratedHelper());
+      final schema = await verifier.schemaAt(3);
+      final old = v3.DatabaseAtV3(schema.newConnection());
+      final id = 'a' * 32;
+      await old.customStatement(
+        "INSERT INTO appearance_settings (id, theme) VALUES (1, 'dark')",
+      );
+      await old.customStatement(
+        'INSERT INTO onboarding_completion (id) VALUES (1)',
+      );
+      for (final deleted in [false, true]) {
+        final key = deleted ? 'b' * 32 : id;
+        await old.customStatement(
+          'INSERT INTO notes (id, title, body, revision, created_at, updated_at, deleted_at) VALUES (?, ?, ?, 7, 1, 2, ?)',
+          [key, '保留', 'Exact 👩🏽‍💻 e\u0301', deleted ? 3 : null],
+        );
+        await old.customStatement(
+          'INSERT INTO note_drafts (id, title, body, base_revision, draft_revision, updated_at) VALUES (?, ?, ?, 7, ?, 4)',
+          [key, 'Draft', 'Unfinished', deleted ? 12 : 11],
+        );
+      }
+      await old.close();
+      final database = AppDatabase(schema.newConnection());
+      try {
+        await verifier.migrateAndValidate(database, 4);
+        expect(await DriftOnboardingRepository(database).isComplete(), isTrue);
+        expect(
+          (await DriftAppearanceRepository(database).watch().first).theme,
+          AppTheme.dark,
+        );
+        final repo = DriftNotesRepository(
+          database,
+          clock: () => DateTime.utc(2026),
+        );
+        for (final key in [id, 'b' * 32]) {
+          final snapshot = await repo.openDocument(key);
+          expect(snapshot.note!.text.body, 'Exact 👩🏽‍💻 e\u0301');
+          expect(snapshot.note!.revision, 7);
+          expect(snapshot.note!.pinned, isFalse);
+          expect(snapshot.note!.tags, isEmpty);
+          expect(snapshot.note!.deletedAt != null, key != id);
+          expect(snapshot.draft!.baseRevision, 7);
+          expect(snapshot.draft!.draftRevision, key == id ? 11 : 12);
+        }
+        final draft = await repo.putDraft(
+          id: 'c' * 32,
+          text: const PlainTextDocument(),
+          baseRevision: 0,
+          expectedDraftRevision: null,
+        );
+        expect(draft.draftRevision, greaterThan(12));
+      } finally {
+        await database.close();
+      }
+    },
+  );
 
   test(
     'schema rejects invalid theme values and non-singleton settings',

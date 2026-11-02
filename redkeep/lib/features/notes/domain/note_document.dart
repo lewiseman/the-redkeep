@@ -13,6 +13,8 @@ class NoteDocument {
     required this.createdAt,
     required this.updatedAt,
     this.deletedAt,
+    this.pinned = false,
+    this.tags = const [],
   });
   final String id;
   final PlainTextDocument text;
@@ -20,6 +22,8 @@ class NoteDocument {
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? deletedAt;
+  final bool pinned;
+  final List<String> tags;
 }
 
 class RecoveryDraft {
@@ -51,9 +55,11 @@ class NoteListing {
     required this.title,
     required this.revision,
     required this.updatedAt,
+    this.pinned = false,
   });
   final String id;
   final String title;
+  final bool pinned;
   final int revision;
   final DateTime updatedAt;
 }
@@ -63,7 +69,7 @@ String noteTitle(String title) =>
 
 bool isNoteId(String value) => RegExp(r'^[0-9a-f]{32}$').hasMatch(value);
 
-enum NoteFailure { unavailable, staleRevision, draftChanged }
+enum NoteFailure { unavailable, staleRevision, draftChanged, invalidTags }
 
 class NoteException implements Exception {
   const NoteException(this.failure);

@@ -4,8 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/storage_providers.dart';
 import '../data/drift_notes_repository.dart';
+import '../data/platform_note_link_launcher.dart';
+import '../domain/note_link_launcher.dart';
 import '../domain/note_document.dart';
 import '../domain/notes_repository.dart';
+import '../domain/notes_query.dart';
 
 final notesClockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
 final noteIdProvider = Provider<String Function()>((ref) {
@@ -22,7 +25,9 @@ final notesRepositoryProvider = Provider<NotesRepository>(
   ),
 );
 final notesListProvider = StreamProvider.autoDispose<List<NoteListing>>(
-  (ref) => ref.watch(notesRepositoryProvider).watchNotes(),
+  (ref) => ref
+      .watch(notesRepositoryProvider)
+      .watchNotes(query: ref.watch(notesFilterProvider)),
   retry: (_, _) => null,
 );
 final recoveryListProvider = StreamProvider.autoDispose<List<NoteListing>>(
@@ -64,17 +69,61 @@ class NotesActions extends Notifier<bool> {
     }
   }
 
-  Future<void> delete(NoteDocument note) async {
-    if (state) return;
+  Future<void> organize(
+    NoteDocument note, {
+    required bool pinned,
+    required List<String> tags,
+  }) => _run(
+    () => ref
+        .read(notesRepositoryProvider)
+        .organize(note.id, note.revision, pinned: pinned, tags: tags),
+  );
+  Future<void> restore(NoteDocument note) => _run(
+    () => ref.read(notesRepositoryProvider).restoreNote(note.id, note.revision),
+  );
+  Future<void> permanentlyDelete(NoteDocument note, int? draftRevision) => _run(
+    () => ref
+        .read(notesRepositoryProvider)
+        .permanentlyDelete(
+          note.id,
+          note.revision,
+          expectedDraftRevision: draftRevision,
+        ),
+  );
+  Future<void> _run(Future<void> Function() action) async {
+    if (state) throw StateError('An action is already pending');
     state = true;
     final keep = ref.keepAlive();
     try {
-      await ref
-          .read(notesRepositoryProvider)
-          .deleteNote(note.id, note.revision);
+      await action();
     } finally {
       if (ref.mounted) state = false;
       keep.close();
     }
   }
+
+  Future<void> delete(NoteDocument note) => _run(
+    () => ref.read(notesRepositoryProvider).deleteNote(note.id, note.revision),
+  );
 }
+
+final notesFilterProvider = NotifierProvider<NotesFilter, NotesQuery>(
+  NotesFilter.new,
+);
+
+class NotesFilter extends Notifier<NotesQuery> {
+  @override
+  NotesQuery build() => const NotesQuery();
+  void set(NotesQuery query) => state = query;
+}
+
+final noteTagsProvider = StreamProvider.autoDispose<List<String>>(
+  (ref) => ref
+      .watch(notesRepositoryProvider)
+      .watchTags(trash: ref.watch(notesFilterProvider.select((q) => q.trash))),
+  retry: (_, _) => null,
+);
+
+final noteLinkLauncherProvider = Provider<NoteLinkLauncher>(
+  (ref) => const PlatformNoteLinkLauncher(),
+);

@@ -13,7 +13,7 @@ void main() {
   test('reviewed local pack decodes, matches pinned metadata, and contains no extras', () async {
     expect(
       await validateAssetPack(catalogPath, packPath),
-      contains('3 PNGs, 434116 bytes'),
+      contains('4 PNGs, 479916 bytes'),
     );
     for (final base in [
       '',

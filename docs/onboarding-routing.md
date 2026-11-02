@@ -131,7 +131,8 @@ screen-reader, OS link-registration or keyboard evidence. Universal/app-link
 hosting and native URL registrations are not introduced. Release performance,
 minimum-OS and low-end hardware qualifications remain outstanding. M04's real
 HTTPS asset-host prerequisite and M03's AI hardware gaps remain unchanged.
-M06 extends these contracts for Notes; M07 is the next eligible phase.
+M06 extends these contracts for Notes. M07 keeps the same routes and adds
+trashed-source restore/deletion actions on the existing reader. M08 is next.
 
 Official APIs checked alongside the locally resolved source:
 

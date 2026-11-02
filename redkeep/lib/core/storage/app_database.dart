@@ -11,13 +11,19 @@ import '../../features/notes/data/notes_tables.dart';
 part 'app_database.g.dart';
 
 @DriftDatabase(
-  tables: [AppearanceSettings, OnboardingCompletion, Notes, NoteDrafts],
+  tables: [
+    AppearanceSettings,
+    OnboardingCompletion,
+    Notes,
+    NoteDrafts,
+    NoteTags,
+  ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -28,6 +34,10 @@ class AppDatabase extends _$AppDatabase {
       if (from < 3 && to >= 3) {
         await migrator.createTable(notes);
         await migrator.createTable(noteDrafts);
+      }
+      if (from < 4 && to >= 4) {
+        if (from >= 3) await migrator.addColumn(notes, notes.pinned);
+        await migrator.createTable(noteTags);
       }
     },
   );

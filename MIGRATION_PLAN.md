@@ -37,7 +37,7 @@ Use `Not started`, `In progress`, `Complete`, or `Partial`. A partial result mus
 | M04 — Assets and startup | Complete | Reachable-media inventory/provenance, pinned three-image pack, catalog/publishing validator, injected persistent resolver, verified atomic installs/repair, bounded bootstrap/splash gate; all 88 tests, analysis/formatting, Android and iOS simulator debug builds pass. Android local HTTP download → offline restart and missing-file gating; iOS fresh gate and offline staged-pack recovery verified. | Real HTTPS hosting/publication and physical/minimum-OS/low-end release evidence remain prerequisites; iOS HTTP download and native failure/ENOSPC drills unverified. M03's AI gaps remain unchanged. Next eligible phase is M05. |
 | M05 — Onboarding and routing | Complete | Minimal welcome, committed schema-2 completion with migration preservation, validated bootstrap/onboarding continuations and safe fallback, framework back gestures; all 111 tests, formatting/analysis, Android and iOS simulator debug builds pass. Android interruption → requested settings → back/restart and iOS welcome render verified. | Physical accessibility/gestures, native iOS completion/restart, OS link registration/restoration and release/minimum-OS evidence unverified. M04 host and M03 AI gaps unchanged. Next eligible phase is M06. |
 | M06 — Notes vertical slice | Complete | Same primary database upgraded to schema 3; plain-text Notes CRUD, stable ID routes, revision/token checks, committed-save feedback and persistent recovery drafts. All 139 tests, analysis/formatting, Android/iOS simulator debug builds pass; Android airplane-mode create/recover/edit/save/delete and force-stop/reopen verified. See docs/notes-writing.md and docs/evidence/m06/verification.json. | Physical-device accessibility/IME, native iOS writing, minimum-OS/low-end/release and native disk-full/power-loss evidence unverified. M04 host and M03 AI gaps unchanged. Next eligible phase is M07. |
-| M07 — Notes organization | Not started | — | Requires M06. |
+| M07 — Notes organization | Complete | Schema 4 with local keyword/tag/pin filters, Trash/restore, typed permanent deletion, safe bounded Markdown preview and resolver-backed Notes artwork. All 155 tests, formatting/analysis, asset validation and Android/iOS simulator debug builds pass; Android offline reopen/filter/restore/delete and external browser launch verified. See docs/notes-writing.md and docs/evidence/m07/verification.json. | Native iOS writing/browser, physical accessibility/IME, minimum-OS/low-end/release and native storage-failure evidence unverified. Preview/search bounds documented; M04 host and M03 AI gaps unchanged. Next eligible phase is M08. |
 | M08 — Diary | Not started | — | Requires M07. |
 | M09 — Flow | Not started | — | Requires M08. |
 | M10 — Brain | Not started | — | Requires M09 and the M03 adapter; native acceptance evidence remains mandatory. |
@@ -1221,3 +1221,105 @@ host prerequisite and M03's AI hardware gaps remain unchanged.
 **M06 is complete within its selected scope. Next eligible phase: M07 — Notes
 organization. M07 and every later implementation phase remain unstarted. Stop
 at this boundary.**
+
+
+### 2 November 2026 — M07: Notes organization
+
+**Prerequisites and boundaries.** Read root AGENTS, this migration plan and the
+architecture, Notes, asset and persistence guides. M06 was complete; initial
+`git status --short` was clean. Implemented M07 only. The current mobile path,
+native configuration, earlier schemas and generated historical helpers remain.
+No remote Git operation, publication, model work, embeddings, cloud/collaboration,
+new media types or replacement navigation/storage framework was introduced.
+`raw_assets/` was not accessed. The only legacy inspection was the specifically
+selected Notes add artwork and its provenance; one PNG was copied individually.
+
+**Implemented behavior and contracts.**
+
+- Extended the existing primary database to **schema 4**: false-by-default pin
+  and normalized note tags, with no fixtures. Source text/revisions/tombstones,
+  timestamps, settings, onboarding and recovery tokens survive upgrades from
+  versions 1–3. Existing recovery and source compare-and-swap protections remain.
+- Keyword tokens are parameterized literal title/body substrings, combined with
+  AND alongside tag/pinned-only/Saved-or-Trash filters. ASCII case folds; other
+  scripts match exactly. The UI search field accepts 256 UTF-16 code units.
+  Pinned-first ordering has deterministic updated-time/ID ties. Queries return
+  metadata and lists build lazily; document invalidation observes tokens/tags
+  without copying large bodies for every tag. Recovery drafts are explicitly
+  separate from saved-note filters. Filter state survives reader navigation in
+  the current scope, without a new persistence contract.
+- Tags trim/collapse whitespace, lowercase, deduplicate and sort, bounded to 24
+  tags of 40 UTF-16 code units. Organization commits atomically with a source
+  revision check, preserving exact text. Text commits preserve organization.
+  The reader requires existing drafts to be saved/discarded before organizing;
+  concurrent stale drafts are retained and can become explicit copies.
+- Deletion moves to Trash, preserving text, metadata and recovery. Saved search
+  and tag choices exclude Trash; Trash has its own filters. Ordinary deleted-ID
+  routes hide the source; the existing reader offers restore/permanent deletion.
+  Restore checks/advances revision and retains metadata. **Delete forever**
+  requires exact `DELETE` plus **Delete permanently**, and atomically removes
+  the trashed source/tags and only the reviewed draft. A changed source/draft or
+  failure keeps everything. Old routes remain unavailable. Application deletion
+  is not a forensic-erasure guarantee.
+- Added **Markdown preview** of committed text and return to complete plain text.
+  `flutter_markdown_plus` **1.0.12** renders Flutter widgets, without executable
+  HTML/WebView. Image syntax becomes alt-text placeholders, never network/file
+  reads. Preview has an explicit complete-plain-text fallback above 32,000 code
+  units or 1,000 lines. The application validates absolute credential-free
+  HTTP(S) links before injected `url_launcher` **6.3.3** external-application
+  launch; blocked schemes, false returns and plugin exceptions have safe feedback.
+- Selected documented original generated `notes_add.png` (192×192 transparent,
+  45,800 bytes) for the live Create note control, key `notes.add`. It uses the
+  existing persistent resolver at 40 logical pixels / 120-pixel decode width.
+  Catalog format remains 1; pinned pack is now `presentation-m07-v1`, **4 PNGs /
+  479,916 bytes**. Old files keep their exact keys/paths/hashes/revisions. Required
+  download/repair behavior and the unconfigured production host remain intact.
+- Added textual loading, empty/no-match/error/retry states and reload after
+  failed actions. Dialog content AND actions scroll at narrow widths/large text
+  with the keyboard present; filters/dialogs add no transition animation. Both
+  paper/rendering policies retain the same functionality. Updated the feature
+  guide, README, architecture, asset, persistence and routing documentation.
+
+**Dependency/API evidence.** Checked the maintained
+[Markdown package documentation](https://pub.dev/packages/flutter_markdown_plus/versions/1.0.12)
+and [official url_launcher documentation](https://pub.dev/packages/url_launcher/versions/6.3.3)
+before adding exact runtime versions and reproducible lockfile entries. The
+launcher supports Android SDK 24+/iOS 13+ and Flutter 3.41/Dart 3.11; existing
+app floors Android 30/iOS 15 and Flutter 3.47.5/Dart 3.13.4 satisfy those bounds.
+Inspected resolved package builder/link APIs. No native query permission changes
+were needed; generated macOS registration gained the actual launcher plugin.
+
+**Verification and evidence.** Full machine-readable results, screenshot and
+final build SHA-256 digests are in
+[verification.json](docs/evidence/m07/verification.json). Routine tests used fresh
+scopes, disposable databases, synthetic writing and injected external boundaries.
+
+| Command / check | Result |
+| --- | --- |
+| `cd redkeep; dart run build_runner build`; `dart run drift_dev schema dump lib/core/storage/app_database.dart drift_schemas/`; `dart run drift_dev schema generate drift_schemas/ test/core/storage/generated/` | Generated current Drift code and schema 4 snapshot/helper; historical snapshots/helpers unchanged. |
+| `flutter pub get --enforce-lockfile` | Passed with exact new renderer/launcher dependencies; reproducible resolved lockfile. |
+| `dart format --output=none --set-exit-if-changed lib test tool` | Passed: **88 files, 0 changed**. |
+| `flutter analyze` | **No issues found**. |
+| `flutter test` | **155 tests passed**, including 120 keyword/tag/pin/trash combinations, literal SQL/wildcard characters, Unicode, stale metadata/drafts, rollback, background reopen, 2,000-note queries/lazy lists, complete-body editing, malformed Markdown/HTML, blocked/failed links, omitted images, long preview fallback, deleted routes and 120-pixel artwork decoding. Both themes/normal/simpler modes pass at 320×480, 3× text, safe areas and keyboard insets, including Notes organization/deletion dialogs. |
+| Fresh schema 4 and upgrades from 1/2/3 | Passed structural validation and preservation, including populated v3 active/trashed sources, exact Unicode text, source revisions and AUTOINCREMENT draft sequence. |
+| `dart run tool/validate_assets.dart assets/catalog/presentation-v1.json tool/assets/pack` | **4 PNGs, 479,916 bytes**, exact payload inventory/provenance/decode validation; no publication. |
+| `flutter build apk --debug --target-platform android-arm64 --dart-define=ASSET_BASE_URL=http://127.0.0.1:8765/ --dart-define=ASSET_ALLOW_LOCAL_FIXTURE=true` | Passed; final Gradle run **6.6s**. Explicit debug fixture configuration only; source production default remains unconfigured. |
+| `flutter build ios --simulator --debug` | Passed; Xcode **27.2 / 27B52**, **20.0s**. |
+| `python3 -m http.server 8765 --bind 127.0.0.1 --directory tool/assets/pack`; `adb -s emulator-5554 reverse tcp:8765 tcp:8765`; `adb ... install -r .../app-debug.apk`; force-stop/start and `uiautomator`/`input` | Existing **sdk gphone16k ARM64, Android 17/API 37**, debug installation gated on the new missing file; server saw exactly **one GET `/notes/add-v1.png` → 200**. Existing appearance/onboarding and M06 tombstone retained without a reset. |
+| Android UI synthetic writing/organization/preview | Created and committed a synthetic note, pinned and tagged it (revision 3). [Preview](docs/evidence/m07/android-preview.png) displayed heading/bold and omitted-image text. With airplane mode on, tapping its web link resumed **Chrome IntentDispatcher** via external launcher; no network page-load claim. |
+| Stop fixture; `cmd connectivity airplane-mode enable`; `svc wifi disable`; `svc data disable`; force-stop/start | Complete installation opened offline. [Combined filters](docs/evidence/m07/android-offline-filters.png) found the reopened note using keyword `lak`, normalized `travel` tag and pinned-only. [Trashed reader](docs/evidence/m07/android-trash-reader.png) hid the body; [restore](docs/evidence/m07/android-offline-restored.png) retained exact text, tags and pin (revision 5). |
+| Android deliberate delete and reopen | Trashed again, [typed `DELETE`](docs/evidence/m07/android-delete-confirmation.png), pressed Delete permanently, force-stopped/reopened offline. New synthetic note absent from Saved and Trash; [older M06 tombstone remains](docs/evidence/m07/android-offline-deleted-reopened.png), proving no collection reset. Network restored to airplane=0, Wi-Fi=1, data=1; reverse mapping removed and fixture server stopped. |
+| `xcrun simctl install booted .../Runner.app`; `xcrun simctl launch --terminate-running-process booted com.lewiseman.redkeep` | **iPhone 17 Pro ARM64 / iOS 26.5 (23F77)** simulator: [required gate](docs/evidence/m07/ios-required-artwork-gate.png) detected missing new artwork. Staged only the exact Notes PNG in app support, then relaunched without fixture server; [local verification/adoption reached welcome](docs/evidence/m07/ios-local-pack-adopted.png). This is not an iOS HTTP-download or writing/browser journey claim. |
+| Root `git diff --check`; native/historical-schema `git diff --exit-code` | Passed. Native configuration/artwork and historical v1–3 snapshots/helpers unchanged; only expected generated macOS launcher registration changed. `raw_assets/` not accessed; no raw hash claim. |
+
+**Limitations and boundary.** Search/preview bounds are explicit above and in the
+feature guide. Host/emulator collection and widget checks do not establish
+physical low-end frame/memory performance. Physical-device accessibility/IME,
+minimum-OS hardware, native iOS note writing/browser interaction, release/signing,
+native full-disk/power-loss/directory-fsync and OS process restoration remain
+unverified. Recovery during failed storage writes remains subject to M06's
+in-memory limitation. M04's real production HTTPS hosting/publication prerequisite
+and M03's AI qualification gaps are unchanged.
+
+**M07 is complete within its selected scope. Next eligible phase: M08 — Diary.
+M08 and every later implementation phase remain unstarted. Stop here.**

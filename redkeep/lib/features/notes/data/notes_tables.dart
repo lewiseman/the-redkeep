@@ -8,6 +8,7 @@ class Notes extends Table {
       integer().customConstraint('NOT NULL CHECK (revision > 0)')();
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
+  BoolColumn get pinned => boolean().withDefault(const Constant(false))();
   IntColumn get deletedAt => integer().nullable()();
 
   @override
@@ -26,4 +27,11 @@ class NoteDrafts extends Table {
   // again. This also prevents an older editor from clearing a replacement draft.
   IntColumn get draftRevision => integer().autoIncrement()();
   IntColumn get updatedAt => integer()();
+}
+
+class NoteTags extends Table {
+  TextColumn get noteId => text().references(Notes, #id)();
+  TextColumn get tag => text().withLength(min: 1, max: 40)();
+  @override
+  Set<Column> get primaryKey => {noteId, tag};
 }

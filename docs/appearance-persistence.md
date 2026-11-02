@@ -21,7 +21,8 @@ appearance data. The primary key/check permits
 one row (`id = 1`); theme and boolean values have SQL constraints. A missing row
 means defaults and does not seed a record. Saving upserts the full snapshot.
 `drift_schemas/drift_schema_v1.json` and generated schema helpers preserve the
-initial structure. Current schema **3** adds [Notes and recovery drafts](notes-writing.md)
+initial structure. Current schema **4** adds note pins/tags with preserved writing
+and draft-token migrations. Schema **3** adds [Notes and recovery drafts](notes-writing.md)
 in M06 and preserves appearance and onboarding. Later consumers extend this
 same database with tested migrations. Never reset/delete storage to repair
 preferences. Generation commands are in the [README](../README.md).
@@ -82,7 +83,7 @@ Run the checks in the [README](../README.md). Tests mirror production under
 `redkeep/test/features/appearance`, `test/core`, and `test/app`. Widget/controller
 tests use fresh scopes and fake repositories, never app-owned storage. Repository
 tests use synthetic preferences and disposable SQLite files, including background
-executor close/reopen. Fresh schema 3 is compared against its snapshot; migrations from versions 1 and 2
+executor close/reopen. Current schema 4 is compared against its snapshot; migrations from versions 1, 2 and 3
 check saved themes, reduction/effects values and onboarding. Historical snapshots
 are retained. Every future upgrade needs migration and preserved data checks.
 

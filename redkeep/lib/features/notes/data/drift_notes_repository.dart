@@ -3,6 +3,7 @@ import 'package:drift/drift.dart';
 import '../../../core/storage/app_database.dart';
 import '../domain/note_document.dart';
 import '../domain/notes_repository.dart';
+import '../domain/notes_query.dart';
 
 class DriftNotesRepository implements NotesRepository {
   DriftNotesRepository(this._db, {required this._clock});
@@ -14,13 +15,51 @@ class DriftNotesRepository implements NotesRepository {
   }
 
   @override
-  Stream<List<NoteListing>> watchNotes() => _db
+  Stream<List<NoteListing>> watchNotes({
+    NotesQuery query = const NotesQuery(),
+  }) {
+    final conditions = <String>[
+      query.trash ? 'deleted_at IS NOT NULL' : 'deleted_at IS NULL',
+    ];
+    final variables = <Variable>[];
+    if (query.pinnedOnly) conditions.add('pinned = 1');
+    if (query.tag != null) {
+      conditions.add(
+        'EXISTS (SELECT 1 FROM note_tags WHERE note_id = notes.id AND tag = ?)',
+      );
+      variables.add(Variable.withString(query.tag!));
+    }
+    for (final token
+        in query.search
+            .trim()
+            .split(RegExp(r'\s+'))
+            .where((t) => t.isNotEmpty)) {
+      conditions.add(
+        '(instr(lower(title), lower(?)) > 0 OR instr(lower(body), lower(?)) > 0)',
+      );
+      variables.addAll([
+        Variable.withString(token),
+        Variable.withString(token),
+      ]);
+    }
+    return _db
+        .customSelect(
+          'SELECT id, title, revision, updated_at, pinned FROM notes WHERE ${conditions.join(' AND ')} ORDER BY pinned DESC, updated_at DESC, id',
+          variables: variables,
+          readsFrom: {_db.notes, _db.noteTags},
+        )
+        .watch()
+        .map((rows) => rows.map((r) => _listing(r, 'revision')).toList());
+  }
+
+  @override
+  Stream<List<String>> watchTags({bool trash = false}) => _db
       .customSelect(
-        'SELECT id, title, revision, updated_at FROM notes WHERE deleted_at IS NULL ORDER BY updated_at DESC, id',
-        readsFrom: {_db.notes},
+        'SELECT DISTINCT tag FROM note_tags JOIN notes ON notes.id = note_id WHERE ${trash ? 'deleted_at IS NOT NULL' : 'deleted_at IS NULL'} ORDER BY tag',
+        readsFrom: {_db.notes, _db.noteTags},
       )
       .watch()
-      .map((rows) => rows.map((r) => _listing(r, 'revision')).toList());
+      .map((rows) => rows.map((r) => r.read<String>('tag')).toList());
 
   @override
   Stream<List<NoteListing>> watchDrafts() => _db
@@ -35,6 +74,7 @@ class DriftNotesRepository implements NotesRepository {
     id: row.read<String>('id'),
     title: row.read<String>('title'),
     revision: row.read<int>(revision),
+    pinned: row.data['pinned'] == 1,
     updatedAt: DateTime.fromMillisecondsSinceEpoch(
       row.read<int>('updated_at'),
       isUtc: true,
@@ -44,11 +84,22 @@ class DriftNotesRepository implements NotesRepository {
   @override
   Stream<OpenNote> watchDocument(String id) {
     _validate(id);
-    // A joined query invalidates on both tables and emits consistent snapshots.
-    final query = _db.select(_db.notes).join([
-      leftOuterJoin(_db.noteDrafts, _db.noteDrafts.id.equalsExp(_db.notes.id)),
-    ])..where(_db.notes.id.equals(id));
-    return query.watch().asyncMap((_) => openDocument(id));
+    // Observe tokens/metadata only: joining tags to document bodies would send
+    // a copy of a large body per tag across the database isolate.
+    return _db
+        .customSelect(
+          'SELECT (SELECT revision FROM notes WHERE id = ?) AS source_revision, '
+          '(SELECT draft_revision FROM note_drafts WHERE id = ?) AS draft_revision, '
+          '(SELECT group_concat(tag) FROM note_tags WHERE note_id = ?) AS tags',
+          variables: [
+            Variable.withString(id),
+            Variable.withString(id),
+            Variable.withString(id),
+          ],
+          readsFrom: {_db.notes, _db.noteDrafts, _db.noteTags},
+        )
+        .watch()
+        .asyncMap((_) => openDocument(id));
   }
 
   @override
@@ -61,8 +112,15 @@ class DriftNotesRepository implements NotesRepository {
       final draft = await (_db.select(
         _db.noteDrafts,
       )..where((r) => r.id.equals(id))).getSingleOrNull();
+      final tags =
+          await (_db.select(_db.noteTags)
+                ..where((r) => r.noteId.equals(id))
+                ..orderBy([(r) => OrderingTerm.asc(r.tag)]))
+              .get();
       return OpenNote(
-        note: note == null ? null : _note(note),
+        note: note == null
+            ? null
+            : _note(note, tags.map((t) => t.tag).toList()),
         draft: draft == null ? null : _draft(draft),
       );
     });
@@ -161,6 +219,8 @@ class DriftNotesRepository implements NotesRepository {
         revision: revision,
         createdAt: old?.createdAt ?? now,
         updatedAt: now,
+        pinned: old?.pinned ?? false,
+        tags: old?.tags ?? const [],
       );
     });
   }
@@ -187,6 +247,94 @@ class DriftNotesRepository implements NotesRepository {
   }
 
   @override
+  Future<void> organize(
+    String id,
+    int expectedRevision, {
+    required bool pinned,
+    required List<String> tags,
+  }) async {
+    _validate(id);
+    final normalized =
+        tags
+            .map((t) => t.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase())
+            .where((t) => t.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort();
+    if (normalized.length > 24 ||
+        normalized.any((t) => t.length > 40 || t.contains(','))) {
+      throw const NoteException(NoteFailure.invalidTags);
+    }
+    await _db.transaction(() async {
+      final count =
+          await (_db.update(_db.notes)..where(
+                (r) =>
+                    r.id.equals(id) &
+                    r.revision.equals(expectedRevision) &
+                    r.deletedAt.isNull(),
+              ))
+              .write(
+                NotesCompanion(
+                  pinned: Value(pinned),
+                  revision: Value(expectedRevision + 1),
+                  updatedAt: Value(_clock().toUtc().millisecondsSinceEpoch),
+                ),
+              );
+      if (count != 1) throw const NoteException(NoteFailure.staleRevision);
+      await (_db.delete(_db.noteTags)..where((r) => r.noteId.equals(id))).go();
+      for (final tag in normalized) {
+        await _db
+            .into(_db.noteTags)
+            .insert(NoteTagsCompanion.insert(noteId: id, tag: tag));
+      }
+    });
+  }
+
+  @override
+  Future<void> restoreNote(String id, int expectedRevision) async {
+    _validate(id);
+    final count =
+        await (_db.update(_db.notes)..where(
+              (r) =>
+                  r.id.equals(id) &
+                  r.revision.equals(expectedRevision) &
+                  r.deletedAt.isNotNull(),
+            ))
+            .write(
+              NotesCompanion(
+                deletedAt: const Value(null),
+                revision: Value(expectedRevision + 1),
+                updatedAt: Value(_clock().toUtc().millisecondsSinceEpoch),
+              ),
+            );
+    if (count != 1) throw const NoteException(NoteFailure.staleRevision);
+  }
+
+  @override
+  Future<void> permanentlyDelete(
+    String id,
+    int expectedRevision, {
+    required int? expectedDraftRevision,
+  }) async {
+    _validate(id);
+    await _db.transaction(() async {
+      final snapshot = await openDocument(id);
+      if (snapshot.note?.deletedAt == null ||
+          snapshot.note!.revision != expectedRevision) {
+        throw const NoteException(NoteFailure.staleRevision);
+      }
+      if (snapshot.draft?.draftRevision != expectedDraftRevision) {
+        throw const NoteException(NoteFailure.draftChanged);
+      }
+      if (expectedDraftRevision != null) {
+        await discardDraft(id, expectedDraftRevision);
+      }
+      await (_db.delete(_db.noteTags)..where((r) => r.noteId.equals(id))).go();
+      await (_db.delete(_db.notes)..where((r) => r.id.equals(id))).go();
+    });
+  }
+
+  @override
   Future<void> discardDraft(String id, int expectedDraftRevision) async {
     _validate(id);
     final count =
@@ -199,10 +347,12 @@ class DriftNotesRepository implements NotesRepository {
     if (count != 1) throw const NoteException(NoteFailure.draftChanged);
   }
 
-  NoteDocument _note(Note r) => NoteDocument(
+  NoteDocument _note(Note r, List<String> tags) => NoteDocument(
     id: r.id,
     text: PlainTextDocument(title: r.title, body: r.body),
     revision: r.revision,
+    pinned: r.pinned,
+    tags: List.unmodifiable(tags),
     createdAt: DateTime.fromMillisecondsSinceEpoch(r.createdAt, isUtc: true),
     updatedAt: DateTime.fromMillisecondsSinceEpoch(r.updatedAt, isUtc: true),
     deletedAt: r.deletedAt == null

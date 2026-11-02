@@ -31,6 +31,8 @@ class FakeRequiredAssets implements RequiredAssets {
 
   @override
   Future<Uri> resolve(String key) async => Directory.current.uri.resolve(
-    'tool/assets/pack/appearance/theme-${key.split('.').last}-v1.png',
+    key == 'notes.add'
+        ? 'tool/assets/pack/notes/add-v1.png'
+        : 'tool/assets/pack/appearance/theme-${key.split('.').last}-v1.png',
   );
 }

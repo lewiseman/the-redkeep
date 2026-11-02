@@ -7,6 +7,9 @@ import '../../../app/navigation_destination.dart';
 import '../../../core/presentation/paper_surface.dart';
 import '../application/notes_providers.dart';
 import '../domain/note_document.dart';
+import '../application/note_editor_controller.dart';
+import 'note_markdown_preview.dart';
+import 'note_action_dialog.dart';
 
 class NoteReadPage extends ConsumerStatefulWidget {
   const NoteReadPage({super.key, required this.id});
@@ -17,6 +20,7 @@ class NoteReadPage extends ConsumerStatefulWidget {
 
 class _NoteReadPageState extends ConsumerState<NoteReadPage> {
   String? _error;
+  bool _preview = false;
   @override
   Widget build(BuildContext context) {
     final opened = ref.watch(noteDocumentProvider(widget.id));
@@ -48,6 +52,26 @@ class _NoteReadPageState extends ConsumerState<NoteReadPage> {
                   const Text(
                     'This note has not been saved, is missing, or was deleted.',
                   ),
+                  if (note?.deletedAt != null) ...[
+                    const Text(
+                      'This note is in Trash. Restore it to read or edit the saved text.',
+                    ),
+                    OutlinedButton(
+                      onPressed: busy
+                          ? null
+                          : () => _act(
+                              () => ref
+                                  .read(notesActionsProvider.notifier)
+                                  .restore(note!),
+                            ),
+                      child: const Text('Restore note'),
+                    ),
+                    OutlinedButton(
+                      onPressed: busy ? null : () => _permanentlyDelete(value),
+                      child: const Text('Delete forever'),
+                    ),
+                  ],
+                  if (_error != null) _failure(),
                   if (value.draft != null)
                     OutlinedButton(
                       onPressed: () =>
@@ -85,26 +109,66 @@ class _NoteReadPageState extends ConsumerState<NoteReadPage> {
                       ),
                     ),
                     OutlinedButton(
+                      onPressed: busy || value.draft != null
+                          ? null
+                          : () => _act(
+                              () => ref
+                                  .read(notesActionsProvider.notifier)
+                                  .organize(
+                                    note,
+                                    pinned: !note.pinned,
+                                    tags: note.tags,
+                                  ),
+                            ),
+                      child: Text(note.pinned ? 'Unpin note' : 'Pin note'),
+                    ),
+                    OutlinedButton(
+                      onPressed: busy || value.draft != null
+                          ? null
+                          : () => _tags(note),
+                      child: const Text('Edit tags'),
+                    ),
+                    OutlinedButton(
+                      onPressed: () => setState(() => _preview = !_preview),
+                      child: Text(
+                        _preview ? 'Show plain text' : 'Markdown preview',
+                      ),
+                    ),
+                    OutlinedButton(
                       onPressed: busy ? null : () => _delete(note),
                       child: const Text('Delete note'),
                     ),
                   ],
                 ),
+                if (note.tags.isNotEmpty)
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      for (final tag in note.tags) Chip(label: Text(tag)),
+                    ],
+                  ),
+                if (note.pinned) const Text('Pinned'),
                 if (value.draft != null)
                   const Padding(
                     padding: EdgeInsets.only(top: 12),
                     child: Text(
-                      'A separate recovery draft is available. This is the committed version.',
+                      'A separate recovery draft is available. This is the committed version. Save or discard the draft before changing tags or pinning.',
                     ),
                   ),
-                if (_error != null)
-                  Semantics(liveRegion: true, child: Text(_error!)),
+                if (_error != null) _failure(),
                 const SizedBox(height: 24),
-                SelectableText(
-                  note.text.body.isEmpty
-                      ? 'This note is empty.'
-                      : note.text.body,
-                ),
+                if (_preview)
+                  NoteMarkdownPreview(
+                    key: ValueKey(note.revision),
+                    text: note.text.body,
+                  )
+                else
+                  SelectableText(
+                    note.text.body.isEmpty
+                        ? 'This note is empty.'
+                        : note.text.body,
+                  ),
               ],
             ),
           );
@@ -113,14 +177,82 @@ class _NoteReadPageState extends ConsumerState<NoteReadPage> {
     );
   }
 
+  Widget _failure() => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Semantics(liveRegion: true, child: Text(_error!)),
+      OutlinedButton(
+        onPressed: () {
+          setState(() => _error = null);
+          ref.invalidate(noteDocumentProvider(widget.id));
+        },
+        child: const Text('Reload note'),
+      ),
+    ],
+  );
+
+  Future<void> _act(Future<void> Function() action) async {
+    setState(() => _error = null);
+    try {
+      await action();
+    } catch (error) {
+      if (mounted) {
+        setState(
+          () => _error =
+              error is NoteException && error.failure == NoteFailure.invalidTags
+              ? 'Use up to 24 tags, each at most 40 characters, separated by commas.'
+              : 'This change could not be saved or the note changed. Your writing is kept. Reload and try again.',
+        );
+      }
+    }
+  }
+
+  Future<void> _tags(NoteDocument note) async {
+    final tags = await showDialog<List<String>>(
+      context: context,
+      animationStyle: AnimationStyle.noAnimation,
+      builder: (_) => _TagsDialog(note: note),
+    );
+    if (tags == null || !mounted) return;
+    await _act(
+      () => ref
+          .read(notesActionsProvider.notifier)
+          .organize(note, pinned: note.pinned, tags: tags),
+    );
+  }
+
+  Future<void> _permanentlyDelete(OpenNote snapshot) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      animationStyle: AnimationStyle.noAnimation,
+      builder: (_) => const _PermanentDeleteDialog(),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _error = null);
+    try {
+      await ref
+          .read(notesActionsProvider.notifier)
+          .permanentlyDelete(snapshot.note!, snapshot.draft?.draftRevision);
+      if (!mounted) return;
+      ref.invalidate(noteEditorProvider(widget.id));
+      context.go(AppDestination.notes.location);
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => _error = 'Permanent deletion failed or the note or recovery draft changed. Everything is kept. Reload and review again.',
+        );
+      }
+    }
+  }
+
   Future<void> _delete(NoteDocument note) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        scrollable: true,
+      animationStyle: AnimationStyle.noAnimation,
+      builder: (context) => NoteActionDialog(
         title: const Text('Delete this note?'),
         content: const Text(
-          'The note will leave your saved list. Its text and any recovery draft are retained on this device. Trash controls are not available yet.',
+          'The note will move to Trash and leave saved lists and search. Its text, tags, pin and recovery draft stay on this device until you choose Delete forever.',
         ),
         actions: [
           TextButton(
@@ -146,4 +278,95 @@ class _NoteReadPageState extends ConsumerState<NoteReadPage> {
       }
     }
   }
+}
+
+class _TagsDialog extends StatefulWidget {
+  const _TagsDialog({required this.note});
+  final NoteDocument note;
+  @override
+  State<_TagsDialog> createState() => _TagsDialogState();
+}
+
+class _TagsDialogState extends State<_TagsDialog> {
+  late final _tags = TextEditingController(text: widget.note.tags.join(', '));
+  @override
+  void dispose() {
+    _tags.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => NoteActionDialog(
+    title: const Text('Edit tags'),
+    content: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text(
+          'Separate tags with commas. Tags use lowercase; up to 24 tags, 40 characters each. Save or discard unfinished writing before changing tags or pinning.',
+        ),
+        TextField(
+          key: const ValueKey('note-tags'),
+          controller: _tags,
+          maxLines: null,
+          decoration: const InputDecoration(labelText: 'Tags'),
+        ),
+      ],
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(
+        onPressed: () => Navigator.pop(context, _tags.text.split(',')),
+        child: const Text('Save tags'),
+      ),
+    ],
+  );
+}
+
+class _PermanentDeleteDialog extends StatefulWidget {
+  const _PermanentDeleteDialog();
+  @override
+  State<_PermanentDeleteDialog> createState() => _PermanentDeleteDialogState();
+}
+
+class _PermanentDeleteDialogState extends State<_PermanentDeleteDialog> {
+  final _confirmation = TextEditingController();
+  @override
+  void dispose() {
+    _confirmation.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => NoteActionDialog(
+    title: const Text('Permanently delete this note?'),
+    content: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text(
+          'This removes the saved text, tags and current recovery draft from this device. It cannot be restored. Type DELETE to confirm.',
+        ),
+        TextField(
+          key: const ValueKey('delete-confirmation'),
+          controller: _confirmation,
+          decoration: const InputDecoration(labelText: 'Type DELETE'),
+          onChanged: (_) => setState(() {}),
+        ),
+      ],
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context, false),
+        child: const Text('Keep in Trash'),
+      ),
+      FilledButton(
+        onPressed: _confirmation.text == 'DELETE'
+            ? () => Navigator.pop(context, true)
+            : null,
+        child: const Text('Delete permanently'),
+      ),
+    ],
+  );
 }

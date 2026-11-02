@@ -5,11 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:redkeep/app/navigation_destination.dart';
+import 'package:redkeep/app/app_router.dart';
 import 'package:redkeep/core/storage/app_database.dart';
 import 'package:redkeep/features/appearance/domain/appearance_preferences.dart';
 import 'package:redkeep/features/notes/application/note_editor_controller.dart';
 import 'package:redkeep/features/notes/data/drift_notes_repository.dart';
 import 'package:redkeep/features/notes/domain/note_document.dart';
+import 'package:redkeep/features/notes/application/notes_providers.dart';
+import 'package:redkeep/features/notes/domain/notes_query.dart';
 
 import '../../support/controlled_notes_repository.dart';
 import '../../support/fake_appearance_repository.dart';
@@ -229,6 +232,11 @@ void main() {
       repo.failRead = true;
       await tester.pumpWidget(const SizedBox());
       await pumpApp(tester, initialLocation: '/notes', notes: repo);
+      await tester.scrollUntilVisible(
+        find.text('Notes could not be loaded.'),
+        200,
+        scrollable: find.byType(Scrollable).last,
+      );
       expect(find.text('Notes could not be loaded.'), findsOneWidget);
       repo.failRead = false;
       while (find.text('Retry loading').evaluate().isNotEmpty) {
@@ -278,6 +286,17 @@ void main() {
           router.go(noteLocation(id));
           await tester.pumpAndSettle();
           expect(find.text('Saved revision 1'), findsOneWidget);
+          await tap(tester, 'Markdown preview');
+          expect(tester.takeException(), isNull);
+          await tap(tester, 'Show plain text');
+          await tap(tester, 'Edit tags');
+          await tester.enterText(
+            find.byKey(const ValueKey('note-tags')),
+            '工作, travel',
+          );
+          await tap(tester, 'Cancel');
+          await tap(tester, 'Delete note');
+          await tap(tester, 'Keep note');
           expect(tester.takeException(), isNull);
           router.go(noteLocation(id, edit: true));
           await tester.pumpAndSettle();
@@ -431,4 +450,155 @@ void main() {
       'Memory retained across platform navigation',
     );
   });
+  noteTest(
+    'pin, tags, combined filters and explicit trash restoration/deletion',
+    (tester) async {
+      await seed();
+      final router = await pumpApp(
+        tester,
+        initialLocation: noteLocation(id),
+        notes: repo,
+      );
+      await tap(tester, 'Pin note');
+      expect((await repo.openDocument(id)).note!.pinned, isTrue);
+      await tap(tester, 'Edit tags');
+      await tester.enterText(
+        find.byKey(const ValueKey('note-tags')),
+        ' Travel, TRAVEL, 工作',
+      );
+      await tap(tester, 'Save tags');
+      expect((await repo.openDocument(id)).note!.tags, ['travel', '工作']);
+      router.go('/notes');
+      await tester.pumpAndSettle();
+      await tap(tester, 'Search and filters');
+      await tester.enterText(
+        find.byKey(const ValueKey('notes-search')),
+        'synthetic',
+      );
+      await tap(tester, 'Pinned only');
+      final dropdown = find.byType(DropdownButtonFormField<String>);
+      await tester.ensureVisible(dropdown);
+      await tester.tap(dropdown);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('travel').last);
+      await tester.pumpAndSettle();
+      expect(tester.container().read(notesFilterProvider).tag, 'travel');
+      await tester.scrollUntilVisible(
+        find.text('Synthetic note'),
+        200,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tap(tester, 'Synthetic note');
+      await tap(tester, 'Delete note');
+      await tap(tester, 'Delete');
+      await tester.scrollUntilVisible(
+        find.text('No notes match these filters.'),
+        200,
+        scrollable: find.byType(Scrollable).last,
+      );
+      router.go(noteLocation(id));
+      await tester.pumpAndSettle();
+      expect(find.text('Note unavailable'), findsOneWidget);
+      expect(
+        find.text('Synthetic writing 👩🏽‍💻 العربية e\u0301'),
+        findsNothing,
+      );
+      await tap(tester, 'Restore note');
+      expect(find.text('Note unavailable'), findsNothing);
+      expect((await repo.openDocument(id)).note!.tags, ['travel', '工作']);
+      await tap(tester, 'Delete note');
+      await tap(tester, 'Delete');
+      tester
+          .container()
+          .read(notesFilterProvider.notifier)
+          .set(const NotesQuery(trash: true));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.text('Synthetic note'),
+        200,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tap(tester, 'Synthetic note');
+      await tap(tester, 'Delete forever');
+      final delete = find.widgetWithText(FilledButton, 'Delete permanently');
+      expect(tester.widget<FilledButton>(delete).onPressed, isNull);
+      await tester.enterText(
+        find.byKey(const ValueKey('delete-confirmation')),
+        'delete',
+      );
+      expect(tester.widget<FilledButton>(delete).onPressed, isNull);
+      await tap(tester, 'Keep in Trash');
+      expect((await repo.openDocument(id)).note, isNotNull);
+      await tap(tester, 'Delete forever');
+      await tester.enterText(
+        find.byKey(const ValueKey('delete-confirmation')),
+        'DELETE',
+      );
+      await tester.pumpAndSettle();
+      await tap(tester, 'Delete permanently');
+      expect((await repo.openDocument(id)).note, isNull);
+      expect(router.routeInformationProvider.value.uri.path, '/notes');
+      router.go(noteLocation(id, edit: true));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Editor unavailable'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  noteTest('artwork uses a bounded file decode and large lists build lazily', (
+    tester,
+  ) async {
+    await db.transaction(() async {
+      for (var i = 1; i <= 2000; i++) {
+        await db.customStatement(
+          'INSERT INTO notes (id, title, body, revision, created_at, updated_at) VALUES (?, ?, ?, 1, 0, ?)',
+          [i.toRadixString(16).padLeft(32, '0'), 'Synthetic $i', 'Body', i],
+        );
+      }
+    });
+    await pumpApp(tester, initialLocation: '/notes', notes: repo);
+    final art = tester.widgetList<Image>(find.byType(Image)).single;
+    expect(art.image, isA<ResizeImage>());
+    expect((art.image as ResizeImage).width, 120);
+    expect(find.byType(ListTile).evaluate().length, lessThan(20));
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -700));
+    await tester.pumpAndSettle();
+    expect(find.byType(ListTile).evaluate().length, lessThan(30));
+    expect(tester.takeException(), isNull);
+  });
+  noteTest(
+    'restore remains available with recovery writing; permanent deletion removes reviewed draft',
+    (tester) async {
+      await seed();
+      await repo.putDraft(
+        id: id,
+        text: const PlainTextDocument(
+          body: 'Retain recovery until deliberate deletion',
+        ),
+        baseRevision: 1,
+        expectedDraftRevision: null,
+      );
+      await repo.deleteNote(id, 1);
+      await pumpApp(tester, initialLocation: noteLocation(id), notes: repo);
+      await tap(tester, 'Restore note');
+      expect((await repo.openDocument(id)).available, isTrue);
+      expect(
+        (await repo.openDocument(id)).draft!.text.body,
+        'Retain recovery until deliberate deletion',
+      );
+      await tap(tester, 'Delete note');
+      await tap(tester, 'Delete');
+      tester.container().read(appRouterProvider).go(noteLocation(id));
+      await tester.pumpAndSettle();
+      await tap(tester, 'Delete forever');
+      await tester.enterText(
+        find.byKey(const ValueKey('delete-confirmation')),
+        'DELETE',
+      );
+      await tester.pumpAndSettle();
+      await tap(tester, 'Delete permanently');
+      expect((await repo.openDocument(id)).note, isNull);
+      expect((await repo.openDocument(id)).draft, isNull);
+    },
+  );
 }

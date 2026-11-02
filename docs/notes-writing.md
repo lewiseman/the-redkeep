@@ -1,115 +1,177 @@
-# Notes: writing and recovery
+# Notes: writing, organization and recovery
 
-M06 adds `/notes`, `/notes/:id` and `/notes/:id/edit`. Home links to Notes and
-Appearance, both usable destinations. Notes are plain text; Markdown preview,
-search, tags, pinning, note artwork and trash controls belong to M07. Existing
-paper surfaces, system fonts and rendering policy apply without a new media
-download or dependency. No production writing is seeded.
+M06 introduced `/notes`, `/notes/:id` and `/notes/:id/edit`; M07 adds keyword
+search, tags, pins, Trash, restore, deliberate permanent deletion and an optional
+Markdown preview of committed writing. Editing and recovery remain plain text.
+No production writing is seeded. Notes uses the existing Riverpod, go_router,
+background Drift database, paper surfaces and rendering policy.
 
-## Ownership and storage
+## Ownership and persistence
 
-`features/notes/domain` owns immutable `PlainTextDocument`, `NoteDocument`,
-`RecoveryDraft`, metadata-only listings and `NotesRepository`. Presentation uses
-the application document editor/controller, never Drift rows or a collaborative
-document type. The ID and wall clock are injected through Riverpod. IDs are 128
-random bits represented as 32 lowercase hex characters; revisions, rather than
-timestamps, decide whether writing is current. Unicode is stored without
-normalization or Markdown transformation. There is no application body limit.
+`features/notes/domain` owns `PlainTextDocument`, `NoteDocument`, `RecoveryDraft`,
+metadata-only `NoteListing`, `NotesQuery`, `NotesRepository` and the injected
+`NoteLinkLauncher`. Views use the document/editor boundary rather than Drift
+rows. Clock and 128-bit lowercase hex IDs are injected. Unicode is stored
+exactly, without normalization or Markdown transformation. There is no stored
+body limit. Revisions decide freshness; timestamps determine list order.
 
-The existing background `redkeep.sqlite` is the sole primary database. Schema
-**3** adds `notes` and `note_drafts`; upgrades from both 1 and 2 preserve all
-appearance settings and the existing onboarding marker. Historical schema
-snapshots remain checked in. No importer, fixture insert, AI, network, index or
-sync work is part of note access.
+The same background `redkeep.sqlite` is now schema **4**. It adds a false-by-default
+`notes.pinned` column and `note_tags` with a `(note_id, tag)` primary key. Versions
+1–3 migrate without changing appearance, onboarding, source text, timestamps,
+tombstones, revisions or recovery draft tokens. Historical snapshots are retained.
+No importer, embedding/index queue, model, network or sync is needed for writing.
 
-A note has a stable ID, title/body, positive source revision, creation/update
-times and nullable deletion time. Creation commits revision 1; edits and deletion
-increment it. Deletion retains the complete text and timestamps for M07 restore.
-It excludes the source from saved lists and ordinary reading. It does not remove
-an outstanding recovery draft. There is no restore or permanent-delete UI yet.
+Sources start at revision 1. Text commits, organization, trash and restore each
+advance the revision. Organization replaces tags and pin state atomically under
+the captured revision; text edits preserve them. Tags are trimmed, internal
+whitespace collapsed, lowercased, deduplicated and sorted. The repository accepts
+up to 24 tags, each at most 40 UTF-16 code units; commas separate tags in the UI.
+Invalid input or failed/stale writes leave the old source and drafts intact.
+The reader asks users to save or discard recovery writing before organizing it;
+concurrent organization still makes an older draft stale and recoverable as a copy.
 
-A draft has the note ID, exact title/body, captured base revision (0 for a new
-note), update time and a compare-and-swap token. SQLite AUTOINCREMENT supplies
-tokens that cannot be reused after commit/discard. Replacing a draft checks its
-previous token and base revision in a transaction; another editor's recovery
-writing cannot silently be overwritten. Lists select metadata without bodies and
-render lazily. Document observations include changes to both source and draft.
+## Search and lists
 
-## Editing, commit and recovery
+**Search and filters** expands without animation. Space-separated keyword tokens
+are literal substrings in committed title/body. Every token must match either
+field; tag, pinned-only and Saved/Trash filters also combine with AND. `%`, `_`
+and SQL punctuation are ordinary text, passed through query parameters. SQLite
+folds ASCII case; other scripts match exactly. This is local substring search,
+without stemming, Unicode case folding or semantic retrieval. The search input
+allows 256 code units. An exact normalized tag can be selected, and filters can
+be cleared while keeping the current Saved/Trash collection.
 
-**Create note** first persists an empty recovery draft, then opens its ID-based
-editor. Creation failure stays on the list with retry guidance. Each text change
-updates the working buffer immediately and queues a background recovery write.
-Changes during a write coalesce to the latest buffer; writes run serially. There
-is no debounce window. A recovered draft always opens before committed text.
+Saved lists/search and tag choices exclude trashed sources. Trash has its own
+matching tag choices. Pinned notes come first, then newest updated timestamp,
+then stable ID. Queries return metadata without bodies; list tiles build lazily.
+Document streams observe revision/draft tokens and tags before reading one
+transactional document snapshot, avoiding a body copy per tag. Recovery drafts
+remain a separate, explicitly unfiltered list. Filters live in the provider scope
+and survive a reader visit; they are not persisted across app restarts.
 
-Recovery feedback distinguishes **Keeping recovery draft…**, a draft kept on
-the device, a failed recovery write, and an explicitly committed save. A recovery
-draft is not presented as a committed note. **Save note** flushes the latest
-buffer, checks the draft token and captured source revision, writes the source,
-and removes only that draft in one transaction. **Saved revision N on this
-device** appears only after the transaction resolves successfully. The editor
-disables edits and overlapping actions during commit. **Read committed note**
-shows the authoritative saved text and identifies a separate unfinished draft.
+Loading uses textual status; empty collections, no matches and failures have
+specific messages. Lists/tags/readers provide retries, and failed actions offer
+**Reload note**. Failures never expose raw exceptions or file paths.
 
-Failed note writes, stale sources and failed cleanup roll back without clearing
-the draft. If the source changed or was deleted, the user can explicitly **Save
-a copy** under a new ID; both the source and original draft are retained. If a
-copy's commit fails after its draft was persisted, that draft is also available
-in Recovery drafts. A changed draft token blocks overwriting that other draft;
-the current in-memory buffer can still be saved as a copy.
+## Commit and recovery
 
-Back navigation waits for an outstanding recovery write. A failed recovery write
-keeps the editor open with retry/copy actions. A failed buffer is also retained
-within the current provider scope if a new platform destination bypasses normal
-back navigation. Ordinary navigation after durable recovery may leave the editor
-without a prompt; Notes exposes a recovery entry for reopening. Switching IDs
-creates a separate presentation buffer. **Discard draft** requires confirmation,
-checks its token and removes only recovery writing, keeping any committed note.
-**Delete note** requires a separate confirmation and source revision check.
+**Create note** persists an empty recovery draft before opening its ID editor.
+Every edit updates the buffer and queues serialized, coalesced recovery writes,
+without a debounce window. Drafts hold exact text, captured base revision (0 for
+a new source), time and an AUTOINCREMENT compare-and-swap token. They can exist
+without a source. A replaced/discarded token is never reused.
 
-Recovery persistence is asynchronous. If SQLite cannot write, the latest buffer
-is only in memory until retry or a copy succeeds; process termination in that
-state can lose changes newer than the last durable draft. The UI reports this
-failure and never claims it was saved. No app can guarantee a successful write
-to unavailable/full storage. Native power-loss/fsync and OS process-restoration
-guarantees are not claimed. Process reopening finds drafts through the Notes
-list; a stable editor URI can also reopen one directly.
+A recovered draft opens before committed text. Feedback distinguishes recovery
+in progress, durable recovery, failed recovery and an explicitly committed save.
+**Save note** flushes the latest buffer, checks the source revision and draft
+token, commits the source and removes precisely that draft in one transaction.
+**Saved revision N on this device** appears only after success. Overlapping
+commits and edits during commit are disabled. **Read committed note** identifies
+any separate unfinished draft.
 
-## Routes and accessibility
+Failed/stale writes and failed cleanup roll back. **Save a copy** gives changed
+or deleted-source writing a new ID without silently clearing its original draft.
+A failed copy with an installed draft also remains recoverable. **Discard draft**
+requires confirmation and checks its token, preserving committed writing.
 
-The navigation boundary accepts only the exact Notes paths and lowercase hex
-IDs, without query/fragment/extra segments. Invalid IDs use the shared safe
-fallback; valid missing/deleted IDs show **Note unavailable** and a return to
-Notes. A retained draft can be opened there, including after source deletion.
-Startup, asset repair and onboarding preserve validated note/editor URIs.
-Routes receive IDs, not live documents. The stack is home → Notes → reader →
-editor, including direct entry, with framework back behavior when recovery is
-durable. No new OS link registration is introduced.
+Back waits for pending recovery; failed recovery keeps the editor open with
+retry/copy actions. A failed in-memory buffer is retained in the provider scope
+when a platform destination bypasses ordinary back. IDs have separate buffers.
+If storage cannot write, text newer than the last durable draft is only in
+memory: process termination can lose it. Native disk-full, power-loss/fsync and
+OS process restoration are not guaranteed. Notes lists durable drafts on reopen.
 
-Safe areas, keyboard-resizing scroll views, wrapping actions, selectable reading
-text and input labels support narrow screens and large text. Paper uses the
-shared normal/simpler-effects policy; no animation, custom font or decorative
-asset is introduced for Notes. M07 owns selected note artwork through the
-existing resolver.
+## Trash, restore and permanent deletion
 
-## Verification
+**Delete note** confirms moving the source into Trash. Full text, creation time,
+tags, pin and any recovery draft remain. Normal readers show **Note unavailable**
+without saved content; normal editors reject trashed sources unless recovery
+writing exists. Trashed readers offer **Restore note**, **Delete forever** and
+an independently retained recovery draft. Restore checks the trashed revision,
+preserves metadata/text and advances the revision. An older draft remains stale;
+users may save a copy or discard it rather than overwrite the restored source.
 
-Run the [README](../README.md) checks and focused suites:
+**Delete forever** requires typing the exact `DELETE` and pressing **Delete
+permanently**. The dialog explains that saved text, tags and the current recovery
+draft will be removed and cannot be restored. The transaction requires the
+captured trashed revision AND the reviewed draft token (including absence).
+A new/replaced draft or a restored/changed source blocks deletion. Any failure
+rolls everything back. Success removes those rows, invalidates the local editor
+buffer, returns to Notes, and leaves old IDs unavailable. There is no automatic
+trash expiry or bulk deletion. This is application deletion, not a promise of
+forensic erasure of SQLite pages, backups or copies a user explicitly saved.
+
+## Preview and external links
+
+**Markdown preview** renders the committed body with `flutter_markdown_plus`
+**1.0.12**, using Flutter widgets. **Show plain text** returns to the exact source.
+There is no WebView or executable HTML. Inline HTML is unsupported. Markdown
+images are replaced with an alt-text placeholder: no remote request, file read,
+user attachment or extra image decoder is allowed through preview.
+
+Synchronous preview work is bounded at 32,000 UTF-16 code units and 1,000 lines.
+Longer bodies show an explicit message to read the complete plain text; writing
+is never truncated or transformed. This conservative limit is not a physical
+low-end performance qualification.
+
+Links open only after a tap. The application validates complete absolute HTTP(S)
+URLs with a host, no credentials, whitespace, controls or backslashes. Relative,
+file, data, JavaScript, mail and custom schemes are rejected. The injected
+platform adapter uses `url_launcher` **6.3.3**, `LaunchMode.externalApplication`;
+false results and plugin exceptions produce a safe retry/copy message. No
+`canLaunchUrl` discovery or extra native query permissions are needed.
+
+Official package APIs/platform requirements checked before adoption:
+[Markdown package and custom builders](https://pub.dev/packages/flutter_markdown_plus/versions/1.0.12),
+[url_launcher platform support and launch handling](https://pub.dev/packages/url_launcher/versions/6.3.3).
+The launcher supports SDK 24+/iOS 13+, below the app's Android 30/iOS 15 floors;
+Flutter 3.47.5/Dart 3.13.4 satisfies its Flutter 3.41/Dart 3.11 requirements.
+
+## Artwork, routes and accessibility
+
+The live **Create note** control uses the individually selected legacy
+`notes_add.png` (original generated 192×192 RGBA), key `notes.add`, through the
+existing required-asset resolver. It is decorative beside live button text,
+40 logical pixels with a fixed 120-pixel decode width. The pinned
+`presentation-m07-v1` pack has four PNGs, 479,916 bytes. Only catalog JSON is
+bundled. Existing packs keep their three files and acquire this one missing
+file through the usual gate/repair flow. See [assets and startup](assets-startup.md)
+and the preserved [provenance](../redkeep/tool/assets/PROVENANCE.md).
+No raw artwork, new media type, per-note attachment or picker is introduced.
+
+Routes remain exact canonical paths with lowercase 32-hex IDs, no queries,
+fragments or extra segments. Startup/onboarding preserve validated destinations.
+Missing/permanently deleted IDs use the existing useful fallback. The stack is
+home → Notes → reader → editor with framework back handling. Trash is a list
+filter and actions on an existing ID reader, without a replacement navigator or
+new OS link registration.
+
+Safe areas, wrapping actions, lazy lists, selectable text and scrollable dialogs
+support narrow screens, 3× text and keyboard insets. Dialog actions scroll with
+the content so large text cannot hide confirmations; dialogs/filters add no
+transition animation. Normal and simpler paper/rendering modes retain all actions.
+
+## Verification and limits
+
+Run the [README](../README.md) checks. Focused suites:
 
 ```sh
 cd redkeep
 flutter test test/features/notes test/core/storage test/app/navigation_destination_test.dart
 ```
 
-Tests use fresh provider scopes, disposable SQLite databases and synthetic text.
-They cover schema/data preservation, create/edit/delete, exact committed
-feedback, SQL-triggered transaction rollback, failed recovery/commit/retry,
-stale source and draft tokens, explicit copies/discard, navigation/back,
-ID switching and missing/deleted/invalid routes. Background file reopen checks
-preserve large Unicode bodies, new/existing drafts and tombstones. Widget checks
-exercise reading/editing a large body and both themes at 320×480, 3× text,
-safe-area/keyboard insets, normal and simpler/reduced rendering.
+Fresh scopes, disposable SQLite, synthetic writing and injected platform failures
+cover 120 search/filter combinations; literal SQL/wildcard characters; Unicode;
+tag/pin normalization, persistence and preservation through text edits; stale
+source/draft checks; trash, restoration, permanent-delete cancellation and typed
+confirmation; transaction rollback; migrations from 1/2/3; background reopen;
+malformed Markdown/HTML; blocked/failed links and omitted images; long preview
+fallbacks; 2,000-record queries/lazy lists; bounded artwork decode; deleted routes;
+and both themes/rendering modes at 320×480, 3× text, safe areas and keyboard insets.
 
-Exact native offline-writing checks, build identifiers and outstanding physical
-device/accessibility qualifications are recorded in the M06 migration record.
+Exact native builds and Android emulator smoke evidence are recorded in the M07
+phase record and `docs/evidence/m07/verification.json`. Widget/host SQLite checks
+are not physical-device evidence. Native iOS writing/external-browser interaction,
+physical accessibility/IME, minimum-OS, low-end/release performance and native
+storage/power-loss drills remain unverified. M04 production HTTPS hosting and
+M03 AI qualification gaps remain unchanged. Next eligible phase: **M08 — Diary**.

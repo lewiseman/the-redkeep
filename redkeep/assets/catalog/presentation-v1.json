@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "pack": "presentation-m04-v1",
+  "pack": "presentation-m07-v1",
   "assets": [
     {
       "key": "appearance.theme.system",
@@ -26,6 +26,15 @@
       "path": "appearance/theme-dark-v1.png",
       "bytes": 127553,
       "sha256": "dd744501d2cfb75cb83948f0f83568c6dd31fd52e03bbcf538e91f9a6eb87e32",
+      "license": "LicenseRef-Project-Generated",
+      "provenance": "tool/assets/PROVENANCE.md"
+    },
+    {
+      "key": "notes.add",
+      "revision": "v1",
+      "path": "notes/add-v1.png",
+      "bytes": 45800,
+      "sha256": "5674c0849f384dc06e9b36ddbc34dd03acac1e2e67b6881a347a8a7a7ecc65b8",
       "license": "LicenseRef-Project-Generated",
       "provenance": "tool/assets/PROVENANCE.md"
     }

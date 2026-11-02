@@ -19,7 +19,7 @@ consumer and add them to a release catalog when implemented.
 | Onboarding cover/spreads | `onboarding_book.dart`, `onboarding/ARTWORK.md`, `CURRENT_ARTWORK.md`; website book | Excluded: baked-in Journal / former AI branding and chapters promising People, Sync, Tasks, Movies or other deferred behavior. M05 must use accessible live Redkeep copy and re-evaluate any art it needs. |
 | Onboarding material textures | `onboarding/{paper-edge,binding-cloth,ink-paper}.webp`, book materials | Documented original generated candidates; neutral textures are usable if M05's chosen design consumes them. No texture needed by the current shell. Do not import the book implementation. |
 | Primary navigation | `root_layout.dart` / `bottom_navbar.dart`; `navigation/ARTWORK.md` | Original generated Diary, Notes and Flow active/inactive PNGs are candidates for M05's real navigation consumers. More's keepsake box depends on the selected navigation design. No inactive tabs registered in M04. |
-| Notes add artwork | `notes/views/pages/notes_page.dart:483`; `images/ARTWORK.md` | Original generated `notes_add.png` candidate for M06 if chosen. Suggested future key `notes.add`. Current Notes top artwork needs no external media. |
+| Notes add artwork | `notes/views/pages/notes_page.dart:483`; `images/ARTWORK.md` | Selected in M07: original generated `notes_add.png`, 192×192 RGBA, 45,800 bytes. Individually copied unchanged as key `notes.add`, revision `v1`, for the live Create note control through the resolver. Fixed 120-pixel decode width; no custom press animation. |
 | Diary | `diary_page.dart`, `diary_calendar.dart` | Original generated `diary_calendar_pin.png` is a candidate for M08 (`diary.calendar.pin`). `diary_top_bg.png` has no provenance note found; excluded until ownership/use is established. Paper surfaces can remain code based. |
 | Flow | `flow_page.dart` / `flow_reflection.dart`; `FLOW_REFLECT_ARTWORK.md` | Original generated `flow_reflect.png` is a candidate when the reflection action is implemented. `reflecting.mp4` is excluded: video is outside first-release delivery scope. |
 | Grand Maester / Brain | Legacy assistant references `more_local_qvac.png`; AI studio artwork notes | Former AI branding excluded. The four current raw artwork drafts are unassigned and still being edited. Use accessible native controls until a later authorized consumer selects approved Redkeep art. No required models, audio, or video in this catalog. |
@@ -36,6 +36,14 @@ Preserved source notes/prompts and individual source filenames are in
 copyright ownership claims are inferred for undocumented files.
 
 ## Runtime contracts
+
+M07 updates the pinned pack identity to `presentation-m07-v1`: the original three
+appearance images plus the selected Notes add illustration, **4 PNGs / 479,916
+bytes** total. The metadata filename remains `presentation-v1.json` (catalog
+format version 1). Existing files keep their keys, revisions, hashes and paths;
+an M04–M06 installation downloads only the new missing file and retains writing.
+M07 did not inspect or access `raw_assets/`. Historical inventory/evidence below
+records M04 inspection only.
 
 `features/assets/domain/asset_catalog.dart` owns immutable release metadata,
 safe failures, `RequiredAssets`, and the injectable `AssetResolver`. The current

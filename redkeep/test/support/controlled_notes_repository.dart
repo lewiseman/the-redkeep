@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:redkeep/features/notes/domain/note_document.dart';
 import 'package:redkeep/features/notes/domain/notes_repository.dart';
+import 'package:redkeep/features/notes/domain/notes_query.dart';
 
 /// Failure/commit gates wrap a disposable repository, never user storage.
 class ControlledNotesRepository implements NotesRepository {
@@ -50,9 +51,11 @@ class ControlledNotesRepository implements NotesRepository {
       ? Stream.error(StateError('synthetic read failure'))
       : inner.watchDocument(id);
   @override
-  Stream<List<NoteListing>> watchNotes() => failRead
+  Stream<List<NoteListing>> watchNotes({
+    NotesQuery query = const NotesQuery(),
+  }) => failRead
       ? Stream.error(StateError('synthetic read failure'))
-      : inner.watchNotes();
+      : inner.watchNotes(query: query);
   @override
   Stream<List<NoteListing>> watchDrafts() => failRead
       ? Stream.error(StateError('synthetic read failure'))
@@ -60,6 +63,30 @@ class ControlledNotesRepository implements NotesRepository {
   @override
   Future<void> deleteNote(String id, int expectedRevision) =>
       inner.deleteNote(id, expectedRevision);
+  @override
+  Stream<List<String>> watchTags({bool trash = false}) => failRead
+      ? Stream.error(StateError('synthetic read failure'))
+      : inner.watchTags(trash: trash);
+  @override
+  Future<void> organize(
+    String id,
+    int revision, {
+    required bool pinned,
+    required List<String> tags,
+  }) => inner.organize(id, revision, pinned: pinned, tags: tags);
+  @override
+  Future<void> restoreNote(String id, int revision) =>
+      inner.restoreNote(id, revision);
+  @override
+  Future<void> permanentlyDelete(
+    String id,
+    int revision, {
+    required int? expectedDraftRevision,
+  }) => inner.permanentlyDelete(
+    id,
+    revision,
+    expectedDraftRevision: expectedDraftRevision,
+  );
   @override
   Future<void> discardDraft(String id, int expectedDraftRevision) =>
       inner.discardDraft(id, expectedDraftRevision);

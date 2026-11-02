@@ -71,3 +71,23 @@ Palette: restrained warm ivory #f4ead4, honey gold #cfaa62, muted indigo #65618c
 Constraints: genuinely transparent RGBA background in all negative space. No text, letters, numbers, labels, watermark, surrounding scene, notebook, pencil, UI screenshot, button tile, enclosing badge, checkerboard, glossy plastic, photorealism, thick black outlines, facial features, broad cast shadow, or additional props. One image only, not a sprite sheet.
 Primary request: SYSTEM MODE, automatic light and dark appearance. ONE cohesive circular DAY-AND-NIGHT cut-paper emblem, vertically divided into a honey-gold daytime left half and a muted-indigo nighttime right half. The left half has four short broad honey-gold sun rays extending from its outer curved edge, and a restrained warm-ivory curved highlight. The right half contains one broad warm-ivory crescent moon cut-paper inlay and exactly one simple little ivory four-point star. The straight central seam joins the two halves into a single tactile disc, no gap. A simple clean equal split sun-and-moon composition, readable immediately at 80px. No arrows, monitor, device, gears, facial features, or extra elements.
 ```
+
+## M07 selected Notes artwork
+
+The user’s M07 scope authorizes this single unmodified `notes_add.png` copy to
+`pack/notes/add-v1.png`, key `notes.add`. It serves the live Create note control
+through the existing resolver, at 40 logical pixels with a 120-pixel decode bound.
+Its original source provenance follows. No navigation/onboarding artwork or raw
+work-in-progress media is included.
+
+## Notes add control
+
+`notes_add.png` is an original 192 × 192 transparent RGBA PNG generated with the built-in `image_gen` tool on 26 October 2026, using `navigation/notes_active.png` as a style reference. No CLI/API fallback was used. The production image was downsampled with macOS `sips`, preserving alpha; the generated master remains at `/Users/lewis/.codex/generated_images/01a17521-1f18-7500-9d77-6a612c7a1ec0/exec-597e27ab-e029-4101-a3a7-f96f4893ec6a.png`.
+
+The cream folded paper, indigo pencil and inked plus form the floating Add note control. The same full-color cutout renders at 64 × 64 logical pixels in a 72 × 72 tap target, 24 pixels from the bottom and 16 from the right of the Notes page. Pressing scales the illustration to 94% over 70 ms; release restores it over 140 ms. Reduced-motion and accessible-navigation preferences remove the animation. There is no permanent background tile; keyboard focus uses a transient accent highlight. Tooltip and button semantics retain the label `Add note`.
+
+### Exact generation prompt
+
+```text
+Use case: style-transfer. Asset type: one production transparent-background illustration for the floating ADD NOTE control in a personal journaling Flutter app, displayed at 64 by 64 pixels. Input image role: reference for the hand-painted stationery style, materials, lighting and palette ONLY; create a new composition distinct from this existing Notes navigation icon. Primary request: ONE fresh blank cream paper sheet with a softly folded upper-right corner, a short muted-indigo wooden pencil resting diagonally along its lower-right edge, and ONE clearly readable small indigo inked plus sign on the paper to mean create a new note. The paper is warm ivory #f4ead4; the folded corner may have a restrained sage underside #8c9b81; the pencil is muted indigo #65618c with warm wood and a tiny honey-gold ferrule #cfaa62. Keep the paper mostly blank except for the single plus, no writing lines, words or letters. Match the reference's refined hand-painted gouache on tactile cut paper, softly sculptural 2.5D handmade stationery look, delicate natural fiber texture, softly rounded irregular paper edges, and soft upper-left illumination. Near-frontal three-quarter view from slightly above; compact roughly square silhouette, gentle tilt, simple readable large shapes. The paper is the dominant shape, with medium-value lilac/indigo edge shading and ivory highlights so the same full-color cutout reads on both off-white #faf8fc and near-black #17151d. Restrained contained contact shadow under the paper and pencil only. Square canvas, object centered and filling about 85 percent, consistent modest transparent padding, nothing clipped. Genuine transparent RGBA background, including all negative space. No surrounding scene, no colored button surface, no enclosing circle or tile or badge, no background, no baked checkerboard, no watermark, no text except the plus symbol, no notebook/book binding, no stack of sage notes, no flowers or extra decorative objects, no photorealism or glossy plastic. Produce one illustration, not a sprite sheet.
+```

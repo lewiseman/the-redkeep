@@ -3,7 +3,7 @@ import 'dart:async';
 import '../../features/assets/domain/asset_catalog.dart';
 
 /// Coalesces slow local checks so timeout/retry cannot start overlapping work.
-/// Future onboarding checks belong in [localChecks] when M05 implements them.
+/// Settings/database and onboarding checks share this same aggregate deadline.
 class BootstrapCoordinator {
   BootstrapCoordinator({required this.localChecks, required this.loadAssets});
   final Future<void> Function() localChecks;

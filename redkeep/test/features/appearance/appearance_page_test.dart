@@ -16,17 +16,20 @@ void main() {
       final repository = FakeAppearanceRepository();
       addTearDown(repository.close);
       final router = await pumpApp(tester, repository: repository);
-      router.push<void>('/settings');
+      router.go('/settings');
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 60));
       final fades = find.ancestor(
         of: find.byType(AppearancePage),
         matching: find.byType(FadeTransition),
       );
-      expect(fades, findsOneWidget);
-      final opacity = tester.widget<FadeTransition>(fades).opacity.value;
-      expect(opacity, greaterThan(0));
-      expect(opacity, lessThan(1));
+      expect(fades, findsWidgets);
+      expect(
+        tester
+            .widgetList<FadeTransition>(fades)
+            .any((fade) => fade.opacity.value > 0 && fade.opacity.value < 1),
+        isTrue,
+      );
       repository.emit(const AppearancePreferences(reduceMotion: true));
       await tester.pump();
       expect(fades, findsNothing);

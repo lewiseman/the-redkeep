@@ -2,48 +2,80 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../core/presentation/rendering_policy.dart';
 import '../features/appearance/presentation/appearance_page.dart';
+import '../features/onboarding/application/onboarding_controller.dart';
+import '../features/onboarding/presentation/onboarding_page.dart';
+import 'bootstrap/bootstrap_controller.dart';
+import 'bootstrap/startup_page.dart';
 import 'home_page.dart';
+import 'navigation_destination.dart';
+import 'navigation_route_information.dart';
 import 'route_not_found_page.dart';
 
-final appRouterProvider = Provider<GoRouter>((ref) {
-  final router = createAppRouter();
-  ref.onDispose(router.dispose);
-  return router;
-});
+final appRouterProvider = Provider<GoRouter>((ref) => createAppRouter(ref));
 
-GoRouter createAppRouter({String? initialLocation}) {
-  return GoRouter(
-    initialLocation: initialLocation,
+final navigationRouteInformationProvider = Provider<NavigationRouteInformation>(
+  (ref) {
+    final information = NavigationRouteInformation(
+      ref.watch(appRouterProvider).routeInformationProvider,
+    );
+    return information;
+  },
+);
+
+/// One router per scope. Refreshes change redirects without rebuilding history.
+GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
+  final refresh = ValueNotifier(0);
+  ref.listen(bootstrapControllerProvider, (_, _) => refresh.value++);
+  ref.listen(onboardingControllerProvider, (_, _) => refresh.value++);
+  final router = GoRouter(
+    initialLocation: validatedNavigationLocation(
+      initialLocation ??
+          WidgetsBinding.instance.platformDispatcher.defaultRouteName,
+    ),
+    overridePlatformDefaultLocation: true,
+    refreshListenable: refresh,
+    redirect: (context, state) => navigationRedirect(
+      state.uri,
+      startupReady:
+          ref.read(bootstrapControllerProvider).stage == BootstrapStage.ready &&
+          ref.read(onboardingControllerProvider).complete != null,
+      onboardingComplete:
+          ref.read(onboardingControllerProvider).complete == true,
+    ),
     routes: [
       GoRoute(
         path: '/',
-        pageBuilder: (context, state) =>
-            _page(context, state, const HomePage()),
+        pageBuilder: (context, state) => _page(state, const HomePage()),
+        routes: [
+          GoRoute(
+            path: 'settings',
+            pageBuilder: (context, state) =>
+                _page(state, const AppearancePage()),
+          ),
+        ],
       ),
       GoRoute(
-        path: '/settings',
+        path: '/startup',
+        pageBuilder: (context, state) => _page(state, const StartupPage()),
+      ),
+      GoRoute(
+        path: '/onboarding',
+        pageBuilder: (context, state) => _page(state, const OnboardingPage()),
+      ),
+      GoRoute(
+        path: '/unavailable',
         pageBuilder: (context, state) =>
-            _page(context, state, const AppearancePage()),
+            _page(state, const RouteNotFoundPage()),
       ),
     ],
     errorPageBuilder: (context, state) =>
-        _page(context, state, const RouteNotFoundPage()),
+        _page(state, const RouteNotFoundPage()),
   );
+  ref.onDispose(router.dispose);
+  ref.onDispose(refresh.dispose);
+  return router;
 }
 
-CustomTransitionPage<void> _page(
-  BuildContext context,
-  GoRouterState state,
-  Widget child,
-) => CustomTransitionPage<void>(
-  key: state.pageKey,
-  child: child,
-  transitionDuration: RenderingPolicyScope.of(context).duration,
-  reverseTransitionDuration: RenderingPolicyScope.of(context).duration,
-  transitionsBuilder: (context, animation, secondaryAnimation, child) =>
-      RenderingPolicyScope.of(context).animate
-      ? FadeTransition(opacity: animation, child: child)
-      : child,
-);
+MaterialPage<void> _page(GoRouterState state, Widget child) =>
+    MaterialPage<void>(key: state.pageKey, child: child);

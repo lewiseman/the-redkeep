@@ -8,17 +8,23 @@ starts `ProviderScope` and `RedkeepApp`.
 appearance state, and the rendering-policy host. `app/app_router.dart` creates
 one GoRouter per scope and disposes it with that scope. Appearance rebuilds keep
 the same router. Tests override it using
-`createAppRouter(initialLocation: ...)`; production preserves platform initial
-location behavior.
-The bootstrap gate wraps the router and preserves that destination while local
-checks, downloads and retries run. Its five-second aggregate local limit and
-splash lifecycle are documented in [assets and startup](assets-startup.md).
+`createAppRouter(ref, initialLocation: ...)`; production validates and preserves
+the supported Flutter platform initial location. A route-information adapter
+validates warm platform input and handles malformed encoded queries safely.
 
-Registered destinations are `/` (welcome) and `/settings` (appearance). Home pushes
-settings so back returns home; settings can also open directly. Unmatched routes
-show a readable fallback with **Return home**, replacing the unavailable route.
-Incoming URL content and raw errors are never displayed. Routes use the central
-180ms fade/immediate policy, including live changes during a transition.
+The router redirects through `/startup` for local checks/downloads/retries and
+`/onboarding` for the welcome page, carrying a validated continuation in its URI.
+Its five-second aggregate local limit and splash lifecycle are documented in
+[assets and startup](assets-startup.md). Persisted onboarding, URI/parameter
+validation, continuation/relaunch semantics, history and recovery are defined in
+[onboarding and navigation](onboarding-routing.md).
+
+Normal destinations are `/` (welcome shell) and `/settings` (appearance, nested
+under home). Settings can open directly or from home; platform back returns home.
+Invalid/unmatched input uses `/unavailable` with **Return home**, replacing the
+unavailable route. Incoming URL content and raw errors are never displayed.
+Material pages use central 180ms platform transitions or immediate reduced-motion
+presentation, including live reduction and framework back gestures.
 
 `app/app_shell.dart` supplies a scaffold, safe area, keyboard-resizing scroll
 viewport, and bounded content width. `core/presentation` contains consumed theme,
@@ -49,6 +55,7 @@ Focused suites:
 ```sh
 flutter test test/app
 flutter test test/features/appearance
+flutter test test/features/onboarding
 flutter test test/core
 flutter test test/features/ai
 flutter test test/features/assets
@@ -63,13 +70,20 @@ dart run tool/validate_assets.dart assets/catalog/presentation-v1.json tool/asse
   settings, and real background SQLite close/reopen. UI tests check themes,
   live system/app changes, mid-transition reduction, back, flat paper, contrast,
   and narrow/large-text/inset layouts in both themes.
-- `test/core` checks version 1 against its saved snapshot, SQL constraints,
-  all OS/app/lifecycle combinations, both OS flags live, inactive/offscreen
+- `test/core` checks schema 2 against its snapshot, version 1 → 2 appearance
+  preservation, SQL constraints, all OS/app/lifecycle combinations, both OS flags live, inactive/offscreen
   ticker gating, resumption, and disposal.
 - `test/support/pump_app.dart` creates a fresh scope with a small observable fake
-  appearance repository and fake required-assets boundary, keeping widget tests independent of path-provider and app-owned
+  appearance repository, fake onboarding repository and fake required-assets
+  boundary, keeping widget tests independent of path-provider and app-owned
   databases. Overridden routers retain production disposal ownership. Controller
   containers are fresh; repository tests clean up disposable files.
+- `test/features/onboarding` checks commit timing, save/load failure, isolated
+  controllers, disposal, incomplete/complete background-database reopen,
+  interruption/relaunch, continuation preservation and accessible welcome UI.
+  `test/app` also checks URI validation, readiness/loop combinations, malformed
+  cold/warm platform input, latest/duplicate requests, Android back-channel
+  cancellation/commit and iOS edge-swipe cancellation/completion in both motion modes.
 - `test/features/assets` verifies catalog/path/host constraints, HTTP response and
   redirect handling/cleanup through injected transport, real disposable file
   integrity and atomic-install recovery, missing/suspicious files, restart/retry,
@@ -97,8 +111,10 @@ M03 adds an explicit inference adapter/harness without changing app composition
 or routes. Physical Android CPU/GPU and iOS simulator CPU evidence are separate
 from routine tests. Physical iOS, low-end phones, OS-floor hardware, and release
 qualification remain gaps. M04 adds local fixture assets/bootstrap with native
-debug evidence and production-host prerequisites recorded separately. Onboarding
-and writing features remain unstarted; M05 is next.
+debug evidence and production-host prerequisites recorded separately. M05 adds
+onboarding and routing, with framework gesture checks and native build evidence recorded in its phase record. Physical-device accessibility and
+gesture qualification remain unverified. Writing features remain unstarted;
+M06 is next.
 
 ## References
 

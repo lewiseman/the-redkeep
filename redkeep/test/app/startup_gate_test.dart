@@ -13,6 +13,9 @@ import 'package:redkeep/features/assets/domain/asset_catalog.dart';
 
 import '../support/fake_appearance_repository.dart';
 import '../support/fake_required_assets.dart';
+import '../support/fake_onboarding_repository.dart';
+
+import 'package:redkeep/features/onboarding/application/onboarding_controller.dart';
 
 void main() {
   Future<void> pump(
@@ -29,18 +32,22 @@ void main() {
       ProviderScope(
         overrides: [
           appearanceRepositoryProvider.overrideWithValue(appearance),
+          onboardingRepositoryProvider.overrideWithValue(
+            FakeOnboardingRepository(),
+          ),
           requiredAssetsProvider.overrideWith((_) async => assets),
-          bootstrapCoordinatorProvider.overrideWithValue(
-            BootstrapCoordinator(
-              localChecks: checks ?? () async {},
+          bootstrapCoordinatorProvider.overrideWith(
+            (ref) => BootstrapCoordinator(
+              localChecks: () async {
+                await checks?.call();
+                await ref.read(onboardingControllerProvider.notifier).load();
+              },
               loadAssets: () async => assets,
             ),
           ),
           releaseSplashProvider.overrideWithValue(() {}),
           appRouterProvider.overrideWith((ref) {
-            final router = createAppRouter(initialLocation: '/settings');
-            ref.onDispose(router.dispose);
-            return router;
+            return createAppRouter(ref, initialLocation: '/settings');
           }),
         ],
         child: const RedkeepApp(),

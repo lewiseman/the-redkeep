@@ -1,8 +1,7 @@
 # Redkeep
 
-The mobile Flutter app lives in `redkeep/`. M02 adds light/dark paper themes,
-saved appearance settings, and reactive motion/effects policy to the
-Riverpod/go_router shell. The agreed roadmap and phase
+The mobile Flutter app lives in `redkeep/`. The Riverpod/go_router shell has light/dark paper themes,
+saved appearance settings, and a reactive motion/effects policy. The agreed roadmap and phase
 evidence live in [MIGRATION_PLAN.md](MIGRATION_PLAN.md); architecture and test
 contracts live in [docs/architecture-testing.md](docs/architecture-testing.md).
 See [appearance and persistence](docs/appearance-persistence.md) for settings,
@@ -17,6 +16,9 @@ for the media inventory, provenance, local fixture setup and release host checks
 The default build has no configured host: a fresh installation stops at the
 artwork gate until run with the documented controlled fixture configuration.
 Complete installations reopen offline without a catalog/network check.
+M05 adds a minimal welcome, persisted completion in schema 2, validated startup/
+onboarding redirects and platform back behavior. See [onboarding and navigation](docs/onboarding-routing.md)
+for destination validation, recovery and interruption contracts.
 
 Use Flutter 3.47.5 / Dart 3.13.4 (the verified local baseline). From the workspace
 root:
@@ -56,7 +58,8 @@ dart run drift_dev schema generate drift_schemas/ test/core/storage/generated/
 dart format lib test
 ```
 
-M02 establishes schema version 1. Each subsequent schema change needs a version
+M02 establishes schema version 1; M05 migrates to schema 2 while retaining
+appearance settings. Each subsequent schema change needs a version
 bump and migration/data-preservation tests. Preserve historical snapshots after
 shipping that version. Keep generated Drift code and schema helpers with source.
 For Android packaging verification, run

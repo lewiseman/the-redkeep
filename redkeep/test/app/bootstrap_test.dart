@@ -10,6 +10,9 @@ import 'package:redkeep/features/assets/domain/asset_catalog.dart';
 
 import '../support/fake_appearance_repository.dart';
 import '../support/fake_required_assets.dart';
+import '../support/fake_onboarding_repository.dart';
+
+import 'package:redkeep/features/onboarding/application/onboarding_controller.dart';
 
 void main() {
   late FakeRequiredAssets assets;
@@ -25,6 +28,9 @@ void main() {
     container = ProviderContainer(
       overrides: [
         appearanceRepositoryProvider.overrideWithValue(appearance),
+        onboardingRepositoryProvider.overrideWithValue(
+          FakeOnboardingRepository(),
+        ),
         releaseSplashProvider.overrideWithValue(() => releases++),
         if (limit != null) localCheckLimitProvider.overrideWithValue(limit),
         bootstrapCoordinatorProvider.overrideWithValue(
@@ -50,6 +56,46 @@ void main() {
   });
 
   test(
+    'onboarding local read shares the aggregate timeout and coalesced retry',
+    () async {
+      final gate = Completer<void>();
+      final onboarding = FakeOnboardingRepository(completed: false)
+        ..readGate = gate;
+      container = ProviderContainer(
+        overrides: [
+          appearanceRepositoryProvider.overrideWithValue(appearance),
+          onboardingRepositoryProvider.overrideWithValue(onboarding),
+          requiredAssetsProvider.overrideWith((_) async => assets),
+          releaseSplashProvider.overrideWithValue(() => releases++),
+          localCheckLimitProvider.overrideWithValue(
+            const Duration(milliseconds: 1),
+          ),
+        ],
+      );
+      final controller = container.read(bootstrapControllerProvider.notifier);
+      await controller.check();
+      expect(
+        container.read(bootstrapControllerProvider).stage,
+        BootstrapStage.localError,
+      );
+      expect(container.read(onboardingControllerProvider).complete, isNull);
+      expect(releases, 1);
+      expect(assets.checks, 0);
+      await controller.check();
+      expect(assets.checks, 0);
+      gate.complete();
+      await controller.check();
+      expect(
+        container.read(bootstrapControllerProvider).stage,
+        BootstrapStage.ready,
+      );
+      expect(container.read(onboardingControllerProvider).complete, isFalse);
+      expect(assets.checks, 1);
+      expect(releases, 1);
+    },
+  );
+
+  test(
     'composed bootstrap retries a failed asset-store initialization explicitly',
     () async {
       var fail = true;
@@ -57,6 +103,9 @@ void main() {
       container = ProviderContainer(
         overrides: [
           appearanceRepositoryProvider.overrideWithValue(appearance),
+          onboardingRepositoryProvider.overrideWithValue(
+            FakeOnboardingRepository(),
+          ),
           releaseSplashProvider.overrideWithValue(() => releases++),
           requiredAssetsProvider.overrideWith((_) async {
             attempts++;

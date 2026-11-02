@@ -1,0 +1,111 @@
+{
+  "phase": "M05",
+  "date": "2026-11-02",
+  "status": "Complete",
+  "toolchain": {
+    "flutter": "3.47.5",
+    "framework": "6a19cca564",
+    "dart": "3.13.4"
+  },
+  "verification": [
+    {
+      "command": "dart run build_runner build",
+      "result": "passed; generated schema-2 database code"
+    },
+    {
+      "command": "dart run drift_dev schema dump lib/core/storage/app_database.dart drift_schemas/",
+      "result": "passed; added drift_schema_v2.json, retained version 1"
+    },
+    {
+      "command": "dart run drift_dev schema generate drift_schemas/ test/core/storage/generated/",
+      "result": "passed; generated version-2 helper; version-1 helper unchanged"
+    },
+    {
+      "command": "flutter pub get --enforce-lockfile",
+      "result": "passed; pubspec and lockfile unchanged"
+    },
+    {
+      "command": "dart format --output=none --set-exit-if-changed lib test tool",
+      "result": "passed; 66 files, 0 changes"
+    },
+    {
+      "command": "flutter analyze",
+      "result": "passed; no issues"
+    },
+    {
+      "command": "flutter test --machine > /tmp/redkeep-m05-full.jsonl",
+      "result": "passed; 111 tests; done.success true"
+    },
+    {
+      "command": "dart run tool/validate_assets.dart assets/catalog/presentation-v1.json tool/assets/pack",
+      "result": "passed; 3 PNGs, 434116 bytes; no publication"
+    },
+    {
+      "command": "flutter build apk --debug --target-platform android-arm64",
+      "result": "passed; Gradle 6.9 seconds; existing JDK native-access warning"
+    },
+    {
+      "command": "flutter build ios --simulator --debug",
+      "result": "passed; Xcode 11.7 seconds"
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed"
+    }
+  ],
+  "native": {
+    "android": {
+      "target": "emulator-5554",
+      "device": "sdk gphone16k arm64",
+      "os": "Android 17 / API 37",
+      "mode": "debug",
+      "bundle": "com.lewiseman.redkeep",
+      "observations": [
+        "Existing M04 local pack and appearance retained; no app-data clear.",
+        "Initial route /settings gated by onboarding.",
+        "Process stopped before completion; relaunch with /settings showed onboarding again.",
+        "Enter Redkeep opened requested settings with existing dark/reduce-motion preferences.",
+        "KEYCODE_BACK returned home.",
+        "Full process restart without a route opened home without onboarding."
+      ]
+    },
+    "ios": {
+      "target": "E03EF135-6DB9-4181-A36F-21704D1FB0DD",
+      "device": "iPhone 17 Pro ARM64 simulator",
+      "os": "iOS 26.5",
+      "mode": "debug",
+      "bundle": "com.lewiseman.redkeep",
+      "observations": [
+        "Installed over M04 without clearing data.",
+        "Ordinary launch rendered onboarding using existing local pack.",
+        "Screenshot inspected; native button/gesture/completion/restart journey not exercised."
+      ]
+    }
+  },
+  "preservation": {
+    "baseline": "/tmp/redkeep-m05-baseline.json",
+    "preexistingFilesHashed": 204,
+    "nativeArtworkCatalogToolPayloadAndDependencyHashes": "unchanged",
+    "historicalSchemaHelper": "unchanged",
+    "raw_assets": "not accessed",
+    "legacyProjects": "not accessed",
+    "remoteGitOrPublication": "none"
+  },
+  "limits": [
+    "No physical-device accessibility, screen-reader or gesture acceptance in M05.",
+    "Native Android back smoke used KEYCODE_BACK, not a predictive gesture.",
+    "Native iOS completion/restart/swipes not exercised; framework widgets cover these contracts.",
+    "No native URL scheme/universal-link configuration or OS process-restoration guarantee.",
+    "Pending destination is carried by the route URI; a new process without restored/redelivered URI starts home after durable onboarding.",
+    "No release/minimum-OS/low-end performance qualification.",
+    "M04 HTTPS hosting and M03 AI qualification gaps remain unchanged."
+  ],
+  "nextEligiblePhase": "M06",
+  "screenshots": {
+    "android-back-home.png": "66c2e936e06dc706737d420041ce80ad2eaa50677fa3aa466643ba541396e66a",
+    "android-onboarding.png": "18742117c12ae89c722bb7f0925ea53e0a000f66fabd35fc668dacccc864c974",
+    "android-repeated-launch.png": "66c2e936e06dc706737d420041ce80ad2eaa50677fa3aa466643ba541396e66a",
+    "android-requested-settings.png": "b01ddf9eb0b6527dae88aad9fae1b028b27df00bca881cea2b615317091864c3",
+    "ios-onboarding.png": "527a6dbf1bee55944ac5d010838a43ed8d40b30e36f16aa0018dc495249fd2af"
+  }
+}

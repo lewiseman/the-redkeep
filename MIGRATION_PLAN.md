@@ -35,7 +35,7 @@ Use `Not started`, `In progress`, `Complete`, or `Partial`. A partial result mus
 | M02 — Design and accessibility | Complete | Light/dark tokens and system typography, shared paper surfaces, saved appearance settings in background Drift schema 1, reactive OS/app rendering policy; formatting, analysis, all 26 tests, Android debug build, and emulator restart persistence pass. | iOS, physical-device accessibility/keyboard behavior, and release performance unverified; next eligible phase is M03 (M04 is also eligible independently under its prerequisite rules). |
 | M03 — AI feasibility | Partial | Pinned core 2.5.5 / LiteRT-LM engine 1.19.1, minimal injected adapter and synthetic harness, 40 passing tests, Android ARM64/API 30 packaging, iOS simulator and unsigned device builds; pinned Qwen3 0.6B streaming/cancel/reuse/cleanup/failure checks pass on physical Galaxy S24 Ultra CPU/GPU and iOS simulator CPU. | Physical iOS/Metal, minimum-OS and low-end hardware, release/sustained resource evidence remain unverified and block corresponding AI release claims. M04 may proceed independently; see M03 record and docs/ai-feasibility.md. |
 | M04 — Assets and startup | Complete | Reachable-media inventory/provenance, pinned three-image pack, catalog/publishing validator, injected persistent resolver, verified atomic installs/repair, bounded bootstrap/splash gate; all 88 tests, analysis/formatting, Android and iOS simulator debug builds pass. Android local HTTP download → offline restart and missing-file gating; iOS fresh gate and offline staged-pack recovery verified. | Real HTTPS hosting/publication and physical/minimum-OS/low-end release evidence remain prerequisites; iOS HTTP download and native failure/ENOSPC drills unverified. M03's AI gaps remain unchanged. Next eligible phase is M05. |
-| M05 — Onboarding and routing | Not started | — | Requires M04. |
+| M05 — Onboarding and routing | Complete | Minimal welcome, committed schema-2 completion with migration preservation, validated bootstrap/onboarding continuations and safe fallback, framework back gestures; all 111 tests, formatting/analysis, Android and iOS simulator debug builds pass. Android interruption → requested settings → back/restart and iOS welcome render verified. | Physical accessibility/gestures, native iOS completion/restart, OS link registration/restoration and release/minimum-OS evidence unverified. M04 host and M03 AI gaps unchanged. Next eligible phase is M06. |
 | M06 — Notes vertical slice | Not started | — | Requires M05. |
 | M07 — Notes organization | Not started | — | Requires M06. |
 | M08 — Diary | Not started | — | Requires M07. |
@@ -989,3 +989,118 @@ remain unchanged and do not invalidate this independent non-AI phase.
 
 **M04 is complete within its agreed scope. Next eligible phase: M05 — Onboarding
 and routing. M05 and every later phase remain unstarted. Stop at this boundary.**
+
+
+### 2 November 2026 — M05: Onboarding and routing
+
+**Changes and contracts**
+
+- Read the migration plan, root `AGENTS.md`, architecture/testing, assets/startup
+  and appearance/persistence guides, and existing implementation before edits.
+  M04 is recorded complete; existing M04 work was preserved. No legacy project
+  or `raw_assets/` access, remote Git operation, publication or M06 work occurred.
+- Added one scrolling, accessible welcome page with live Redkeep copy about
+  implemented appearance, accessibility and local artwork behavior. It uses
+  system fonts and existing programmatic paper; no new artwork, pack entry,
+  dependency, feature tab or future-feature promise was needed.
+- Added an injected plugin-free onboarding repository and controller. The same
+  primary background Drift database now uses schema **2**, with only a constrained
+  singleton `onboarding_completion` marker added. No row means incomplete;
+  reads do not seed a row. Completion is idempotent and becomes authoritative
+  only after commit. Version 1 → 2 preserves all appearance choices, with both
+  snapshots and generated verification helpers retained.
+- Added the real onboarding read to the bootstrap coordinator under its existing
+  aggregate five-second local deadline, splash lifecycle and coalesced retries.
+  Load/timeout failures remain in Flutter startup recovery. Missing required
+  artwork still gates entry before onboarding; downloads start after splash
+  release. Save failures retain onboarding and the continuation with an actionable
+  retry; overlapping completion is blocked and disposed UI ignores late results.
+- Replaced the outer startup widget gate with go_router redirects to real
+  `/startup` and `/onboarding` screens. A canonical `continue` value carries only
+  home, settings or the actual fallback through local checks, timeout, download
+  failure/retry, onboarding/save failure and artwork repair. The router stays
+  scope-owned and stable while provider listeners refresh readiness.
+- Defined the application navigation boundary for currently implemented `/` and
+  `/settings`. URI normalization precedes validation. Schemes/authorities,
+  unsupported paths, query/fragment input on normal destinations, duplicate/extra
+  gate parameters, empty/nested/double-encoded/external continuations and malformed
+  encoded text resolve to `/unavailable`. The fallback explains availability and
+  replaces itself with home; it never displays raw input/errors. Added no Notes,
+  Diary, Flow, Brain, task, authentication, notification or placeholder routes.
+- Validated both explicit and Flutter platform initial locations, plus warm
+  platform route information. A small forwarding adapter also replaces malformed
+  UTF-8 history entries without go_router 18.1.2 re-decoding their invalid old
+  query during comparison. Public `validatedNavigationLocation` is the boundary
+  for future untrusted strings before calling `go`/`push`.
+- Settings is nested under home, giving direct and in-app entry the same real
+  back destination. Startup/onboarding have root stacks, allow platform exit and
+  disappear from back history on completion. Material pages retain framework
+  iOS edge swipes and Android system/predictive back. The central host supplies
+  180ms platform transitions while allowed and immediate/stationary presentation
+  under OS/app reduction or inactivity, including live reduction. No custom back
+  recognizer or interception was introduced.
+- Added [onboarding and navigation](docs/onboarding-routing.md) and updated both
+  READMEs and current architecture/assets/appearance contracts. Pending intent
+  lives in the route URI: the same restored/redelivered URI resumes its validated
+  continuation; a new process with no URI starts home after durable completion.
+  No separate durable link inbox or OS restoration guarantee is claimed.
+
+**Exact verification and results**
+
+Flutter/Dart commands ran in `redkeep/` with Flutter **3.47.5** (`6a19cca564`,
+engine revision `af7e796e16`) and Dart **3.13.4**. Git commands ran at the root.
+Final commands exited 0. Structured results and screenshot hashes are in
+[verification.json](docs/evidence/m05/verification.json).
+
+| Command | Result |
+| --- | --- |
+| `dart run build_runner build` | Generated schema-2 database code successfully. An initial invocation from the repository root found no pubspec; reran from `redkeep/` as documented. |
+| `dart run drift_dev schema dump lib/core/storage/app_database.dart drift_schemas/` | Added `drift_schema_v2.json`; historical version 1 retained. |
+| `dart run drift_dev schema generate drift_schemas/ test/core/storage/generated/` | Generated version-2 schema helper and updated dispatcher; version-1 helper unchanged. |
+| `flutter pub get --enforce-lockfile` | Passed; pubspec and application lockfile unchanged. No dependency added/upgraded. |
+| `dart format lib test tool` (during implementation); `dart format --output=none --set-exit-if-changed lib test tool` (final) | Final check: **66 files, 0 changed**. |
+| `flutter analyze` | **No issues found**. |
+| `flutter test test/app test/features/onboarding test/features/appearance test/core` | Focused implementation check passed all **60** tests at that point. Subsequent malformed-input and platform-initial checks are included in the final full suite. |
+| `flutter test --machine > /tmp/redkeep-m05-full.jsonl` | Final suite: **111 tests passed**, terminal `success: true`. No network, account, model or user database used. |
+| `dart run tool/validate_assets.dart assets/catalog/presentation-v1.json tool/assets/pack` | Existing pack verified: 3 PNGs, 434,116 bytes. No publication or payload/catalog change. |
+| `flutter build apk --debug --target-platform android-arm64` | Passed; final Gradle build 6.9s. Existing JDK native-access warning remains informational. |
+| `flutter build ios --simulator --debug` | Passed; final Xcode build 11.7s. No signed device/release build claimed. |
+| `flutter devices`; `xcrun simctl list devices booted` | Android ARM64/API 37 emulator and iPhone 17 Pro iOS 26.5 simulator available. Attached Galaxy S24 Ultra was not used for M05. |
+| `adb -s emulator-5554 install -r redkeep/build/app/outputs/flutter-apk/app-debug.apk` (root); `adb ... shell am force-stop com.lewiseman.redkeep`; `adb ... shell am start -n com.lewiseman.redkeep/.MainActivity --es route /settings` | Existing M04 pack and saved appearance retained; schema upgraded without clearing data. Requested settings entered [onboarding](docs/evidence/m05/android-onboarding.png). A force-stop before completion and relaunch with the same requested route showed onboarding again. |
+| `adb -s emulator-5554 shell uiautomator dump /sdcard/redkeep-m05.xml`; XML readback; `adb ... shell input tap 540 1748`; `adb ... exec-out screencap -p` | Observed **Enter Redkeep** button was tapped. Committed completion opened [requested settings](docs/evidence/m05/android-requested-settings.png) with prior dark/reduce-motion choices and downloaded artwork. |
+| `adb -s emulator-5554 shell input keyevent KEYCODE_BACK`; hierarchy/screenshot; force-stop/start without `--es route` | Back returned [home](docs/evidence/m05/android-back-home.png); ordinary [repeated launch](docs/evidence/m05/android-repeated-launch.png) skipped onboarding and opened home. Native back check was a key event, not a predictive gesture. |
+| `xcrun simctl install booted redkeep/build/ios/iphonesimulator/Runner.app`; `xcrun simctl launch --terminate-running-process booted com.lewiseman.redkeep`; `xcrun simctl io booted screenshot docs/evidence/m05/ios-onboarding.png` | iPhone 17 Pro ARM64 / iOS 26.5 simulator, debug: [onboarding rendered](docs/evidence/m05/ios-onboarding.png) using the existing M04 local pack. Screenshot inspected. No native iOS completion/restart/swipe journey claimed. |
+| Root `git diff --check`; SHA-256 comparison with `/tmp/redkeep-m05-baseline.json` | Passed. All snapshotted native configuration/artwork, catalog, tool payloads, pubspec and lockfile remain unchanged. Historical schema helper unchanged. `raw_assets/` was not accessed; no raw-file hash claim is made in M05. |
+
+Tests cover first/repeated launch, background SQLite incomplete/complete reopen,
+version-1 migration/data preservation, idempotent completion, delayed commit,
+failed reads/saves/retry, overlap/disposal, interruption, all readiness states,
+redirect convergence, invalid cold/warm links and malformed UTF-8 platform input,
+preserved destinations through checking/download retry/onboarding/repair,
+latest/duplicate requests, and platform initial location. Framework iOS edge
+swipes cancel/complete in normal and reduced modes; Android back-channel gestures
+cancel/commit, with normal system back under reduction. Both themes work at
+320×480, 3× text, safe padding and simulated keyboard insets. Existing live
+OS/app changes, mid-transition reduction, lifecycle and appearance regressions
+also pass.
+
+Initial checks caught a non-const Semantics constructor, a missing test extension
+import, an obsolete fade-count assertion, a retry button requiring scroll into
+view, cached-theme platform test setup, and the malformed-query comparison issue
+above. These were corrected and final checks pass. No unresolved test/build
+failure remains.
+
+**Limitations and next eligible phase**
+
+No physical-device accessibility, screen-reader, real-keyboard or gesture
+qualification was performed. Widget gesture/channel checks are not physical
+Android predictive-back or iOS swipe evidence. iOS native completion/restart,
+minimum-OS/low-end hardware, release timing/performance and signing remain
+unverified. Native URL registrations/universal links and OS process restoration
+were not introduced or qualified. No fixture server, download host, AI model or
+primary-database reset was needed for M05 native checks. M04's production HTTPS
+host prerequisite and M03's AI qualification gaps remain unchanged.
+
+**M05 is complete within its selected scope. Next eligible phase: M06 — Notes
+vertical slice. M06 and every later implementation phase remain unstarted. Stop
+at this boundary.**

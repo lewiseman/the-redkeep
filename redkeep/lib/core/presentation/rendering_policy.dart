@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:flutter/material.dart';
 
 import '../../features/appearance/domain/appearance_preferences.dart';
@@ -99,10 +100,59 @@ class _RenderingPolicyHostState extends State<RenderingPolicyHost>
         child: Theme(
           data: Theme.of(context).copyWith(
             splashFactory: policy.reducedMotion ? NoSplash.splashFactory : null,
+            pageTransitionsTheme: PageTransitionsTheme(
+              builders: {
+                for (final platform in TargetPlatform.values)
+                  platform: _PolicyTransitions(policy, platform),
+              },
+            ),
           ),
           child: widget.child,
         ),
       ),
     );
+  }
+}
+
+/// Keep framework gesture handling on Material routes. Under reduced motion,
+/// iOS still gets its edge-swipe detector with stationary route animations.
+class _PolicyTransitions extends PageTransitionsBuilder {
+  const _PolicyTransitions(this.policy, this.platform);
+  final RenderingPolicy policy;
+  final TargetPlatform platform;
+
+  @override
+  Duration get transitionDuration => policy.duration;
+  @override
+  Duration get reverseTransitionDuration => policy.duration;
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    if (platform == TargetPlatform.iOS || platform == TargetPlatform.macOS) {
+      return const CupertinoPageTransitionsBuilder().buildTransitions(
+        route,
+        context,
+        policy.animate ? animation : const AlwaysStoppedAnimation(1),
+        policy.animate ? secondaryAnimation : const AlwaysStoppedAnimation(0),
+        child,
+      );
+    }
+    if (!policy.animate) return child;
+    if (platform == TargetPlatform.android) {
+      return const PredictiveBackPageTransitionsBuilder().buildTransitions(
+        route,
+        context,
+        animation,
+        secondaryAnimation,
+        child,
+      );
+    }
+    return FadeTransition(opacity: animation, child: child);
   }
 }

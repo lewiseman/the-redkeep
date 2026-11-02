@@ -15,7 +15,9 @@ SQLite executes on Drift's managed isolate, off the UI isolate. Tests can inject
 a `QueryExecutor` or override the repository provider. No mutable global service,
 clock, ID source, or interim preference store is needed.
 
-Schema **1** contains only `appearance_settings`. The primary key/check permits
+Schema **1** introduced `appearance_settings`. Current schema **2** adds the
+[onboarding completion marker](onboarding-routing.md); version 1 → 2 preserves
+appearance data. The primary key/check permits
 one row (`id = 1`); theme and boolean values have SQL constraints. A missing row
 means defaults and does not seed a record. Saving upserts the full snapshot.
 `drift_schemas/drift_schema_v1.json` and generated schema helpers preserve the
@@ -52,8 +54,9 @@ The app cannot disable OS reduction. Switches show saved user intent; status tex
 explains the effective result. Clearing an OS request restores the app choice.
 System theme follows live brightness; explicit light/dark selections stay fixed.
 
-Routes share a 180ms fade or immediate transition, including policy changes in
-flight. Theme changes are immediate. Shared sheet/ink/accent/edge tokens and
+Material routes share 180ms platform transitions or immediate presentation,
+including policy changes in flight. The [navigation guide](onboarding-routing.md)
+describes framework back gestures in normal and reduced modes. Theme changes are immediate. Shared sheet/ink/accent/edge tokens and
 system typography supply headings, section titles, body copy, and labels. Paper
 has a border and one small shadow; simpler mode removes the shadow and preserves
 functionality. A local Material layer keeps focus/ink feedback visible. M04 adds
@@ -78,9 +81,9 @@ Run the checks in the [README](../README.md). Tests mirror production under
 `redkeep/test/features/appearance`, `test/core`, and `test/app`. Widget/controller
 tests use fresh scopes and fake repositories, never app-owned storage. Repository
 tests use synthetic preferences and disposable SQLite files, including background
-executor close/reopen. Version 1 has no predecessor; fresh creation is compared
-against the saved snapshot. Every future upgrade needs migration and preserved
-data checks.
+executor close/reopen. Fresh schema 2 is compared against its snapshot; migration from version 1
+checks every saved theme and reduction/effects values. Both historical snapshots
+are retained. Every future upgrade needs migration and preserved data checks.
 
 Official references checked for adoption:
 

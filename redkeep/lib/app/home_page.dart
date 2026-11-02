@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../core/presentation/paper_surface.dart';
 import 'app_shell.dart';
+import 'navigation_destination.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -26,7 +27,7 @@ class HomePage extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             OutlinedButton.icon(
-              onPressed: () => context.push('/settings'),
+              onPressed: () => context.go(AppDestination.settings.location),
               icon: const Icon(Icons.tune),
               label: const Text('Appearance'),
             ),

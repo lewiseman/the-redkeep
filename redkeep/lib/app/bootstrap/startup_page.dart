@@ -5,14 +5,12 @@ import '../../features/assets/domain/asset_catalog.dart';
 import '../app_shell.dart';
 import 'bootstrap_controller.dart';
 
-class StartupGate extends ConsumerWidget {
-  const StartupGate({super.key, required this.child});
-  final Widget child;
+class StartupPage extends ConsumerWidget {
+  const StartupPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(bootstrapControllerProvider);
-    if (state.stage == BootstrapStage.ready) return child;
     final controller = ref.read(bootstrapControllerProvider.notifier);
     final downloading = state.stage == BootstrapStage.downloading;
     final checking = state.stage == BootstrapStage.checking;
@@ -35,7 +33,7 @@ class StartupGate extends ConsumerWidget {
             liveRegion: true,
             child: Text(
               checking
-                  ? 'Checking saved settings and local artwork…'
+                  ? 'Checking saved settings, welcome status and local artwork…'
                   : localError
                   ? state.failure == null
                         ? 'Local checks could not finish. Retry when your device is ready. Your saved writing is kept.'

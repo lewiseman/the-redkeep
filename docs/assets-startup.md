@@ -102,10 +102,11 @@ The controller releases the splash on success, error, timeout or disposal,
 without waiting for a deferred first frame. Download actions are enabled only
 after release. No model initialization or network transfer runs under the splash.
 
-M04 adds no onboarding state or onboarding route. M05 must add its real local
-state check through this coordinator under the same aggregate limit. The gate
-wraps the router without rewriting its destination, so a direct `/settings`
-destination survives download/retry. Missing required artwork blocks entry,
+M05 adds its persisted onboarding read through this coordinator under the same
+aggregate limit. The router now redirects through a real `/startup` page with
+a validated continuation, so a direct `/settings` destination survives local
+checks, download/retry and onboarding. See [onboarding and navigation](onboarding-routing.md)
+for validation, history and interruption semantics. Missing required artwork blocks entry,
 including offline first launch. Complete installations open offline. Startup
 database/settings failures have a local retry; saved settings are reloaded after
 a successful recovery. Asset failures explain connection, storage, integrity,

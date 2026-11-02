@@ -6,7 +6,6 @@ import '../core/presentation/rendering_policy.dart';
 import '../features/appearance/application/appearance_controller.dart';
 import '../features/appearance/domain/appearance_preferences.dart';
 import 'app_router.dart';
-import 'bootstrap/startup_gate.dart';
 
 class RedkeepApp extends ConsumerWidget {
   const RedkeepApp({super.key});
@@ -14,10 +13,14 @@ class RedkeepApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final appearance = ref.watch(appearanceControllerProvider);
+    final router = ref.watch(appRouterProvider);
     return MaterialApp.router(
       title: 'Redkeep',
       debugShowCheckedModeBanner: false,
-      routerConfig: ref.watch(appRouterProvider),
+      routeInformationProvider: ref.watch(navigationRouteInformationProvider),
+      routeInformationParser: router.routeInformationParser,
+      routerDelegate: router.routerDelegate,
+      backButtonDispatcher: router.backButtonDispatcher,
       theme: RedkeepTheme.light,
       darkTheme: RedkeepTheme.dark,
       themeMode: switch (appearance.preferences.theme) {
@@ -31,7 +34,7 @@ class RedkeepApp extends ConsumerWidget {
         preferences: appearance.loaded
             ? appearance.preferences
             : const AppearancePreferences(reduceMotion: true),
-        child: StartupGate(child: child!),
+        child: child!,
       ),
     );
   }

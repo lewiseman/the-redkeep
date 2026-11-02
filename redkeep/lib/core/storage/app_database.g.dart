@@ -313,16 +313,163 @@ class AppearanceSettingsCompanion extends UpdateCompanion<AppearanceRow> {
   }
 }
 
+class $OnboardingCompletionTable extends OnboardingCompletion
+    with TableInfo<$OnboardingCompletionTable, OnboardingCompletionRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $OnboardingCompletionTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'onboarding_completion';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<OnboardingCompletionRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  OnboardingCompletionRow map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return OnboardingCompletionRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+    );
+  }
+
+  @override
+  $OnboardingCompletionTable createAlias(String alias) {
+    return $OnboardingCompletionTable(attachedDatabase, alias);
+  }
+}
+
+class OnboardingCompletionRow extends DataClass
+    implements Insertable<OnboardingCompletionRow> {
+  final int id;
+  const OnboardingCompletionRow({required this.id});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    return map;
+  }
+
+  OnboardingCompletionCompanion toCompanion(bool nullToAbsent) {
+    return OnboardingCompletionCompanion(id: Value(id));
+  }
+
+  factory OnboardingCompletionRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return OnboardingCompletionRow(id: serializer.fromJson<int>(json['id']));
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{'id': serializer.toJson<int>(id)};
+  }
+
+  OnboardingCompletionRow copyWith({int? id}) =>
+      OnboardingCompletionRow(id: id ?? this.id);
+  OnboardingCompletionRow copyWithCompanion(
+    OnboardingCompletionCompanion data,
+  ) {
+    return OnboardingCompletionRow(
+      id: data.id.present ? data.id.value : this.id,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('OnboardingCompletionRow(')
+          ..write('id: $id')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => id.hashCode;
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is OnboardingCompletionRow && other.id == this.id);
+}
+
+class OnboardingCompletionCompanion
+    extends UpdateCompanion<OnboardingCompletionRow> {
+  final Value<int> id;
+  const OnboardingCompletionCompanion({this.id = const Value.absent()});
+  OnboardingCompletionCompanion.insert({this.id = const Value.absent()});
+  static Insertable<OnboardingCompletionRow> custom({Expression<int>? id}) {
+    return RawValuesInsertable({if (id != null) 'id': id});
+  }
+
+  OnboardingCompletionCompanion copyWith({Value<int>? id}) {
+    return OnboardingCompletionCompanion(id: id ?? this.id);
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('OnboardingCompletionCompanion(')
+          ..write('id: $id')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $AppearanceSettingsTable appearanceSettings =
       $AppearanceSettingsTable(this);
+  late final $OnboardingCompletionTable onboardingCompletion =
+      $OnboardingCompletionTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
-  List<DatabaseSchemaEntity> get allSchemaEntities => [appearanceSettings];
+  List<DatabaseSchemaEntity> get allSchemaEntities => [
+    appearanceSettings,
+    onboardingCompletion,
+  ];
 }
 
 typedef $$AppearanceSettingsTableCreateCompanionBuilder =
@@ -522,10 +669,146 @@ typedef $$AppearanceSettingsTableProcessedTableManager =
       AppearanceRow,
       PrefetchHooks Function()
     >;
+typedef $$OnboardingCompletionTableCreateCompanionBuilder =
+    OnboardingCompletionCompanion Function({Value<int> id});
+typedef $$OnboardingCompletionTableUpdateCompanionBuilder =
+    OnboardingCompletionCompanion Function({Value<int> id});
+
+class $$OnboardingCompletionTableFilterComposer
+    extends Composer<_$AppDatabase, $OnboardingCompletionTable> {
+  $$OnboardingCompletionTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$OnboardingCompletionTableOrderingComposer
+    extends Composer<_$AppDatabase, $OnboardingCompletionTable> {
+  $$OnboardingCompletionTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$OnboardingCompletionTableAnnotationComposer
+    extends Composer<_$AppDatabase, $OnboardingCompletionTable> {
+  $$OnboardingCompletionTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+}
+
+class $$OnboardingCompletionTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $OnboardingCompletionTable,
+          OnboardingCompletionRow,
+          $$OnboardingCompletionTableFilterComposer,
+          $$OnboardingCompletionTableOrderingComposer,
+          $$OnboardingCompletionTableAnnotationComposer,
+          $$OnboardingCompletionTableCreateCompanionBuilder,
+          $$OnboardingCompletionTableUpdateCompanionBuilder,
+          (
+            OnboardingCompletionRow,
+            BaseReferences<
+              _$AppDatabase,
+              $OnboardingCompletionTable,
+              OnboardingCompletionRow
+            >,
+          ),
+          OnboardingCompletionRow,
+          PrefetchHooks Function()
+        > {
+  $$OnboardingCompletionTableTableManager(
+    _$AppDatabase db,
+    $OnboardingCompletionTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$OnboardingCompletionTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$OnboardingCompletionTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$OnboardingCompletionTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback: ({Value<int> id = const Value.absent()}) =>
+              OnboardingCompletionCompanion(id: id),
+          createCompanionCallback: ({Value<int> id = const Value.absent()}) =>
+              OnboardingCompletionCompanion.insert(id: id),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<
+                    $OnboardingCompletionTable,
+                    OnboardingCompletionRow
+                  >(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $OnboardingCompletionTable,
+                    OnboardingCompletionRow
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$OnboardingCompletionTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $OnboardingCompletionTable,
+      OnboardingCompletionRow,
+      $$OnboardingCompletionTableFilterComposer,
+      $$OnboardingCompletionTableOrderingComposer,
+      $$OnboardingCompletionTableAnnotationComposer,
+      $$OnboardingCompletionTableCreateCompanionBuilder,
+      $$OnboardingCompletionTableUpdateCompanionBuilder,
+      (
+        OnboardingCompletionRow,
+        BaseReferences<
+          _$AppDatabase,
+          $OnboardingCompletionTable,
+          OnboardingCompletionRow
+        >,
+      ),
+      OnboardingCompletionRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
   $AppDatabaseManager(this._db);
   $$AppearanceSettingsTableTableManager get appearanceSettings =>
       $$AppearanceSettingsTableTableManager(_db, _db.appearanceSettings);
+  $$OnboardingCompletionTableTableManager get onboardingCompletion =>
+      $$OnboardingCompletionTableTableManager(_db, _db.onboardingCompletion);
 }

@@ -1,12 +1,16 @@
 # Redkeep mobile
 
 The Flutter shell uses Riverpod and go_router for home, appearance settings,
-and unavailable-page recovery. Settings use the primary Drift database; system
+a persisted welcome flow, and unavailable-page recovery. Settings use the primary Drift database; system
 fonts and programmatic paper surfaces need no downloads.
 M04's required Appearance artwork is downloaded separately. Fresh installations
 are gated until the pack is verified; complete installations work offline. A
 host is intentionally unconfigured by default. Use the controlled local fixture
 instructions in [assets and startup](../docs/assets-startup.md) for development.
+
+M05 redirects through startup and onboarding while preserving validated
+requested destinations. See [onboarding and navigation](../docs/onboarding-routing.md)
+for completion, back behavior, parameter validation and retry contracts.
 
 See the [workspace README](../README.md) for setup/run/check commands and
 [architecture/testing guide](../docs/architecture-testing.md) for contracts,

@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import '../../features/assets/data/asset_download_client.dart';
 import '../../features/assets/data/file_required_assets.dart';
 import '../../features/assets/domain/asset_catalog.dart';
+import '../../features/onboarding/application/onboarding_controller.dart';
 import '../storage_providers.dart';
 import 'bootstrap_coordinator.dart';
 
@@ -39,6 +40,7 @@ final bootstrapCoordinatorProvider = Provider<BootstrapCoordinator>((ref) {
     // Opens/migrates the same background database and checks saved preferences.
     localChecks: () async {
       await preferences.watch().first;
+      await ref.read(onboardingControllerProvider.notifier).load();
     },
     loadAssets: () {
       if (ref.read(requiredAssetsProvider).hasError) {

@@ -1,0 +1,130 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:redkeep/app/navigation_destination.dart';
+
+void main() {
+  String? redirect(
+    String location, {
+    bool ready = true,
+    bool complete = true,
+  }) => navigationRedirect(
+    Uri.parse(location),
+    startupReady: ready,
+    onboardingComplete: complete,
+  );
+
+  test(
+    'string ingress rejects malformed URIs and canonicalizes safe gates',
+    () {
+      expect(
+        validatedNavigationLocation('https://bad:port/settings'),
+        '/unavailable',
+      );
+      expect(
+        validatedNavigationLocation('/startup?continue=%FF'),
+        '/startup?continue=%2Funavailable',
+      );
+      expect(
+        validatedNavigationLocation('/startup?continue=%2Fsettings'),
+        '/startup?continue=%2Fsettings',
+      );
+      expect(
+        validatedNavigationLocation('/settings?private=secret'),
+        '/unavailable',
+      );
+    },
+  );
+
+  test('only canonical implemented destinations cross the boundary', () {
+    for (final location in ['/', '/settings', '/%73ettings', '/settings/../']) {
+      expect(redirect(location), isNull);
+    }
+    for (final location in [
+      '/notes/abc',
+      '/diary/2026-11-02',
+      '/flow/a',
+      '/settings/brain',
+      '/tasks',
+      '/settings?x=private',
+      '/settings#private',
+      '/settings/',
+      '/SETTINGS',
+      '//example.com/settings',
+      'https://example.com/settings',
+      'settings',
+      '/settings?continue=%2F',
+      '/settings%00',
+    ]) {
+      expect(redirect(location), '/unavailable', reason: location);
+    }
+  });
+
+  test(
+    'gate parameters never nest, loop or allow an external continuation',
+    () {
+      for (final location in [
+        '/startup?continue=https%3A%2F%2Fexample.com',
+        '/onboarding?continue=%2Fstartup',
+        '/startup?continue=%2Fonboarding%3Fcontinue%3D%252Fsettings',
+        '/startup?continue=%252Fsettings',
+        '/startup?continue=%2Fsettings&continue=%2F',
+        '/startup?continue=%2Fsettings&other=private',
+        '/startup?continue=%2Fsettings%3Fsecret%3Dprivate',
+        '/startup?continue=%2Fsettings#private',
+        '/startup?continue=',
+        '/startup?continue=%FF',
+        '/startup?continue=%E0%A4',
+        '/startup?continue=%',
+        '/onboarding?',
+        'https://example.com/startup?continue=%2Fsettings',
+      ]) {
+        expect(redirect(location), '/unavailable', reason: location);
+        final pending = redirect(location, ready: false)!;
+        expect(pending, '/startup?continue=%2Funavailable');
+        expect(redirect(pending, ready: false), isNull);
+        expect(
+          redirect(pending, complete: false),
+          '/onboarding?continue=%2Funavailable',
+        );
+      }
+    },
+  );
+
+  test('each readiness combination settles within two redirects', () {
+    for (final ready in [false, true]) {
+      for (final complete in [false, true]) {
+        for (final initial in [
+          '/',
+          '/settings',
+          '/unavailable',
+          '/missing',
+          '/startup',
+          '/onboarding',
+        ]) {
+          var location = initial;
+          var count = 0;
+          while (true) {
+            final next = redirect(location, ready: ready, complete: complete);
+            if (next == null) break;
+            expect(count++, lessThan(2), reason: '$initial, $ready, $complete');
+            location = next;
+          }
+        }
+      }
+    }
+  });
+
+  test(
+    'settings survives local checking, downloading, onboarding and completion',
+    () {
+      final checking = redirect('/settings', ready: false)!;
+      expect(checking, '/startup?continue=%2Fsettings');
+      expect(redirect(checking, ready: false), isNull);
+      final onboarding = redirect(checking, complete: false)!;
+      expect(onboarding, '/onboarding?continue=%2Fsettings');
+      expect(redirect(onboarding, complete: false), isNull);
+      expect(redirect(onboarding), '/settings');
+      expect(redirect('/onboarding'), '/');
+      expect(redirect('/startup'), '/');
+    },
+  );
+}

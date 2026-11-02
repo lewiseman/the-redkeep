@@ -1,0 +1,23 @@
+# Local source artwork/audio stays on disk, outside application bundles.
+/raw_assets/
+
+# Workspace/editor and operating-system state.
+.DS_Store
+.idea/
+*.iml
+*.swp
+*.log
+
+# Local configuration and signing credentials.
+.env
+.env.*
+!.env.example
+*.keystore
+*.jks
+*.p12
+*.mobileprovision
+
+# Mobile build/tool output is also covered by redkeep/.gitignore.
+**/.dart_tool/
+**/build/
+**/coverage/

@@ -1,0 +1,64 @@
+# Redkeep
+
+The mobile Flutter app lives in `redkeep/`. M02 adds light/dark paper themes,
+saved appearance settings, and reactive motion/effects policy to the
+Riverpod/go_router shell. The agreed roadmap and phase
+evidence live in [MIGRATION_PLAN.md](MIGRATION_PLAN.md); architecture and test
+contracts live in [docs/architecture-testing.md](docs/architecture-testing.md).
+See [appearance and persistence](docs/appearance-persistence.md) for settings,
+database, rendering-policy, and recovery contracts.
+M03 adds an opt-in local inference adapter and synthetic verification entry
+point. See [AI feasibility](docs/ai-feasibility.md) for pinned artifacts, native
+setup, reproduction commands, evidence, and remaining hardware gaps. Normal
+startup does not initialize AI or require a model.
+
+Use Flutter 3.47.5 / Dart 3.13.4 (the verified local baseline). From the workspace
+root:
+
+```sh
+cd redkeep
+flutter pub get --enforce-lockfile
+dart format --output=none --set-exit-if-changed lib test tool
+flutter analyze
+flutter test
+```
+
+Run the shell on an available mobile device or emulator:
+
+```sh
+cd redkeep
+flutter devices
+flutter run -d <device-id>
+```
+
+To apply formatting during development, run `dart format lib test tool` from `redkeep/`.
+The fast suite needs no accounts, presentation downloads, models, or user data.
+Widget tests inject repositories; persistence tests use disposable SQLite
+databases, including background execution and close/reopen checks.
+Dependency resolution needs pub.dev access on a fresh machine; tests use the
+resolved local packages. Keep `redkeep/pubspec.lock` under version control.
+
+After changing Drift tables, regenerate code and a versioned schema snapshot:
+
+```sh
+cd redkeep
+dart run build_runner build
+dart run drift_dev schema dump lib/core/storage/app_database.dart drift_schemas/
+mkdir -p test/core/storage/generated
+dart run drift_dev schema generate drift_schemas/ test/core/storage/generated/
+dart format lib test
+```
+
+M02 establishes schema version 1. Each subsequent schema change needs a version
+bump and migration/data-preservation tests. Preserve historical snapshots after
+shipping that version. Keep generated Drift code and schema helpers with source.
+For Android packaging verification, run
+`flutter build apk --debug --target-platform android-arm64` from
+`redkeep/`.
+
+This is one local Git repository at the workspace root. Existing platform files
+remain in the mobile app; the starter's macOS runner is preserved, without a new
+desktop app. `raw_assets/` remains untouched local source material, ignored by
+Git and excluded from application assets. Build caches, local configuration, and
+signing credentials are ignored; generated Flutter/native files retain the
+starter's platform-specific ignore rules.

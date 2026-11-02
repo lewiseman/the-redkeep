@@ -267,6 +267,8 @@ void main() {
     'artwork repair after normal navigation preserves the current route',
     (tester) async {
       final router = await pumpApp(tester);
+      await tester.tap(find.widgetWithText(TextButton, 'More'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Appearance'));
       await tester.pumpAndSettle();
       tester

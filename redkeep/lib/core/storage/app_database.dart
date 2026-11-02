@@ -8,6 +8,7 @@ import '../../features/appearance/data/appearance_table.dart';
 import '../../features/onboarding/data/onboarding_table.dart';
 import '../../features/notes/data/notes_tables.dart';
 import '../../features/diary/data/diary_tables.dart';
+import '../../features/flow/data/flow_tables.dart';
 
 part 'app_database.g.dart';
 
@@ -21,13 +22,15 @@ part 'app_database.g.dart';
     DiaryEntries,
     DiaryDrafts,
     DiaryDays,
+    FlowThoughts,
+    FlowDrafts,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -48,6 +51,12 @@ class AppDatabase extends _$AppDatabase {
         await migrator.createTable(diaryDrafts);
         await migrator.createTable(diaryDays);
         await migrator.createIndex(diaryEntriesDayOrder);
+      }
+      if (from < 6 && to >= 6) {
+        await migrator.createTable(flowThoughts);
+        await migrator.createTable(flowDrafts);
+        await migrator.createIndex(flowThoughtsOrder);
+        await migrator.createIndex(flowSingleCapture);
       }
     },
   );

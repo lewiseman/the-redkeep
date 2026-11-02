@@ -26,8 +26,11 @@ for the document boundary, revisions, deletion retention and failure recovery.
 M08 adds `/diary`, `/diary/calendar/:date`, `/diary/:date`,
 `/diary/:date/entries/:id`, its `/edit` child, and `/diary/search`.
 See [Diary writing and recovery](diary-writing.md) for civil dates, separate day
-metadata, entry deletion and recovery. Diary/Notes/Appearance are usable shell
-destinations; no future destinations are registered.
+metadata, entry deletion and recovery. M09 adds `/flow`, `/flow/:id`, `/flow/:id/edit` and `/more`. A shared
+`WritingShell` wraps the normal route navigator and provides Diary/Notes/Flow/More,
+with Appearance under More. Labels wrap at large text; the bar hides while the
+keyboard is open. The existing feature scaffolds keep their safe scroll viewports.
+See [Flow capture and recovery](flow-writing.md); no future destinations are registered.
 Invalid/unmatched input uses `/unavailable` with **Return home**, replacing the
 unavailable route. Incoming URL content and raw errors are never displayed.
 Material pages use central 180ms platform transitions or immediate reduced-motion
@@ -47,7 +50,9 @@ map rows; controllers observe authoritative snapshots and coordinate saves. See
 [appearance and persistence](appearance-persistence.md) for ownership, schema,
 recovery, lifecycle, and generation contracts. M06 extends this same database to
 schema 3 for Notes and recovery drafts; M07 adds pins/tags in schema 4. M08 adds
-Diary entries, drafts and independent day headings in schema 5. Diary composition
+Diary entries, drafts and independent day headings in schema 5. M09 adds Flow
+thoughts and capture/edit recovery drafts in schema 6; composition lives in
+`features/flow/application/flow_providers.dart`. Diary composition
 lives in `features/diary/application/diary_providers.dart`. Notes repository/clock/ID composition
 lives in `features/notes/application/notes_providers.dart`.
 
@@ -70,6 +75,7 @@ flutter test test/features/appearance
 flutter test test/features/onboarding
 flutter test test/features/notes
 flutter test test/features/diary
+flutter test test/features/flow
 flutter test test/core
 flutter test test/features/ai
 flutter test test/features/assets
@@ -84,7 +90,7 @@ dart run tool/validate_assets.dart assets/catalog/presentation-v1.json tool/asse
   settings, and real background SQLite close/reopen. UI tests check themes,
   live system/app changes, mid-transition reduction, back, flat paper, contrast,
   and narrow/large-text/inset layouts in both themes.
-- `test/core` checks schema 5 against its snapshot, upgrades from versions 1–4,
+- `test/core` checks schema 6 against its snapshot, upgrades from versions 1–5,
   appearance/onboarding preservation, empty writing tables, SQL constraints,
   retained source/draft tokens and tombstones, all OS/app/lifecycle combinations, both OS flags live, inactive/offscreen
   ticker gating, resumption, and disposal.
@@ -114,6 +120,11 @@ dart run tool/validate_assets.dart assets/catalog/presentation-v1.json tool/asse
   IDs, Gregorian/DST/offset boundaries, literal keyword search, full long writing,
   accessible calendar activation and both themes/rendering modes at 320px/3×
   text/safe areas/keyboard. See the Diary guide for explicit timezone commands.
+- `test/features/flow` checks rapid/repeated capture, commit-before-clear, duplicate
+  prevention, failed writes/cleanup, single composer slot, deterministic time/ID
+  ordering, background reopen, source/draft tokens, copy/discard, deleted routes,
+  bounded previews/lazy collections, all shell destinations and narrow/large-text/
+  keyboard/rendering combinations.
 - `test/features/notes` checks CRUD, transactional rollback, failed saves and
   recovery, Unicode/large bodies, background close/reopen, stale source/draft
   tokens, copy/discard, navigation and ID switching, missing/deleted IDs and
@@ -150,7 +161,9 @@ release/minimum-OS and power-loss/storage-failure qualification remain gaps.
 M07 adds Notes organization and preview; its native evidence and remaining gaps
 are recorded separately. M08 adds civil-date Diary writing, metadata separation,
 calendar/search/routes, recovery and static notebook presentation. Its exact
-native evidence and remaining gaps are recorded separately. M09 — Flow is next.
+native evidence and remaining gaps are recorded separately. M09 adds Flow and
+the complete implemented shell, with native/offline evidence in its record.
+M10 — Brain is next.
 
 ## References
 

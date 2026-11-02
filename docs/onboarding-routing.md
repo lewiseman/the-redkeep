@@ -37,8 +37,9 @@ locations: `/`, `/settings`, `/notes`, `/notes/:id` and `/notes/:id/edit`, plus
 the Diary/calendar/day/entry/editor/search routes listed in the [Diary guide](diary-writing.md), and
 `/unavailable` for the real fallback page. M06 validates 32-character lowercase
 hex note IDs and handles missing/deleted sources in the reader/editor. See
-[Notes writing and recovery](notes-writing.md). Flow, Brain and task routes
-remain unregistered.
+[Notes writing and recovery](notes-writing.md). M09 adds `/flow`, `/flow/:id`, `/flow/:id/edit` and `/more`; see
+[Flow and the implemented shell](flow-writing.md). Brain and task routes remain
+unregistered.
 
 Internal controls use `AppDestination` locations. Pass any untrusted string
 through `validatedNavigationLocation` **before** calling go_router; do not hand
@@ -68,7 +69,7 @@ upgrading go_router. Normal history reporting is forwarded unchanged.
 3. Ready startup with committed completion opens the requested destination.
 
 The gate URI carries exactly one `continue` parameter containing only `/`,
-`/settings`, the implemented Notes destinations or the canonical `/unavailable` fallback. For example,
+`/settings`, the implemented Notes/Diary/Flow/More destinations or the canonical `/unavailable` fallback. For example,
 `/startup?continue=%2Fsettings` becomes `/onboarding?continue=%2Fsettings`, then
 `/settings`. Gate links without a query default home. Extra/duplicate parameters,
 empty values, nested gates, double-encoded destinations, external continuations,
@@ -134,7 +135,9 @@ minimum-OS and low-end hardware qualifications remain outstanding. M04's real
 HTTPS asset-host prerequisite and M03's AI hardware gaps remain unchanged.
 M06 extends these contracts for Notes. M07 keeps the same routes and adds
 trashed-source restore/deletion actions on the existing reader. M08 adds the
-Diary calendar, civil dates and entry routes. M09 is next.
+Diary calendar, civil dates and entry routes. M09 adds Flow and a shared
+Diary/Notes/Flow/More shell. More contains Appearance; the `/settings` route and
+its home back stack remain supported. M10 is next.
 
 Official APIs checked alongside the locally resolved source:
 

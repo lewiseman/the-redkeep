@@ -39,7 +39,7 @@ Use `Not started`, `In progress`, `Complete`, or `Partial`. A partial result mus
 | M06 — Notes vertical slice | Complete | Same primary database upgraded to schema 3; plain-text Notes CRUD, stable ID routes, revision/token checks, committed-save feedback and persistent recovery drafts. All 139 tests, analysis/formatting, Android/iOS simulator debug builds pass; Android airplane-mode create/recover/edit/save/delete and force-stop/reopen verified. See docs/notes-writing.md and docs/evidence/m06/verification.json. | Physical-device accessibility/IME, native iOS writing, minimum-OS/low-end/release and native disk-full/power-loss evidence unverified. M04 host and M03 AI gaps unchanged. Next eligible phase is M07. |
 | M07 — Notes organization | Complete | Schema 4 with local keyword/tag/pin filters, Trash/restore, typed permanent deletion, safe bounded Markdown preview and resolver-backed Notes artwork. All 155 tests, formatting/analysis, asset validation and Android/iOS simulator debug builds pass; Android offline reopen/filter/restore/delete and external browser launch verified. See docs/notes-writing.md and docs/evidence/m07/verification.json. | Native iOS writing/browser, physical accessibility/IME, minimum-OS/low-end/release and native storage-failure evidence unverified. Preview/search bounds documented; M04 host and M03 AI gaps unchanged. Next eligible phase is M08. |
 | M08 — Diary | Complete | Schema 5 separates civil-date Diary entries, recovery drafts and day headings; calendar/day/entry routes, CRUD, local keyword search and static/simpler notebook presentation. All 185 tests, formatting/analysis, four timezone suites, asset validation and Android/iOS simulator debug builds pass; Android offline draft recovery, committed reopen/search and deletion verified. See docs/diary-writing.md and docs/evidence/m08/verification.json. | Physical accessibility/IME, native iOS Diary writing, minimum-OS/low-end/release and native storage-failure evidence unverified. No expensive visual effect introduced or physical performance claim. M04 host and M03 AI gaps unchanged. Next eligible phase is M09. |
-| M09 — Flow | Not started | — | Requires M08. |
+| M09 — Flow | Complete | Schema 6 with quick capture committed before composer clearing, durable capture/edit drafts, newest-first thoughts, ID CRUD and complete Diary/Notes/Flow/More shell. All 213 tests, analysis/formatting, asset validation and Android/iOS simulator debug builds pass; Android offline capture/recovery/edit/delete/restart verified. See docs/flow-writing.md and docs/evidence/m09/verification.json. | Physical accessibility/IME, native iOS Flow writing, minimum-OS/low-end/release and native storage-failure evidence unverified. M04 host and M03 AI gaps unchanged. Next eligible phase is M10. |
 | M10 — Brain | Not started | — | Requires M09 and the M03 adapter; native acceptance evidence remains mandatory. |
 | M11 — Grand Maester | Not started | — | Requires M10. |
 | M12 — Mobile release preparation | Not started | — | Requires M01–M11; production media hosting is a release prerequisite. |
@@ -1413,3 +1413,77 @@ are unchanged. These gaps do not imply physical-device verification from widgets
 
 **M08 is complete within its selected scope. Next eligible phase: M09 — Flow.
 M09 and all later implementation phases remain unstarted. Stop here.**
+
+### M09 — Flow — 2 November 2026
+
+**Status: Complete within the selected text Flow scope.** M08 was complete and
+initial Git status was clean. Read root AGENTS.md, the migration plan and the
+architecture, persistence, writing/recovery and routing guidance. No legacy
+project, `raw_assets/`, native configuration, dependency manifest or lockfile
+was changed. M10 and all excluded capabilities remain unimplemented.
+
+**Behavior and contracts.**
+
+- Added immutable feature-owned thoughts, capture/edit drafts, bounded list
+  metadata and a repository with injected clock/IDs. Schema **6** extends the
+  existing background primary database with `flow_thoughts`, `flow_drafts`, a
+  creation/ID order index and a single-capture partial unique index. Fresh Flow
+  is empty. Versions 1–5 preserve all prior tables, text, timestamps, metadata,
+  tombstones, source revisions and AUTOINCREMENT sequences.
+- Quick capture persists/coalesces recovery immediately and restores its single
+  composer draft on restart. Atomic revision/token-checked commit and cleanup
+  complete before clearing text or showing success. In-flight submission and
+  editing are locked; intentional successive captures use separate stable IDs.
+  Failed recovery, writes and cleanup retain writing and offer safe retry/copy.
+- Added newest-first thought lists, full ID readers/editors, explicit committed
+  revision feedback, independent edit drafts, guarded editor back, copy and
+  confirmed discard. Lists load only 160-character previews and build lazily;
+  complete Unicode text is never truncated in storage/read/edit. Creation UTC
+  milliseconds then ID descending determine order; editing does not reorder.
+- Confirmed deletion clears committed text and retains a revision/ID/audit
+  tombstone to reject resurrection. Independent recovery drafts remain. Missing/
+  deleted IDs use useful feature fallbacks; malformed routes use the existing
+  global fallback. Flow/More continuations cross startup and onboarding safely.
+- A shared normal-route shell provides **Diary / Notes / Flow / More**, with only
+  implemented **Appearance** under More. `/settings` and framework back behavior
+  remain supported. Labels wrap and expose selected semantics; the bar hides
+  during keyboard input. Existing feature viewports keep safe areas/scrolling.
+  No new animation, expensive effect, asset or dependency was introduced.
+  Updated [Flow guide](docs/flow-writing.md), READMEs and architecture/persistence/
+  routing contracts. Existing shell tests now follow More and scroll the reduced
+  Notes viewport with settled, hittable controls.
+
+**Exact verification.** Commands ran in `redkeep/` unless root/native paths are
+shown. Flutter **3.47.5** (`6a19cca564`), engine `af7e796e16`, Dart **3.13.4**;
+Xcode **27.2 / 27B52**. Machine-readable evidence, native control coordinates,
+synthetic text and artifact SHA-256 digests are in
+[verification.json](docs/evidence/m09/verification.json).
+
+| Command / check | Result |
+| --- | --- |
+| `dart run build_runner build`; `dart run drift_dev schema dump lib/core/storage/app_database.dart drift_schemas/`; `dart run drift_dev schema generate drift_schemas/ test/core/storage/generated/` | Passed; schema 6 and generated verification helper retained. Historical v1–5 snapshots/helpers unchanged. |
+| `flutter pub get --enforce-lockfile` | Passed; manifest/lockfile unchanged, no new dependencies. |
+| `dart format --output=none --set-exit-if-changed lib test tool` | **126 files, 0 changed**. |
+| `flutter analyze` | **No issues found**, final **2.9s**. |
+| `flutter test test/features/flow test/core/storage test/app` | **67 passed**, **3s**. Includes populated v5 preservation, earlier migrations and gate/ID validation. |
+| `flutter test` | **213 passed**, **9s**, no failed tests, exceptions or interaction warnings in final log. Includes **26 Flow tests** and all prior Notes/Diary/Appearance/onboarding/back checks. |
+| Capture/recovery/repository checks | 50 rapid edits coalesce; 20 intentional identical-text captures remain distinct; duplicate submissions during delayed writes/commit cannot duplicate or clear early. Failed insert/update/draft cleanup rolls back, stale source/draft tokens cannot overwrite, deleted drafts recover as copies, copy failure retains recovery, and background close/reopen keeps 24,000 repetitions of exact Unicode plus composer/edit drafts. Ordering, 160-character previews and lazy 2,001-thought queries pass. |
+| Layout/rendering checks | Composer/reader/editor/confirmations work at **320×480, 3× text, safe areas, 180px keyboard**, both themes and standard/reduced/simpler modes. All four shell controls remain hittable without keyboard at 3× text. Existing Android predictive-back and iOS swipe checks pass in both motion modes. No newly expensive visual effect was introduced; no physical performance claim. |
+| `dart run tool/validate_assets.dart assets/catalog/presentation-v1.json tool/assets/pack` | Unchanged **4 PNGs, 479,916 bytes**, no publication. |
+| `flutter build apk --debug --target-platform android-arm64` | Passed, Gradle **7.5s**; nonfatal JDK native-access warning. |
+| `flutter build ios --simulator --debug` | Passed, Xcode **14.9s**. |
+| `adb -s emulator-5554 install -r redkeep/build/app/outputs/flutter-apk/app-debug.apk`; airplane/Wi-Fi/data controls; `am force-stop` / `am start ... --es route /flow`; `uiautomator`, `input`, `exec-out screencap -p` | **sdk_gphone16k_arm64, Android 17/API 37**, existing installation upgraded without reset. Offline state read back **1/0/0**. Empty Flow, exact synthetic draft, force-stop recovery, committed capture/composer clearing, reopened list/reader, offline edit/save and confirmed deletion/reopen verified. Screens and observed controls are recorded in JSON. Original network state restored/read back **0/1/1**. |
+| `xcrun simctl install booted redkeep/build/ios/iphonesimulator/Runner.app`; `xcrun simctl launch --terminate-running-process booted com.lewiseman.redkeep`; `xcrun simctl io booted screenshot docs/evidence/m09/ios-simulator-launch.png` | **iPhone 17 Pro ARM64 / iOS 26.5 (23F77)** simulator reached the existing welcome using locally installed artwork. No native iOS Flow writing claim. |
+| Root `git diff --check`; `git diff --exit-code` over native configuration, manifests/lockfile and historical v1–5 snapshots/helpers | Passed. No remote Git operation/publication; legacy projects and `raw_assets/` not accessed. |
+
+**Limitations and boundary.** Newer bytes can remain only in memory if recovery
+storage fails; process termination can lose those bytes. Copy/conflict and draft
+recovery behavior and bounded list previews are explicit in the feature guide.
+Physical-device accessibility/IME, native iOS Flow writing, minimum-OS/low-end
+hardware, release/signing/frame/memory performance, native full-disk/power-loss/
+fsync and OS process restoration remain unverified. Host/widget/emulator checks
+are not physical-device evidence. M04's production HTTPS asset-host prerequisite
+and M03's AI qualification gaps remain unchanged.
+
+**M09 is complete within its selected scope. Next eligible phase: M10 — Brain.
+M10 and every later implementation phase remain unstarted. Stop here.**

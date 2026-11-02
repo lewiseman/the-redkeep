@@ -170,6 +170,29 @@ void main() {
     },
   );
 
+  test('Flow IDs and More survive both gates; malformed and future routes fail safely', () {
+    const id = '0123456789abcdef0123456789abcdef';
+    for (final path in ['/more', '/flow', '/flow/$id', '/flow/$id/edit']) {
+      expect(validatedNavigationLocation(path), path);
+      final gate = redirect(path, ready: false)!;
+      expect(redirect(redirect(gate, complete: false)!), path);
+    }
+    for (final path in [
+      '/flow/new',
+      '/flow/${'A' * 32}',
+      '/flow/$id/',
+      '/flow/$id/edit/extra',
+      '/flow/$id?text=private',
+      '/flow/$id#private',
+      '/brain',
+      '/more/brain',
+      '/flow/%FF',
+    ]) {
+      expect(validatedNavigationLocation(path), '/unavailable');
+    }
+    expect(thoughtLocation('bad'), '/unavailable');
+  });
+
   test(
     'settings survives local checking, downloading, onboarding and completion',
     () {

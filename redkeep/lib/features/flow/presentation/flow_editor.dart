@@ -1,0 +1,201 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../../app/navigation_destination.dart';
+import '../../../core/presentation/paper_surface.dart';
+import '../application/flow_editor_controller.dart';
+
+/// The same editing boundary serves quick capture and ID-based edits.
+class FlowEditor extends ConsumerStatefulWidget {
+  const FlowEditor({super.key, this.id});
+  final String? id;
+  @override
+  ConsumerState<FlowEditor> createState() => _FlowEditorState();
+}
+
+class _FlowEditorState extends ConsumerState<FlowEditor> {
+  final _body = TextEditingController();
+  @override
+  void dispose() {
+    _body.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = flowEditorProvider(widget.id);
+    final editor = ref.watch(provider);
+    final controller = ref.read(provider.notifier);
+    return editor.when(
+      loading: () => const Text('Opening writing…'),
+      error: (_, _) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            widget.id == null
+                ? 'Capture draft could not be loaded. Retry before writing.'
+                : 'Editor unavailable. The thought may be missing or deleted.',
+          ),
+          OutlinedButton(
+            onPressed: () => ref.invalidate(provider),
+            child: const Text('Retry opening'),
+          ),
+          if (widget.id != null)
+            OutlinedButton(
+              onPressed: () => context.go('/flow'),
+              child: const Text('Return to Flow'),
+            ),
+        ],
+      ),
+      data: (state) {
+        if (_body.text != state.body) {
+          _body.value = TextEditingValue(
+            text: state.body,
+            selection: TextSelection.collapsed(offset: state.body.length),
+          );
+        }
+        return PaperSurface(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                widget.id == null ? 'Catch a thought' : 'Edit thought',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const ValueKey('flow-body'),
+                controller: _body,
+                enabled: !state.saving,
+                decoration: const InputDecoration(
+                  labelText: 'Your thought',
+                  alignLabelWithHint: true,
+                ),
+                minLines: 3,
+                maxLines: null,
+                keyboardType: TextInputType.multiline,
+                textCapitalization: TextCapitalization.sentences,
+                onChanged: controller.edit,
+              ),
+              const SizedBox(height: 12),
+              Semantics(
+                liveRegion: true,
+                child: Text(
+                  state.message ??
+                      (state.recovering
+                          ? 'Keeping recovery draft…'
+                          : state.recoveryFailed
+                          ? 'Recovery is not saved. Keep this writing open and retry.'
+                          : state.draftRevision != null
+                          ? 'Recovery draft kept on this device. Save to commit.'
+                          : 'Plain text • on this device'),
+                ),
+              ),
+              if (state.sourceUnavailable)
+                const Text(
+                  'The original thought was deleted. Save a copy to keep this draft.',
+                ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  FilledButton(
+                    onPressed: state.saving || state.body.trim().isEmpty
+                        ? null
+                        : controller.save,
+                    child: Text(
+                      state.saving
+                          ? 'Saving…'
+                          : widget.id == null
+                          ? 'Capture thought'
+                          : 'Save thought',
+                    ),
+                  ),
+                  if (state.recoveryFailed)
+                    OutlinedButton(
+                      onPressed: state.saving ? null : controller.flushRecovery,
+                      child: const Text('Retry recovery'),
+                    ),
+                  if (state.sourceUnavailable ||
+                      state.message != null ||
+                      state.recoveryFailed)
+                    OutlinedButton(
+                      onPressed: state.saving || state.body.trim().isEmpty
+                          ? null
+                          : () async {
+                              final id = await controller.saveCopy();
+                              if (context.mounted && id != null) {
+                                context.go(thoughtLocation(id));
+                              }
+                            },
+                      child: const Text('Save a copy'),
+                    ),
+                  if (state.draftRevision != null ||
+                      state.recoveryFailed ||
+                      state.recovering)
+                    OutlinedButton(
+                      onPressed: state.saving
+                          ? null
+                          : () async {
+                              final discard = await showDialog<bool>(
+                                context: context,
+                                animationStyle: AnimationStyle.noAnimation,
+                                builder: (context) => Dialog(
+                                  child: SingleChildScrollView(
+                                    padding: const EdgeInsets.all(24),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: [
+                                        const Text('Discard recovery draft?'),
+                                        const Text(
+                                          'Uncommitted writing will be removed. Any committed thought is kept.',
+                                        ),
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context, false),
+                                          child: const Text('Keep writing'),
+                                        ),
+                                        FilledButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context, true),
+                                          child: const Text('Discard'),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                              if (discard == true &&
+                                  await controller.discard() &&
+                                  context.mounted &&
+                                  widget.id != null) {
+                                context.go(thoughtLocation(widget.id!));
+                              }
+                            },
+                      child: const Text('Discard draft'),
+                    ),
+                  if (widget.id != null)
+                    OutlinedButton(
+                      onPressed: state.saving
+                          ? null
+                          : () async {
+                              if (await controller.flushRecovery() &&
+                                  context.mounted) {
+                                context.go(thoughtLocation(widget.id!));
+                              }
+                            },
+                      child: const Text('Read committed thought'),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}

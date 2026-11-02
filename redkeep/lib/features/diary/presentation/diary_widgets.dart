@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
-import '../../../app/navigation_destination.dart';
 import '../../../core/presentation/paper_surface.dart';
 import '../../../core/presentation/rendering_policy.dart';
 
@@ -45,32 +43,6 @@ class DiaryFrame extends StatelessWidget {
           constraints: const BoxConstraints(maxWidth: 720),
           child: CustomScrollView(
             slivers: [
-              SliverPadding(
-                padding: const EdgeInsets.all(16),
-                sliver: SliverToBoxAdapter(
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      OutlinedButton(
-                        onPressed: () =>
-                            context.go(AppDestination.diary.location),
-                        child: const Text('Diary'),
-                      ),
-                      OutlinedButton(
-                        onPressed: () =>
-                            context.go(AppDestination.notes.location),
-                        child: const Text('Notes'),
-                      ),
-                      OutlinedButton(
-                        onPressed: () =>
-                            context.go(AppDestination.settings.location),
-                        child: const Text('Appearance'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
               ...slivers,
               const SliverToBoxAdapter(child: SizedBox(height: 32)),
             ],

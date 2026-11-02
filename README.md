@@ -33,6 +33,10 @@ Entries use civil dates and live separately from optional day headings. See
 [Diary writing and recovery](docs/diary-writing.md) for date, save and deletion
 contracts, accessible notebook presentation and evidence.
 
+M09 adds quick text capture, newest-first thoughts, ID readers/editors and durable
+capture/edit drafts in schema 6. The shared shell now offers Diary, Notes, Flow
+and More, with Appearance under More. See [Flow capture and recovery](docs/flow-writing.md).
+
 Use Flutter 3.47.5 / Dart 3.13.4 (the verified local baseline). From the workspace
 root:
 
@@ -75,7 +79,8 @@ M02 establishes schema version 1; M05 migrates to schema 2 while retaining
 appearance settings. M06 extends it to schema 3 for Notes and recovery drafts,
 preserving settings and onboarding. M07 adds pins and tags in schema 4 and tests
 upgrades from versions 1–3. M08 adds separate Diary entries, drafts and day
-headings in schema 5, preserving versions 1–4. Each subsequent schema change needs a version
+headings in schema 5, preserving versions 1–4. M09 adds Flow thoughts and recovery
+drafts in schema 6, preserving versions 1–5. Each subsequent schema change needs a version
 bump and migration/data-preservation tests. Preserve historical snapshots after
 shipping that version. Keep generated Drift code and schema helpers with source.
 For Android packaging verification, run

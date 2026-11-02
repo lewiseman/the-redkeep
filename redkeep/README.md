@@ -1,7 +1,7 @@
 # Redkeep mobile
 
-The Flutter shell uses Riverpod and go_router for a Diary-first home, Notes, appearance settings,
-a persisted welcome flow, and unavailable-page recovery. Diary, Notes and settings share the primary Drift database; system
+The Flutter shell uses Riverpod and go_router for a Diary-first home, Notes, Flow, More/appearance settings,
+a persisted welcome flow, and unavailable-page recovery. Diary, Notes, Flow and settings share the primary Drift database; system
 fonts and programmatic paper surfaces need no downloads.
 Required Appearance and Notes create artwork is downloaded separately. Fresh installations
 are gated until the pack is verified; complete installations work offline. A
@@ -18,6 +18,10 @@ Trash/restore, typed permanent deletion and safe Markdown preview in schema 4. S
 M08 adds civil-date Diary entries, calendar/day/entry routes, local keyword
 search, independent day headings and durable recovery in schema 5. See
 [Diary writing and recovery](../docs/diary-writing.md).
+
+M09 adds quick capture, durable composer/edit drafts, ID-based thought reading/
+editing/deletion and newest-first Flow in schema 6. The shell now offers Diary,
+Notes, Flow and More. See [Flow capture and recovery](../docs/flow-writing.md).
 
 See the [workspace README](../README.md) for setup/run/check commands and
 [architecture/testing guide](../docs/architecture-testing.md) for contracts,

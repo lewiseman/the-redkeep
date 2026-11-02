@@ -1,3 +1,5 @@
+import 'package:redkeep/features/flow/application/flow_providers.dart';
+import 'package:redkeep/features/flow/domain/flow_repository.dart';
 import 'package:redkeep/features/diary/application/diary_providers.dart';
 import 'package:redkeep/features/diary/domain/diary_repository.dart';
 
@@ -23,6 +25,8 @@ Future<GoRouter> pumpApp(
   FakeAppearanceRepository? repository,
   FakeOnboardingRepository? onboarding,
   FakeRequiredAssets? assets,
+  FlowRepository? flow,
+  String Function()? flowId,
   NotesRepository? notes,
   String Function()? noteId,
   DiaryRepository? diary,
@@ -46,6 +50,8 @@ Future<GoRouter> pumpApp(
         ),
         diaryClockProvider.overrideWithValue(() => DateTime(2026, 11, 2, 12)),
         if (diaryId != null) diaryIdProvider.overrideWithValue(diaryId),
+        if (flow != null) flowRepositoryProvider.overrideWithValue(flow),
+        if (flowId != null) flowIdProvider.overrideWithValue(flowId),
         if (notes != null) notesRepositoryProvider.overrideWithValue(notes),
         if (noteId != null) noteIdProvider.overrideWithValue(noteId),
         if (initialLocation != null)

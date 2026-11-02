@@ -1,3 +1,8 @@
+import 'writing_shell.dart';
+import 'more_page.dart';
+import '../features/flow/presentation/flow_page.dart';
+import '../features/flow/presentation/thought_read_page.dart';
+import '../features/flow/presentation/thought_edit_page.dart';
 import '../features/diary/domain/civil_date.dart';
 import '../features/diary/presentation/diary_calendar_page.dart';
 import '../features/diary/presentation/diary_day_page.dart';
@@ -54,62 +59,53 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
           ref.read(onboardingControllerProvider).complete == true,
     ),
     routes: [
-      GoRoute(
-        path: '/',
-        pageBuilder: (context, state) => _page(state, const HomePage()),
+      ShellRoute(
+        builder: (context, state, child) =>
+            WritingShell(location: state.uri.path, child: child),
         routes: [
           GoRoute(
-            path: 'diary',
-            pageBuilder: (context, state) =>
-                _page(state, const DiaryCalendarPage()),
+            path: '/',
+            pageBuilder: (context, state) => _page(state, const HomePage()),
             routes: [
               GoRoute(
-                path: 'search',
+                path: 'diary',
                 pageBuilder: (context, state) =>
-                    _page(state, const DiarySearchPage()),
-              ),
-              GoRoute(
-                path: 'calendar/:date',
-                pageBuilder: (context, state) => _page(
-                  state,
-                  DiaryCalendarPage(
-                    key: ValueKey(state.uri.path),
-                    selected: CivilDate.tryParse(
-                      state.pathParameters['date']!,
-                    )!,
-                  ),
-                ),
-              ),
-              GoRoute(
-                path: ':date',
-                pageBuilder: (context, state) => _page(
-                  state,
-                  DiaryDayPage(
-                    key: ValueKey(state.uri.path),
-                    date: CivilDate.tryParse(state.pathParameters['date']!)!,
-                  ),
-                ),
+                    _page(state, const DiaryCalendarPage()),
                 routes: [
                   GoRoute(
-                    path: 'entries/:id',
+                    path: 'search',
+                    pageBuilder: (context, state) =>
+                        _page(state, const DiarySearchPage()),
+                  ),
+                  GoRoute(
+                    path: 'calendar/:date',
                     pageBuilder: (context, state) => _page(
                       state,
-                      DiaryEntryPage(
+                      DiaryCalendarPage(
                         key: ValueKey(state.uri.path),
-                        address: (
-                          date: CivilDate.tryParse(
-                            state.pathParameters['date']!,
-                          )!,
-                          id: state.pathParameters['id']!,
-                        ),
+                        selected: CivilDate.tryParse(
+                          state.pathParameters['date']!,
+                        )!,
+                      ),
+                    ),
+                  ),
+                  GoRoute(
+                    path: ':date',
+                    pageBuilder: (context, state) => _page(
+                      state,
+                      DiaryDayPage(
+                        key: ValueKey(state.uri.path),
+                        date: CivilDate.tryParse(
+                          state.pathParameters['date']!,
+                        )!,
                       ),
                     ),
                     routes: [
                       GoRoute(
-                        path: 'edit',
+                        path: 'entries/:id',
                         pageBuilder: (context, state) => _page(
                           state,
-                          DiaryEditPage(
+                          DiaryEntryPage(
                             key: ValueKey(state.uri.path),
                             address: (
                               date: CivilDate.tryParse(
@@ -119,46 +115,95 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
                             ),
                           ),
                         ),
+                        routes: [
+                          GoRoute(
+                            path: 'edit',
+                            pageBuilder: (context, state) => _page(
+                              state,
+                              DiaryEditPage(
+                                key: ValueKey(state.uri.path),
+                                address: (
+                                  date: CivilDate.tryParse(
+                                    state.pathParameters['date']!,
+                                  )!,
+                                  id: state.pathParameters['id']!,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ],
               ),
-            ],
-          ),
-          GoRoute(
-            path: 'notes',
-            pageBuilder: (context, state) =>
-                _page(state, const NotesListPage()),
-            routes: [
               GoRoute(
-                path: ':id',
-                pageBuilder: (context, state) => _page(
-                  state,
-                  NoteReadPage(
-                    key: ValueKey(state.pathParameters['id']),
-                    id: state.pathParameters['id']!,
-                  ),
-                ),
+                path: 'notes',
+                pageBuilder: (context, state) =>
+                    _page(state, const NotesListPage()),
                 routes: [
                   GoRoute(
-                    path: 'edit',
+                    path: ':id',
                     pageBuilder: (context, state) => _page(
                       state,
-                      NoteEditPage(
+                      NoteReadPage(
                         key: ValueKey(state.pathParameters['id']),
                         id: state.pathParameters['id']!,
                       ),
                     ),
+                    routes: [
+                      GoRoute(
+                        path: 'edit',
+                        pageBuilder: (context, state) => _page(
+                          state,
+                          NoteEditPage(
+                            key: ValueKey(state.pathParameters['id']),
+                            id: state.pathParameters['id']!,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
+              GoRoute(
+                path: 'more',
+                pageBuilder: (context, state) => _page(state, const MorePage()),
+              ),
+              GoRoute(
+                path: 'flow',
+                pageBuilder: (context, state) => _page(state, const FlowPage()),
+                routes: [
+                  GoRoute(
+                    path: ':id',
+                    pageBuilder: (context, state) => _page(
+                      state,
+                      ThoughtReadPage(
+                        key: ValueKey(state.uri.path),
+                        id: state.pathParameters['id']!,
+                      ),
+                    ),
+                    routes: [
+                      GoRoute(
+                        path: 'edit',
+                        pageBuilder: (context, state) => _page(
+                          state,
+                          ThoughtEditPage(
+                            key: ValueKey(state.uri.path),
+                            id: state.pathParameters['id']!,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              GoRoute(
+                path: 'settings',
+                pageBuilder: (context, state) =>
+                    _page(state, const AppearancePage()),
+              ),
             ],
-          ),
-          GoRoute(
-            path: 'settings',
-            pageBuilder: (context, state) =>
-                _page(state, const AppearancePage()),
           ),
         ],
       ),

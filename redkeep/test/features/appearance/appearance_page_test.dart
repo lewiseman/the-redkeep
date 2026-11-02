@@ -49,6 +49,8 @@ void main() {
       final repository = FakeAppearanceRepository();
       addTearDown(repository.close);
       final router = await pumpApp(tester, repository: repository);
+      await tester.tap(find.widgetWithText(TextButton, 'More'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Appearance'));
       await tester.pumpAndSettle();
       expect(find.byType(AppearancePage), findsOneWidget);

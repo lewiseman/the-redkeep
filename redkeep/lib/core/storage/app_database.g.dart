@@ -2837,6 +2837,829 @@ class DiaryDaysCompanion extends UpdateCompanion<DiaryDayRow> {
   }
 }
 
+class $FlowThoughtsTable extends FlowThoughts
+    with TableInfo<$FlowThoughtsTable, ThoughtRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $FlowThoughtsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _bodyMeta = const VerificationMeta('body');
+  @override
+  late final GeneratedColumn<String> body = GeneratedColumn<String>(
+    'body',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _revisionMeta = const VerificationMeta(
+    'revision',
+  );
+  @override
+  late final GeneratedColumn<int> revision = GeneratedColumn<int>(
+    'revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL CHECK (revision > 0)',
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<int> deletedAt = GeneratedColumn<int>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    body,
+    revision,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'flow_thoughts';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ThoughtRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('body')) {
+      context.handle(
+        _bodyMeta,
+        body.isAcceptableOrUnknown(data['body']!, _bodyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_bodyMeta);
+    }
+    if (data.containsKey('revision')) {
+      context.handle(
+        _revisionMeta,
+        revision.isAcceptableOrUnknown(data['revision']!, _revisionMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_revisionMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ThoughtRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ThoughtRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      body: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}body'],
+      )!,
+      revision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}revision'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}deleted_at'],
+      ),
+    );
+  }
+
+  @override
+  $FlowThoughtsTable createAlias(String alias) {
+    return $FlowThoughtsTable(attachedDatabase, alias);
+  }
+}
+
+class ThoughtRow extends DataClass implements Insertable<ThoughtRow> {
+  final String id;
+  final String body;
+  final int revision;
+  final int createdAt;
+  final int updatedAt;
+  final int? deletedAt;
+  const ThoughtRow({
+    required this.id,
+    required this.body,
+    required this.revision,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['body'] = Variable<String>(body);
+    map['revision'] = Variable<int>(revision);
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<int>(deletedAt);
+    }
+    return map;
+  }
+
+  FlowThoughtsCompanion toCompanion(bool nullToAbsent) {
+    return FlowThoughtsCompanion(
+      id: Value(id),
+      body: Value(body),
+      revision: Value(revision),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+    );
+  }
+
+  factory ThoughtRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ThoughtRow(
+      id: serializer.fromJson<String>(json['id']),
+      body: serializer.fromJson<String>(json['body']),
+      revision: serializer.fromJson<int>(json['revision']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+      deletedAt: serializer.fromJson<int?>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'body': serializer.toJson<String>(body),
+      'revision': serializer.toJson<int>(revision),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+      'deletedAt': serializer.toJson<int?>(deletedAt),
+    };
+  }
+
+  ThoughtRow copyWith({
+    String? id,
+    String? body,
+    int? revision,
+    int? createdAt,
+    int? updatedAt,
+    Value<int?> deletedAt = const Value.absent(),
+  }) => ThoughtRow(
+    id: id ?? this.id,
+    body: body ?? this.body,
+    revision: revision ?? this.revision,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+  );
+  ThoughtRow copyWithCompanion(FlowThoughtsCompanion data) {
+    return ThoughtRow(
+      id: data.id.present ? data.id.value : this.id,
+      body: data.body.present ? data.body.value : this.body,
+      revision: data.revision.present ? data.revision.value : this.revision,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ThoughtRow(')
+          ..write('id: $id, ')
+          ..write('body: $body, ')
+          ..write('revision: $revision, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, body, revision, createdAt, updatedAt, deletedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ThoughtRow &&
+          other.id == this.id &&
+          other.body == this.body &&
+          other.revision == this.revision &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt);
+}
+
+class FlowThoughtsCompanion extends UpdateCompanion<ThoughtRow> {
+  final Value<String> id;
+  final Value<String> body;
+  final Value<int> revision;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<int?> deletedAt;
+  final Value<int> rowid;
+  const FlowThoughtsCompanion({
+    this.id = const Value.absent(),
+    this.body = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  FlowThoughtsCompanion.insert({
+    required String id,
+    required String body,
+    required int revision,
+    required int createdAt,
+    required int updatedAt,
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       body = Value(body),
+       revision = Value(revision),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<ThoughtRow> custom({
+    Expression<String>? id,
+    Expression<String>? body,
+    Expression<int>? revision,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? deletedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (body != null) 'body': body,
+      if (revision != null) 'revision': revision,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  FlowThoughtsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? body,
+    Value<int>? revision,
+    Value<int>? createdAt,
+    Value<int>? updatedAt,
+    Value<int?>? deletedAt,
+    Value<int>? rowid,
+  }) {
+    return FlowThoughtsCompanion(
+      id: id ?? this.id,
+      body: body ?? this.body,
+      revision: revision ?? this.revision,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (body.present) {
+      map['body'] = Variable<String>(body.value);
+    }
+    if (revision.present) {
+      map['revision'] = Variable<int>(revision.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<int>(deletedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FlowThoughtsCompanion(')
+          ..write('id: $id, ')
+          ..write('body: $body, ')
+          ..write('revision: $revision, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $FlowDraftsTable extends FlowDrafts
+    with TableInfo<$FlowDraftsTable, ThoughtDraftRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $FlowDraftsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
+  static const VerificationMeta _bodyMeta = const VerificationMeta('body');
+  @override
+  late final GeneratedColumn<String> body = GeneratedColumn<String>(
+    'body',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _baseRevisionMeta = const VerificationMeta(
+    'baseRevision',
+  );
+  @override
+  late final GeneratedColumn<int> baseRevision = GeneratedColumn<int>(
+    'base_revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL CHECK (base_revision >= 0)',
+  );
+  static const VerificationMeta _draftRevisionMeta = const VerificationMeta(
+    'draftRevision',
+  );
+  @override
+  late final GeneratedColumn<int> draftRevision = GeneratedColumn<int>(
+    'draft_revision',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _captureMeta = const VerificationMeta(
+    'capture',
+  );
+  @override
+  late final GeneratedColumn<bool> capture = GeneratedColumn<bool>(
+    'capture',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("capture" IN (0, 1))',
+    ),
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    body,
+    baseRevision,
+    draftRevision,
+    capture,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'flow_drafts';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ThoughtDraftRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('body')) {
+      context.handle(
+        _bodyMeta,
+        body.isAcceptableOrUnknown(data['body']!, _bodyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_bodyMeta);
+    }
+    if (data.containsKey('base_revision')) {
+      context.handle(
+        _baseRevisionMeta,
+        baseRevision.isAcceptableOrUnknown(
+          data['base_revision']!,
+          _baseRevisionMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_baseRevisionMeta);
+    }
+    if (data.containsKey('draft_revision')) {
+      context.handle(
+        _draftRevisionMeta,
+        draftRevision.isAcceptableOrUnknown(
+          data['draft_revision']!,
+          _draftRevisionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('capture')) {
+      context.handle(
+        _captureMeta,
+        capture.isAcceptableOrUnknown(data['capture']!, _captureMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_captureMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {draftRevision};
+  @override
+  ThoughtDraftRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ThoughtDraftRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      body: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}body'],
+      )!,
+      baseRevision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}base_revision'],
+      )!,
+      draftRevision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}draft_revision'],
+      )!,
+      capture: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}capture'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $FlowDraftsTable createAlias(String alias) {
+    return $FlowDraftsTable(attachedDatabase, alias);
+  }
+}
+
+class ThoughtDraftRow extends DataClass implements Insertable<ThoughtDraftRow> {
+  final String id;
+  final String body;
+  final int baseRevision;
+  final int draftRevision;
+  final bool capture;
+  final int updatedAt;
+  const ThoughtDraftRow({
+    required this.id,
+    required this.body,
+    required this.baseRevision,
+    required this.draftRevision,
+    required this.capture,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['body'] = Variable<String>(body);
+    map['base_revision'] = Variable<int>(baseRevision);
+    map['draft_revision'] = Variable<int>(draftRevision);
+    map['capture'] = Variable<bool>(capture);
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  FlowDraftsCompanion toCompanion(bool nullToAbsent) {
+    return FlowDraftsCompanion(
+      id: Value(id),
+      body: Value(body),
+      baseRevision: Value(baseRevision),
+      draftRevision: Value(draftRevision),
+      capture: Value(capture),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory ThoughtDraftRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ThoughtDraftRow(
+      id: serializer.fromJson<String>(json['id']),
+      body: serializer.fromJson<String>(json['body']),
+      baseRevision: serializer.fromJson<int>(json['baseRevision']),
+      draftRevision: serializer.fromJson<int>(json['draftRevision']),
+      capture: serializer.fromJson<bool>(json['capture']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'body': serializer.toJson<String>(body),
+      'baseRevision': serializer.toJson<int>(baseRevision),
+      'draftRevision': serializer.toJson<int>(draftRevision),
+      'capture': serializer.toJson<bool>(capture),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  ThoughtDraftRow copyWith({
+    String? id,
+    String? body,
+    int? baseRevision,
+    int? draftRevision,
+    bool? capture,
+    int? updatedAt,
+  }) => ThoughtDraftRow(
+    id: id ?? this.id,
+    body: body ?? this.body,
+    baseRevision: baseRevision ?? this.baseRevision,
+    draftRevision: draftRevision ?? this.draftRevision,
+    capture: capture ?? this.capture,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  ThoughtDraftRow copyWithCompanion(FlowDraftsCompanion data) {
+    return ThoughtDraftRow(
+      id: data.id.present ? data.id.value : this.id,
+      body: data.body.present ? data.body.value : this.body,
+      baseRevision: data.baseRevision.present
+          ? data.baseRevision.value
+          : this.baseRevision,
+      draftRevision: data.draftRevision.present
+          ? data.draftRevision.value
+          : this.draftRevision,
+      capture: data.capture.present ? data.capture.value : this.capture,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ThoughtDraftRow(')
+          ..write('id: $id, ')
+          ..write('body: $body, ')
+          ..write('baseRevision: $baseRevision, ')
+          ..write('draftRevision: $draftRevision, ')
+          ..write('capture: $capture, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, body, baseRevision, draftRevision, capture, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ThoughtDraftRow &&
+          other.id == this.id &&
+          other.body == this.body &&
+          other.baseRevision == this.baseRevision &&
+          other.draftRevision == this.draftRevision &&
+          other.capture == this.capture &&
+          other.updatedAt == this.updatedAt);
+}
+
+class FlowDraftsCompanion extends UpdateCompanion<ThoughtDraftRow> {
+  final Value<String> id;
+  final Value<String> body;
+  final Value<int> baseRevision;
+  final Value<int> draftRevision;
+  final Value<bool> capture;
+  final Value<int> updatedAt;
+  const FlowDraftsCompanion({
+    this.id = const Value.absent(),
+    this.body = const Value.absent(),
+    this.baseRevision = const Value.absent(),
+    this.draftRevision = const Value.absent(),
+    this.capture = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  FlowDraftsCompanion.insert({
+    required String id,
+    required String body,
+    required int baseRevision,
+    this.draftRevision = const Value.absent(),
+    required bool capture,
+    required int updatedAt,
+  }) : id = Value(id),
+       body = Value(body),
+       baseRevision = Value(baseRevision),
+       capture = Value(capture),
+       updatedAt = Value(updatedAt);
+  static Insertable<ThoughtDraftRow> custom({
+    Expression<String>? id,
+    Expression<String>? body,
+    Expression<int>? baseRevision,
+    Expression<int>? draftRevision,
+    Expression<bool>? capture,
+    Expression<int>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (body != null) 'body': body,
+      if (baseRevision != null) 'base_revision': baseRevision,
+      if (draftRevision != null) 'draft_revision': draftRevision,
+      if (capture != null) 'capture': capture,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  FlowDraftsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? body,
+    Value<int>? baseRevision,
+    Value<int>? draftRevision,
+    Value<bool>? capture,
+    Value<int>? updatedAt,
+  }) {
+    return FlowDraftsCompanion(
+      id: id ?? this.id,
+      body: body ?? this.body,
+      baseRevision: baseRevision ?? this.baseRevision,
+      draftRevision: draftRevision ?? this.draftRevision,
+      capture: capture ?? this.capture,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (body.present) {
+      map['body'] = Variable<String>(body.value);
+    }
+    if (baseRevision.present) {
+      map['base_revision'] = Variable<int>(baseRevision.value);
+    }
+    if (draftRevision.present) {
+      map['draft_revision'] = Variable<int>(draftRevision.value);
+    }
+    if (capture.present) {
+      map['capture'] = Variable<bool>(capture.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FlowDraftsCompanion(')
+          ..write('id: $id, ')
+          ..write('body: $body, ')
+          ..write('baseRevision: $baseRevision, ')
+          ..write('draftRevision: $draftRevision, ')
+          ..write('capture: $capture, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -2850,9 +3673,19 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $DiaryEntriesTable diaryEntries = $DiaryEntriesTable(this);
   late final $DiaryDraftsTable diaryDrafts = $DiaryDraftsTable(this);
   late final $DiaryDaysTable diaryDays = $DiaryDaysTable(this);
+  late final $FlowThoughtsTable flowThoughts = $FlowThoughtsTable(this);
+  late final $FlowDraftsTable flowDrafts = $FlowDraftsTable(this);
   late final Index diaryEntriesDayOrder = Index(
     'diary_entries_day_order',
     'CREATE INDEX diary_entries_day_order ON diary_entries (date_key, created_at, id)',
+  );
+  late final Index flowThoughtsOrder = Index(
+    'flow_thoughts_order',
+    'CREATE INDEX flow_thoughts_order ON flow_thoughts (created_at DESC, id DESC)',
+  );
+  late final Index flowSingleCapture = Index(
+    'flow_single_capture',
+    'CREATE UNIQUE INDEX flow_single_capture ON flow_drafts (capture) WHERE capture = 1',
   );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
@@ -2867,7 +3700,11 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     diaryEntries,
     diaryDrafts,
     diaryDays,
+    flowThoughts,
+    flowDrafts,
     diaryEntriesDayOrder,
+    flowThoughtsOrder,
+    flowSingleCapture,
   ];
 }
 
@@ -4708,6 +5545,458 @@ typedef $$DiaryDaysTableProcessedTableManager =
       DiaryDayRow,
       PrefetchHooks Function()
     >;
+typedef $$FlowThoughtsTableCreateCompanionBuilder =
+    FlowThoughtsCompanion Function({
+      required String id,
+      required String body,
+      required int revision,
+      required int createdAt,
+      required int updatedAt,
+      Value<int?> deletedAt,
+      Value<int> rowid,
+    });
+typedef $$FlowThoughtsTableUpdateCompanionBuilder =
+    FlowThoughtsCompanion Function({
+      Value<String> id,
+      Value<String> body,
+      Value<int> revision,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+      Value<int?> deletedAt,
+      Value<int> rowid,
+    });
+
+class $$FlowThoughtsTableFilterComposer
+    extends Composer<_$AppDatabase, $FlowThoughtsTable> {
+  $$FlowThoughtsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$FlowThoughtsTableOrderingComposer
+    extends Composer<_$AppDatabase, $FlowThoughtsTable> {
+  $$FlowThoughtsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$FlowThoughtsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $FlowThoughtsTable> {
+  $$FlowThoughtsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get body =>
+      $composableBuilder(column: $table.body, builder: (column) => column);
+
+  GeneratedColumn<int> get revision =>
+      $composableBuilder(column: $table.revision, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+}
+
+class $$FlowThoughtsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $FlowThoughtsTable,
+          ThoughtRow,
+          $$FlowThoughtsTableFilterComposer,
+          $$FlowThoughtsTableOrderingComposer,
+          $$FlowThoughtsTableAnnotationComposer,
+          $$FlowThoughtsTableCreateCompanionBuilder,
+          $$FlowThoughtsTableUpdateCompanionBuilder,
+          (
+            ThoughtRow,
+            BaseReferences<_$AppDatabase, $FlowThoughtsTable, ThoughtRow>,
+          ),
+          ThoughtRow,
+          PrefetchHooks Function()
+        > {
+  $$FlowThoughtsTableTableManager(_$AppDatabase db, $FlowThoughtsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$FlowThoughtsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$FlowThoughtsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$FlowThoughtsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> body = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => FlowThoughtsCompanion(
+                id: id,
+                body: body,
+                revision: revision,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String body,
+                required int revision,
+                required int createdAt,
+                required int updatedAt,
+                Value<int?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => FlowThoughtsCompanion.insert(
+                id: id,
+                body: body,
+                revision: revision,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$FlowThoughtsTable, ThoughtRow>(table),
+                  BaseReferences<_$AppDatabase, $FlowThoughtsTable, ThoughtRow>(
+                    db,
+                    table,
+                    e,
+                  ),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$FlowThoughtsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $FlowThoughtsTable,
+      ThoughtRow,
+      $$FlowThoughtsTableFilterComposer,
+      $$FlowThoughtsTableOrderingComposer,
+      $$FlowThoughtsTableAnnotationComposer,
+      $$FlowThoughtsTableCreateCompanionBuilder,
+      $$FlowThoughtsTableUpdateCompanionBuilder,
+      (
+        ThoughtRow,
+        BaseReferences<_$AppDatabase, $FlowThoughtsTable, ThoughtRow>,
+      ),
+      ThoughtRow,
+      PrefetchHooks Function()
+    >;
+typedef $$FlowDraftsTableCreateCompanionBuilder = FlowDraftsCompanion Function({
+  required String id,
+  required String body,
+  required int baseRevision,
+  Value<int> draftRevision,
+  required bool capture,
+  required int updatedAt,
+});
+typedef $$FlowDraftsTableUpdateCompanionBuilder = FlowDraftsCompanion Function({
+  Value<String> id,
+  Value<String> body,
+  Value<int> baseRevision,
+  Value<int> draftRevision,
+  Value<bool> capture,
+  Value<int> updatedAt,
+});
+
+class $$FlowDraftsTableFilterComposer
+    extends Composer<_$AppDatabase, $FlowDraftsTable> {
+  $$FlowDraftsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get baseRevision => $composableBuilder(
+    column: $table.baseRevision,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get draftRevision => $composableBuilder(
+    column: $table.draftRevision,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get capture => $composableBuilder(
+    column: $table.capture,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$FlowDraftsTableOrderingComposer
+    extends Composer<_$AppDatabase, $FlowDraftsTable> {
+  $$FlowDraftsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get baseRevision => $composableBuilder(
+    column: $table.baseRevision,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get draftRevision => $composableBuilder(
+    column: $table.draftRevision,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get capture => $composableBuilder(
+    column: $table.capture,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$FlowDraftsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $FlowDraftsTable> {
+  $$FlowDraftsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get body =>
+      $composableBuilder(column: $table.body, builder: (column) => column);
+
+  GeneratedColumn<int> get baseRevision => $composableBuilder(
+    column: $table.baseRevision,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get draftRevision => $composableBuilder(
+    column: $table.draftRevision,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get capture =>
+      $composableBuilder(column: $table.capture, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$FlowDraftsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $FlowDraftsTable,
+          ThoughtDraftRow,
+          $$FlowDraftsTableFilterComposer,
+          $$FlowDraftsTableOrderingComposer,
+          $$FlowDraftsTableAnnotationComposer,
+          $$FlowDraftsTableCreateCompanionBuilder,
+          $$FlowDraftsTableUpdateCompanionBuilder,
+          (
+            ThoughtDraftRow,
+            BaseReferences<_$AppDatabase, $FlowDraftsTable, ThoughtDraftRow>,
+          ),
+          ThoughtDraftRow,
+          PrefetchHooks Function()
+        > {
+  $$FlowDraftsTableTableManager(_$AppDatabase db, $FlowDraftsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$FlowDraftsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$FlowDraftsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$FlowDraftsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> body = const Value.absent(),
+                Value<int> baseRevision = const Value.absent(),
+                Value<int> draftRevision = const Value.absent(),
+                Value<bool> capture = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+              }) => FlowDraftsCompanion(
+                id: id,
+                body: body,
+                baseRevision: baseRevision,
+                draftRevision: draftRevision,
+                capture: capture,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String body,
+                required int baseRevision,
+                Value<int> draftRevision = const Value.absent(),
+                required bool capture,
+                required int updatedAt,
+              }) => FlowDraftsCompanion.insert(
+                id: id,
+                body: body,
+                baseRevision: baseRevision,
+                draftRevision: draftRevision,
+                capture: capture,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$FlowDraftsTable, ThoughtDraftRow>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $FlowDraftsTable,
+                    ThoughtDraftRow
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$FlowDraftsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $FlowDraftsTable,
+      ThoughtDraftRow,
+      $$FlowDraftsTableFilterComposer,
+      $$FlowDraftsTableOrderingComposer,
+      $$FlowDraftsTableAnnotationComposer,
+      $$FlowDraftsTableCreateCompanionBuilder,
+      $$FlowDraftsTableUpdateCompanionBuilder,
+      (
+        ThoughtDraftRow,
+        BaseReferences<_$AppDatabase, $FlowDraftsTable, ThoughtDraftRow>,
+      ),
+      ThoughtDraftRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -4728,4 +6017,8 @@ class $AppDatabaseManager {
       $$DiaryDraftsTableTableManager(_db, _db.diaryDrafts);
   $$DiaryDaysTableTableManager get diaryDays =>
       $$DiaryDaysTableTableManager(_db, _db.diaryDays);
+  $$FlowThoughtsTableTableManager get flowThoughts =>
+      $$FlowThoughtsTableTableManager(_db, _db.flowThoughts);
+  $$FlowDraftsTableTableManager get flowDrafts =>
+      $$FlowDraftsTableTableManager(_db, _db.flowDrafts);
 }

@@ -1,0 +1,300 @@
+{
+  "phase": "M09",
+  "status": "Complete within selected text Flow scope",
+  "date": "2026-11-02",
+  "timezone": "Africa/Nairobi",
+  "environment": {
+    "flutter": "3.47.5",
+    "framework_revision": "6a19cca564",
+    "engine_revision": "af7e796e16",
+    "dart": "3.13.4",
+    "xcode": "27.2 / 27B52"
+  },
+  "checks": [
+    {
+      "cwd": "redkeep",
+      "command": "dart run build_runner build",
+      "exit_code": 0,
+      "result": "Passed, 4s"
+    },
+    {
+      "cwd": "redkeep",
+      "command": "dart run drift_dev schema dump lib/core/storage/app_database.dart drift_schemas/",
+      "exit_code": 0,
+      "result": "Passed; drift_schema_v6.json"
+    },
+    {
+      "cwd": "redkeep",
+      "command": "dart run drift_dev schema generate drift_schemas/ test/core/storage/generated/",
+      "exit_code": 0,
+      "result": "Passed; current helper and schema_v6.dart; historical snapshots unchanged"
+    },
+    {
+      "cwd": "redkeep",
+      "command": "flutter pub get --enforce-lockfile",
+      "exit_code": 0,
+      "result": "Passed; manifest and lockfile unchanged"
+    },
+    {
+      "cwd": "redkeep",
+      "command": "dart format --output=none --set-exit-if-changed lib test tool",
+      "exit_code": 0,
+      "result": "126 files, 0 changed"
+    },
+    {
+      "cwd": "redkeep",
+      "command": "flutter analyze",
+      "exit_code": 0,
+      "result": "No issues found; 2.9s"
+    },
+    {
+      "cwd": "redkeep",
+      "command": "flutter test test/features/flow test/core/storage test/app",
+      "exit_code": 0,
+      "result": "67 passed; 3s"
+    },
+    {
+      "cwd": "redkeep",
+      "command": "flutter test",
+      "exit_code": 0,
+      "result": "213 passed; 9s; includes 26 Flow tests"
+    },
+    {
+      "cwd": "redkeep",
+      "command": "dart run tool/validate_assets.dart assets/catalog/presentation-v1.json tool/assets/pack",
+      "exit_code": 0,
+      "result": "4 PNGs, 479916 bytes; no publication"
+    },
+    {
+      "cwd": "redkeep",
+      "command": "flutter build apk --debug --target-platform android-arm64",
+      "exit_code": 0,
+      "result": "Passed; Gradle 7.5s; nonfatal JDK native-access warning"
+    },
+    {
+      "cwd": "redkeep",
+      "command": "flutter build ios --simulator --debug",
+      "exit_code": 0,
+      "result": "Passed; Xcode 14.9s"
+    }
+  ],
+  "host_acceptance": [
+    "Fresh schema 6 and migrations 1–5; populated v5 table-for-table preservation including sqlite_sequence; no seeded writing",
+    "50 rapid buffer edits coalesce; 20 intentional same-text captures get distinct deterministic IDs; duplicate delayed submission blocked; composer clears only after transaction commit",
+    "Draft/insert/update/delete/cleanup failures, transaction rollback, retries, replaced tokens, stale/deleted sources, copies, failed copies and confirmed discard",
+    "Real background close/reopen keeps 24000 repetitions of exact multilingual Unicode plus independent edit and capture drafts without network/accounts/models",
+    "Creation millisecond DESC / ID DESC ordering; editing preserves creation order; 160-character metadata previews; lazy 2001-thought collection",
+    "ID routes and More preserved across gates; malformed/future routes rejected; deleted readers/editors safe; failed working buffer survives scope navigation",
+    "320x480, 3x text, safe padding, 180px keyboard, light/dark, normal/reduced/simpler modes; all four shell controls hittable at 3x without keyboard; existing Android/iOS back checks pass"
+  ],
+  "android": {
+    "device": "emulator-5554 / sdk_gphone16k_arm64 / Android 17 API 37",
+    "package": "com.lewiseman.redkeep",
+    "install": "Existing M08 installation upgraded without reset",
+    "commands": [
+      "adb -s emulator-5554 install -r redkeep/build/app/outputs/flutter-apk/app-debug.apk",
+      "adb -s emulator-5554 shell cmd connectivity airplane-mode enable",
+      "adb -s emulator-5554 shell svc wifi disable",
+      "adb -s emulator-5554 shell svc data disable",
+      "adb -s emulator-5554 shell am force-stop com.lewiseman.redkeep",
+      "adb -s emulator-5554 shell am start -n com.lewiseman.redkeep/.MainActivity --es route /flow",
+      "adb -s emulator-5554 shell uiautomator dump /sdcard/redkeep-m09.xml",
+      "adb -s emulator-5554 pull /sdcard/redkeep-m09.xml /tmp/redkeep-m09-ui.xml",
+      "adb -s emulator-5554 shell input tap <observed center coordinates below>",
+      "adb -s emulator-5554 shell input text 'M09%soffline%sthought%swaiting%sto%scapture.'",
+      "adb -s emulator-5554 shell input keyevent 4",
+      "adb -s emulator-5554 shell input keyevent 123",
+      "adb -s emulator-5554 shell input text '%sEdited%soffline.'",
+      "adb -s emulator-5554 exec-out screencap -p > docs/evidence/m09/<named screenshot>.png",
+      "adb -s emulator-5554 shell cmd connectivity airplane-mode disable",
+      "adb -s emulator-5554 shell svc wifi enable",
+      "adb -s emulator-5554 shell svc data enable",
+      "adb -s emulator-5554 shell settings get global airplane_mode_on",
+      "adb -s emulator-5554 shell settings get global wifi_on",
+      "adb -s emulator-5554 shell settings get global mobile_data"
+    ],
+    "network": {
+      "initial": [
+        0,
+        1,
+        1
+      ],
+      "offline_read_back": [
+        1,
+        0,
+        0
+      ],
+      "restored_read_back": [
+        0,
+        1,
+        1
+      ],
+      "order": [
+        "airplane_mode_on",
+        "wifi_on",
+        "mobile_data"
+      ]
+    },
+    "observations": [
+      {
+        "screen": "android-offline-empty.png",
+        "result": "Empty Flow with Diary/Notes/Flow/More; existing dark/simpler preferences retained"
+      },
+      {
+        "screen": "android-offline-draft.png",
+        "control": "Composer tap (450,600); type exact text; hide IME",
+        "text": "M09 offline thought waiting to capture.",
+        "result": "Recovery draft kept on this device. Save to commit."
+      },
+      {
+        "screen": "android-offline-recovered.png",
+        "control": "Force-stop/start /flow",
+        "text": "M09 offline thought waiting to capture.",
+        "result": "Recovery draft reopened. Save to commit this writing."
+      },
+      {
+        "screen": "android-offline-committed.png",
+        "control": "Capture thought (308,1055)",
+        "result": "Thought captured on this device.; composer empty; saved thought visible"
+      },
+      {
+        "screen": "android-offline-committed-reopened.png",
+        "control": "Force-stop/start /flow",
+        "result": "Empty composer; original committed thought retained"
+      },
+      {
+        "screen": "android-offline-reader.png",
+        "control": "Saved thought (501,1715)",
+        "text": "M09 offline thought waiting to capture.",
+        "result": "Revision 1 • saved on this device"
+      },
+      {
+        "screen": "android-offline-edit-committed.png",
+        "control": "Edit (500,1273); composer (520,1090); keyevent 123; insert suffix; hide IME; Save thought (300,1480)",
+        "text": "M09 offline thought waiting to  Edited offline.capture.",
+        "result": "Saved revision 2 on this device.",
+        "note": "ADB inserted at the observed caret before capture.; this is the actual synthetic text, not an append-at-end claim"
+      },
+      {
+        "screen": "android-offline-edited-reader.png",
+        "control": "Read committed thought (450,1599)",
+        "text": "M09 offline thought waiting to  Edited offline.capture.",
+        "result": "Revision 2 • saved on this device"
+      },
+      {
+        "screen": "android-delete-confirmation.png",
+        "control": "Delete thought (500,1430)",
+        "result": "Dialog explains irreversible committed deletion and retained independent draft"
+      },
+      {
+        "screen": "android-offline-deleted-reopened.png",
+        "control": "Delete committed thought (500,1450), force-stop/start /flow",
+        "result": "Composer empty, no unfinished edits, no thoughts after restart offline"
+      }
+    ],
+    "notes": [
+      "Only this synthetic Flow thought was deleted; no application data reset or user database inspection",
+      "Initial uiautomator call during cold start returned null; retried after startup, then observed all listed controls",
+      "Physical phone was not used for M09"
+    ]
+  },
+  "ios": {
+    "device": "iPhone 17 Pro ARM64 / iOS 26.5 (23F77) simulator",
+    "commands": [
+      "xcrun simctl install booted redkeep/build/ios/iphonesimulator/Runner.app",
+      "xcrun simctl launch --terminate-running-process booted com.lewiseman.redkeep",
+      "xcrun simctl io booted screenshot docs/evidence/m09/ios-simulator-launch.png"
+    ],
+    "result": "Debug build/install/launch passed; existing local artwork reached welcome. Screenshot retaken after startup; no native iOS Flow-writing or onboarding-completion claim."
+  },
+  "preservation": {
+    "checks": [
+      "git diff --check",
+      "git diff --exit-code over native platform configuration, pubspec.yaml/pubspec.lock, drift_schema_v1–v5.json and generated schema_v1–v5.dart"
+    ],
+    "result": "Passed",
+    "raw_assets": "Not accessed or changed",
+    "legacy_projects": "Not accessed or changed",
+    "remote_git_or_publication": "None"
+  },
+  "limitations": [
+    "Storage failure may leave latest bytes only in memory; process termination can lose them",
+    "Physical accessibility/IME, native iOS Flow writing, minimum-OS/low-end and release/frame/memory qualification remain unverified",
+    "Native full-disk/power-loss/fsync and OS process restoration unverified",
+    "M04 production HTTPS asset hosting and M03 AI hardware gaps unchanged",
+    "No AI reflection UI, voice/media, semantic search, P2P, collaboration or cloud sync; no new expensive effect to profile"
+  ],
+  "next_phase": "M10 — Brain; unstarted",
+  "artifacts": [
+    {
+      "path": "docs/evidence/m09/android-delete-confirmation.png",
+      "bytes": 101033,
+      "sha256": "302dd61716708f0f790b2a5f8f5ef1bb36e436da7e4af92fdefb79a8e88c6a54"
+    },
+    {
+      "path": "docs/evidence/m09/android-offline-committed-reopened.png",
+      "bytes": 119189,
+      "sha256": "88b72d40ff5df80745425d69938399c5211347b29130447e3744532c2bbdc223"
+    },
+    {
+      "path": "docs/evidence/m09/android-offline-committed.png",
+      "bytes": 128388,
+      "sha256": "e909ce0b01b47f1a74ff881ef6491627baedae72b818e6a4a16b2c2a4952ff32"
+    },
+    {
+      "path": "docs/evidence/m09/android-offline-deleted-reopened.png",
+      "bytes": 116094,
+      "sha256": "8e72dd7f428be2aaeaf6d78f9be6a5c1ab0c14063c6c0b589d8b46232548b32f"
+    },
+    {
+      "path": "docs/evidence/m09/android-offline-draft.png",
+      "bytes": 146637,
+      "sha256": "a0d837efa61168113de3da196bc1d04065d066f8e2e40143d91abdc9e8d2cfa1"
+    },
+    {
+      "path": "docs/evidence/m09/android-offline-edit-committed.png",
+      "bytes": 104798,
+      "sha256": "9a4a64414e21b0613345de4bd7c226c5a88a845010b472acb987608cf9c31e1d"
+    },
+    {
+      "path": "docs/evidence/m09/android-offline-edited-reader.png",
+      "bytes": 92663,
+      "sha256": "d1f1887d458ece1d1444a0af47ef5df55ea7a8f7799ef1b84edc2b9747fa23fd"
+    },
+    {
+      "path": "docs/evidence/m09/android-offline-empty.png",
+      "bytes": 115214,
+      "sha256": "e541768d7edb5c710e4c39c1ca7a2d78609c4334564ef2616912108e8110e126"
+    },
+    {
+      "path": "docs/evidence/m09/android-offline-reader.png",
+      "bytes": 86284,
+      "sha256": "a1bd342ceb76b5d438fd378f12bb5040646043fce08aaff49036242c315bdbf8"
+    },
+    {
+      "path": "docs/evidence/m09/android-offline-recovered.png",
+      "bytes": 154770,
+      "sha256": "622e0e72601dadd53788acab90dbba04c1240b21c8a531fe4f75de8a6f1bc276"
+    },
+    {
+      "path": "docs/evidence/m09/ios-simulator-launch.png",
+      "bytes": 253934,
+      "sha256": "cc7a38e8778228c2a264136a36b94008445400b59c83aa17b73b36641abe08c7"
+    },
+    {
+      "path": "redkeep/build/app/outputs/flutter-apk/app-debug.apk",
+      "bytes": 171310151,
+      "sha256": "e80fd84952360e609770fe5da1c85a5efce0aa0bfb204d070800fbcf19bf9a3f"
+    },
+    {
+      "path": "redkeep/build/ios/iphonesimulator/Runner.app/Runner",
+      "bytes": 123600,
+      "sha256": "33fcafa75373afeeda7933e239f9fee38e74d47f9b3e0d83e335864d8228242a"
+    },
+    {
+      "path": "redkeep/drift_schemas/drift_schema_v6.json",
+      "bytes": 28375,
+      "sha256": "a7917e59ec92d864f2d20764464829791fae184e2f3f1b9db846a50a21797352"
+    }
+  ]
+}

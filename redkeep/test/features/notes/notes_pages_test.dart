@@ -43,8 +43,19 @@ void main() {
   tearDown(() => db.close());
 
   Future<void> tap(WidgetTester tester, String text) async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pumpAndSettle();
     final control = find.text(text);
+    if (control.evaluate().isEmpty) {
+      await tester.scrollUntilVisible(
+        control,
+        160,
+        scrollable: find.byType(Scrollable).first,
+      );
+    }
     await tester.ensureVisible(control);
+    await tester.pumpAndSettle();
+    expect(control.hitTestable(), findsOneWidget);
     await tester.tap(control);
     await tester.pumpAndSettle();
   }
@@ -71,9 +82,10 @@ void main() {
       notes: repo,
       noteId: () => id,
     );
-    expect(
+    await tester.scrollUntilVisible(
       find.text('No saved notes yet. Create your first note.'),
-      findsOneWidget,
+      160,
+      scrollable: find.byType(Scrollable).first,
     );
     await tap(tester, 'Create note');
     expect(

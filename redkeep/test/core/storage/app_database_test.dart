@@ -12,15 +12,16 @@ import 'generated/schema_v1.dart' as v1;
 import 'generated/schema_v2.dart' as v2;
 import 'generated/schema_v3.dart' as v3;
 import 'generated/schema_v4.dart' as v4;
+import 'generated/schema_v5.dart' as v5;
 
 import 'package:redkeep/features/notes/data/drift_notes_repository.dart';
 import 'package:redkeep/features/notes/domain/note_document.dart';
 
 void main() {
-  test('fresh schema matches the committed version 5 snapshot', () async {
+  test('fresh schema matches the committed version 6 snapshot', () async {
     final database = AppDatabase(NativeDatabase.memory());
     addTearDown(database.close);
-    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 5);
+    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 6);
   });
 
   test('version 1 upgrade preserves every saved appearance choice', () async {
@@ -35,7 +36,7 @@ void main() {
       await old.close();
       final database = AppDatabase(schema.newConnection());
       try {
-        await verifier.migrateAndValidate(database, 5);
+        await verifier.migrateAndValidate(database, 6);
         expect(
           await DriftAppearanceRepository(database).watch().first,
           AppearancePreferences(
@@ -69,7 +70,7 @@ void main() {
       await old.close();
       final database = AppDatabase(schema.newConnection());
       try {
-        await verifier.migrateAndValidate(database, 5);
+        await verifier.migrateAndValidate(database, 6);
         expect(
           await DriftAppearanceRepository(database).watch().first,
           const AppearancePreferences(
@@ -117,7 +118,7 @@ void main() {
       await old.close();
       final database = AppDatabase(schema.newConnection());
       try {
-        await verifier.migrateAndValidate(database, 5);
+        await verifier.migrateAndValidate(database, 6);
         expect(await DriftOnboardingRepository(database).isComplete(), isTrue);
         expect(
           (await DriftAppearanceRepository(database).watch().first).theme,
@@ -179,7 +180,7 @@ void main() {
     await old.close();
     final database = AppDatabase(schema.newConnection());
     try {
-      await verifier.migrateAndValidate(database, 5);
+      await verifier.migrateAndValidate(database, 6);
       expect(
         (await DriftAppearanceRepository(database).watch().first),
         const AppearancePreferences(
@@ -213,6 +214,92 @@ void main() {
       expect(await database.select(database.diaryEntries).get(), isEmpty);
       expect(await database.select(database.diaryDrafts).get(), isEmpty);
       expect(await database.select(database.diaryDays).get(), isEmpty);
+    } finally {
+      await database.close();
+    }
+  });
+
+  test('populated version 5 keeps every existing table and token; Flow starts empty', () async {
+    final verifier = SchemaVerifier(GeneratedHelper());
+    final schema = await verifier.schemaAt(5);
+    final old = v5.DatabaseAtV5(schema.newConnection());
+    final id = 'e' * 32;
+    await old.customStatement(
+      "INSERT INTO appearance_settings (id, theme, reduce_motion, simpler_effects) VALUES (1, 'dark', 1, 1)",
+    );
+    await old.customStatement(
+      'INSERT INTO onboarding_completion (id) VALUES (1)',
+    );
+    for (final deleted in [false, true]) {
+      final key = deleted ? 'f' * 32 : id;
+      await old.customStatement(
+        'INSERT INTO notes (id, title, body, revision, created_at, updated_at, deleted_at, pinned) VALUES (?, ?, ?, 7, 1, 2, ?, 1)',
+        [key, 'Note', 'Exact 👩🏽‍💻 e\u0301', deleted ? 3 : null],
+      );
+      await old.customStatement(
+        'INSERT INTO note_tags (note_id, tag) VALUES (?, ?)',
+        [key, 'travel'],
+      );
+      await old.customStatement(
+        'INSERT INTO note_drafts (id, title, body, base_revision, draft_revision, updated_at) VALUES (?, ?, ?, 7, ?, 4)',
+        [key, 'Draft', 'Notes recovery', deleted ? 72 : 71],
+      );
+      await old.customStatement(
+        'INSERT INTO diary_entries (id, date_key, title, body, revision, created_at, updated_at, deleted_at) VALUES (?, ?, ?, ?, 9, 1, 2, ?)',
+        [key, '2024-02-29', 'Day', 'Diary 👩🏽‍💻 中文', deleted ? 3 : null],
+      );
+      await old.customStatement(
+        'INSERT INTO diary_drafts (id, date_key, title, body, base_revision, draft_revision, updated_at) VALUES (?, ?, ?, ?, 9, ?, 4)',
+        [key, '2024-02-29', 'Draft day', 'Diary recovery', deleted ? 82 : 81],
+      );
+    }
+    await old.customStatement(
+      "INSERT INTO diary_days (date_key, heading, revision) VALUES ('2024-02-29', 'Heading', 3)",
+    );
+    const tables = [
+      'appearance_settings',
+      'onboarding_completion',
+      'notes',
+      'note_tags',
+      'note_drafts',
+      'diary_entries',
+      'diary_drafts',
+      'diary_days',
+      'sqlite_sequence',
+    ];
+    final before = <String, List<Map<String, dynamic>>>{};
+    for (final table in tables) {
+      before[table] = (await old.customSelect('SELECT * FROM $table').get())
+          .map((r) => r.data)
+          .toList();
+    }
+    await old.close();
+    final database = AppDatabase(schema.newConnection());
+    try {
+      await verifier.migrateAndValidate(database, 6);
+      for (final table in tables) {
+        expect(
+          (await database.customSelect('SELECT * FROM $table').get())
+              .map((r) => r.data)
+              .toList(),
+          before[table],
+          reason: table,
+        );
+      }
+      expect(await database.select(database.flowThoughts).get(), isEmpty);
+      expect(await database.select(database.flowDrafts).get(), isEmpty);
+      await database.customStatement(
+        "INSERT INTO diary_drafts (id, date_key, title, body, base_revision, updated_at) VALUES ('new', '2024-02-29', '', '', 0, 5)",
+      );
+      expect(
+        (await database
+                .customSelect(
+                  "SELECT draft_revision FROM diary_drafts WHERE id = 'new'",
+                )
+                .getSingle())
+            .read<int>('draft_revision'),
+        greaterThan(82),
+      );
     } finally {
       await database.close();
     }

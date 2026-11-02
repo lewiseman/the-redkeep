@@ -1,4 +1,5 @@
 import '../features/diary/domain/civil_date.dart';
+import '../features/flow/domain/thought.dart';
 import '../features/diary/domain/diary_document.dart';
 import '../features/notes/domain/note_document.dart';
 
@@ -6,6 +7,8 @@ import '../features/notes/domain/note_document.dart';
 enum AppDestination {
   home('/'),
   settings('/settings'),
+  more('/more'),
+  flow('/flow'),
   notes('/notes'),
   diary('/diary'),
   unavailable('/unavailable');
@@ -16,6 +19,8 @@ enum AppDestination {
   static AppDestination parse(String location) => switch (location) {
     '/' => home,
     '/settings' => settings,
+    '/more' => more,
+    '/flow' => flow,
     '/notes' => notes,
     '/diary' => diary,
     _ => unavailable,
@@ -63,6 +68,8 @@ String _destination(String location) {
       !(location.startsWith('/diary/calendar/') && diary[2] != null)) {
     return location;
   }
+  final flow = RegExp(r'^/flow/([0-9a-f]{32})(/edit)?$').firstMatch(location);
+  if (flow != null && isThoughtId(flow[1]!)) return location;
   final match = RegExp(r'^/notes/([0-9a-f]{32})(/edit)?$').firstMatch(location);
   return match != null && isNoteId(match[1]!)
       ? location
@@ -100,4 +107,8 @@ String diaryCalendarLocation(CivilDate date) => '/diary/calendar/${date.key}';
 String diaryEntryLocation(CivilDate date, String id, {bool edit = false}) =>
     isDiaryId(id)
     ? '/diary/${date.key}/entries/$id${edit ? '/edit' : ''}'
+    : AppDestination.unavailable.location;
+
+String thoughtLocation(String id, {bool edit = false}) => isThoughtId(id)
+    ? '/flow/$id${edit ? '/edit' : ''}'
     : AppDestination.unavailable.location;

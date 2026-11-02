@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "pack": "presentation-m04-v1",
+  "assets": [
+    {
+      "key": "appearance.theme.system",
+      "revision": "v1",
+      "path": "appearance/theme-system-v1.png",
+      "bytes": 159869,
+      "sha256": "d4d4de4cb5ad3c83cf66db8838e69395cf61b90c7d697b84d7f3bbe8575c3176",
+      "license": "LicenseRef-Project-Generated",
+      "provenance": "tool/assets/PROVENANCE.md"
+    },
+    {
+      "key": "appearance.theme.light",
+      "revision": "v1",
+      "path": "appearance/theme-light-v1.png",
+      "bytes": 146694,
+      "sha256": "2e08abe549f65713bcccfba9d19035c68946f3fbfef3e88b9e24a0c0f66649fc",
+      "license": "LicenseRef-Project-Generated",
+      "provenance": "tool/assets/PROVENANCE.md"
+    },
+    {
+      "key": "appearance.theme.dark",
+      "revision": "v1",
+      "path": "appearance/theme-dark-v1.png",
+      "bytes": 127553,
+      "sha256": "dd744501d2cfb75cb83948f0f83568c6dd31fd52e03bbcf538e91f9a6eb87e32",
+      "license": "LicenseRef-Project-Generated",
+      "provenance": "tool/assets/PROVENANCE.md"
+    }
+  ]
+}

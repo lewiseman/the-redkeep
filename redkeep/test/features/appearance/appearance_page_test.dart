@@ -154,9 +154,9 @@ void main() {
         initialLocation: '/settings',
         repository: repository,
       );
-      expect(find.text('Retry loading'), findsOneWidget);
+      expect(find.text('Retry local checks'), findsOneWidget);
       repository.failRead = false;
-      await tester.tap(find.text('Retry loading'));
+      await tester.tap(find.text('Retry local checks'));
       await tester.pumpAndSettle();
       repository.failSave = true;
       await tester.tap(find.text('Dark'));

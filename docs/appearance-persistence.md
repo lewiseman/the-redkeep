@@ -35,7 +35,9 @@ without replacing saved data. A save failure retains committed choices and shows
 a live-region message; the user can try the control again. Save completion after
 disposal cannot mutate disposed controller state. The policy stays static until
 the first saved snapshot arrives; system theme is the temporary theme during that
-read. M04 owns future bounded bootstrap checks and splash coordination.
+read. M04's [bootstrap coordinator](assets-startup.md) now checks the same
+repository/database under its overall local deadline and releases the splash on
+errors/timeouts. Successful bootstrap retry restarts a failed appearance read.
 
 ## Rendering and accessibility
 
@@ -54,7 +56,9 @@ Routes share a 180ms fade or immediate transition, including policy changes in
 flight. Theme changes are immediate. Shared sheet/ink/accent/edge tokens and
 system typography supply headings, section titles, body copy, and labels. Paper
 has a border and one small shadow; simpler mode removes the shadow and preserves
-functionality. A local Material layer keeps focus/ink feedback visible.
+functionality. A local Material layer keeps focus/ink feedback visible. M04 adds
+three static decorative theme illustrations beside the accessible live labels;
+their file locations come from the injected asset resolver.
 
 The host disables widget-aware tickers outside resumed lifecycle state (a null
 initial state permits startup). Navigator route TickerModes suppress covered

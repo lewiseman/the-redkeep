@@ -34,7 +34,7 @@ Use `Not started`, `In progress`, `Complete`, or `Partial`. A partial result mus
 | M01 — Foundations | Complete | Root local Git repository, ignore rules, AGENTS/command/architecture guides, Riverpod composition, neutral go_router shell; formatting, analysis, and all 6 shell/DI/routing tests pass. | Native builds and physical-device behavior unverified; next eligible phase is M02. |
 | M02 — Design and accessibility | Complete | Light/dark tokens and system typography, shared paper surfaces, saved appearance settings in background Drift schema 1, reactive OS/app rendering policy; formatting, analysis, all 26 tests, Android debug build, and emulator restart persistence pass. | iOS, physical-device accessibility/keyboard behavior, and release performance unverified; next eligible phase is M03 (M04 is also eligible independently under its prerequisite rules). |
 | M03 — AI feasibility | Partial | Pinned core 2.5.5 / LiteRT-LM engine 1.19.1, minimal injected adapter and synthetic harness, 40 passing tests, Android ARM64/API 30 packaging, iOS simulator and unsigned device builds; pinned Qwen3 0.6B streaming/cancel/reuse/cleanup/failure checks pass on physical Galaxy S24 Ultra CPU/GPU and iOS simulator CPU. | Physical iOS/Metal, minimum-OS and low-end hardware, release/sustained resource evidence remain unverified and block corresponding AI release claims. M04 may proceed independently; see M03 record and docs/ai-feasibility.md. |
-| M04 — Assets and startup | Not started | — | Requires M01–M02; can proceed while missing M03 device evidence is recorded. |
+| M04 — Assets and startup | Complete | Reachable-media inventory/provenance, pinned three-image pack, catalog/publishing validator, injected persistent resolver, verified atomic installs/repair, bounded bootstrap/splash gate; all 88 tests, analysis/formatting, Android and iOS simulator debug builds pass. Android local HTTP download → offline restart and missing-file gating; iOS fresh gate and offline staged-pack recovery verified. | Real HTTPS hosting/publication and physical/minimum-OS/low-end release evidence remain prerequisites; iOS HTTP download and native failure/ENOSPC drills unverified. M03's AI gaps remain unchanged. Next eligible phase is M05. |
 | M05 — Onboarding and routing | Not started | — | Requires M04. |
 | M06 — Notes vertical slice | Not started | — | Requires M05. |
 | M07 — Notes organization | Not started | — | Requires M06. |
@@ -860,3 +860,132 @@ performance, and AI release claims, not ordinary writing or non-AI work.
 **M04 — Assets and startup** may proceed independently with these gaps recorded.
 M10 can later consume this adapter and must revisit available AI device/resource
 evidence before release claims. M04 and every later phase remain unstarted.
+
+### 2 November 2026 — M04: Assets and startup
+
+**Changes and contracts**
+
+- Started from clean Git status at `fb2e91f` (`M03 — AI feasibility`). Read the
+  root `AGENTS.md`, migration architecture/acceptance, architecture/testing and
+  appearance guides, and M03 findings. No additional parent/nested guidance was
+  found. M01–M02 are complete; M03 remains Partial with its existing AI release
+  restrictions. No remote Git operation, publication or later phase was run.
+- Inventoried reachable legacy mobile entry points, book/navigation, Notes,
+  Diary, Flow and Appearance image consumers, and the website's actual
+  App/Book/BookPages path. Inspected the four raw PNG drafts and listed the six
+  unassigned WAVs read-only. Documented first-release candidates, provenance and
+  exclusions in [assets and startup](docs/assets-startup.md). Former Journal/AI
+  branding, obsolete feature spreads, undocumented media, all unassigned audio,
+  videos and models are excluded. Legacy files were read-only references.
+- Individually copied only the three documented original generated theme PNGs
+  required by the existing Appearance screen into `redkeep/tool/assets/pack/`.
+  They are unmodified 384×384 cutouts, **434,116 bytes** total, with stable
+  `appearance.theme.{system,light,dark}` keys and `v1` revisions. Preserved source
+  notes/prompts and rights provenance in
+  [PROVENANCE.md](redkeep/tool/assets/PROVENANCE.md). This project-generated
+  provenance label does not purport to grant a third-party artwork license.
+  The payloads are controlled local fixtures, excluded from the application
+  bundle. Only `assets/catalog/presentation-v1.json` metadata is bundled.
+- Added a strict, release-pinned catalog, configurable base location, injected
+  resolver/download boundaries and serialized app-support file store. Startup
+  compares keys/revisions/hashes/paths/sizes to real files and the installation
+  ledger. Suspicious files are hashed; unchanged verified metadata avoids
+  redundant hashing. Explicit repair verifies all files. Same-path revision and
+  file replacement are tested. Broken/missing ledgers are reconstructed locally.
+- Streams go to sibling temporary files, with bounded size, receive deadlines,
+  SHA-256 verification, flush/close, rename and a separately committed atomic
+  ledger. Completed files survive failure/retry; orphan partials are never
+  installed. Rename-before-ledger interruption is locally recoverable. Root,
+  directory, target, ledger and temporary symlinks are rejected. The asset
+  adapter has no primary-database reference or database deletion/reset path.
+  Its only delete removes its own failed pending payload. No schema bump or
+  production writing fixture was introduced; Drift remains schema 1.
+- Added `flutter_native_splash` **2.4.8** as a runtime dependency after checking
+  official lifecycle docs and resolved source/SDK compatibility. Bindings are
+  initialized and the splash immediately preserved. The bootstrap coordinator
+  checks the existing settings/database and local pack under an aggregate
+  **five-second** deadline. Slow retries coalesce; errors/timeouts show Flutter
+  recovery UI. Splash release occurs on success, error, timeout or disposal,
+  without waiting for a deferred first frame. Downloads start only after release.
+  No model or network catalog work runs at startup. M05 owns future onboarding
+  state and must add its real check through this coordinator.
+- The router retains its destination behind the startup gate. Missing required
+  assets, including on a fresh offline launch, block entry. Complete installs
+  reopen offline. Download, progress, connection/storage/integrity retry and
+  local-check recovery are accessible, scrollable and static under reduced
+  motion. Appearance consumes the injected local resolver; decoder/resolve errors
+  close the gate and file-image caches are evicted for path replacement.
+- Preserved native identity, launcher/splash artwork, storyboards, signing,
+  Android ARM64/API 30 and iOS 15 targets. Added main Android INTERNET permission
+  for actual downloads and debug-only cleartext capability for controlled
+  loopback fixtures. The adapter independently requires explicit debug opt-in;
+  release still requires HTTPS. No iOS ATS exception was added. Native splash
+  generation was deliberately not run over existing native configuration.
+- Added the read-only publishing validator, using the same catalog parser plus
+  still-PNG decoding, dimensions, exact inventory, size/hash/provenance and host
+  checks. `image` **4.12.0** is a direct development consumer (already splash's
+  transitive dependency); official APIs/compatibility were checked. Existing
+  lockfile pins were retained; only these consumed dependencies/their transitives
+  were added. No former manifests/code were imported.
+
+**Commands and results**
+
+Flutter commands ran in `redkeep/` unless noted. Final checks exited 0.
+
+| Command / check | Evidence |
+| --- | --- |
+| `flutter pub get --enforce-lockfile` | Passed with reproducible lockfile. |
+| `dart format --output=none --set-exit-if-changed lib test tool` | Passed; 51 Dart files unchanged by final check. |
+| `flutter analyze` | Passed, no issues. |
+| `flutter test test/features/assets test/app` and `flutter test` | Focused suites passed; final full suite **88 tests** passed. Routine tests use fake transport, fresh containers and disposable storage, with no accounts, network, models or user writing. |
+| `dart run tool/validate_assets.dart assets/catalog/presentation-v1.json tool/assets/pack` | Verified `presentation-m04-v1`: 3 decodable still PNGs, 434,116 bytes, exact pinned digests and payload inventory. No publication performed. Negative publisher cases run in the test suite. |
+| `flutter build apk --debug --target-platform android-arm64 --dart-define=ASSET_BASE_URL=http://127.0.0.1:8765/ --dart-define=ASSET_ALLOW_LOCAL_FIXTURE=true` | Controlled Android fixture build passed. |
+| `python3 -m http.server 8765 --bind 127.0.0.1 --directory tool/assets/pack`; `adb -s emulator-5554 reverse tcp:8765 tcp:8765`; `adb ... install -r build/app/outputs/flutter-apk/app-debug.apk`; `am force-stop` / `am start -n com.lewiseman.redkeep/.MainActivity` | **sdk gphone16k ARM64 emulator, Android 17/API 37**, debug. Fresh required gate rendered after splash; download produced exactly three HTTP 200 GETs, installed files/ledger and reached home. Fixture server was stopped before complete offline restart; home rendered. Removing only `files/required-artwork/appearance/theme-light-v1.png` caused the next launch to gate despite prior saved installation keys. |
+| `adb -s emulator-5554 shell uiautomator dump /sdcard/redkeep-m04.xml`; `adb ... exec-out screencap -p` | Readback and screenshots inspected: [fresh gate](docs/evidence/m04/android-fresh-gate.png), [complete offline](docs/evidence/m04/android-complete-offline.png), [missing-file gate](docs/evidence/m04/android-missing-file-gate.png). |
+| `flutter build ios --simulator --debug --dart-define=ASSET_BASE_URL=http://127.0.0.1:8765/ --dart-define=ASSET_ALLOW_LOCAL_FIXTURE=true`; `xcrun simctl install booted .../Runner.app`; `simctl launch --terminate-running-process booted com.lewiseman.redkeep` | **iPhone 17 Pro ARM64 / iOS 26.5 (23F77) simulator**, Xcode 27.2, debug. [Fresh gate](docs/evidence/m04/ios-fresh-gate.png) rendered after splash. The UI connector cannot attach to Simulator, so no iOS HTTP-button flow is claimed. |
+| Stage only the three exact pack files under simulator app support `required-artwork/appearance/`; restore ordinary build and launch without fixture server | Local verification adopted the files and reached [offline home](docs/evidence/m04/ios-complete-offline-staged.png) with no configured host. This proves local restart/adoption, not an iOS HTTP download. Re-queried the container with `xcrun simctl get_app_container booted com.lewiseman.redkeep data` after reinstall because its UUID changed. |
+| `flutter build apk --debug --target-platform android-arm64`; `flutter build ios --simulator --debug` | Final ordinary builds passed (9.0s Gradle / 13.0s Xcode in the last run). Existing JDK native-access warning is informational. Fixture defines are absent. Ordinary app restored on emulator and simulator. No physical-device, signed-release or unsigned iOS-device build is claimed for M04. |
+| Native readback SHA-256/size comparison against pinned catalog; primary database digest before/after | All three files match on Android and iOS. Android primary DB remains `3807d2e41251aa1eb7996e2ade7fb3117cefa32af32d08bd98ffbeaec5a233fa`; iOS remains `0e53288d5395375782aae2746258487d19c397f62a1e3e605d59070dc8a825ec`. No data clear, database deletion, private-writing read or settings change was used. |
+| Root `git diff --check`, native/raw SHA-256 baseline | Passed. All **11 raw directory files** (four PNGs, six WAVs and `.DS_Store`) unchanged. Of 111 baseline raw/native files, only the two intended Android manifests changed. Native artwork/storyboards/other configuration preserved. |
+
+The final structured evidence is
+[verification.json](docs/evidence/m04/verification.json). Tests cover fresh and
+complete offline launches, missing files despite ledger keys, corrupt/short/
+oversized streams, interruption, orphan pending files, restart/retry, same-path
+revision/replacement, malformed catalogs/ledger, traversal and symlinks, storage
+and ledger-commit failures, overlong transfers via injected monotonic time,
+separate database preservation, splash errors/timeout/disposal, direct routes,
+progress and narrow/large-text/inset layouts in both themes. Failure/retry UI is
+widget-tested; native download retry and native ENOSPC/process-kill/power-loss
+were not exercised. The Android missing file was restored only from the verified
+fixture, then locally adopted; completed files were never cleared.
+
+Initial checks caught a settings-retry expectation changed by bootstrap gating,
+canonical `/private/var` temp paths, POSIX trailing-slash symlink behavior,
+invalid-UTF8 ledger recovery, a relative-path assumption in a publishing
+test, and Riverpod automatic async retry delaying a required-file error. Required
+asset initialization/resolution now fails immediately; explicit retry refreshes
+a failed store initialization. They were corrected; final checks pass. No unresolved failure remains.
+The controlled server is stopped and the `adb reverse` mapping removed.
+
+**Catalog/host setup and release prerequisites**
+
+Follow the [asset guide](docs/assets-startup.md#local-fixture-and-host-setup) for
+exact local commands and the read-only release validator. Production has **no
+host default**. Set `ASSET_BASE_URL` only to the actual verified HTTPS pack base
+at build time. Keep stable keys, bump revisions/hashes for changed bytes, prefer
+immutable versioned paths, retain provenance, and expand the catalog only as
+M05–M11 introduce real first-release consumers from the inventory. A separately
+authorized real host, published exact pack, hosted-byte checks and fresh-install
+Android/iOS download/offline evidence are mandatory before release. Nothing was
+purchased, provisioned or published in M04.
+
+Physical iOS, physical/low-end/minimum-OS accessibility, native disk-full and
+power-loss behavior, real HTTP retry on iOS, release timing and signing remain
+unverified release qualifications. Widget tests are not physical-device evidence.
+Atomic same-directory rename is implemented; directory-fsync power-loss durability
+and simultaneous cross-process writers are not claimed. M03's AI evidence gaps
+remain unchanged and do not invalidate this independent non-AI phase.
+
+**M04 is complete within its agreed scope. Next eligible phase: M05 — Onboarding
+and routing. M05 and every later phase remain unstarted. Stop at this boundary.**

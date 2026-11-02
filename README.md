@@ -11,6 +11,12 @@ M03 adds an opt-in local inference adapter and synthetic verification entry
 point. See [AI feasibility](docs/ai-feasibility.md) for pinned artifacts, native
 setup, reproduction commands, evidence, and remaining hardware gaps. Normal
 startup does not initialize AI or require a model.
+M04 adds bounded local bootstrap, a required-artwork download/repair gate, and
+an injectable persistent asset resolver. See [assets and startup](docs/assets-startup.md)
+for the media inventory, provenance, local fixture setup and release host checks.
+The default build has no configured host: a fresh installation stops at the
+artwork gate until run with the documented controlled fixture configuration.
+Complete installations reopen offline without a catalog/network check.
 
 Use Flutter 3.47.5 / Dart 3.13.4 (the verified local baseline). From the workspace
 root:
@@ -21,6 +27,7 @@ flutter pub get --enforce-lockfile
 dart format --output=none --set-exit-if-changed lib test tool
 flutter analyze
 flutter test
+dart run tool/validate_assets.dart assets/catalog/presentation-v1.json tool/assets/pack
 ```
 
 Run the shell on an available mobile device or emulator:

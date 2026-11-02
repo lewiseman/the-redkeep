@@ -6,6 +6,7 @@ import '../core/presentation/rendering_policy.dart';
 import '../features/appearance/application/appearance_controller.dart';
 import '../features/appearance/domain/appearance_preferences.dart';
 import 'app_router.dart';
+import 'bootstrap/startup_gate.dart';
 
 class RedkeepApp extends ConsumerWidget {
   const RedkeepApp({super.key});
@@ -30,7 +31,7 @@ class RedkeepApp extends ConsumerWidget {
         preferences: appearance.loaded
             ? appearance.preferences
             : const AppearancePreferences(reduceMotion: true),
-        child: child!,
+        child: StartupGate(child: child!),
       ),
     );
   }

@@ -6,6 +6,7 @@ import '../../../core/presentation/paper_surface.dart';
 import '../../../core/presentation/rendering_policy.dart';
 import '../application/appearance_controller.dart';
 import '../domain/appearance_preferences.dart';
+import '../../assets/presentation/local_artwork.dart';
 
 class AppearancePage extends ConsumerWidget {
   const AppearancePage({super.key});
@@ -79,6 +80,9 @@ class AppearancePage extends ConsumerWidget {
                           contentPadding: EdgeInsets.zero,
                           value: theme,
                           enabled: state.canEdit,
+                          secondary: LocalArtwork(
+                            assetKey: 'appearance.theme.${theme.name}',
+                          ),
                           title: Text(switch (theme) {
                             AppTheme.system => 'Use device theme',
                             AppTheme.light => 'Light',

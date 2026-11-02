@@ -4,4 +4,6 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Opt-in adapter permits loopback HTTP only in debug fixture builds. -->
+    <application android:usesCleartextTraffic="true" />
 </manifest>

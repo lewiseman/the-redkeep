@@ -1,10 +1,13 @@
+import '../features/diary/domain/civil_date.dart';
+import '../features/diary/domain/diary_document.dart';
 import '../features/notes/domain/note_document.dart';
 
-/// Static destinations plus validated, addressable Notes documents.
+/// Static destinations plus validated, addressable writing and civil dates.
 enum AppDestination {
   home('/'),
   settings('/settings'),
   notes('/notes'),
+  diary('/diary'),
   unavailable('/unavailable');
 
   const AppDestination(this.location);
@@ -14,6 +17,7 @@ enum AppDestination {
     '/' => home,
     '/settings' => settings,
     '/notes' => notes,
+    '/diary' => diary,
     _ => unavailable,
   };
 }
@@ -50,6 +54,15 @@ String _destination(String location) {
   if (AppDestination.parse(location) != AppDestination.unavailable) {
     return location;
   }
+  if (location == '/diary/search') return location;
+  final diary = RegExp(
+    r'^/diary/(?:calendar/)?(\d{4}-\d{2}-\d{2})(?:/entries/([0-9a-f]{32})(/edit)?)?$',
+  ).firstMatch(location);
+  if (diary != null &&
+      CivilDate.tryParse(diary[1]!) != null &&
+      !(location.startsWith('/diary/calendar/') && diary[2] != null)) {
+    return location;
+  }
   final match = RegExp(r'^/notes/([0-9a-f]{32})(/edit)?$').firstMatch(location);
   return match != null && isNoteId(match[1]!)
       ? location
@@ -81,3 +94,10 @@ String _requestedDestination(Uri requested) {
 
 String _gate(String path, String destination) =>
     Uri(path: path, queryParameters: {'continue': destination}).toString();
+
+String diaryDayLocation(CivilDate date) => '/diary/${date.key}';
+String diaryCalendarLocation(CivilDate date) => '/diary/calendar/${date.key}';
+String diaryEntryLocation(CivilDate date, String id, {bool edit = false}) =>
+    isDiaryId(id)
+    ? '/diary/${date.key}/entries/$id${edit ? '/edit' : ''}'
+    : AppDestination.unavailable.location;

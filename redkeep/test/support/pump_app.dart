@@ -1,3 +1,8 @@
+import 'package:redkeep/features/diary/application/diary_providers.dart';
+import 'package:redkeep/features/diary/domain/diary_repository.dart';
+
+import 'empty_diary_repository.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -20,6 +25,8 @@ Future<GoRouter> pumpApp(
   FakeRequiredAssets? assets,
   NotesRepository? notes,
   String Function()? noteId,
+  DiaryRepository? diary,
+  String Function()? diaryId,
 }) async {
   final preferences = repository ?? FakeAppearanceRepository();
   if (repository == null) addTearDown(preferences.close);
@@ -34,6 +41,11 @@ Future<GoRouter> pumpApp(
           (ref) async => assets ?? FakeRequiredAssets(),
         ),
         releaseSplashProvider.overrideWithValue(() {}),
+        diaryRepositoryProvider.overrideWithValue(
+          diary ?? EmptyDiaryRepository(),
+        ),
+        diaryClockProvider.overrideWithValue(() => DateTime(2026, 11, 2, 12)),
+        if (diaryId != null) diaryIdProvider.overrideWithValue(diaryId),
         if (notes != null) notesRepositoryProvider.overrideWithValue(notes),
         if (noteId != null) noteIdProvider.overrideWithValue(noteId),
         if (initialLocation != null)

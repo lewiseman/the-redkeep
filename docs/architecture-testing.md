@@ -19,10 +19,15 @@ Its five-second aggregate local limit and splash lifecycle are documented in
 validation, continuation/relaunch semantics, history and recovery are defined in
 [onboarding and navigation](onboarding-routing.md).
 
-Normal destinations are `/` (home), `/settings` (appearance), `/notes`,
+Normal destinations are `/` (Diary-first home), `/settings` (appearance), `/notes`,
 `/notes/:id` and `/notes/:id/edit`. Notes and settings are nested under home;
 readers/editors have Notes beneath them. See [Notes writing and recovery](notes-writing.md)
 for the document boundary, revisions, deletion retention and failure recovery.
+M08 adds `/diary`, `/diary/calendar/:date`, `/diary/:date`,
+`/diary/:date/entries/:id`, its `/edit` child, and `/diary/search`.
+See [Diary writing and recovery](diary-writing.md) for civil dates, separate day
+metadata, entry deletion and recovery. Diary/Notes/Appearance are usable shell
+destinations; no future destinations are registered.
 Invalid/unmatched input uses `/unavailable` with **Return home**, replacing the
 unavailable route. Incoming URL content and raw errors are never displayed.
 Material pages use central 180ms platform transitions or immediate reduced-motion
@@ -33,14 +38,17 @@ viewport, and bounded content width. `core/presentation` contains consumed theme
 paper-surface, and rendering-policy primitives. They use system fonts and
 programmatic surfaces. Appearance consumes three downloaded static theme images
 through the injectable resolver; bootstrap requires only bundled metadata and
-system fonts. No feature tabs or production writing fixtures are registered.
+system fonts. Only implemented destinations are registered; there are no future feature pages
+or production writing fixtures.
 
 `app/storage_providers.dart` composes the primary database and repository.
 Feature domain types have no Flutter/database/plugin dependencies. Data adapters
 map rows; controllers observe authoritative snapshots and coordinate saves. See
 [appearance and persistence](appearance-persistence.md) for ownership, schema,
 recovery, lifecycle, and generation contracts. M06 extends this same database to
-schema 3 for Notes and recovery drafts; M07 adds pins/tags in schema 4. Notes repository/clock/ID composition
+schema 3 for Notes and recovery drafts; M07 adds pins/tags in schema 4. M08 adds
+Diary entries, drafts and independent day headings in schema 5. Diary composition
+lives in `features/diary/application/diary_providers.dart`. Notes repository/clock/ID composition
 lives in `features/notes/application/notes_providers.dart`.
 
 ## Tests and commands
@@ -61,6 +69,7 @@ flutter test test/app
 flutter test test/features/appearance
 flutter test test/features/onboarding
 flutter test test/features/notes
+flutter test test/features/diary
 flutter test test/core
 flutter test test/features/ai
 flutter test test/features/assets
@@ -75,7 +84,7 @@ dart run tool/validate_assets.dart assets/catalog/presentation-v1.json tool/asse
   settings, and real background SQLite close/reopen. UI tests check themes,
   live system/app changes, mid-transition reduction, back, flat paper, contrast,
   and narrow/large-text/inset layouts in both themes.
-- `test/core` checks schema 4 against its snapshot, upgrades from versions 1, 2 and 3,
+- `test/core` checks schema 5 against its snapshot, upgrades from versions 1–4,
   appearance/onboarding preservation, empty writing tables, SQL constraints,
   retained source/draft tokens and tombstones, all OS/app/lifecycle combinations, both OS flags live, inactive/offscreen
   ticker gating, resumption, and disposal.
@@ -99,6 +108,12 @@ dart run tool/validate_assets.dart assets/catalog/presentation-v1.json tool/asse
   coalesced slow retries, local errors, disposal and progress. Startup widget
   checks cover required offline gating, preserved direct destinations, retry,
   reduced motion and narrow/large-text/inset layouts in both themes.
+- `test/features/diary` checks empty/multiple-entry days, metadata separation,
+  source/draft revision protection, failed transactions/recovery, copy/discard,
+  close/reopen persistence, deletion, selected calendar/date routes, wrong-date
+  IDs, Gregorian/DST/offset boundaries, literal keyword search, full long writing,
+  accessible calendar activation and both themes/rendering modes at 320px/3×
+  text/safe areas/keyboard. See the Diary guide for explicit timezone commands.
 - `test/features/notes` checks CRUD, transactional rollback, failed saves and
   recovery, Unicode/large bodies, background close/reopen, stale source/draft
   tokens, copy/discard, navigation and ID switching, missing/deleted IDs and
@@ -133,7 +148,9 @@ emulator offline creation, draft recovery after force-stop, committed edits and
 deletion evidence. Physical-device accessibility, native iOS writing journeys,
 release/minimum-OS and power-loss/storage-failure qualification remain gaps.
 M07 adds Notes organization and preview; its native evidence and remaining gaps
-are recorded separately. M08 — Diary is next.
+are recorded separately. M08 adds civil-date Diary writing, metadata separation,
+calendar/search/routes, recovery and static notebook presentation. Its exact
+native evidence and remaining gaps are recorded separately. M09 — Flow is next.
 
 ## References
 

@@ -4,12 +4,15 @@ import 'package:flutter_test/flutter_test.dart';
 import '../support/pump_app.dart';
 
 void main() {
-  testWidgets('app scope composes a runnable neutral shell', (tester) async {
+  testWidgets('app scope composes a diary-first shell', (tester) async {
     await pumpApp(tester);
 
     expect(find.text('Redkeep'), findsOneWidget);
-    expect(find.text('Welcome to Redkeep'), findsOneWidget);
-    expect(find.text('A quiet space for your words.'), findsOneWidget);
+    expect(find.text('My diary'), findsOneWidget);
+    expect(
+      find.text('A notebook for each day. Your words stay on this device.'),
+      findsOneWidget,
+    );
     expect(find.byType(FloatingActionButton), findsNothing);
     expect(find.byType(NavigationBar), findsNothing);
     expect(tester.takeException(), isNull);
@@ -36,14 +39,24 @@ void main() {
       expect(tester.takeException(), isNull);
 
       if (location == '/') {
-        expect(find.text('Welcome to Redkeep'), findsOneWidget);
+        await tester.scrollUntilVisible(
+          find.text('My diary'),
+          160,
+          scrollable: find.byType(Scrollable).first,
+        );
+        expect(find.text('My diary'), findsOneWidget);
       } else {
         final returnHome = find.text('Return home');
         await tester.ensureVisible(returnHome);
         await tester.tap(returnHome);
         await tester.pumpAndSettle();
         expect(router.routeInformationProvider.value.uri.path, '/');
-        expect(find.text('Welcome to Redkeep'), findsOneWidget);
+        await tester.scrollUntilVisible(
+          find.text('My diary'),
+          160,
+          scrollable: find.byType(Scrollable).first,
+        );
+        expect(find.text('My diary'), findsOneWidget);
         expect(tester.takeException(), isNull);
       }
     });

@@ -1,0 +1,274 @@
+{
+  "phase": "M08",
+  "date": "2026-11-02",
+  "client_timezone": "Africa/Nairobi",
+  "scope": "Civil-date text Diary only. No M09 or excluded media/AI/import/sync work.",
+  "toolchain": {
+    "flutter": "3.47.5",
+    "framework": "6a19cca564",
+    "engine": "af7e796e16",
+    "dart": "3.13.4",
+    "xcode": "27.2 / 27B52"
+  },
+  "checks": [
+    {
+      "cwd": "redkeep",
+      "command": "dart run build_runner build",
+      "result": "Passed; generated schema-5 Drift code with separate Diary rows and date/order index."
+    },
+    {
+      "cwd": "redkeep",
+      "command": "dart run drift_dev schema dump lib/core/storage/app_database.dart drift_schemas/",
+      "result": "Passed; wrote drift_schema_v5.json."
+    },
+    {
+      "cwd": "redkeep",
+      "command": "dart run drift_dev schema generate drift_schemas/ test/core/storage/generated/",
+      "result": "Passed; generated current helper and schema_v5.dart. Historical v1–4 files unchanged."
+    },
+    {
+      "cwd": "redkeep",
+      "command": "flutter pub get --enforce-lockfile",
+      "result": "Passed. No dependency, lockfile or native configuration changes."
+    },
+    {
+      "cwd": "redkeep",
+      "command": "dart format --output=none --set-exit-if-changed lib test tool",
+      "result": "Passed: 108 files, 0 changed."
+    },
+    {
+      "cwd": "redkeep",
+      "command": "flutter analyze",
+      "result": "No issues found; final run 3.0s."
+    },
+    {
+      "cwd": "redkeep",
+      "command": "flutter test",
+      "result": "185 tests passed in 8s; no exceptions, failed tests or interaction warnings in final log. Includes 28 Diary tests and existing suites, populated migration v4→5 and Diary gate validation."
+    },
+    {
+      "cwd": "redkeep",
+      "command": "TZ=America/New_York flutter test test/features/diary/civil_date_test.dart test/features/diary/diary_repository_test.dart",
+      "result": "9 tests passed."
+    },
+    {
+      "cwd": "redkeep",
+      "command": "TZ=Pacific/Apia flutter test test/features/diary/civil_date_test.dart test/features/diary/diary_repository_test.dart",
+      "result": "9 tests passed."
+    },
+    {
+      "cwd": "redkeep",
+      "command": "TZ=Pacific/Kiritimati flutter test test/features/diary/civil_date_test.dart test/features/diary/diary_repository_test.dart",
+      "result": "9 tests passed."
+    },
+    {
+      "cwd": "redkeep",
+      "command": "TZ=Etc/GMT+12 flutter test test/features/diary/civil_date_test.dart test/features/diary/diary_repository_test.dart",
+      "result": "9 tests passed."
+    },
+    {
+      "cwd": "redkeep",
+      "command": "dart run tool/validate_assets.dart assets/catalog/presentation-v1.json tool/assets/pack",
+      "result": "Verified unchanged presentation-m07-v1: 4 PNGs, 479916 bytes. No publication performed."
+    },
+    {
+      "cwd": "redkeep",
+      "command": "flutter build apk --debug --target-platform android-arm64",
+      "result": "Passed; final Gradle run 7.8s. No asset-host define or server needed for the existing complete installation."
+    },
+    {
+      "cwd": "redkeep",
+      "command": "flutter build ios --simulator --debug",
+      "result": "Passed; final Xcode run 11.6s."
+    },
+    {
+      "cwd": ".",
+      "command": "git diff --check",
+      "result": "Passed."
+    },
+    {
+      "cwd": ".",
+      "command": "git diff --exit-code -- redkeep/android redkeep/ios redkeep/macos redkeep/windows redkeep/linux redkeep/pubspec.yaml redkeep/pubspec.lock redkeep/drift_schemas/drift_schema_v1.json redkeep/drift_schemas/drift_schema_v2.json redkeep/drift_schemas/drift_schema_v3.json redkeep/drift_schemas/drift_schema_v4.json redkeep/test/core/storage/generated/schema_v1.dart redkeep/test/core/storage/generated/schema_v2.dart redkeep/test/core/storage/generated/schema_v3.dart redkeep/test/core/storage/generated/schema_v4.dart",
+      "result": "Passed; native configuration, dependencies and historical schemas/helpers unchanged."
+    }
+  ],
+  "host_acceptance": [
+    "Fresh schema 5; upgrades from 1/2/3/4 preserve existing settings/onboarding/writing and tokens; no Diary seed rows.",
+    "Empty days, multiple entries per date, independent revision-protected headings, literal parameterized keywords, deleted exclusion and wrong-date IDs.",
+    "Transactional rollback on source insertion and draft cleanup; stale source/draft protection; failed recovery/commit/copy, coalescing, delayed commit feedback, copy/discard, scoped failed buffers and reopening.",
+    "Background SQLite close/reopen with 24000 repetitions of multilingual Unicode text and unfinished drafts; deletion retains draft but clears source text.",
+    "Leap/year bounds, DST dates and skipped Samoa civil day; +14/-12 audit timestamps do not change the selected day.",
+    "Complete 5000-line Unicode focused reading/editing; calendar/day/search/reader/editor/dialogs at 320x480, 3x text, safe padding and 180px keyboard insets, both themes and both rendering modes.",
+    "Full-label calendar semantics activation opens selected date; date/month selection and both routing gates preserve destinations."
+  ],
+  "native": {
+    "android": {
+      "device": "sdk_gphone16k_arm64 emulator-5554; Android 17 / API 37; ARM64; debug",
+      "commands": [
+        "adb -s emulator-5554 install -r redkeep/build/app/outputs/flutter-apk/app-debug.apk",
+        "adb -s emulator-5554 shell am force-stop com.lewiseman.redkeep",
+        "adb -s emulator-5554 shell am start -n com.lewiseman.redkeep/.MainActivity --es route /diary/2024-02-29",
+        "adb -s emulator-5554 shell cmd connectivity airplane-mode enable",
+        "adb -s emulator-5554 shell svc wifi disable",
+        "adb -s emulator-5554 shell svc data disable",
+        "adb -s emulator-5554 shell uiautomator dump /sdcard/redkeep-m08.xml",
+        "adb -s emulator-5554 pull /sdcard/redkeep-m08.xml /tmp/redkeep-m08-android.xml",
+        "adb -s emulator-5554 shell input text M08%sLeap%sDiary",
+        "adb -s emulator-5554 shell input text Offline%swords%sfor%sa%sleap%sday.",
+        "adb -s emulator-5554 shell input keyevent KEYCODE_BACK",
+        "adb -s emulator-5554 shell am start -n com.lewiseman.redkeep/.MainActivity --es route /diary",
+        "adb -s emulator-5554 shell am start -n com.lewiseman.redkeep/.MainActivity --es route /diary/search",
+        "adb -s emulator-5554 shell input text leap",
+        "adb -s emulator-5554 shell cmd connectivity airplane-mode disable",
+        "adb -s emulator-5554 shell svc wifi enable",
+        "adb -s emulator-5554 shell svc data enable",
+        "adb -s emulator-5554 exec-out screencap -p > docs/evidence/m08/android-delete-confirmation.png",
+        "adb -s emulator-5554 exec-out screencap -p > docs/evidence/m08/android-empty-day.png",
+        "adb -s emulator-5554 exec-out screencap -p > docs/evidence/m08/android-final-build-reopened.png",
+        "adb -s emulator-5554 exec-out screencap -p > docs/evidence/m08/android-offline-committed.png",
+        "adb -s emulator-5554 exec-out screencap -p > docs/evidence/m08/android-offline-deleted-reopened.png",
+        "adb -s emulator-5554 exec-out screencap -p > docs/evidence/m08/android-offline-draft.png",
+        "adb -s emulator-5554 exec-out screencap -p > docs/evidence/m08/android-offline-reader.png",
+        "adb -s emulator-5554 exec-out screencap -p > docs/evidence/m08/android-offline-recovered.png",
+        "adb -s emulator-5554 exec-out screencap -p > docs/evidence/m08/android-offline-search-reopened.png"
+      ],
+      "observed": "Existing M07 installation upgraded without reset. Selected 2024-02-29 empty day. Offline UI created M08 Leap Diary with observed body ffline words for a leap day. (ADB input dropped the first O; evidence uses actual text). Durable draft survived force-stop and reopened from calendar. Save feedback revision 1, exact focused reader text/date. After another force-stop, local keyword input observed as eap found the committed entry on 2024-02-29. Confirmed Delete committed entry; force-stop/reopen showed empty original day. Final APK reinstalled and same date/absence rechecked. No HTTP fixture or AI model used.",
+      "network_state": "Before: airplane=0 Wi-Fi=1 mobile_data=1. During offline journey read back airplane=1 Wi-Fi=0 mobile_data=0. Restored to original values and read back at finish.",
+      "ui_steps": [
+        {
+          "action": "Create on observed empty day",
+          "command": "adb -s emulator-5554 shell input tap 280 970"
+        },
+        {
+          "action": "Title field",
+          "command": "adb -s emulator-5554 shell input tap 400 870"
+        },
+        {
+          "action": "Body field",
+          "command": "adb -s emulator-5554 shell input tap 400 1110"
+        },
+        {
+          "action": "Scroll calendar to recovery draft",
+          "command": "adb -s emulator-5554 shell input swipe 500 1900 500 700 400"
+        },
+        {
+          "action": "Reopen observed recovery draft",
+          "command": "adb -s emulator-5554 shell input tap 500 2160"
+        },
+        {
+          "action": "Commit reopened draft",
+          "command": "adb -s emulator-5554 shell input tap 270 1920"
+        },
+        {
+          "action": "Read committed entry",
+          "command": "adb -s emulator-5554 shell input tap 400 1955"
+        },
+        {
+          "action": "Search field after force-stop/relaunch",
+          "command": "adb -s emulator-5554 shell input tap 400 700"
+        },
+        {
+          "action": "Open matching entry",
+          "command": "adb -s emulator-5554 shell input tap 500 1050"
+        },
+        {
+          "action": "Request deletion",
+          "command": "adb -s emulator-5554 shell input tap 500 1500"
+        },
+        {
+          "action": "Confirm deletion",
+          "command": "adb -s emulator-5554 shell input tap 500 1450"
+        }
+      ]
+    },
+    "ios": {
+      "device": "iPhone 17 Pro ARM64 simulator / iOS 26.5 (23F77); debug",
+      "commands": [
+        "xcrun simctl install booted redkeep/build/ios/iphonesimulator/Runner.app",
+        "xcrun simctl launch --terminate-running-process booted com.lewiseman.redkeep",
+        "xcrun simctl io booted screenshot docs/evidence/m08/ios-simulator-launch.png"
+      ],
+      "observed": "Existing complete local artwork installation reached the welcome screen. Final build installed again. No native iOS Diary writing, onboarding completion or gesture claim."
+    }
+  },
+  "effects": {
+    "implementation": "Static paper/binding only; simpler mode removes binding and existing shadow. No new expensive renderer, shader, blur, page-fold, animation or ticker.",
+    "profiling": "No newly expensive effect introduced; no physical frame/memory performance claim. Host/widget checks are not low-end qualification."
+  },
+  "limitations": [
+    "Physical-device accessibility/IME and actual iOS Diary writing unverified.",
+    "Minimum-OS/low-end/release performance and signing unverified.",
+    "Native disk-full, power-loss/fsync and OS process-restoration unverified. Bytes newer than a durable draft can be lost if storage fails and the process dies.",
+    "Local search uses ASCII case folding and literal substrings, with a 256-code-unit UI query limit; day excerpts are bounded to 12 lines, full entry is available unchanged.",
+    "Day headings are revision-protected manual metadata saves, without entry-style recovery drafts.",
+    "M04 production HTTPS hosting prerequisite and M03 AI qualification gaps unchanged."
+  ],
+  "artifacts": [
+    {
+      "path": "docs/evidence/m08/android-delete-confirmation.png",
+      "bytes": 95105,
+      "sha256": "3af6c78778ffbd4b3c580861c8866520926b070b2e57346042a4bd2a3302e012"
+    },
+    {
+      "path": "docs/evidence/m08/android-empty-day.png",
+      "bytes": 113291,
+      "sha256": "fb381e3be949f790496ed932f36b5f5d2e8d9459719b59f6d5abef214640cef6"
+    },
+    {
+      "path": "docs/evidence/m08/android-final-build-reopened.png",
+      "bytes": 112974,
+      "sha256": "bc552eb1d0558bdf6ca92130a7e7668f728418af7e48d1b2f4bb77c433479f46"
+    },
+    {
+      "path": "docs/evidence/m08/android-offline-committed.png",
+      "bytes": 122492,
+      "sha256": "1fcee245a2e87a9ab39f67db214ebb17af9850e328a8db0ec750a0f20b4fe460"
+    },
+    {
+      "path": "docs/evidence/m08/android-offline-deleted-reopened.png",
+      "bytes": 113171,
+      "sha256": "a8850a15da3a7d37d239aedf80eb4d95694d4319425da4a14f65ed6a2f0ba953"
+    },
+    {
+      "path": "docs/evidence/m08/android-offline-draft.png",
+      "bytes": 116220,
+      "sha256": "61a1d722a3f245b16395d524c906c784286acc65c378ea07a4f1aa49b2fe6e15"
+    },
+    {
+      "path": "docs/evidence/m08/android-offline-reader.png",
+      "bytes": 87005,
+      "sha256": "a681b040952b93fd41c2b4df0de4e06b0000bac82249b1374b22cb4da18ddf6f"
+    },
+    {
+      "path": "docs/evidence/m08/android-offline-recovered.png",
+      "bytes": 124907,
+      "sha256": "df512b70aff0cacae9759e6bb10e5997fc8e09bd379f708707fbb02cd6a9e87e"
+    },
+    {
+      "path": "docs/evidence/m08/android-offline-search-reopened.png",
+      "bytes": 102011,
+      "sha256": "63e66edc3399ee4889ddd0d57c357d9ece57e5789c0b0ca459bf026822682184"
+    },
+    {
+      "path": "docs/evidence/m08/ios-simulator-launch.png",
+      "bytes": 255008,
+      "sha256": "d686b7b4fe9131bf38119d00048ab9f06835342149710f7df49b1d5b5ee6a2c2"
+    },
+    {
+      "path": "redkeep/build/app/outputs/flutter-apk/app-debug.apk",
+      "bytes": 171244385,
+      "sha256": "fb584d1ebe1fa643351bb5cb8f0e77f64139eb683bb334576708dd9cd07c91c9"
+    },
+    {
+      "path": "redkeep/build/ios/iphonesimulator/Runner.app/Runner",
+      "bytes": 123600,
+      "sha256": "a26a8b3f1ea54056bc05d4691fdde0e2e61379190a4491bbd3473e949dc856bb"
+    },
+    {
+      "path": "redkeep/build/ios/iphonesimulator/Runner.app/Frameworks/App.framework/App",
+      "bytes": 83952,
+      "sha256": "76e5b7363ed75f88d9a9dd82a6756821061081a0519cb3cb8aaa18352b3a065d"
+    }
+  ],
+  "next_phase": "M09 — Flow; not started."
+}

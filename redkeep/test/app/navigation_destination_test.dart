@@ -40,7 +40,6 @@ void main() {
     }
     for (final location in [
       '/notes/abc',
-      '/diary/2026-11-02',
       '/flow/a',
       '/settings/brain',
       '/tasks',
@@ -135,6 +134,41 @@ void main() {
     }
     expect(noteLocation('bad'), '/unavailable');
   });
+
+  test(
+    'canonical Diary dates, calendar, search and entry IDs survive both gates',
+    () {
+      const id = '0123456789abcdef0123456789abcdef';
+      for (final path in [
+        '/diary',
+        '/diary/search',
+        '/diary/calendar/2024-02-29',
+        '/diary/2026-11-01',
+        '/diary/2026-11-01/entries/$id',
+        '/diary/2026-11-01/entries/$id/edit',
+      ]) {
+        expect(validatedNavigationLocation(path), path);
+        final startup = redirect(path, ready: false)!;
+        final welcome = redirect(startup, complete: false)!;
+        expect(redirect(welcome), path);
+      }
+      for (final path in [
+        '/diary/2026-02-29',
+        '/diary/0000-01-01',
+        '/diary/2026-11-01T00:00:00Z',
+        '/diary/2026-1-01',
+        '/diary/2026-11-01?text=secret',
+        '/diary/2026-11-01#secret',
+        '/diary/2026-11-01/entries/new',
+        '/diary/2026-11-01/entries/${'A' * 32}',
+        '/diary/calendar/2026-11-01/entries/$id',
+        '/diary/search?keywords=secret',
+        '/diary/2026-11-01/entries/$id/edit/extra',
+      ]) {
+        expect(validatedNavigationLocation(path), '/unavailable', reason: path);
+      }
+    },
+  );
 
   test(
     'settings survives local checking, downloading, onboarding and completion',

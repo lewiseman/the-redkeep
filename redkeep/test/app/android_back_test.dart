@@ -59,7 +59,7 @@ void main() {
         await send('updateBackGestureProgress', update);
         await send('commitBackGesture');
         await tester.pumpAndSettle();
-        expect(find.text('Welcome to Redkeep'), findsOneWidget);
+        expect(find.text('My diary'), findsOneWidget);
         expect(router.canPop(), isFalse);
         expect(tester.takeException(), isNull);
       },

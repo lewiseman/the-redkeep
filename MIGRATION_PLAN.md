@@ -38,7 +38,7 @@ Use `Not started`, `In progress`, `Complete`, or `Partial`. A partial result mus
 | M05 — Onboarding and routing | Complete | Minimal welcome, committed schema-2 completion with migration preservation, validated bootstrap/onboarding continuations and safe fallback, framework back gestures; all 111 tests, formatting/analysis, Android and iOS simulator debug builds pass. Android interruption → requested settings → back/restart and iOS welcome render verified. | Physical accessibility/gestures, native iOS completion/restart, OS link registration/restoration and release/minimum-OS evidence unverified. M04 host and M03 AI gaps unchanged. Next eligible phase is M06. |
 | M06 — Notes vertical slice | Complete | Same primary database upgraded to schema 3; plain-text Notes CRUD, stable ID routes, revision/token checks, committed-save feedback and persistent recovery drafts. All 139 tests, analysis/formatting, Android/iOS simulator debug builds pass; Android airplane-mode create/recover/edit/save/delete and force-stop/reopen verified. See docs/notes-writing.md and docs/evidence/m06/verification.json. | Physical-device accessibility/IME, native iOS writing, minimum-OS/low-end/release and native disk-full/power-loss evidence unverified. M04 host and M03 AI gaps unchanged. Next eligible phase is M07. |
 | M07 — Notes organization | Complete | Schema 4 with local keyword/tag/pin filters, Trash/restore, typed permanent deletion, safe bounded Markdown preview and resolver-backed Notes artwork. All 155 tests, formatting/analysis, asset validation and Android/iOS simulator debug builds pass; Android offline reopen/filter/restore/delete and external browser launch verified. See docs/notes-writing.md and docs/evidence/m07/verification.json. | Native iOS writing/browser, physical accessibility/IME, minimum-OS/low-end/release and native storage-failure evidence unverified. Preview/search bounds documented; M04 host and M03 AI gaps unchanged. Next eligible phase is M08. |
-| M08 — Diary | Not started | — | Requires M07. |
+| M08 — Diary | Complete | Schema 5 separates civil-date Diary entries, recovery drafts and day headings; calendar/day/entry routes, CRUD, local keyword search and static/simpler notebook presentation. All 185 tests, formatting/analysis, four timezone suites, asset validation and Android/iOS simulator debug builds pass; Android offline draft recovery, committed reopen/search and deletion verified. See docs/diary-writing.md and docs/evidence/m08/verification.json. | Physical accessibility/IME, native iOS Diary writing, minimum-OS/low-end/release and native storage-failure evidence unverified. No expensive visual effect introduced or physical performance claim. M04 host and M03 AI gaps unchanged. Next eligible phase is M09. |
 | M09 — Flow | Not started | — | Requires M08. |
 | M10 — Brain | Not started | — | Requires M09 and the M03 adapter; native acceptance evidence remains mandatory. |
 | M11 — Grand Maester | Not started | — | Requires M10. |
@@ -1323,3 +1323,93 @@ and M03's AI qualification gaps are unchanged.
 
 **M07 is complete within its selected scope. Next eligible phase: M08 — Diary.
 M08 and every later implementation phase remain unstarted. Stop here.**
+
+
+### M08 — Diary — 2 November 2026
+
+**Status: Complete within the selected text Diary scope.** M07 was complete and
+the initial working tree was clean. Read root AGENTS.md, this plan, architecture,
+writing/recovery, persistence and routing guidance before changing code. No
+legacy project, `raw_assets/`, native configuration, dependency manifest or
+lockfile was changed. No later-phase feature or excluded capability was added.
+
+**Behavior and contracts.**
+
+- Added feature-owned immutable civil dates, entries, drafts, metadata and an
+  injected repository/clock/ID boundary. The same background database is schema
+  **5**, with separate `diary_entries`, `diary_drafts` and `diary_days` tables and
+  a date/creation/ID index. Fresh and upgraded writing remains unseeded.
+  Populated schema 4 migration retains Notes exact text/audit/revisions, pins,
+  tags, tombstones, recovery drafts and AUTOINCREMENT tokens; versions 1–3 also
+  retain their existing preservation checks. Historical snapshots are unchanged.
+- Diary is now the home experience. Added calendar/month/date routes, previous/
+  next dates, today, empty-day reading, multiple entries per day, focused full
+  entry reading, manual create/edit/save, confirmed deletion, independent day
+  headings and local keyword search. Diary/Notes/Appearance are usable shell
+  destinations. Canonical civil dates and stable IDs survive startup/onboarding;
+  invalid dates and missing/deleted/wrong-date IDs have safe fallback behavior.
+- A diary date stays a Gregorian `YYYY-MM-DD` civil value even across timezone
+  travel, DST, repeated hours and skipped local days. UTC audit/order instants
+  never derive or move a stored date. Revision checks determine freshness.
+- New entry drafts are durable before navigation. Serialized/coalesced recovery,
+  captured source/draft tokens, atomic commit/cleanup, explicit commit feedback,
+  guarded back, failed in-memory buffer retention, copy and confirmed discard
+  protect unfinished text. A failed storage write can still leave newer bytes
+  only in memory; process termination can lose those bytes. Day headings use
+  revision-checked metadata saves and have no writing recovery draft.
+- Diary deletion clears committed title/body and retains an ID/date/audit
+  tombstone to reject stale writes. Lists/search hide it; any independent draft
+  remains recoverable as a new entry. The dialog explains irreversible committed
+  deletion and retained drafts. No Diary trash/restore or forensic-erasure claim.
+- Search ANDs literal whitespace-separated title/body substrings, with SQLite
+  ASCII folding and a 256-code-unit UI query bound. Queries run locally on the
+  database isolate. Lists are lazy/body-free; day cards show up to 12 lines and
+  full selectable text remains available unchanged in the focused reader/editor.
+- Notebook identity uses existing paper surfaces and a static binding accent,
+  removed under simpler effects. Compact calendars have full-date semantics and
+  activation actions; narrow/large-text layouts use a date list. Dialog content
+  and actions scroll together. No new expensive visual effect, shader, blur,
+  page-fold renderer or ticker was introduced, so M08 has no such effect to
+  profile. Neither static UI nor host checks establish physical frame performance.
+  Updated the [Diary guide](docs/diary-writing.md), READMEs and architecture/
+  persistence/routing contracts. No new dependency or presentation asset required.
+
+**Exact verification.** Commands ran from `redkeep/` except root Git/native
+commands. Flutter **3.47.5** (`6a19cca564`), engine `af7e796e16`, Dart **3.13.4**;
+Xcode **27.2 / 27B52**. Final successful checks exited 0. Machine-readable
+commands, observed synthetic text, native control coordinates, limitations and
+SHA-256 digests are in [verification.json](docs/evidence/m08/verification.json).
+
+| Command / check | Result |
+| --- | --- |
+| `dart run build_runner build`; `dart run drift_dev schema dump lib/core/storage/app_database.dart drift_schemas/`; `dart run drift_dev schema generate drift_schemas/ test/core/storage/generated/` | Passed; current Drift code, schema 5 snapshot and verification helper generated. Historical v1–4 snapshots/helpers unchanged. |
+| `flutter pub get --enforce-lockfile` | Passed; existing lockfile and dependencies unchanged. |
+| `dart format --output=none --set-exit-if-changed lib test tool` | **108 files, 0 changed**. |
+| `flutter analyze` | **No issues found**, final run **3.0s**. |
+| `flutter test` | **185 tests passed**, **8s**, no failed tests, exceptions or interaction warnings in final log. Includes 28 Diary tests, populated v4 migration and Diary destination/gate validation. |
+| `TZ=America/New_York flutter test test/features/diary/civil_date_test.dart test/features/diary/diary_repository_test.dart` | **9 passed**. |
+| `TZ=Pacific/Apia flutter test test/features/diary/civil_date_test.dart test/features/diary/diary_repository_test.dart` | **9 passed**. |
+| `TZ=Pacific/Kiritimati flutter test test/features/diary/civil_date_test.dart test/features/diary/diary_repository_test.dart` | **9 passed**. |
+| `TZ=Etc/GMT+12 flutter test test/features/diary/civil_date_test.dart test/features/diary/diary_repository_test.dart` | **9 passed**. |
+| Host persistence/recovery tests | Real background close/reopen preserves 24,000 repetitions of multilingual Unicode text, metadata and unfinished drafts. Source-insert/cleanup trigger failures roll back; stale/deleted-source and replacement-draft saves cannot overwrite writing. Coalescing, delayed commit feedback, failed recovery/commit/copy, retry/copy/discard and scoped failed buffers pass. |
+| Widget/date acceptance | Empty/multiple-entry days, metadata independence/conflicts, selected-month/day/today routes, leap/year limits, +14/−12 audit offsets, DST dates/skipped Samoa date, literal keyword combinations, deleted/wrong-date IDs and accessible calendar activation pass. Full 5,000-line Unicode reader/editor remains exact. Calendar/day/search/reader/editor/dialogs pass at 320×480, 3× text, safe padding, 180px keyboard insets, both themes and both rendering modes. |
+| `dart run tool/validate_assets.dart assets/catalog/presentation-v1.json tool/assets/pack` | Unchanged `presentation-m07-v1`: **4 PNGs, 479,916 bytes**, no publication. |
+| `flutter build apk --debug --target-platform android-arm64` | Passed; final Gradle **7.8s**. No host define required by the existing complete installation. |
+| `flutter build ios --simulator --debug` | Passed; final Xcode **11.6s**. |
+| `adb -s emulator-5554 install -r redkeep/build/app/outputs/flutter-apk/app-debug.apk`; force-stop/start with `--es route /diary/2024-02-29`; `uiautomator`, observed `input tap/text`, `exec-out screencap -p` | **sdk_gphone16k_arm64, Android 17/API 37**, emulator/debug. Existing M07 installation upgraded without reset; [empty leap day](docs/evidence/m08/android-empty-day.png) rendered correctly with saved dark/simpler preferences. |
+| `adb -s emulator-5554 shell cmd connectivity airplane-mode enable`; `svc wifi disable`; `svc data disable`; force-stop/start `/diary`; reopen observed draft | Offline state read back **1/0/0**. UI entered synthetic writing, reported [durable draft](docs/evidence/m08/android-offline-draft.png), and [recovered exact observed writing/date](docs/evidence/m08/android-offline-recovered.png) after force-stop. ADB dropped the first `O` during body input; evidence records actual `ffline words for a leap day.` rather than claiming different text. |
+| Native Save entry → Read committed entry; force-stop/start `/diary/search`; observed keyword input/tap | [Commit feedback revision 1](docs/evidence/m08/android-offline-committed.png), [complete reader](docs/evidence/m08/android-offline-reader.png), and [reopened local search result](docs/evidence/m08/android-offline-search-reopened.png) on original **2024-02-29** verified offline. Search input observed as `eap` after ADB's dropped initial character. No server, account or model used. |
+| Native Delete entry → Delete committed entry; force-stop/start original date; final APK reinstall/reopen | [Confirmation](docs/evidence/m08/android-delete-confirmation.png) and [empty original day after restart](docs/evidence/m08/android-offline-deleted-reopened.png) verified. [Final build reinstall](docs/evidence/m08/android-final-build-reopened.png) retained date/absence without reset. Original network state restored/read back: airplane **0**, Wi-Fi **1**, mobile data **1**. |
+| `xcrun simctl install booted redkeep/build/ios/iphonesimulator/Runner.app`; `xcrun simctl launch --terminate-running-process booted com.lewiseman.redkeep`; `xcrun simctl io booted screenshot docs/evidence/m08/ios-simulator-launch.png` | **iPhone 17 Pro ARM64 / iOS 26.5 (23F77)** simulator: existing local artwork installation reached [welcome](docs/evidence/m08/ios-simulator-launch.png). Final build installed again. No native iOS Diary writing or onboarding-completion claim. |
+| `git diff --check`; `git diff --exit-code` over native configuration, manifests/lockfile and v1–4 schema snapshots/helpers (exact paths in JSON) | Passed. No remote Git operation or publication; `raw_assets/` and legacy projects not accessed. |
+
+**Limitations and phase boundary.** Physical-device accessibility/IME,
+minimum-OS/low-end hardware, native iOS Diary writing, release/signing and sustained
+frame/memory evidence remain unverified. Native full-disk/power-loss/fsync and OS
+process restoration are not established. Entry recovery's in-memory storage
+failure limitation and search/display bounds are explicit above and in the guide.
+M04's real production HTTPS hosting prerequisite and M03's AI qualification gaps
+are unchanged. These gaps do not imply physical-device verification from widgets.
+
+**M08 is complete within its selected scope. Next eligible phase: M09 — Flow.
+M09 and all later implementation phases remain unstarted. Stop here.**

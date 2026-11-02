@@ -1,3 +1,7 @@
+import 'package:redkeep/features/diary/application/diary_providers.dart';
+
+import '../support/empty_diary_repository.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -31,6 +35,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          diaryRepositoryProvider.overrideWithValue(EmptyDiaryRepository()),
           appearanceRepositoryProvider.overrideWithValue(appearance),
           onboardingRepositoryProvider.overrideWithValue(
             FakeOnboardingRepository(),

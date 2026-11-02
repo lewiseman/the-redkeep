@@ -40,7 +40,7 @@ void main() {
         expect(router.canPop(), isTrue);
         await tester.dragFrom(const Offset(5, 240), const Offset(700, 0));
         await tester.pumpAndSettle();
-        expect(find.text('Welcome to Redkeep'), findsOneWidget);
+        expect(find.text('My diary'), findsOneWidget);
         expect(router.canPop(), isFalse);
         expect(tester.takeException(), isNull);
       },

@@ -21,8 +21,9 @@ appearance data. The primary key/check permits
 one row (`id = 1`); theme and boolean values have SQL constraints. A missing row
 means defaults and does not seed a record. Saving upserts the full snapshot.
 `drift_schemas/drift_schema_v1.json` and generated schema helpers preserve the
-initial structure. Current schema **4** adds note pins/tags with preserved writing
-and draft-token migrations. Schema **3** adds [Notes and recovery drafts](notes-writing.md)
+initial structure. Current schema **5** adds separate Diary entries, drafts and
+day headings; schema **4** added note pins/tags with preserved writing and
+draft-token migrations. Schema **3** adds [Notes and recovery drafts](notes-writing.md)
 in M06 and preserves appearance and onboarding. Later consumers extend this
 same database with tested migrations. Never reset/delete storage to repair
 preferences. Generation commands are in the [README](../README.md).
@@ -83,7 +84,7 @@ Run the checks in the [README](../README.md). Tests mirror production under
 `redkeep/test/features/appearance`, `test/core`, and `test/app`. Widget/controller
 tests use fresh scopes and fake repositories, never app-owned storage. Repository
 tests use synthetic preferences and disposable SQLite files, including background
-executor close/reopen. Current schema 4 is compared against its snapshot; migrations from versions 1, 2 and 3
+executor close/reopen. Current schema 5 is compared against its snapshot; migrations from versions 1–4
 check saved themes, reduction/effects values and onboarding. Historical snapshots
 are retained. Every future upgrade needs migration and preserved data checks.
 
@@ -103,3 +104,8 @@ Drift 2.35.3 uses sqlite3 native assets without `sqlite3_flutter_libs`.
 path_provider 2.1.6 supports Android SDK 24+ / iOS 13+, compatible with the plan's
 later Android 11 / iOS 15 floors. Android debug packaging and emulator smoke
 evidence are in the M02 record; iOS and physical-device behavior remain unverified.
+
+
+M08 upgrades the same database to schema 5 for separate Diary entries, recovery
+drafts and day headings. It preserves all schema 1–4 data, including Notes pins,
+tags, tombstones and AUTOINCREMENT draft tokens. See [Diary](diary-writing.md).

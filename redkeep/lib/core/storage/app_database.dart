@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import '../../features/appearance/data/appearance_table.dart';
 import '../../features/onboarding/data/onboarding_table.dart';
 import '../../features/notes/data/notes_tables.dart';
+import '../../features/diary/data/diary_tables.dart';
 
 part 'app_database.g.dart';
 
@@ -17,13 +18,16 @@ part 'app_database.g.dart';
     Notes,
     NoteDrafts,
     NoteTags,
+    DiaryEntries,
+    DiaryDrafts,
+    DiaryDays,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -38,6 +42,12 @@ class AppDatabase extends _$AppDatabase {
       if (from < 4 && to >= 4) {
         if (from >= 3) await migrator.addColumn(notes, notes.pinned);
         await migrator.createTable(noteTags);
+      }
+      if (from < 5 && to >= 5) {
+        await migrator.createTable(diaryEntries);
+        await migrator.createTable(diaryDrafts);
+        await migrator.createTable(diaryDays);
+        await migrator.createIndex(diaryEntriesDayOrder);
       }
     },
   );

@@ -38,7 +38,7 @@ void main() {
       await tester.pageBack();
       await tester.pump();
       await tester.pump();
-      expect(find.text('Welcome to Redkeep'), findsOneWidget);
+      expect(find.text('My diary'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );
@@ -81,7 +81,7 @@ void main() {
       expect(RenderingPolicyScope.of(context).simplerEffects, isTrue);
       await tester.pageBack();
       await tester.pumpAndSettle();
-      expect(find.text('Welcome to Redkeep'), findsOneWidget);
+      expect(find.text('My diary'), findsOneWidget);
     },
   );
 

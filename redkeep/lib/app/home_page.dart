@@ -1,45 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
-import '../core/presentation/paper_surface.dart';
-import 'app_shell.dart';
-import 'navigation_destination.dart';
+import '../features/diary/presentation/diary_calendar_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
-
   @override
-  Widget build(BuildContext context) {
-    return AppShell(
-      child: PaperSurface(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Welcome to Redkeep',
-              style: Theme.of(context).textTheme.headlineSmall,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'A quiet space for your words.',
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            FilledButton.icon(
-              onPressed: () => context.go(AppDestination.notes.location),
-              icon: const Icon(Icons.menu_book_outlined),
-              label: const Text('Notes'),
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: () => context.go(AppDestination.settings.location),
-              icon: const Icon(Icons.tune),
-              label: const Text('Appearance'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => const DiaryCalendarPage();
 }

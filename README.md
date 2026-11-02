@@ -27,6 +27,12 @@ with local keyword/tag/pin filters, Trash/restore, typed permanent deletion and
 safe Markdown preview. Schema 4 preserves all existing writing and settings;
 the required pack adds the single Notes create illustration.
 
+M08 adds a Diary-first calendar, date-addressable day and entry readers, text
+entry editing/deletion, recovery drafts and local keyword search in schema 5.
+Entries use civil dates and live separately from optional day headings. See
+[Diary writing and recovery](docs/diary-writing.md) for date, save and deletion
+contracts, accessible notebook presentation and evidence.
+
 Use Flutter 3.47.5 / Dart 3.13.4 (the verified local baseline). From the workspace
 root:
 
@@ -68,7 +74,8 @@ dart format lib test
 M02 establishes schema version 1; M05 migrates to schema 2 while retaining
 appearance settings. M06 extends it to schema 3 for Notes and recovery drafts,
 preserving settings and onboarding. M07 adds pins and tags in schema 4 and tests
-upgrades from versions 1–3. Each subsequent schema change needs a version
+upgrades from versions 1–3. M08 adds separate Diary entries, drafts and day
+headings in schema 5, preserving versions 1–4. Each subsequent schema change needs a version
 bump and migration/data-preservation tests. Preserve historical snapshots after
 shipping that version. Keep generated Drift code and schema helpers with source.
 For Android packaging verification, run

@@ -34,10 +34,11 @@ pretending an already committed transaction was canceled.
 
 `app/navigation_destination.dart` owns the currently accepted application
 locations: `/`, `/settings`, `/notes`, `/notes/:id` and `/notes/:id/edit`, plus
+the Diary/calendar/day/entry/editor/search routes listed in the [Diary guide](diary-writing.md), and
 `/unavailable` for the real fallback page. M06 validates 32-character lowercase
 hex note IDs and handles missing/deleted sources in the reader/editor. See
-[Notes writing and recovery](notes-writing.md). Diary, Flow, Brain and task
-routes remain unregistered.
+[Notes writing and recovery](notes-writing.md). Flow, Brain and task routes
+remain unregistered.
 
 Internal controls use `AppDestination` locations. Pass any untrusted string
 through `validatedNavigationLocation` **before** calling go_router; do not hand
@@ -132,7 +133,8 @@ hosting and native URL registrations are not introduced. Release performance,
 minimum-OS and low-end hardware qualifications remain outstanding. M04's real
 HTTPS asset-host prerequisite and M03's AI hardware gaps remain unchanged.
 M06 extends these contracts for Notes. M07 keeps the same routes and adds
-trashed-source restore/deletion actions on the existing reader. M08 is next.
+trashed-source restore/deletion actions on the existing reader. M08 adds the
+Diary calendar, civil dates and entry routes. M09 is next.
 
 Official APIs checked alongside the locally resolved source:
 
@@ -140,3 +142,10 @@ Official APIs checked alongside the locally resolved source:
 - [MaterialPage](https://api.flutter.dev/flutter/material/MaterialPage-class.html)
   and [PageTransitionsTheme](https://api.flutter.dev/flutter/material/PageTransitionsTheme-class.html)
 - [Drift migration verification](https://drift.simonbinder.eu/migrations/tests/)
+
+
+M08 makes the home experience the Diary calendar and adds validated civil-date
+Diary/calendar/entry/editor/search destinations. These use the same startup and
+onboarding continuation boundary. Valid but wrong-date/deleted entry IDs show a
+safe feature fallback; non-canonical or invalid dates use `/unavailable`.
+See [Diary routes and dates](diary-writing.md#dates-and-routes).

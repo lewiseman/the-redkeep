@@ -1585,6 +1585,1258 @@ class NoteTagsCompanion extends UpdateCompanion<NoteTag> {
   }
 }
 
+class $DiaryEntriesTable extends DiaryEntries
+    with TableInfo<$DiaryEntriesTable, DiaryEntryRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DiaryEntriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _dateKeyMeta = const VerificationMeta(
+    'dateKey',
+  );
+  @override
+  late final GeneratedColumn<String> dateKey = GeneratedColumn<String>(
+    'date_key',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(
+      minTextLength: 10,
+      maxTextLength: 10,
+    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _bodyMeta = const VerificationMeta('body');
+  @override
+  late final GeneratedColumn<String> body = GeneratedColumn<String>(
+    'body',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _revisionMeta = const VerificationMeta(
+    'revision',
+  );
+  @override
+  late final GeneratedColumn<int> revision = GeneratedColumn<int>(
+    'revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL CHECK (revision > 0)',
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<int> deletedAt = GeneratedColumn<int>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    dateKey,
+    title,
+    body,
+    revision,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'diary_entries';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DiaryEntryRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('date_key')) {
+      context.handle(
+        _dateKeyMeta,
+        dateKey.isAcceptableOrUnknown(data['date_key']!, _dateKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dateKeyMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('body')) {
+      context.handle(
+        _bodyMeta,
+        body.isAcceptableOrUnknown(data['body']!, _bodyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_bodyMeta);
+    }
+    if (data.containsKey('revision')) {
+      context.handle(
+        _revisionMeta,
+        revision.isAcceptableOrUnknown(data['revision']!, _revisionMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_revisionMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  DiaryEntryRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DiaryEntryRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      dateKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}date_key'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      body: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}body'],
+      )!,
+      revision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}revision'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}deleted_at'],
+      ),
+    );
+  }
+
+  @override
+  $DiaryEntriesTable createAlias(String alias) {
+    return $DiaryEntriesTable(attachedDatabase, alias);
+  }
+}
+
+class DiaryEntryRow extends DataClass implements Insertable<DiaryEntryRow> {
+  final String id;
+  final String dateKey;
+  final String title;
+  final String body;
+  final int revision;
+  final int createdAt;
+  final int updatedAt;
+  final int? deletedAt;
+  const DiaryEntryRow({
+    required this.id,
+    required this.dateKey,
+    required this.title,
+    required this.body,
+    required this.revision,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['date_key'] = Variable<String>(dateKey);
+    map['title'] = Variable<String>(title);
+    map['body'] = Variable<String>(body);
+    map['revision'] = Variable<int>(revision);
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<int>(deletedAt);
+    }
+    return map;
+  }
+
+  DiaryEntriesCompanion toCompanion(bool nullToAbsent) {
+    return DiaryEntriesCompanion(
+      id: Value(id),
+      dateKey: Value(dateKey),
+      title: Value(title),
+      body: Value(body),
+      revision: Value(revision),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+    );
+  }
+
+  factory DiaryEntryRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DiaryEntryRow(
+      id: serializer.fromJson<String>(json['id']),
+      dateKey: serializer.fromJson<String>(json['dateKey']),
+      title: serializer.fromJson<String>(json['title']),
+      body: serializer.fromJson<String>(json['body']),
+      revision: serializer.fromJson<int>(json['revision']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+      deletedAt: serializer.fromJson<int?>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'dateKey': serializer.toJson<String>(dateKey),
+      'title': serializer.toJson<String>(title),
+      'body': serializer.toJson<String>(body),
+      'revision': serializer.toJson<int>(revision),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+      'deletedAt': serializer.toJson<int?>(deletedAt),
+    };
+  }
+
+  DiaryEntryRow copyWith({
+    String? id,
+    String? dateKey,
+    String? title,
+    String? body,
+    int? revision,
+    int? createdAt,
+    int? updatedAt,
+    Value<int?> deletedAt = const Value.absent(),
+  }) => DiaryEntryRow(
+    id: id ?? this.id,
+    dateKey: dateKey ?? this.dateKey,
+    title: title ?? this.title,
+    body: body ?? this.body,
+    revision: revision ?? this.revision,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+  );
+  DiaryEntryRow copyWithCompanion(DiaryEntriesCompanion data) {
+    return DiaryEntryRow(
+      id: data.id.present ? data.id.value : this.id,
+      dateKey: data.dateKey.present ? data.dateKey.value : this.dateKey,
+      title: data.title.present ? data.title.value : this.title,
+      body: data.body.present ? data.body.value : this.body,
+      revision: data.revision.present ? data.revision.value : this.revision,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DiaryEntryRow(')
+          ..write('id: $id, ')
+          ..write('dateKey: $dateKey, ')
+          ..write('title: $title, ')
+          ..write('body: $body, ')
+          ..write('revision: $revision, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    dateKey,
+    title,
+    body,
+    revision,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DiaryEntryRow &&
+          other.id == this.id &&
+          other.dateKey == this.dateKey &&
+          other.title == this.title &&
+          other.body == this.body &&
+          other.revision == this.revision &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt);
+}
+
+class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntryRow> {
+  final Value<String> id;
+  final Value<String> dateKey;
+  final Value<String> title;
+  final Value<String> body;
+  final Value<int> revision;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<int?> deletedAt;
+  final Value<int> rowid;
+  const DiaryEntriesCompanion({
+    this.id = const Value.absent(),
+    this.dateKey = const Value.absent(),
+    this.title = const Value.absent(),
+    this.body = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DiaryEntriesCompanion.insert({
+    required String id,
+    required String dateKey,
+    required String title,
+    required String body,
+    required int revision,
+    required int createdAt,
+    required int updatedAt,
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       dateKey = Value(dateKey),
+       title = Value(title),
+       body = Value(body),
+       revision = Value(revision),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<DiaryEntryRow> custom({
+    Expression<String>? id,
+    Expression<String>? dateKey,
+    Expression<String>? title,
+    Expression<String>? body,
+    Expression<int>? revision,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? deletedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (dateKey != null) 'date_key': dateKey,
+      if (title != null) 'title': title,
+      if (body != null) 'body': body,
+      if (revision != null) 'revision': revision,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DiaryEntriesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? dateKey,
+    Value<String>? title,
+    Value<String>? body,
+    Value<int>? revision,
+    Value<int>? createdAt,
+    Value<int>? updatedAt,
+    Value<int?>? deletedAt,
+    Value<int>? rowid,
+  }) {
+    return DiaryEntriesCompanion(
+      id: id ?? this.id,
+      dateKey: dateKey ?? this.dateKey,
+      title: title ?? this.title,
+      body: body ?? this.body,
+      revision: revision ?? this.revision,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (dateKey.present) {
+      map['date_key'] = Variable<String>(dateKey.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (body.present) {
+      map['body'] = Variable<String>(body.value);
+    }
+    if (revision.present) {
+      map['revision'] = Variable<int>(revision.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<int>(deletedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DiaryEntriesCompanion(')
+          ..write('id: $id, ')
+          ..write('dateKey: $dateKey, ')
+          ..write('title: $title, ')
+          ..write('body: $body, ')
+          ..write('revision: $revision, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $DiaryDraftsTable extends DiaryDrafts
+    with TableInfo<$DiaryDraftsTable, DiaryDraftRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DiaryDraftsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
+  static const VerificationMeta _dateKeyMeta = const VerificationMeta(
+    'dateKey',
+  );
+  @override
+  late final GeneratedColumn<String> dateKey = GeneratedColumn<String>(
+    'date_key',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(
+      minTextLength: 10,
+      maxTextLength: 10,
+    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _bodyMeta = const VerificationMeta('body');
+  @override
+  late final GeneratedColumn<String> body = GeneratedColumn<String>(
+    'body',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _baseRevisionMeta = const VerificationMeta(
+    'baseRevision',
+  );
+  @override
+  late final GeneratedColumn<int> baseRevision = GeneratedColumn<int>(
+    'base_revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL CHECK (base_revision >= 0)',
+  );
+  static const VerificationMeta _draftRevisionMeta = const VerificationMeta(
+    'draftRevision',
+  );
+  @override
+  late final GeneratedColumn<int> draftRevision = GeneratedColumn<int>(
+    'draft_revision',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    dateKey,
+    title,
+    body,
+    baseRevision,
+    draftRevision,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'diary_drafts';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DiaryDraftRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('date_key')) {
+      context.handle(
+        _dateKeyMeta,
+        dateKey.isAcceptableOrUnknown(data['date_key']!, _dateKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dateKeyMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('body')) {
+      context.handle(
+        _bodyMeta,
+        body.isAcceptableOrUnknown(data['body']!, _bodyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_bodyMeta);
+    }
+    if (data.containsKey('base_revision')) {
+      context.handle(
+        _baseRevisionMeta,
+        baseRevision.isAcceptableOrUnknown(
+          data['base_revision']!,
+          _baseRevisionMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_baseRevisionMeta);
+    }
+    if (data.containsKey('draft_revision')) {
+      context.handle(
+        _draftRevisionMeta,
+        draftRevision.isAcceptableOrUnknown(
+          data['draft_revision']!,
+          _draftRevisionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {draftRevision};
+  @override
+  DiaryDraftRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DiaryDraftRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      dateKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}date_key'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      body: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}body'],
+      )!,
+      baseRevision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}base_revision'],
+      )!,
+      draftRevision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}draft_revision'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $DiaryDraftsTable createAlias(String alias) {
+    return $DiaryDraftsTable(attachedDatabase, alias);
+  }
+}
+
+class DiaryDraftRow extends DataClass implements Insertable<DiaryDraftRow> {
+  final String id;
+  final String dateKey;
+  final String title;
+  final String body;
+  final int baseRevision;
+  final int draftRevision;
+  final int updatedAt;
+  const DiaryDraftRow({
+    required this.id,
+    required this.dateKey,
+    required this.title,
+    required this.body,
+    required this.baseRevision,
+    required this.draftRevision,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['date_key'] = Variable<String>(dateKey);
+    map['title'] = Variable<String>(title);
+    map['body'] = Variable<String>(body);
+    map['base_revision'] = Variable<int>(baseRevision);
+    map['draft_revision'] = Variable<int>(draftRevision);
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  DiaryDraftsCompanion toCompanion(bool nullToAbsent) {
+    return DiaryDraftsCompanion(
+      id: Value(id),
+      dateKey: Value(dateKey),
+      title: Value(title),
+      body: Value(body),
+      baseRevision: Value(baseRevision),
+      draftRevision: Value(draftRevision),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory DiaryDraftRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DiaryDraftRow(
+      id: serializer.fromJson<String>(json['id']),
+      dateKey: serializer.fromJson<String>(json['dateKey']),
+      title: serializer.fromJson<String>(json['title']),
+      body: serializer.fromJson<String>(json['body']),
+      baseRevision: serializer.fromJson<int>(json['baseRevision']),
+      draftRevision: serializer.fromJson<int>(json['draftRevision']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'dateKey': serializer.toJson<String>(dateKey),
+      'title': serializer.toJson<String>(title),
+      'body': serializer.toJson<String>(body),
+      'baseRevision': serializer.toJson<int>(baseRevision),
+      'draftRevision': serializer.toJson<int>(draftRevision),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  DiaryDraftRow copyWith({
+    String? id,
+    String? dateKey,
+    String? title,
+    String? body,
+    int? baseRevision,
+    int? draftRevision,
+    int? updatedAt,
+  }) => DiaryDraftRow(
+    id: id ?? this.id,
+    dateKey: dateKey ?? this.dateKey,
+    title: title ?? this.title,
+    body: body ?? this.body,
+    baseRevision: baseRevision ?? this.baseRevision,
+    draftRevision: draftRevision ?? this.draftRevision,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  DiaryDraftRow copyWithCompanion(DiaryDraftsCompanion data) {
+    return DiaryDraftRow(
+      id: data.id.present ? data.id.value : this.id,
+      dateKey: data.dateKey.present ? data.dateKey.value : this.dateKey,
+      title: data.title.present ? data.title.value : this.title,
+      body: data.body.present ? data.body.value : this.body,
+      baseRevision: data.baseRevision.present
+          ? data.baseRevision.value
+          : this.baseRevision,
+      draftRevision: data.draftRevision.present
+          ? data.draftRevision.value
+          : this.draftRevision,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DiaryDraftRow(')
+          ..write('id: $id, ')
+          ..write('dateKey: $dateKey, ')
+          ..write('title: $title, ')
+          ..write('body: $body, ')
+          ..write('baseRevision: $baseRevision, ')
+          ..write('draftRevision: $draftRevision, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    dateKey,
+    title,
+    body,
+    baseRevision,
+    draftRevision,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DiaryDraftRow &&
+          other.id == this.id &&
+          other.dateKey == this.dateKey &&
+          other.title == this.title &&
+          other.body == this.body &&
+          other.baseRevision == this.baseRevision &&
+          other.draftRevision == this.draftRevision &&
+          other.updatedAt == this.updatedAt);
+}
+
+class DiaryDraftsCompanion extends UpdateCompanion<DiaryDraftRow> {
+  final Value<String> id;
+  final Value<String> dateKey;
+  final Value<String> title;
+  final Value<String> body;
+  final Value<int> baseRevision;
+  final Value<int> draftRevision;
+  final Value<int> updatedAt;
+  const DiaryDraftsCompanion({
+    this.id = const Value.absent(),
+    this.dateKey = const Value.absent(),
+    this.title = const Value.absent(),
+    this.body = const Value.absent(),
+    this.baseRevision = const Value.absent(),
+    this.draftRevision = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  DiaryDraftsCompanion.insert({
+    required String id,
+    required String dateKey,
+    required String title,
+    required String body,
+    required int baseRevision,
+    this.draftRevision = const Value.absent(),
+    required int updatedAt,
+  }) : id = Value(id),
+       dateKey = Value(dateKey),
+       title = Value(title),
+       body = Value(body),
+       baseRevision = Value(baseRevision),
+       updatedAt = Value(updatedAt);
+  static Insertable<DiaryDraftRow> custom({
+    Expression<String>? id,
+    Expression<String>? dateKey,
+    Expression<String>? title,
+    Expression<String>? body,
+    Expression<int>? baseRevision,
+    Expression<int>? draftRevision,
+    Expression<int>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (dateKey != null) 'date_key': dateKey,
+      if (title != null) 'title': title,
+      if (body != null) 'body': body,
+      if (baseRevision != null) 'base_revision': baseRevision,
+      if (draftRevision != null) 'draft_revision': draftRevision,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  DiaryDraftsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? dateKey,
+    Value<String>? title,
+    Value<String>? body,
+    Value<int>? baseRevision,
+    Value<int>? draftRevision,
+    Value<int>? updatedAt,
+  }) {
+    return DiaryDraftsCompanion(
+      id: id ?? this.id,
+      dateKey: dateKey ?? this.dateKey,
+      title: title ?? this.title,
+      body: body ?? this.body,
+      baseRevision: baseRevision ?? this.baseRevision,
+      draftRevision: draftRevision ?? this.draftRevision,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (dateKey.present) {
+      map['date_key'] = Variable<String>(dateKey.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (body.present) {
+      map['body'] = Variable<String>(body.value);
+    }
+    if (baseRevision.present) {
+      map['base_revision'] = Variable<int>(baseRevision.value);
+    }
+    if (draftRevision.present) {
+      map['draft_revision'] = Variable<int>(draftRevision.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DiaryDraftsCompanion(')
+          ..write('id: $id, ')
+          ..write('dateKey: $dateKey, ')
+          ..write('title: $title, ')
+          ..write('body: $body, ')
+          ..write('baseRevision: $baseRevision, ')
+          ..write('draftRevision: $draftRevision, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $DiaryDaysTable extends DiaryDays
+    with TableInfo<$DiaryDaysTable, DiaryDayRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DiaryDaysTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _dateKeyMeta = const VerificationMeta(
+    'dateKey',
+  );
+  @override
+  late final GeneratedColumn<String> dateKey = GeneratedColumn<String>(
+    'date_key',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(
+      minTextLength: 10,
+      maxTextLength: 10,
+    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _headingMeta = const VerificationMeta(
+    'heading',
+  );
+  @override
+  late final GeneratedColumn<String> heading = GeneratedColumn<String>(
+    'heading',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(maxTextLength: 160),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _revisionMeta = const VerificationMeta(
+    'revision',
+  );
+  @override
+  late final GeneratedColumn<int> revision = GeneratedColumn<int>(
+    'revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL CHECK (revision > 0)',
+  );
+  @override
+  List<GeneratedColumn> get $columns => [dateKey, heading, revision];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'diary_days';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DiaryDayRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('date_key')) {
+      context.handle(
+        _dateKeyMeta,
+        dateKey.isAcceptableOrUnknown(data['date_key']!, _dateKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dateKeyMeta);
+    }
+    if (data.containsKey('heading')) {
+      context.handle(
+        _headingMeta,
+        heading.isAcceptableOrUnknown(data['heading']!, _headingMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_headingMeta);
+    }
+    if (data.containsKey('revision')) {
+      context.handle(
+        _revisionMeta,
+        revision.isAcceptableOrUnknown(data['revision']!, _revisionMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_revisionMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {dateKey};
+  @override
+  DiaryDayRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DiaryDayRow(
+      dateKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}date_key'],
+      )!,
+      heading: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}heading'],
+      )!,
+      revision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}revision'],
+      )!,
+    );
+  }
+
+  @override
+  $DiaryDaysTable createAlias(String alias) {
+    return $DiaryDaysTable(attachedDatabase, alias);
+  }
+}
+
+class DiaryDayRow extends DataClass implements Insertable<DiaryDayRow> {
+  final String dateKey;
+  final String heading;
+  final int revision;
+  const DiaryDayRow({
+    required this.dateKey,
+    required this.heading,
+    required this.revision,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['date_key'] = Variable<String>(dateKey);
+    map['heading'] = Variable<String>(heading);
+    map['revision'] = Variable<int>(revision);
+    return map;
+  }
+
+  DiaryDaysCompanion toCompanion(bool nullToAbsent) {
+    return DiaryDaysCompanion(
+      dateKey: Value(dateKey),
+      heading: Value(heading),
+      revision: Value(revision),
+    );
+  }
+
+  factory DiaryDayRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DiaryDayRow(
+      dateKey: serializer.fromJson<String>(json['dateKey']),
+      heading: serializer.fromJson<String>(json['heading']),
+      revision: serializer.fromJson<int>(json['revision']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'dateKey': serializer.toJson<String>(dateKey),
+      'heading': serializer.toJson<String>(heading),
+      'revision': serializer.toJson<int>(revision),
+    };
+  }
+
+  DiaryDayRow copyWith({String? dateKey, String? heading, int? revision}) =>
+      DiaryDayRow(
+        dateKey: dateKey ?? this.dateKey,
+        heading: heading ?? this.heading,
+        revision: revision ?? this.revision,
+      );
+  DiaryDayRow copyWithCompanion(DiaryDaysCompanion data) {
+    return DiaryDayRow(
+      dateKey: data.dateKey.present ? data.dateKey.value : this.dateKey,
+      heading: data.heading.present ? data.heading.value : this.heading,
+      revision: data.revision.present ? data.revision.value : this.revision,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DiaryDayRow(')
+          ..write('dateKey: $dateKey, ')
+          ..write('heading: $heading, ')
+          ..write('revision: $revision')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(dateKey, heading, revision);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DiaryDayRow &&
+          other.dateKey == this.dateKey &&
+          other.heading == this.heading &&
+          other.revision == this.revision);
+}
+
+class DiaryDaysCompanion extends UpdateCompanion<DiaryDayRow> {
+  final Value<String> dateKey;
+  final Value<String> heading;
+  final Value<int> revision;
+  final Value<int> rowid;
+  const DiaryDaysCompanion({
+    this.dateKey = const Value.absent(),
+    this.heading = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DiaryDaysCompanion.insert({
+    required String dateKey,
+    required String heading,
+    required int revision,
+    this.rowid = const Value.absent(),
+  }) : dateKey = Value(dateKey),
+       heading = Value(heading),
+       revision = Value(revision);
+  static Insertable<DiaryDayRow> custom({
+    Expression<String>? dateKey,
+    Expression<String>? heading,
+    Expression<int>? revision,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (dateKey != null) 'date_key': dateKey,
+      if (heading != null) 'heading': heading,
+      if (revision != null) 'revision': revision,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DiaryDaysCompanion copyWith({
+    Value<String>? dateKey,
+    Value<String>? heading,
+    Value<int>? revision,
+    Value<int>? rowid,
+  }) {
+    return DiaryDaysCompanion(
+      dateKey: dateKey ?? this.dateKey,
+      heading: heading ?? this.heading,
+      revision: revision ?? this.revision,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (dateKey.present) {
+      map['date_key'] = Variable<String>(dateKey.value);
+    }
+    if (heading.present) {
+      map['heading'] = Variable<String>(heading.value);
+    }
+    if (revision.present) {
+      map['revision'] = Variable<int>(revision.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DiaryDaysCompanion(')
+          ..write('dateKey: $dateKey, ')
+          ..write('heading: $heading, ')
+          ..write('revision: $revision, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -1595,6 +2847,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $NotesTable notes = $NotesTable(this);
   late final $NoteDraftsTable noteDrafts = $NoteDraftsTable(this);
   late final $NoteTagsTable noteTags = $NoteTagsTable(this);
+  late final $DiaryEntriesTable diaryEntries = $DiaryEntriesTable(this);
+  late final $DiaryDraftsTable diaryDrafts = $DiaryDraftsTable(this);
+  late final $DiaryDaysTable diaryDays = $DiaryDaysTable(this);
+  late final Index diaryEntriesDayOrder = Index(
+    'diary_entries_day_order',
+    'CREATE INDEX diary_entries_day_order ON diary_entries (date_key, created_at, id)',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -1605,6 +2864,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     notes,
     noteDrafts,
     noteTags,
+    diaryEntries,
+    diaryDrafts,
+    diaryDays,
+    diaryEntriesDayOrder,
   ];
 }
 
@@ -2765,6 +4028,686 @@ typedef $$NoteTagsTableProcessedTableManager =
       NoteTag,
       PrefetchHooks Function({bool noteId})
     >;
+typedef $$DiaryEntriesTableCreateCompanionBuilder =
+    DiaryEntriesCompanion Function({
+      required String id,
+      required String dateKey,
+      required String title,
+      required String body,
+      required int revision,
+      required int createdAt,
+      required int updatedAt,
+      Value<int?> deletedAt,
+      Value<int> rowid,
+    });
+typedef $$DiaryEntriesTableUpdateCompanionBuilder =
+    DiaryEntriesCompanion Function({
+      Value<String> id,
+      Value<String> dateKey,
+      Value<String> title,
+      Value<String> body,
+      Value<int> revision,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+      Value<int?> deletedAt,
+      Value<int> rowid,
+    });
+
+class $$DiaryEntriesTableFilterComposer
+    extends Composer<_$AppDatabase, $DiaryEntriesTable> {
+  $$DiaryEntriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get dateKey => $composableBuilder(
+    column: $table.dateKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$DiaryEntriesTableOrderingComposer
+    extends Composer<_$AppDatabase, $DiaryEntriesTable> {
+  $$DiaryEntriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get dateKey => $composableBuilder(
+    column: $table.dateKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DiaryEntriesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $DiaryEntriesTable> {
+  $$DiaryEntriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get dateKey =>
+      $composableBuilder(column: $table.dateKey, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get body =>
+      $composableBuilder(column: $table.body, builder: (column) => column);
+
+  GeneratedColumn<int> get revision =>
+      $composableBuilder(column: $table.revision, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+}
+
+class $$DiaryEntriesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $DiaryEntriesTable,
+          DiaryEntryRow,
+          $$DiaryEntriesTableFilterComposer,
+          $$DiaryEntriesTableOrderingComposer,
+          $$DiaryEntriesTableAnnotationComposer,
+          $$DiaryEntriesTableCreateCompanionBuilder,
+          $$DiaryEntriesTableUpdateCompanionBuilder,
+          (
+            DiaryEntryRow,
+            BaseReferences<_$AppDatabase, $DiaryEntriesTable, DiaryEntryRow>,
+          ),
+          DiaryEntryRow,
+          PrefetchHooks Function()
+        > {
+  $$DiaryEntriesTableTableManager(_$AppDatabase db, $DiaryEntriesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DiaryEntriesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DiaryEntriesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DiaryEntriesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> dateKey = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String> body = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DiaryEntriesCompanion(
+                id: id,
+                dateKey: dateKey,
+                title: title,
+                body: body,
+                revision: revision,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String dateKey,
+                required String title,
+                required String body,
+                required int revision,
+                required int createdAt,
+                required int updatedAt,
+                Value<int?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DiaryEntriesCompanion.insert(
+                id: id,
+                dateKey: dateKey,
+                title: title,
+                body: body,
+                revision: revision,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$DiaryEntriesTable, DiaryEntryRow>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $DiaryEntriesTable,
+                    DiaryEntryRow
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$DiaryEntriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $DiaryEntriesTable,
+      DiaryEntryRow,
+      $$DiaryEntriesTableFilterComposer,
+      $$DiaryEntriesTableOrderingComposer,
+      $$DiaryEntriesTableAnnotationComposer,
+      $$DiaryEntriesTableCreateCompanionBuilder,
+      $$DiaryEntriesTableUpdateCompanionBuilder,
+      (
+        DiaryEntryRow,
+        BaseReferences<_$AppDatabase, $DiaryEntriesTable, DiaryEntryRow>,
+      ),
+      DiaryEntryRow,
+      PrefetchHooks Function()
+    >;
+typedef $$DiaryDraftsTableCreateCompanionBuilder =
+    DiaryDraftsCompanion Function({
+      required String id,
+      required String dateKey,
+      required String title,
+      required String body,
+      required int baseRevision,
+      Value<int> draftRevision,
+      required int updatedAt,
+    });
+typedef $$DiaryDraftsTableUpdateCompanionBuilder =
+    DiaryDraftsCompanion Function({
+      Value<String> id,
+      Value<String> dateKey,
+      Value<String> title,
+      Value<String> body,
+      Value<int> baseRevision,
+      Value<int> draftRevision,
+      Value<int> updatedAt,
+    });
+
+class $$DiaryDraftsTableFilterComposer
+    extends Composer<_$AppDatabase, $DiaryDraftsTable> {
+  $$DiaryDraftsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get dateKey => $composableBuilder(
+    column: $table.dateKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get baseRevision => $composableBuilder(
+    column: $table.baseRevision,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get draftRevision => $composableBuilder(
+    column: $table.draftRevision,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$DiaryDraftsTableOrderingComposer
+    extends Composer<_$AppDatabase, $DiaryDraftsTable> {
+  $$DiaryDraftsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get dateKey => $composableBuilder(
+    column: $table.dateKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get baseRevision => $composableBuilder(
+    column: $table.baseRevision,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get draftRevision => $composableBuilder(
+    column: $table.draftRevision,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DiaryDraftsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $DiaryDraftsTable> {
+  $$DiaryDraftsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get dateKey =>
+      $composableBuilder(column: $table.dateKey, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get body =>
+      $composableBuilder(column: $table.body, builder: (column) => column);
+
+  GeneratedColumn<int> get baseRevision => $composableBuilder(
+    column: $table.baseRevision,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get draftRevision => $composableBuilder(
+    column: $table.draftRevision,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$DiaryDraftsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $DiaryDraftsTable,
+          DiaryDraftRow,
+          $$DiaryDraftsTableFilterComposer,
+          $$DiaryDraftsTableOrderingComposer,
+          $$DiaryDraftsTableAnnotationComposer,
+          $$DiaryDraftsTableCreateCompanionBuilder,
+          $$DiaryDraftsTableUpdateCompanionBuilder,
+          (
+            DiaryDraftRow,
+            BaseReferences<_$AppDatabase, $DiaryDraftsTable, DiaryDraftRow>,
+          ),
+          DiaryDraftRow,
+          PrefetchHooks Function()
+        > {
+  $$DiaryDraftsTableTableManager(_$AppDatabase db, $DiaryDraftsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DiaryDraftsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DiaryDraftsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DiaryDraftsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> dateKey = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String> body = const Value.absent(),
+                Value<int> baseRevision = const Value.absent(),
+                Value<int> draftRevision = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+              }) => DiaryDraftsCompanion(
+                id: id,
+                dateKey: dateKey,
+                title: title,
+                body: body,
+                baseRevision: baseRevision,
+                draftRevision: draftRevision,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String dateKey,
+                required String title,
+                required String body,
+                required int baseRevision,
+                Value<int> draftRevision = const Value.absent(),
+                required int updatedAt,
+              }) => DiaryDraftsCompanion.insert(
+                id: id,
+                dateKey: dateKey,
+                title: title,
+                body: body,
+                baseRevision: baseRevision,
+                draftRevision: draftRevision,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$DiaryDraftsTable, DiaryDraftRow>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $DiaryDraftsTable,
+                    DiaryDraftRow
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$DiaryDraftsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $DiaryDraftsTable,
+      DiaryDraftRow,
+      $$DiaryDraftsTableFilterComposer,
+      $$DiaryDraftsTableOrderingComposer,
+      $$DiaryDraftsTableAnnotationComposer,
+      $$DiaryDraftsTableCreateCompanionBuilder,
+      $$DiaryDraftsTableUpdateCompanionBuilder,
+      (
+        DiaryDraftRow,
+        BaseReferences<_$AppDatabase, $DiaryDraftsTable, DiaryDraftRow>,
+      ),
+      DiaryDraftRow,
+      PrefetchHooks Function()
+    >;
+typedef $$DiaryDaysTableCreateCompanionBuilder = DiaryDaysCompanion Function({
+  required String dateKey,
+  required String heading,
+  required int revision,
+  Value<int> rowid,
+});
+typedef $$DiaryDaysTableUpdateCompanionBuilder = DiaryDaysCompanion Function({
+  Value<String> dateKey,
+  Value<String> heading,
+  Value<int> revision,
+  Value<int> rowid,
+});
+
+class $$DiaryDaysTableFilterComposer
+    extends Composer<_$AppDatabase, $DiaryDaysTable> {
+  $$DiaryDaysTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get dateKey => $composableBuilder(
+    column: $table.dateKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get heading => $composableBuilder(
+    column: $table.heading,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$DiaryDaysTableOrderingComposer
+    extends Composer<_$AppDatabase, $DiaryDaysTable> {
+  $$DiaryDaysTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get dateKey => $composableBuilder(
+    column: $table.dateKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get heading => $composableBuilder(
+    column: $table.heading,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DiaryDaysTableAnnotationComposer
+    extends Composer<_$AppDatabase, $DiaryDaysTable> {
+  $$DiaryDaysTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get dateKey =>
+      $composableBuilder(column: $table.dateKey, builder: (column) => column);
+
+  GeneratedColumn<String> get heading =>
+      $composableBuilder(column: $table.heading, builder: (column) => column);
+
+  GeneratedColumn<int> get revision =>
+      $composableBuilder(column: $table.revision, builder: (column) => column);
+}
+
+class $$DiaryDaysTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $DiaryDaysTable,
+          DiaryDayRow,
+          $$DiaryDaysTableFilterComposer,
+          $$DiaryDaysTableOrderingComposer,
+          $$DiaryDaysTableAnnotationComposer,
+          $$DiaryDaysTableCreateCompanionBuilder,
+          $$DiaryDaysTableUpdateCompanionBuilder,
+          (
+            DiaryDayRow,
+            BaseReferences<_$AppDatabase, $DiaryDaysTable, DiaryDayRow>,
+          ),
+          DiaryDayRow,
+          PrefetchHooks Function()
+        > {
+  $$DiaryDaysTableTableManager(_$AppDatabase db, $DiaryDaysTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DiaryDaysTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DiaryDaysTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DiaryDaysTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> dateKey = const Value.absent(),
+                Value<String> heading = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DiaryDaysCompanion(
+                dateKey: dateKey,
+                heading: heading,
+                revision: revision,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String dateKey,
+                required String heading,
+                required int revision,
+                Value<int> rowid = const Value.absent(),
+              }) => DiaryDaysCompanion.insert(
+                dateKey: dateKey,
+                heading: heading,
+                revision: revision,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$DiaryDaysTable, DiaryDayRow>(table),
+                  BaseReferences<_$AppDatabase, $DiaryDaysTable, DiaryDayRow>(
+                    db,
+                    table,
+                    e,
+                  ),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$DiaryDaysTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $DiaryDaysTable,
+      DiaryDayRow,
+      $$DiaryDaysTableFilterComposer,
+      $$DiaryDaysTableOrderingComposer,
+      $$DiaryDaysTableAnnotationComposer,
+      $$DiaryDaysTableCreateCompanionBuilder,
+      $$DiaryDaysTableUpdateCompanionBuilder,
+      (
+        DiaryDayRow,
+        BaseReferences<_$AppDatabase, $DiaryDaysTable, DiaryDayRow>,
+      ),
+      DiaryDayRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -2779,4 +4722,10 @@ class $AppDatabaseManager {
       $$NoteDraftsTableTableManager(_db, _db.noteDrafts);
   $$NoteTagsTableTableManager get noteTags =>
       $$NoteTagsTableTableManager(_db, _db.noteTags);
+  $$DiaryEntriesTableTableManager get diaryEntries =>
+      $$DiaryEntriesTableTableManager(_db, _db.diaryEntries);
+  $$DiaryDraftsTableTableManager get diaryDrafts =>
+      $$DiaryDraftsTableTableManager(_db, _db.diaryDrafts);
+  $$DiaryDaysTableTableManager get diaryDays =>
+      $$DiaryDaysTableTableManager(_db, _db.diaryDays);
 }

@@ -74,7 +74,7 @@ void main() {
       expect(router.canPop(), isTrue);
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
-      expect(find.text('Welcome to Redkeep'), findsOneWidget);
+      expect(find.text('My diary'), findsOneWidget);
       expect(router.canPop(), isFalse);
       expect(tester.takeException(), isNull);
     },
@@ -179,7 +179,7 @@ void main() {
       await tester.tap(find.text('Enter Redkeep'));
       await tester.pumpAndSettle();
       expect(router.routeInformationProvider.value.uri.path, '/');
-      expect(find.text('Welcome to Redkeep'), findsOneWidget);
+      expect(find.text('My diary'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );
@@ -212,7 +212,7 @@ void main() {
         expect(router.routeInformationProvider.value.uri.path, '/unavailable');
         await tester.tap(find.text('Return home'));
         await tester.pumpAndSettle();
-        expect(find.text('Welcome to Redkeep'), findsOneWidget);
+        expect(find.text('My diary'), findsOneWidget);
         expect(tester.takeException(), isNull);
       }
     },

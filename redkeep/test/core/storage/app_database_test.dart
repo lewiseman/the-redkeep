@@ -11,15 +11,16 @@ import 'generated/schema.dart';
 import 'generated/schema_v1.dart' as v1;
 import 'generated/schema_v2.dart' as v2;
 import 'generated/schema_v3.dart' as v3;
+import 'generated/schema_v4.dart' as v4;
 
 import 'package:redkeep/features/notes/data/drift_notes_repository.dart';
 import 'package:redkeep/features/notes/domain/note_document.dart';
 
 void main() {
-  test('fresh schema matches the committed version 4 snapshot', () async {
+  test('fresh schema matches the committed version 5 snapshot', () async {
     final database = AppDatabase(NativeDatabase.memory());
     addTearDown(database.close);
-    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 4);
+    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 5);
   });
 
   test('version 1 upgrade preserves every saved appearance choice', () async {
@@ -34,7 +35,7 @@ void main() {
       await old.close();
       final database = AppDatabase(schema.newConnection());
       try {
-        await verifier.migrateAndValidate(database, 4);
+        await verifier.migrateAndValidate(database, 5);
         expect(
           await DriftAppearanceRepository(database).watch().first,
           AppearancePreferences(
@@ -68,7 +69,7 @@ void main() {
       await old.close();
       final database = AppDatabase(schema.newConnection());
       try {
-        await verifier.migrateAndValidate(database, 4);
+        await verifier.migrateAndValidate(database, 5);
         expect(
           await DriftAppearanceRepository(database).watch().first,
           const AppearancePreferences(
@@ -116,7 +117,7 @@ void main() {
       await old.close();
       final database = AppDatabase(schema.newConnection());
       try {
-        await verifier.migrateAndValidate(database, 4);
+        await verifier.migrateAndValidate(database, 5);
         expect(await DriftOnboardingRepository(database).isComplete(), isTrue);
         expect(
           (await DriftAppearanceRepository(database).watch().first).theme,
@@ -148,6 +149,74 @@ void main() {
       }
     },
   );
+
+  test('populated version 4 upgrade preserves Notes organization and recovery without seeding Diary', () async {
+    final verifier = SchemaVerifier(GeneratedHelper());
+    final schema = await verifier.schemaAt(4);
+    final old = v4.DatabaseAtV4(schema.newConnection());
+    final id = 'd' * 32;
+    await old.customStatement(
+      "INSERT INTO appearance_settings (id, theme, reduce_motion, simpler_effects) VALUES (1, 'dark', 1, 1)",
+    );
+    await old.customStatement(
+      'INSERT INTO onboarding_completion (id) VALUES (1)',
+    );
+    for (final deleted in [false, true]) {
+      final key = deleted ? 'e' * 32 : id;
+      await old.customStatement(
+        'INSERT INTO notes (id,title,body,revision,created_at,updated_at,pinned,deleted_at) VALUES (?, ?, ?, 8, 1, 2, 1, ?)',
+        [key, '保留', 'Exact 👩🏽‍💻 e\u0301', deleted ? 3 : null],
+      );
+      await old.customStatement(
+        "INSERT INTO note_tags (note_id, tag) VALUES (?, '工作')",
+        [key],
+      );
+      await old.customStatement(
+        'INSERT INTO note_drafts (id,title,body,base_revision,draft_revision,updated_at) VALUES (?, ?, ?, 8, ?, 4)',
+        [key, 'Draft', 'Unfinished', deleted ? 31 : 30],
+      );
+    }
+    await old.close();
+    final database = AppDatabase(schema.newConnection());
+    try {
+      await verifier.migrateAndValidate(database, 5);
+      expect(
+        (await DriftAppearanceRepository(database).watch().first),
+        const AppearancePreferences(
+          theme: AppTheme.dark,
+          reduceMotion: true,
+          simplerEffects: true,
+        ),
+      );
+      expect(await DriftOnboardingRepository(database).isComplete(), isTrue);
+      final repo = DriftNotesRepository(
+        database,
+        clock: () => DateTime.utc(2026),
+      );
+      for (final key in [id, 'e' * 32]) {
+        final source = await repo.openDocument(key);
+        expect(source.note!.text.body, 'Exact 👩🏽‍💻 e\u0301');
+        expect(source.note!.revision, 8);
+        expect(source.note!.pinned, isTrue);
+        expect(source.note!.tags, ['工作']);
+        expect(source.note!.createdAt.millisecondsSinceEpoch, 1);
+        expect(source.note!.deletedAt != null, key != id);
+        expect(source.draft!.draftRevision, key == id ? 30 : 31);
+      }
+      final draft = await repo.putDraft(
+        id: 'f' * 32,
+        text: const PlainTextDocument(),
+        baseRevision: 0,
+        expectedDraftRevision: null,
+      );
+      expect(draft.draftRevision, greaterThan(31));
+      expect(await database.select(database.diaryEntries).get(), isEmpty);
+      expect(await database.select(database.diaryDrafts).get(), isEmpty);
+      expect(await database.select(database.diaryDays).get(), isEmpty);
+    } finally {
+      await database.close();
+    }
+  });
 
   test(
     'schema rejects invalid theme values and non-singleton settings',

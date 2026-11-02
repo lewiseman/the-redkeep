@@ -26,6 +26,12 @@ class HomePage extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: () => context.go(AppDestination.notes.location),
+              icon: const Icon(Icons.menu_book_outlined),
+              label: const Text('Notes'),
+            ),
+            const SizedBox(height: 12),
             OutlinedButton.icon(
               onPressed: () => context.go(AppDestination.settings.location),
               icon: const Icon(Icons.tune),

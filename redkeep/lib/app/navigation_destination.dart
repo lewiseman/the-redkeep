@@ -1,8 +1,10 @@
-/// Only implemented, parameter-free destinations cross the navigation boundary.
-/// Add entity validation here when a real entity screen is introduced.
+import '../features/notes/domain/note_document.dart';
+
+/// Static destinations plus validated, addressable Notes documents.
 enum AppDestination {
   home('/'),
   settings('/settings'),
+  notes('/notes'),
   unavailable('/unavailable');
 
   const AppDestination(this.location);
@@ -11,6 +13,7 @@ enum AppDestination {
   static AppDestination parse(String location) => switch (location) {
     '/' => home,
     '/settings' => settings,
+    '/notes' => notes,
     _ => unavailable,
   };
 }
@@ -24,7 +27,7 @@ String validatedNavigationLocation(String location) {
   final isGate = uri.path == '/startup' || uri.path == '/onboarding';
   return isGate && !uri.hasScheme && !uri.hasAuthority && !uri.hasFragment
       ? _gate(uri.path, destination)
-      : destination.location;
+      : destination;
 }
 
 /// Pure routing policy. Gate URIs carry only a canonical, validated destination;
@@ -39,30 +42,42 @@ String? navigationRedirect(
       ? _gate('/startup', destination)
       : !onboardingComplete
       ? _gate('/onboarding', destination)
-      : destination.location;
+      : destination;
   return location == requested.toString() ? null : location;
 }
 
-AppDestination _requestedDestination(Uri requested) {
+String _destination(String location) {
+  if (AppDestination.parse(location) != AppDestination.unavailable) {
+    return location;
+  }
+  final match = RegExp(r'^/notes/([0-9a-f]{32})(/edit)?$').firstMatch(location);
+  return match != null && isNoteId(match[1]!)
+      ? location
+      : AppDestination.unavailable.location;
+}
+
+String noteLocation(String id, {bool edit = false}) => isNoteId(id)
+    ? '/notes/$id${edit ? '/edit' : ''}'
+    : AppDestination.unavailable.location;
+
+String _requestedDestination(Uri requested) {
   final isGate =
       requested.path == '/startup' || requested.path == '/onboarding';
-  if (!isGate) return AppDestination.parse(requested.toString());
+  if (!isGate) return _destination(requested.toString());
   if (requested.hasScheme || requested.hasAuthority || requested.hasFragment) {
-    return AppDestination.unavailable;
+    return AppDestination.unavailable.location;
   }
-  if (!requested.hasQuery) return AppDestination.home;
+  if (!requested.hasQuery) return AppDestination.home.location;
   try {
     final parameters = requested.queryParametersAll;
     if (parameters.length == 1 && parameters['continue']?.length == 1) {
-      return AppDestination.parse(parameters['continue']!.single);
+      return _destination(parameters['continue']!.single);
     }
   } on FormatException {
     // Malformed encoded text must still pass through startup and onboarding.
   }
-  return AppDestination.unavailable;
+  return AppDestination.unavailable.location;
 }
 
-String _gate(String path, AppDestination destination) => Uri(
-  path: path,
-  queryParameters: {'continue': destination.location},
-).toString();
+String _gate(String path, String destination) =>
+    Uri(path: path, queryParameters: {'continue': destination}).toString();

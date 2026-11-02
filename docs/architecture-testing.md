@@ -19,8 +19,10 @@ Its five-second aggregate local limit and splash lifecycle are documented in
 validation, continuation/relaunch semantics, history and recovery are defined in
 [onboarding and navigation](onboarding-routing.md).
 
-Normal destinations are `/` (welcome shell) and `/settings` (appearance, nested
-under home). Settings can open directly or from home; platform back returns home.
+Normal destinations are `/` (home), `/settings` (appearance), `/notes`,
+`/notes/:id` and `/notes/:id/edit`. Notes and settings are nested under home;
+readers/editors have Notes beneath them. See [Notes writing and recovery](notes-writing.md)
+for the document boundary, revisions, deletion retention and failure recovery.
 Invalid/unmatched input uses `/unavailable` with **Return home**, replacing the
 unavailable route. Incoming URL content and raw errors are never displayed.
 Material pages use central 180ms platform transitions or immediate reduced-motion
@@ -37,7 +39,9 @@ system fonts. No feature tabs or production writing fixtures are registered.
 Feature domain types have no Flutter/database/plugin dependencies. Data adapters
 map rows; controllers observe authoritative snapshots and coordinate saves. See
 [appearance and persistence](appearance-persistence.md) for ownership, schema,
-recovery, lifecycle, and generation contracts. Future phases extend this database.
+recovery, lifecycle, and generation contracts. M06 extends this same database to
+schema 3 for Notes and recovery drafts. Notes repository/clock/ID composition
+lives in `features/notes/application/notes_providers.dart`.
 
 ## Tests and commands
 
@@ -56,6 +60,7 @@ Focused suites:
 flutter test test/app
 flutter test test/features/appearance
 flutter test test/features/onboarding
+flutter test test/features/notes
 flutter test test/core
 flutter test test/features/ai
 flutter test test/features/assets
@@ -70,8 +75,9 @@ dart run tool/validate_assets.dart assets/catalog/presentation-v1.json tool/asse
   settings, and real background SQLite close/reopen. UI tests check themes,
   live system/app changes, mid-transition reduction, back, flat paper, contrast,
   and narrow/large-text/inset layouts in both themes.
-- `test/core` checks schema 2 against its snapshot, version 1 → 2 appearance
-  preservation, SQL constraints, all OS/app/lifecycle combinations, both OS flags live, inactive/offscreen
+- `test/core` checks schema 3 against its snapshot, upgrades from versions 1 and 2,
+  appearance/onboarding preservation, empty writing tables, SQL constraints,
+  all OS/app/lifecycle combinations, both OS flags live, inactive/offscreen
   ticker gating, resumption, and disposal.
 - `test/support/pump_app.dart` creates a fresh scope with a small observable fake
   appearance repository, fake onboarding repository and fake required-assets
@@ -93,6 +99,11 @@ dart run tool/validate_assets.dart assets/catalog/presentation-v1.json tool/asse
   coalesced slow retries, local errors, disposal and progress. Startup widget
   checks cover required offline gating, preserved direct destinations, retry,
   reduced motion and narrow/large-text/inset layouts in both themes.
+- `test/features/notes` checks CRUD, transactional rollback, failed saves and
+  recovery, Unicode/large bodies, background close/reopen, stale source/draft
+  tokens, copy/discard, navigation and ID switching, missing/deleted IDs and
+  both rendering modes. Widget tests use disposable SQLite and a small
+  failure/commit-gate decorator, disposed before database teardown.
 
 The [README](../README.md) documents schema generation and native build commands.
 The AI adapter suite uses injected fake models/sessions, including setup and
@@ -113,8 +124,11 @@ from routine tests. Physical iOS, low-end phones, OS-floor hardware, and release
 qualification remain gaps. M04 adds local fixture assets/bootstrap with native
 debug evidence and production-host prerequisites recorded separately. M05 adds
 onboarding and routing, with framework gesture checks and native build evidence recorded in its phase record. Physical-device accessibility and
-gesture qualification remain unverified. Writing features remain unstarted;
-M06 is next.
+gesture qualification remain unverified. M06 adds Notes and native Android
+emulator offline creation, draft recovery after force-stop, committed edits and
+deletion evidence. Physical-device accessibility, native iOS writing journeys,
+release/minimum-OS and power-loss/storage-failure qualification remain gaps.
+M07 is next and is not implemented by M06.
 
 ## References
 

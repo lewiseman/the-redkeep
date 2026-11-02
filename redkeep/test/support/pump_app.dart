@@ -5,6 +5,8 @@ import 'package:redkeep/app/app_router.dart';
 import 'package:redkeep/app/redkeep_app.dart';
 import 'package:redkeep/app/storage_providers.dart';
 import 'package:redkeep/app/bootstrap/bootstrap_providers.dart';
+import 'package:redkeep/features/notes/application/notes_providers.dart';
+import 'package:redkeep/features/notes/domain/notes_repository.dart';
 
 import 'fake_appearance_repository.dart';
 import 'fake_required_assets.dart';
@@ -16,6 +18,8 @@ Future<GoRouter> pumpApp(
   FakeAppearanceRepository? repository,
   FakeOnboardingRepository? onboarding,
   FakeRequiredAssets? assets,
+  NotesRepository? notes,
+  String Function()? noteId,
 }) async {
   final preferences = repository ?? FakeAppearanceRepository();
   if (repository == null) addTearDown(preferences.close);
@@ -30,6 +34,8 @@ Future<GoRouter> pumpApp(
           (ref) async => assets ?? FakeRequiredAssets(),
         ),
         releaseSplashProvider.overrideWithValue(() {}),
+        if (notes != null) notesRepositoryProvider.overrideWithValue(notes),
+        if (noteId != null) noteIdProvider.overrideWithValue(noteId),
         if (initialLocation != null)
           appRouterProvider.overrideWith((ref) {
             return createAppRouter(ref, initialLocation: initialLocation);

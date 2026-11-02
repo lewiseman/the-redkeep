@@ -9,12 +9,13 @@ import 'package:redkeep/features/appearance/domain/appearance_preferences.dart';
 
 import 'generated/schema.dart';
 import 'generated/schema_v1.dart' as v1;
+import 'generated/schema_v2.dart' as v2;
 
 void main() {
-  test('fresh schema matches the committed version 2 snapshot', () async {
+  test('fresh schema matches the committed version 3 snapshot', () async {
     final database = AppDatabase(NativeDatabase.memory());
     addTearDown(database.close);
-    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 2);
+    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 3);
   });
 
   test('version 1 upgrade preserves every saved appearance choice', () async {
@@ -29,7 +30,7 @@ void main() {
       await old.close();
       final database = AppDatabase(schema.newConnection());
       try {
-        await verifier.migrateAndValidate(database, 2);
+        await verifier.migrateAndValidate(database, 3);
         expect(
           await DriftAppearanceRepository(database).watch().first,
           AppearancePreferences(
@@ -41,6 +42,43 @@ void main() {
         expect(await DriftOnboardingRepository(database).isComplete(), isFalse);
         await DriftOnboardingRepository(database).complete();
         expect(await DriftOnboardingRepository(database).isComplete(), isTrue);
+      } finally {
+        await database.close();
+      }
+    }
+  });
+
+  test('version 2 upgrade preserves settings and onboarding without seeding writing', () async {
+    final verifier = SchemaVerifier(GeneratedHelper());
+    for (final complete in [false, true]) {
+      final schema = await verifier.schemaAt(2);
+      final old = v2.DatabaseAtV2(schema.newConnection());
+      await old.customStatement(
+        "INSERT INTO appearance_settings (id, theme, reduce_motion, simpler_effects) VALUES (1, 'dark', 1, 1)",
+      );
+      if (complete) {
+        await old.customStatement(
+          'INSERT INTO onboarding_completion (id) VALUES (1)',
+        );
+      }
+      await old.close();
+      final database = AppDatabase(schema.newConnection());
+      try {
+        await verifier.migrateAndValidate(database, 3);
+        expect(
+          await DriftAppearanceRepository(database).watch().first,
+          const AppearancePreferences(
+            theme: AppTheme.dark,
+            reduceMotion: true,
+            simplerEffects: true,
+          ),
+        );
+        expect(
+          await DriftOnboardingRepository(database).isComplete(),
+          complete,
+        );
+        expect(await database.select(database.notes).get(), isEmpty);
+        expect(await database.select(database.noteDrafts).get(), isEmpty);
       } finally {
         await database.close();
       }

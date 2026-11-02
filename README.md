@@ -19,6 +19,10 @@ Complete installations reopen offline without a catalog/network check.
 M05 adds a minimal welcome, persisted completion in schema 2, validated startup/
 onboarding redirects and platform back behavior. See [onboarding and navigation](docs/onboarding-routing.md)
 for destination validation, recovery and interruption contracts.
+M06 adds local plain-text Notes, stable ID-based readers/editors, committed-save
+feedback and persistent recovery drafts in schema 3 of the same database. See
+[Notes writing and recovery](docs/notes-writing.md) for revision protection,
+deletion retention, failure behavior and offline verification.
 
 Use Flutter 3.47.5 / Dart 3.13.4 (the verified local baseline). From the workspace
 root:
@@ -59,7 +63,8 @@ dart format lib test
 ```
 
 M02 establishes schema version 1; M05 migrates to schema 2 while retaining
-appearance settings. Each subsequent schema change needs a version
+appearance settings. M06 extends it to schema 3 for Notes and recovery drafts,
+preserving settings and onboarding. Each subsequent schema change needs a version
 bump and migration/data-preservation tests. Preserve historical snapshots after
 shipping that version. Keep generated Drift code and schema helpers with source.
 For Android packaging verification, run

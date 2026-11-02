@@ -33,10 +33,11 @@ pretending an already committed transaction was canceled.
 ## Navigation boundary
 
 `app/navigation_destination.dart` owns the currently accepted application
-locations: `/` and `/settings`, plus `/unavailable` for the real fallback page.
-There are no entity IDs/date parameters yet. Notes, Diary, Flow, Brain and task
-routes are unregistered. Their future phases must add real screens and parameter
-validation together, including missing/deleted entity recovery.
+locations: `/`, `/settings`, `/notes`, `/notes/:id` and `/notes/:id/edit`, plus
+`/unavailable` for the real fallback page. M06 validates 32-character lowercase
+hex note IDs and handles missing/deleted sources in the reader/editor. See
+[Notes writing and recovery](notes-writing.md). Diary, Flow, Brain and task
+routes remain unregistered.
 
 Internal controls use `AppDestination` locations. Pass any untrusted string
 through `validatedNavigationLocation` **before** calling go_router; do not hand
@@ -66,7 +67,7 @@ upgrading go_router. Normal history reporting is forwarded unchanged.
 3. Ready startup with committed completion opens the requested destination.
 
 The gate URI carries exactly one `continue` parameter containing only `/`,
-`/settings` or the canonical `/unavailable` fallback. For example,
+`/settings`, the implemented Notes destinations or the canonical `/unavailable` fallback. For example,
 `/startup?continue=%2Fsettings` becomes `/onboarding?continue=%2Fsettings`, then
 `/settings`. Gate links without a query default home. Extra/duplicate parameters,
 empty values, nested gates, double-encoded destinations, external continuations,
@@ -130,7 +131,7 @@ screen-reader, OS link-registration or keyboard evidence. Universal/app-link
 hosting and native URL registrations are not introduced. Release performance,
 minimum-OS and low-end hardware qualifications remain outstanding. M04's real
 HTTPS asset-host prerequisite and M03's AI hardware gaps remain unchanged.
-M06 is the next eligible phase; it is not implemented by M05.
+M06 extends these contracts for Notes; M07 is the next eligible phase.
 
 Official APIs checked alongside the locally resolved source:
 

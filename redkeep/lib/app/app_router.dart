@@ -5,6 +5,9 @@ import 'package:go_router/go_router.dart';
 import '../features/appearance/presentation/appearance_page.dart';
 import '../features/onboarding/application/onboarding_controller.dart';
 import '../features/onboarding/presentation/onboarding_page.dart';
+import '../features/notes/presentation/notes_list_page.dart';
+import '../features/notes/presentation/note_read_page.dart';
+import '../features/notes/presentation/note_edit_page.dart';
 import 'bootstrap/bootstrap_controller.dart';
 import 'bootstrap/startup_page.dart';
 import 'home_page.dart';
@@ -48,6 +51,35 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
         path: '/',
         pageBuilder: (context, state) => _page(state, const HomePage()),
         routes: [
+          GoRoute(
+            path: 'notes',
+            pageBuilder: (context, state) =>
+                _page(state, const NotesListPage()),
+            routes: [
+              GoRoute(
+                path: ':id',
+                pageBuilder: (context, state) => _page(
+                  state,
+                  NoteReadPage(
+                    key: ValueKey(state.pathParameters['id']),
+                    id: state.pathParameters['id']!,
+                  ),
+                ),
+                routes: [
+                  GoRoute(
+                    path: 'edit',
+                    pageBuilder: (context, state) => _page(
+                      state,
+                      NoteEditPage(
+                        key: ValueKey(state.pathParameters['id']),
+                        id: state.pathParameters['id']!,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
           GoRoute(
             path: 'settings',
             pageBuilder: (context, state) =>

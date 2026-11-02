@@ -113,6 +113,29 @@ void main() {
     }
   });
 
+  test('note IDs and editor destinations survive both gates and reject malformed input', () {
+    const id = '0123456789abcdef0123456789abcdef';
+    for (final path in ['/notes', '/notes/$id', '/notes/$id/edit']) {
+      expect(validatedNavigationLocation(path), path);
+      final startup = redirect(path, ready: false)!;
+      final welcome = redirect(startup, complete: false)!;
+      expect(redirect(welcome), path);
+    }
+    for (final path in [
+      '/notes/new',
+      '/notes/${'A' * 32}',
+      '/notes/$id/',
+      '/notes/$id/edit/extra',
+      '/notes/$id?text=private',
+      '/notes/$id#private',
+      '/notes/%2F$id',
+      '/notes/%FF',
+    ]) {
+      expect(validatedNavigationLocation(path), '/unavailable', reason: path);
+    }
+    expect(noteLocation('bad'), '/unavailable');
+  });
+
   test(
     'settings survives local checking, downloading, onboarding and completion',
     () {

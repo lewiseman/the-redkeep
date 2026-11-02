@@ -36,7 +36,7 @@ Use `Not started`, `In progress`, `Complete`, or `Partial`. A partial result mus
 | M03 — AI feasibility | Partial | Pinned core 2.5.5 / LiteRT-LM engine 1.19.1, minimal injected adapter and synthetic harness, 40 passing tests, Android ARM64/API 30 packaging, iOS simulator and unsigned device builds; pinned Qwen3 0.6B streaming/cancel/reuse/cleanup/failure checks pass on physical Galaxy S24 Ultra CPU/GPU and iOS simulator CPU. | Physical iOS/Metal, minimum-OS and low-end hardware, release/sustained resource evidence remain unverified and block corresponding AI release claims. M04 may proceed independently; see M03 record and docs/ai-feasibility.md. |
 | M04 — Assets and startup | Complete | Reachable-media inventory/provenance, pinned three-image pack, catalog/publishing validator, injected persistent resolver, verified atomic installs/repair, bounded bootstrap/splash gate; all 88 tests, analysis/formatting, Android and iOS simulator debug builds pass. Android local HTTP download → offline restart and missing-file gating; iOS fresh gate and offline staged-pack recovery verified. | Real HTTPS hosting/publication and physical/minimum-OS/low-end release evidence remain prerequisites; iOS HTTP download and native failure/ENOSPC drills unverified. M03's AI gaps remain unchanged. Next eligible phase is M05. |
 | M05 — Onboarding and routing | Complete | Minimal welcome, committed schema-2 completion with migration preservation, validated bootstrap/onboarding continuations and safe fallback, framework back gestures; all 111 tests, formatting/analysis, Android and iOS simulator debug builds pass. Android interruption → requested settings → back/restart and iOS welcome render verified. | Physical accessibility/gestures, native iOS completion/restart, OS link registration/restoration and release/minimum-OS evidence unverified. M04 host and M03 AI gaps unchanged. Next eligible phase is M06. |
-| M06 — Notes vertical slice | Not started | — | Requires M05. |
+| M06 — Notes vertical slice | Complete | Same primary database upgraded to schema 3; plain-text Notes CRUD, stable ID routes, revision/token checks, committed-save feedback and persistent recovery drafts. All 139 tests, analysis/formatting, Android/iOS simulator debug builds pass; Android airplane-mode create/recover/edit/save/delete and force-stop/reopen verified. See docs/notes-writing.md and docs/evidence/m06/verification.json. | Physical-device accessibility/IME, native iOS writing, minimum-OS/low-end/release and native disk-full/power-loss evidence unverified. M04 host and M03 AI gaps unchanged. Next eligible phase is M07. |
 | M07 — Notes organization | Not started | — | Requires M06. |
 | M08 — Diary | Not started | — | Requires M07. |
 | M09 — Flow | Not started | — | Requires M08. |
@@ -1103,4 +1103,121 @@ host prerequisite and M03's AI qualification gaps remain unchanged.
 
 **M05 is complete within its selected scope. Next eligible phase: M06 — Notes
 vertical slice. M06 and every later implementation phase remain unstarted. Stop
+at this boundary.**
+
+### 2 November 2026 — M06: Notes vertical slice
+
+**Changes and contracts**
+
+- Read the root instructions, migration plan and architecture, persistence,
+  routing and asset guides; confirmed M05 complete and the initial working tree
+  clean. Extended the same background `redkeep.sqlite` to schema **3** with
+  `notes` and `note_drafts`. Migrations from versions 1 and 2 preserve appearance
+  and onboarding; reads seed no writing. Retained historical snapshots/helpers.
+- Added immutable domain documents and repository contracts, a Drift adapter,
+  Riverpod composition/controllers, and an application-owned plain-text editing
+  boundary. Injected secure 128-bit ID generation and time. Notes have stable
+  lowercase hex IDs, positive source revisions, full title/body and timestamps.
+  Lists select metadata without bodies and render lazily. Unicode is stored
+  exactly, with no application body limit or text transformation.
+- Added real list/create/read/edit/delete journeys at `/notes`, `/notes/:id` and
+  `/notes/:id/edit`; only Notes and Appearance are linked from home. Validated
+  IDs/paths cross the existing startup/onboarding continuation boundary. Missing
+  and deleted sources show actionable recovery; invalid IDs use the safe shared
+  fallback. Nested routes retain home/list/reader back destinations. Parameter
+  changes key editor presentation by ID, preventing reuse of another buffer.
+- Creation persists a recovery draft before opening the editor. Each change
+  queues a serial, coalescing recovery write. Drafts capture the base source
+  revision and an AUTOINCREMENT compare-and-swap token; tokens cannot be reused
+  after discard/commit. Reopening prefers recovered writing. Notes lists expose
+  drafts for both new and existing/deleted sources.
+- Manual save first flushes recovery, then checks source revision and draft
+  token, writes the note and removes precisely that draft in one transaction.
+  Success feedback names the committed revision only after the transaction
+  resolves. Failed writes/cleanup and stale sources roll back with the draft
+  intact. A changed draft token also preserves the current working buffer for
+  explicit **Save a copy** recovery under a new ID. A failed copy commit leaves
+  any successfully persisted copy draft available. Original writing is retained.
+- Back waits for pending recovery, and recovery failure blocks unsafe back with
+  retry/copy guidance. Failed buffers remain in their scope across new platform
+  navigation. Explicit draft discard and note deletion each require a concrete
+  confirmation and token/revision check. Deletion increments the revision and
+  retains full source text/timestamps/deletion time for M07; it never clears an
+  outstanding draft. No restore or permanent-delete control is implemented.
+- Applied existing paper/theme/rendering policy, selectable reading text, input
+  labels, wrapping controls, safe areas and keyboard-resizing scroll views.
+  Markdown preview and selected note artwork are explicitly M07 scope, so no new
+  media/catalog entry, legacy import, dependency or inactive navigation was added.
+  No CRDT, sync, embedding/index queue, attachment, rich-text editor or AI UI.
+- Added [Notes writing and recovery](docs/notes-writing.md), updated current
+  README/architecture/navigation/persistence contracts, and retained structured
+  [verification evidence](docs/evidence/m06/verification.json). `raw_assets/` and
+  legacy projects were not accessed. No remote Git operation or publication.
+
+**Exact checks and results**
+
+Flutter/Dart commands ran in `redkeep/`; Git/native install commands ran at the
+workspace root. Toolchain: Flutter **3.47.5** (`6a19cca56475`), engine
+`af7e796e161a`, Dart **3.13.4**, Xcode **27.2 / 27B52**. Final checks exited 0.
+
+| Command / check | Result |
+| --- | --- |
+| `dart run build_runner build` | Generated schema-3 database code successfully. |
+| `dart run drift_dev schema dump lib/core/storage/app_database.dart drift_schemas/` | Added version-3 snapshot; versions 1 and 2 unchanged. |
+| `dart run drift_dev schema generate drift_schemas/ test/core/storage/generated/` | Added version-3 helper and dispatcher entry; historical helpers unchanged. |
+| `flutter pub get --enforce-lockfile` | Passed; pubspec and lockfile unchanged. No dependency added/upgraded. |
+| `dart format lib test` (implementation); `dart format --output=none --set-exit-if-changed lib test tool` (final) | Final: **80 files, 0 changed**. |
+| `flutter analyze` | Final: **No issues found** (2.8s). |
+| `flutter test test/features/notes test/core/storage test/app/navigation_destination_test.dart` | Initial focused verification passed **29 tests**; later navigation/conflict checks are in the final full suite. |
+| `flutter test --machine > /tmp/redkeep-m06-full.jsonl` | Final: **139 tests passed**, no errors, terminal `success: true` (6.944s). Tests use fresh scopes, deterministic time/IDs, synthetic writing and disposable databases, without accounts/network/models/user databases. |
+| `dart run tool/validate_assets.dart assets/catalog/presentation-v1.json tool/assets/pack` | Existing pack verified: 3 PNGs, 434,116 bytes. No pack/catalog change or publication. |
+| `flutter build apk --debug --target-platform android-arm64` | Final ordinary build passed (6.6s Gradle). Existing JDK native-access warning remains informational. |
+| `flutter build ios --simulator --debug` | Final ordinary build passed (11.1s Xcode). No device/release/signing claim. |
+| `flutter devices`; `xcrun simctl list devices booted` | Android ARM64/API 37 emulator and iPhone 17 Pro iOS 26.5 simulator available. Attached physical Galaxy was not used. |
+| `adb -s emulator-5554 install -r redkeep/build/app/outputs/flutter-apk/app-debug.apk` | Installed over M05 without clearing data; saved dark/reduced appearance retained, completed onboarding skipped, empty Notes opened. |
+| `adb ... shell cmd connectivity airplane-mode enable`; `adb ... shell svc wifi disable`; `adb ... shell svc data disable` | Offline state read back as airplane **1**, Wi-Fi **0**, mobile data **0** throughout native writing checks. No server, host or AI model used. |
+| `adb ... shell am start -n com.lewiseman.redkeep/.MainActivity --es route /notes`; `input tap` at observed UI bounds; `input text 'M06%sOffline%sCheck'` and synthetic body | Created/typed through the actual UI. [Draft kept](docs/evidence/m06/android-offline-draft.png) before manual save; no production fixture loader. |
+| `adb ... shell am force-stop com.lewiseman.redkeep`; relaunch `/notes`; observed draft tap | New-note draft survived process termination and [reopened exact text](docs/evidence/m06/android-offline-recovered.png). Manual save showed [committed revision 1](docs/evidence/m06/android-offline-committed.png). |
+| Force-stop/relaunch `/notes`; observed saved-note tap | Recovery section became empty; [committed title/body read after reopening](docs/evidence/m06/android-offline-read-reopened.png), with revision 1. |
+| UI **Edit note**, type offline; wait for recovery feedback; force-stop/relaunch | [Existing-note recovery from revision 1](docs/evidence/m06/android-offline-edit-draft-reopened.png) and saved revision 1 both remained listed. Opening recovery preserved the exact edited text; manual save showed [revision 2 committed](docs/evidence/m06/android-offline-edit-committed.png). |
+| UI **Read committed note → Delete note → Delete**; force-stop/relaunch | [Deleted note excluded after reopening](docs/evidence/m06/android-offline-deleted-reopened.png). Full retained tombstone/draft behavior is also repository-tested. |
+| `adb ... shell uiautomator dump /sdcard/redkeep-m06.xml`; XML readback; `adb ... exec-out screencap -p` | Observed controls, exact synthetic text, revision/recovery messages and screenshots; screenshot/build hashes in verification JSON. Native device: **sdk_gphone16k_arm64 / Android 17 / API 37**, emulator, debug. |
+| `adb ... shell cmd connectivity airplane-mode disable`; `svc wifi enable`; `svc data enable` | Original emulator state restored and read back: airplane **0**, Wi-Fi **1**, mobile data **1**. Final APK reinstalled and `/notes` reopened; no database reset. |
+| `xcrun simctl install booted redkeep/build/ios/iphonesimulator/Runner.app`; `xcrun simctl launch --terminate-running-process booted com.lewiseman.redkeep` | Final ordinary build installed/launched on **iPhone 17 Pro ARM64 / iOS 26.5 (23F77)** simulator. Existing welcome rendered with local artwork. No native iOS note-writing journey claimed. |
+| Root `git diff --check`; `git diff --exit-code -- redkeep/pubspec.yaml redkeep/pubspec.lock redkeep/android redkeep/ios redkeep/macos redkeep/drift_schemas/drift_schema_v1.json redkeep/drift_schemas/drift_schema_v2.json redkeep/test/core/storage/generated/schema_v1.dart redkeep/test/core/storage/generated/schema_v2.dart redkeep/assets redkeep/tool/assets` | Passed. Native configuration, historical schemas/helpers, dependency pins and asset payloads/catalog preserved. No raw-file access/hash claim. |
+
+Tests include fresh schema validation; v1/v2 data preservation and no seeded
+notes; create/edit/soft-delete; SQL-triggered note-write and cleanup rollback;
+failed recovery/save/copy/retry; commit-gated success feedback; source and draft
+revision races, including replacement after save starts; non-reused tokens;
+missing/invalid/deleted IDs; deleted-source copy recovery; explicit discard;
+pending/failed recovery back navigation; warm platform navigation with failed
+in-memory writing; ID switches; and background close/reopen of new/existing
+drafts, tombstones and a large multilingual/emoji/combining-character body.
+Widget checks read/edit a large document and exercise both themes at 320×480,
+3× text, safe padding/keyboard insets, normal and simpler/reduced rendering.
+Existing live motion, startup/onboarding, gesture and asset regressions pass.
+
+Initial focused checks exposed widget-test Drift stream cleanup timers and a
+duplicate constant-text finder in retry checks; explicit scope teardown/pumping
+and selecting the actual retry control fixed these. Static checks also caught
+routine braces/context issues. Review identified parameterized editor reuse and
+draft-token reuse hazards; ID-keyed views and monotonic draft tokens now have
+behavioral regressions. The final suite has no unresolved failure.
+
+**Limitations and next eligible phase**
+
+Recovery writes are asynchronous. If storage cannot accept a write, the latest
+buffer remains in memory with an explicit failure message; terminating the
+process before successful retry/copy can lose changes newer than the last
+durable draft. Native disk-full, power-loss/directory-fsync, real IME/keyboard,
+screen-reader, physical-device gestures/accessibility, low-end/minimum-OS and
+release/performance/signing qualifications remain unverified. Widget checks are
+not physical-device evidence. Native iOS writing/recovery remains unverified;
+its build/startup smoke does not substitute for a writing journey. No OS link
+registration or process restoration guarantee was added. M04's production HTTPS
+host prerequisite and M03's AI hardware gaps remain unchanged.
+
+**M06 is complete within its selected scope. Next eligible phase: M07 — Notes
+organization. M07 and every later implementation phase remain unstarted. Stop
 at this boundary.**

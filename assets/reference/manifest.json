@@ -397,7 +397,6 @@
         "mode": "built-in edit",
         "generated_path": "/Users/lewis/.codex/generated_images/01a1a176-e853-7731-a73f-072459f0b205/exec-58437d30-6cda-449a-91be-03ff76af10ad.png",
         "reference_key": "onboarding.cover",
-        "prompt_path": "website/cover-castle-prompt.md",
         "export": "original PNG"
       },
       "bytes": 2471229,
@@ -415,7 +414,6 @@
         "mode": "built-in edit",
         "generated_path": "/Users/lewis/.codex/generated_images/01a1a176-e853-7731-a73f-072459f0b205/exec-58437d30-6cda-449a-91be-03ff76af10ad.png",
         "reference_key": "onboarding.cover",
-        "prompt_path": "website/cover-castle-prompt.md",
         "export": "macOS sips JPEG quality 88; no crop, recolor or compositing"
       },
       "bytes": 477330,

@@ -14,13 +14,10 @@ npm test
 ```
 
 Use Node 22.12+ or 24+. Tests use installed Chrome, isolated profiles and local
-assets; see the [website guide](../docs/website.md) for browser setup, contracts,
-asset notices, evidence and publishing prerequisites. Production output is in
-`dist/`. W01 does not register or publish a Site.
+assets. Production output is in `dist/`.
 
 `public/art/` is the canonical local reference for shared website/mobile images.
 Vite copies `public/` into `dist/`, including images absent from its chunk size
 table. The build runs TypeScript, Vite and prerendering. There is no custom asset
 checker, duplicate-reference requirement or whole-site size gate. The mobile
-catalog and runtime retain their own download integrity checks. See
-[asset setup](../docs/onboarding-assets-setup.md) for adding shared images.
+catalog and runtime retain their own download integrity checks.

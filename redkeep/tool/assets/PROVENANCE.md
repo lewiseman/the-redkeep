@@ -248,8 +248,7 @@ historical and their provenance remains retained.
 `onboarding.cover`, revision `v2`, uses the selected website export
 `cover-redkeep-castle-v1.jpg`, 477,330 bytes, SHA-256
 `b4c92633c2bc035b51bc57c90eaa9f455afe673c0f55ff17659cf4432928d5e8`.
-It is the same 1122×1402 Redkeep castle cover selected for W01, with its original
-image-generation prompt/master history in
-`assets/reference/website/cover-castle-prompt.md`. Its project-generated provenance
-does not assert a new third-party license. Public redistribution qualification
+It is a 1122×1402 project-generated Redkeep castle cover. The exact PNG master
+and JPEG export remain indexed in `assets/reference/manifest.json`.
+Its project-generated provenance does not assert a new third-party license. Public redistribution qualification
 remains separate. Website image bytes and bundled startup branding are unchanged.

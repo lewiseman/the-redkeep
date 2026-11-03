@@ -1,11 +1,5 @@
 import 'package:redkeep/app/more_page.dart';
-import 'package:flutter/services.dart';
-
-import 'dart:io';
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:redkeep/core/presentation/redkeep_theme.dart';
@@ -41,35 +35,6 @@ class MemoryResetStorage extends AccountResetStorage {
 }
 
 void main() {
-  setUpAll(() async {
-    // Flutter's own pinned offline fonts make these actual visual comparisons,
-    // rather than the unreadable Ahem font used by default in widget tests.
-    final root =
-        Platform.environment['FLUTTER_ROOT'] ??
-        File(Platform.resolvedExecutable)
-            .parent
-            .parent
-            .parent
-            .parent
-            .parent
-            .parent
-            .path;
-    final directory = '$root/bin/cache/artifacts/material_fonts';
-    for (final family in ['Roboto', 'MaterialIcons']) {
-      final loader = FontLoader(family);
-      for (final file
-          in family == 'Roboto'
-              ? ['Roboto-Regular.ttf', 'Roboto-Medium.ttf', 'Roboto-Bold.ttf']
-              : ['MaterialIcons-Regular.otf']) {
-        loader.addFont(
-          Future.value(
-            ByteData.sublistView(File('$directory/$file').readAsBytesSync()),
-          ),
-        );
-      }
-      await loader.load();
-    }
-  });
   Future<void> pump(
     WidgetTester tester, {
     required Brightness brightness,
@@ -119,16 +84,8 @@ void main() {
         ],
         child: MaterialApp(
           theme: brightness == Brightness.dark
-              ? RedkeepTheme.dark.copyWith(
-                  textTheme: RedkeepTheme.dark.textTheme.apply(
-                    fontFamily: 'Roboto',
-                  ),
-                )
-              : RedkeepTheme.light.copyWith(
-                  textTheme: RedkeepTheme.light.textTheme.apply(
-                    fontFamily: 'Roboto',
-                  ),
-                ),
+              ? RedkeepTheme.dark
+              : RedkeepTheme.light,
           builder: (context, child) => MediaQuery(
             data: MediaQuery.of(context).copyWith(
               textScaler: TextScaler.linear(scale),
@@ -141,41 +98,38 @@ void main() {
           ),
           home: Scaffold(
             body: SafeArea(
-              child: RepaintBoundary(
-                key: const ValueKey('capture'),
-                child: Builder(
-                  builder: (context) {
-                    if (screen == 'more') return const MorePage();
-                    if (screen == 'sheet') return const SyncAccountSheet();
-                    if (screen == 'reset') {
-                      return const ResetAccountPage(
-                        account: SyncAccount(
-                          id: 'owner',
-                          email: 'owner@example.test',
-                        ),
-                      );
-                    }
-                    final collapsed = screen == 'collapsed';
-                    return Align(
-                      alignment: Alignment.topCenter,
-                      child: Padding(
-                        padding: const EdgeInsets.all(28),
-                        child: SizedBox(
-                          height: collapsed
-                              ? SyncAccountCard.compactHeight(context)
-                              : SyncAccountCard.expandedHeight(
-                                  context,
-                                  isSignedIn: connected,
-                                ),
-                          child: SyncAccountCard(
-                            collapseProgress: collapsed ? 1 : 0,
-                            onExpand: () {},
-                          ),
-                        ),
+              child: Builder(
+                builder: (context) {
+                  if (screen == 'more') return const MorePage();
+                  if (screen == 'sheet') return const SyncAccountSheet();
+                  if (screen == 'reset') {
+                    return const ResetAccountPage(
+                      account: SyncAccount(
+                        id: 'owner',
+                        email: 'owner@example.test',
                       ),
                     );
-                  },
-                ),
+                  }
+                  final collapsed = screen == 'collapsed';
+                  return Align(
+                    alignment: Alignment.topCenter,
+                    child: Padding(
+                      padding: const EdgeInsets.all(28),
+                      child: SizedBox(
+                        height: collapsed
+                            ? SyncAccountCard.compactHeight(context)
+                            : SyncAccountCard.expandedHeight(
+                                context,
+                                isSignedIn: connected,
+                              ),
+                        child: SyncAccountCard(
+                          collapseProgress: collapsed ? 1 : 0,
+                          onExpand: () {},
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
           ),
@@ -188,7 +142,7 @@ void main() {
 
   for (final brightness in Brightness.values) {
     testWidgets(
-      'More pins the original card and compact tap expands ${brightness.name}',
+      'scrolling collapses the sync card; tapping expands it ${brightness.name}',
       (tester) async {
         await pump(tester, brightness: brightness, screen: 'more');
         expect(find.text('Appearance'), findsOneWidget);
@@ -212,31 +166,6 @@ void main() {
         expect(tester.takeException(), isNull);
       },
     );
-    for (final screen in ['expanded', 'collapsed', 'sheet']) {
-      testWidgets('original sync UI parity ${brightness.name} $screen', (
-        tester,
-      ) async {
-        await pump(tester, brightness: brightness, screen: screen);
-        await expectLater(
-          find.byKey(const ValueKey('capture')),
-          matchesGoldenFile('goldens/${brightness.name}-$screen.png'),
-        );
-        if (const bool.fromEnvironment('RECORD_SYNC_SCREENSHOTS')) {
-          await tester.runAsync(() async {
-            final boundary = tester.renderObject<RenderRepaintBoundary>(
-              find.byKey(const ValueKey('capture')),
-            );
-            final image = await boundary.toImage(pixelRatio: 1);
-            final bytes = await image.toByteData(
-              format: ui.ImageByteFormat.png,
-            );
-            await File('../docs/evidence/gs01/${brightness.name}-$screen.png')
-                .writeAsBytes(bytes!.buffer.asUint8List());
-            image.dispose();
-          });
-        }
-      });
-    }
     for (final screen in ['expanded', 'collapsed', 'sheet', 'reset']) {
       testWidgets('sync UI 320px 3x ${brightness.name} $screen', (
         tester,

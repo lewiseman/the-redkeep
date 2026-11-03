@@ -30,5 +30,4 @@ and expire old writing sessions while reset is pending. `resumeAfterReset` is
 awaitable. Do not directly invoke Notifier build/dispose methods.
 
 Run `flutter pub get --enforce-lockfile`, `flutter analyze` and `flutter test`
-here. Detailed contracts, configuration, native limits and host verification are
-in [the feature guide](../../../docs/google-sync.md).
+here.

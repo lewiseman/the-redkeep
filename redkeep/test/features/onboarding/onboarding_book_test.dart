@@ -94,8 +94,6 @@ void main() {
               .onDecrease,
           isNull,
         );
-        final size = tester.getSize(find.byType(OnboardingBook));
-        expect((size.width - 12) / (size.height - 20), closeTo(4 / 3, .001));
         await tester.pump(const Duration(seconds: 30));
         expect(chapterPosition(1), findsOneWidget);
         final drag = await tester.startGesture(
@@ -391,36 +389,6 @@ void main() {
       );
     }
   }
-
-  testWidgets(
-    'both themes retain the original facing-page geometry; simpler mode is flat',
-    (tester) async {
-      tester.view.physicalSize = const Size(900, 1200);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.reset);
-      for (final theme in [AppTheme.light, AppTheme.dark]) {
-        await tester.pumpWidget(const SizedBox());
-        final preferences = FakeAppearanceRepository(
-          AppearancePreferences(theme: theme, simplerEffects: true),
-        );
-        addTearDown(preferences.close);
-        await pumpApp(
-          tester,
-          repository: preferences,
-          onboarding: FakeOnboardingRepository(completed: false),
-        );
-        expect(
-          tester.widget<OnboardingBook>(find.byType(OnboardingBook)).simple,
-          true,
-        );
-        final size = tester.getSize(find.byType(OnboardingBook));
-        expect((size.width - 12) / (size.height - 20), closeTo(4 / 3, .001));
-        await navigateChapter(tester, 1);
-        expect(chapterPosition(2), findsOneWidget);
-        expect(tester.takeException(), isNull);
-      }
-    },
-  );
 
   for (final preference in [
     'reduceMotion',

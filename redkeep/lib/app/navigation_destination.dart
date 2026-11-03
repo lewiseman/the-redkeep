@@ -7,6 +7,7 @@ import '../features/notes/domain/note_document.dart';
 enum AppDestination {
   home('/'),
   settings('/settings'),
+  brain('/settings/brain'),
   more('/more'),
   flow('/flow'),
   notes('/notes'),
@@ -19,6 +20,7 @@ enum AppDestination {
   static AppDestination parse(String location) => switch (location) {
     '/' => home,
     '/settings' => settings,
+    '/settings/brain' => brain,
     '/more' => more,
     '/flow' => flow,
     '/notes' => notes,

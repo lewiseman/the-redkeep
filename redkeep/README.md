@@ -31,3 +31,7 @@ See [appearance and persistence](../docs/appearance-persistence.md) for storage,
 rendering policy, schema generation, and failure recovery.
 See [AI feasibility](../docs/ai-feasibility.md) for the explicit synthetic native
 harness. The regular app entry point neither loads models nor initializes AI.
+
+M10 adds optional device Brain settings at `/settings/brain`, assignments in schema 7,
+verified model downloads/removal and explicitly requested synthetic tests. See
+[Brain](../docs/brain.md). No model loads during ordinary writing startup.

@@ -1,0 +1,166 @@
+{
+  "platform": "android",
+  "os": "CP2A.260605.016.S928BXXS6EZJ1",
+  "mode": "release qualification; synthetic text only",
+  "core": "2.5.5",
+  "engine": "1.19.1",
+  "native": "native-v0.18.0-h",
+  "repository": "litert-community/Qwen3-0.6B",
+  "revision": "722a0a54c1301a4b07a9856a9590d56362f0969b",
+  "filename": "Qwen3-0.6B.litertlm",
+  "license": "Apache-2.0",
+  "settings": {
+    "requestedBackend": "cpu",
+    "fallback": false,
+    "contextTokens": 2048,
+    "maxOutputTokens": 96,
+    "temperature": 0.0,
+    "topK": 1,
+    "topP": 1.0,
+    "seed": 42,
+    "thinking": false,
+    "systemInstruction": "Follow the instruction. Answer briefly.",
+    "activationType": "bundle/runtime default"
+  },
+  "cases": [
+    {
+      "name": "artifact_integrity",
+      "bytes": 613722264,
+      "sha256": "c5f39b4191926786c3e6668b62af4d6eb15248dfc7a5348252a9b406f33f2108",
+      "passed": true,
+      "elapsedMs": 4395
+    },
+    {
+      "name": "missing_load",
+      "failure": "load",
+      "passed": true,
+      "elapsedMs": 8
+    },
+    {
+      "name": "corrupt_load",
+      "failure": "load",
+      "passed": true,
+      "elapsedMs": 2
+    },
+    {
+      "name": "load_0",
+      "activeBackend": "cpu",
+      "passed": true,
+      "elapsedMs": 711
+    },
+    {
+      "name": "stream",
+      "prompt": "Reply with just the result: 17 + 25 = ?",
+      "output": "17 + 25 = 42",
+      "chunks": 10,
+      "firstChunkMs": 1611,
+      "totalMs": 2262,
+      "cancelled": false,
+      "qualityKeywordMatched": true,
+      "passed": true,
+      "elapsedMs": 2262
+    },
+    {
+      "name": "cancel",
+      "prompt": "List the integers from 1 to 100, one on each line.",
+      "output": "1",
+      "chunks": 1,
+      "firstChunkMs": 1037,
+      "totalMs": 1112,
+      "cancelled": true,
+      "cancelToCleanupMs": 75,
+      "passed": true,
+      "elapsedMs": 1112
+    },
+    {
+      "name": "after_cancel",
+      "prompt": "Repeat exactly: Good morning 😊 🚀",
+      "output": "Good morning 😊 🚀",
+      "chunks": 6,
+      "firstChunkMs": 1126,
+      "totalMs": 1571,
+      "cancelled": false,
+      "qualityKeywordMatched": true,
+      "passed": true,
+      "elapsedMs": 1571
+    },
+    {
+      "name": "repeat",
+      "prompt": "Summarize in one sentence: Mira planted three oak trees. Rain helped them grow.",
+      "output": "Mira planted three oak trees, which grew due to rain.",
+      "chunks": 13,
+      "firstChunkMs": 1073,
+      "totalMs": 1940,
+      "cancelled": false,
+      "qualityKeywordMatched": true,
+      "passed": true,
+      "elapsedMs": 1940
+    },
+    {
+      "name": "cleanup_0",
+      "closeMs": 86,
+      "passed": true,
+      "elapsedMs": 86
+    },
+    {
+      "name": "load_1",
+      "activeBackend": "cpu",
+      "passed": true,
+      "elapsedMs": 390
+    },
+    {
+      "name": "after_reload",
+      "prompt": "Reply with just the result: 17 + 25 = ?",
+      "output": "17 + 25 = 42",
+      "chunks": 10,
+      "firstChunkMs": 1154,
+      "totalMs": 1800,
+      "cancelled": false,
+      "qualityKeywordMatched": true,
+      "passed": true,
+      "elapsedMs": 1800
+    },
+    {
+      "name": "cleanup_1",
+      "closeMs": 81,
+      "passed": true,
+      "elapsedMs": 81
+    },
+    {
+      "name": "brain_rewrite",
+      "output": "Mira planted a tree. She watered it each morning, and new leaves grew.",
+      "chunks": 18,
+      "activeBackend": "cpu",
+      "resourcesReleased": true,
+      "passed": true,
+      "elapsedMs": 7034
+    },
+    {
+      "name": "brain_summarize",
+      "output": "Mira planted a tree and watered it each morning, resulting in new leaves.",
+      "chunks": 17,
+      "activeBackend": "cpu",
+      "resourcesReleased": true,
+      "passed": true,
+      "elapsedMs": 6880
+    },
+    {
+      "name": "brain_reflect",
+      "output": "Mira's care for the tree brought her joy and reminded her of the beauty in small, intentional actions.",
+      "chunks": 22,
+      "activeBackend": "cpu",
+      "resourcesReleased": true,
+      "passed": true,
+      "elapsedMs": 7220
+    },
+    {
+      "name": "brain_cancel",
+      "failure": "cancelled",
+      "chunks": 1,
+      "resourcesReleased": true,
+      "passed": true,
+      "elapsedMs": 5788
+    }
+  ],
+  "completed": true
+}

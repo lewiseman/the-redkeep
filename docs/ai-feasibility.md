@@ -2,17 +2,17 @@
 
 M03 is **Partial**. The application-owned adapter and synthetic harness are
 implemented; physical Galaxy S24 Ultra CPU/GPU and iOS simulator CPU runs pass.
-Physical iOS inference, Android 11/iOS 15 hardware, low-end phones, and release
-performance/signing remain unverified. These gaps block corresponding AI release
-claims. Independent M04 work can proceed. No later phase is implemented here.
+Physical iOS inference, Android 11/iOS 15 hardware, low-end phones, sustained release
+performance and production signing remain unverified. M10 adds short Galaxy release-mode CPU evidence without closing those gaps. These gaps block corresponding AI release
+claims. Independent M04 work can proceed. This guide retains M03 qualification evidence; [M10 Brain](brain.md) now consumes the adapter.
 
 ## Ownership and recovery
 
 `features/ai/domain/local_inference.dart` defines plugin-free model/session
 boundaries and safe failure categories. `LocalInferenceAdapter` accepts an
-injected, explicitly loaded model and owns its lifetime. There is no global app
-service or AI provider. Normal `lib/main.dart`, routes, settings, and startup
-have no reference to this feature and work without a model.
+injected, explicitly loaded model and owns its lifetime. M03 introduced no global app service or AI provider. M10 now composes a lazy
+Brain executor for explicit requests; normal startup and writing remain
+independent of model files and plugin initialization.
 
 `openFlutterEdgeModel` is the only plugin integration. On explicit invocation it
 registers `LiteRtLmEngine(backendFallback: false)`, registers a local file with
@@ -22,7 +22,7 @@ uses a process registry and stores file-registration metadata; that registry
 is contained at this boundary. No application database is accessed. File
 installation registers the existing path without copying its weights. This
 spike accepts one verified local file; model download/install UI and durable
-application model assignments belong to M10.
+application model assignments are now implemented in [M10](brain.md).
 
 Each request uses a fresh session, keeping prompt/history separate while sharing
 weights. Only one request may be outstanding. Requests are single-subscription
@@ -39,8 +39,8 @@ paths/prompts are not returned by this adapter. Ordinary generation failures
 allow retry in a new session. Failed stop/session cleanup poisons the adapter:
 close it and explicitly load a new instance. A model close failure remains
 observable on repeated close. This does not recover from process termination,
-OS memory kills, or a hung native API. Production lifecycle/background handling,
-resource limits, source revision checks, and proposal review remain later work.
+OS memory kills, or a hung native API. M10 adds lifecycle/background cancellation and bounded resources through Brain.
+Source revision checks and proposal review remain M11 work.
 
 ## Qualified versions and native setup
 

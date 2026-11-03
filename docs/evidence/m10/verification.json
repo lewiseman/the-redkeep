@@ -1,0 +1,497 @@
+{
+  "phase": "M10",
+  "date": "2026-11-02 to 2026-11-03",
+  "timezone": "Africa/Nairobi",
+  "status": "Partial: implementation and available checks finished; remaining hardware qualification gaps",
+  "next_phase": "M11; unstarted",
+  "toolchain": {
+    "flutter": "3.47.5 (6a19cca564)",
+    "engine": "af7e796e16",
+    "dart": "3.13.4",
+    "xcode": "27.2 (27B52)"
+  },
+  "initial_status": "clean",
+  "preserved_user_changes": [
+    "redkeep/android/app/build.gradle.kts release signing changes introduced during pause",
+    ".vscode/ introduced during pause"
+  ],
+  "schema": {
+    "version": 7,
+    "historical_snapshots_unchanged": "1–6",
+    "migration": "populated v6 preserves every prior table and sequence token; prior v1–5 preservation tests remain"
+  },
+  "routine": {
+    "format": "144 files, 0 changed",
+    "analyze": "No issues found (2.8s)",
+    "all_tests": 266,
+    "brain_tests": 52,
+    "focused_tests_before_final_deadline_case": 107,
+    "asset_validator": "presentation-m07-v1: 4 PNGs, 479916 bytes, unchanged; no publication",
+    "no_accounts_network_models_or_user_databases": true
+  },
+  "commands": [
+    "dart run build_runner build",
+    "dart run drift_dev schema dump lib/core/storage/app_database.dart drift_schemas/",
+    "dart run drift_dev schema generate drift_schemas/ test/core/storage/generated/",
+    "flutter pub get --enforce-lockfile",
+    "dart format --output=none --set-exit-if-changed lib test tool",
+    "flutter analyze",
+    "flutter test",
+    "flutter test test/features/brain",
+    "flutter test test/features/brain test/features/ai test/core/storage test/app",
+    "dart run tool/validate_assets.dart assets/catalog/presentation-v1.json tool/assets/pack",
+    "flutter build apk --debug --target-platform android-arm64 -t tool/verify_ai.dart --dart-define-from-file=tool/ai/qwen3-0.6b.json --dart-define=VERIFY_BRAIN=true",
+    "flutter build apk --debug --target-platform android-arm64 -t tool/verify_ai.dart --dart-define-from-file=tool/ai/qwen3-0.6b.json --dart-define=AI_BACKEND=gpu",
+    "flutter build ios --simulator --debug -t tool/verify_ai.dart --dart-define-from-file=tool/ai/qwen3-0.6b.json --dart-define=VERIFY_BRAIN=true",
+    "flutter build apk --release --target-platform android-arm64 -t tool/verify_ai.dart --dart-define-from-file=tool/ai/qwen3-0.6b.json --dart-define=VERIFY_BRAIN=true",
+    "apksigner sign --ks <standard local Android debug keystore> --ks-key-alias androiddebugkey --out /tmp/redkeep-m10-release-verification.apk build/app/outputs/flutter-apk/app-release.apk (standard public debug-key passwords; not recorded as credentials)",
+    "adb -s R5CX530XFAX install -r /tmp/redkeep-m10-release-verification.apk",
+    "flutter build apk --debug --target-platform android-arm64",
+    "flutter build ios --simulator --debug",
+    "git diff --check",
+    "git diff --exit-code -- redkeep/ios redkeep/macos redkeep/pubspec.yaml redkeep/pubspec.lock and historical v1–6 schema snapshots/helpers"
+  ],
+  "platforms": {
+    "physical_android": {
+      "id": "R5CX530XFAX",
+      "model": "Galaxy S24 Ultra / SM-S928B",
+      "architecture": "arm64",
+      "os": "Android 17 API 37",
+      "fingerprint": "samsung/e3qxxx/e3q:17/CP2A.260605.016/S928BXXS6EZJ1:user/release-keys",
+      "modes": [
+        "debug CPU",
+        "debug GPU",
+        "release CPU"
+      ],
+      "release_verification_signing": "separate copy re-signed with local standard Android debug certificate, retained app data; user release signing config preserved"
+    },
+    "emulator": {
+      "id": "emulator-5554",
+      "model": "sdk_gphone16k_arm64",
+      "os": "Android 17 API 37",
+      "mode": "ordinary debug settings/download/removal; no emulator inference claim"
+    },
+    "ios_simulator": {
+      "id": "E03EF135-6DB9-4181-A36F-21704D1FB0DD",
+      "model": "iPhone 17 Pro ARM64",
+      "os": "iOS 26.5 (23F77)",
+      "mode": "debug CPU"
+    }
+  },
+  "model": {
+    "repository": "litert-community/Qwen3-0.6B",
+    "revision": "722a0a54c1301a4b07a9856a9590d56362f0969b",
+    "filename": "Qwen3-0.6B.litertlm",
+    "production_id": "qwen3-06b-int8-722a0a54",
+    "license": "Apache-2.0",
+    "bytes": 613722264,
+    "sha256": "c5f39b4191926786c3e6668b62af4d6eb15248dfc7a5348252a9b406f33f2108",
+    "core": "2.5.5",
+    "engine": "1.19.1",
+    "native": "native-v0.18.0-h",
+    "emulator_current_installation_readback": "c5f39b4191926786c3e6668b62af4d6eb15248dfc7a5348252a9b406f33f2108  files/brain-models/qwen3-06b-int8-722a0a54.litertlm"
+  },
+  "reports": [
+    {
+      "file": "android-s24-ultra-cpu.json",
+      "mode": "debug qualification; synthetic text only",
+      "passed_cases": 16,
+      "backend": "cpu",
+      "brain_operations": {
+        "brain_rewrite": {
+          "elapsed_ms": 7881,
+          "output": "Mira planted a tree. She watered it each morning, and new leaves grew.",
+          "failure": null
+        },
+        "brain_summarize": {
+          "elapsed_ms": 7664,
+          "output": "Mira planted a tree and watered it each morning, resulting in new leaves.",
+          "failure": null
+        },
+        "brain_reflect": {
+          "elapsed_ms": 8638,
+          "output": "Mira's care for the tree brought her joy and reminded her of the beauty in small, intentional actions.",
+          "failure": null
+        },
+        "brain_cancel": {
+          "elapsed_ms": 6842,
+          "output": null,
+          "failure": "cancelled"
+        }
+      },
+      "sha256": "93add25f8b87d11dd0d2f986c7e4256c29673071e189c54dc1df98129aa1c0cf"
+    },
+    {
+      "file": "android-s24-ultra-gpu.json",
+      "mode": "debug qualification; synthetic text only",
+      "passed_cases": 12,
+      "backend": "gpu",
+      "brain_operations": {},
+      "sha256": "0cdfecd1162bfcea89d5a3a1ea9c7d955039ac47f95707479743b693de06de19"
+    },
+    {
+      "file": "android-s24-ultra-release-cpu.json",
+      "mode": "release qualification; synthetic text only",
+      "passed_cases": 16,
+      "backend": "cpu",
+      "brain_operations": {
+        "brain_rewrite": {
+          "elapsed_ms": 7034,
+          "output": "Mira planted a tree. She watered it each morning, and new leaves grew.",
+          "failure": null
+        },
+        "brain_summarize": {
+          "elapsed_ms": 6880,
+          "output": "Mira planted a tree and watered it each morning, resulting in new leaves.",
+          "failure": null
+        },
+        "brain_reflect": {
+          "elapsed_ms": 7220,
+          "output": "Mira's care for the tree brought her joy and reminded her of the beauty in small, intentional actions.",
+          "failure": null
+        },
+        "brain_cancel": {
+          "elapsed_ms": 5788,
+          "output": null,
+          "failure": "cancelled"
+        }
+      },
+      "sha256": "73e5108d0d7658bfd9e7b549052020c112549bbc5a985e0d443bf4dd9552b4b9"
+    },
+    {
+      "file": "ios-simulator-cpu.json",
+      "mode": "debug qualification; synthetic text only",
+      "passed_cases": 16,
+      "backend": "cpu",
+      "brain_operations": {
+        "brain_rewrite": {
+          "elapsed_ms": 4854,
+          "output": "Mira planted a tree. She watered it each morning, and new leaves grew.",
+          "failure": null
+        },
+        "brain_summarize": {
+          "elapsed_ms": 4987,
+          "output": "Mira planted a tree and watered it each morning, resulting in new leaves.",
+          "failure": null
+        },
+        "brain_reflect": {
+          "elapsed_ms": 5146,
+          "output": "Mira's care for the tree brought her joy and reminded her of the beauty in small, intentional actions.",
+          "failure": null
+        },
+        "brain_cancel": {
+          "elapsed_ms": 4065,
+          "output": null,
+          "failure": "cancelled"
+        }
+      },
+      "sha256": "f8284c1e9b2737f15b482c68b85142edc11c18e9fc3fb81a6cfda5287c35d299"
+    }
+  ],
+  "native_settings_journeys": [
+    {
+      "run": "initial emulator installation, November 2",
+      "actions": [
+        "start /settings/brain",
+        "tap Download optional model at (540,1599)",
+        "observed 0.0 MiB downloading; tap Cancel operation at (540,1155)",
+        "observed Cancelled and files/brain-models total 0",
+        "tap retry at (540,1704)",
+        "observed 239.9 MiB received",
+        "observed final File verified and exact 613722264-byte promoted target"
+      ],
+      "evidence": [
+        "android-download-start.png",
+        "android-download-cancelled.png",
+        "android-download-progress.png",
+        "android-model-ready.png"
+      ],
+      "limitation": "real public HTTPS transfer; no fixture model transport used; app installation/data was replaced by user activity during pause, so these are not claims about the later installation"
+    },
+    {
+      "run": "current emulator installation, November 3",
+      "actions": [
+        "required artwork gate was present after unrelated app-data/build changes",
+        "staged only four catalog-approved artwork files under files/required-artwork",
+        "completed observed Enter Redkeep at (540,1748)",
+        "saved rewrite assignment at (540,1980) before optional model was available",
+        "staged exact hash-verified model into files/brain-models from existing host pin",
+        "force-stop/reopen /settings/brain: Device assignment and File ready",
+        "native readback SHA-256 matches catalog pin",
+        "Remove model at (540,1662); observed confirmation; Remove model files at (540,1572)",
+        "waited for Not installed and files/brain-models total 0 before final restart",
+        "final build install/restart retains Device assignment and Needs a verified download"
+      ],
+      "evidence": [
+        "android-assignment-reopened.png",
+        "android-model-removal-confirmation.png",
+        "android-model-removed-reopened.png"
+      ],
+      "limitation": "current-installation model was staged; this is not a second HTTP-download claim"
+    }
+  ],
+  "non_acceptance_attempts": [
+    "First iOS installation referred to the previous 12-case harness; it was replaced/relaunched and only the final 16-case M10 report is counted.",
+    "Android hard-link staging was denied; renamed the exact existing artifact for the GPU run instead.",
+    "An immediate force-stop after an initial removal tap happened before deletion completed; it was not counted. Repeated confirmation and observed missing weights before restart.",
+    "Release report mode was made explicit in the harness; a missing foundation import was corrected before the final successful release build/run."
+  ],
+  "memory": {
+    "qualification": "single uncontrolled post-close samples, no peak or sustained claim",
+    "gpu_debug_pss_kib": 407097,
+    "gpu_debug_rss_kib": 522540,
+    "release_cpu_pss_kib": 1103177,
+    "release_cpu_rss_kib": 1226720,
+    "meaning": "successful session/model close does not establish prompt allocator/driver memory return"
+  },
+  "restoration": {
+    "ordinary_app_installed_on": [
+      "physical Galaxy",
+      "Android emulator",
+      "iOS simulator"
+    ],
+    "app_data_cleared_by_agent": false,
+    "harness_weights_removed": true,
+    "only_precisely_identified_harness_caches_removed": true,
+    "emulator_optional_weights_removed_via_settings": true,
+    "synthetic_reports_retained": true,
+    "network_settings_modified": false
+  },
+  "limitations": [
+    "physical iOS/Metal unavailable",
+    "Android 11 / iOS 15 hardware unavailable",
+    "low-end devices unavailable",
+    "sustained release latency/thermal/energy and peak memory unverified",
+    "native OOM/OS-kill and disk-full/power-loss/fsync unverified",
+    "cooperative cancellation cannot forcibly kill a hung native call",
+    "functional model tests do not establish quality/factuality/safety; reflection invented emotion",
+    "required-artwork production HTTPS host remains an M04 release prerequisite",
+    "production signing/distribution not qualified; release verification used a separate debug-signed copy"
+  ],
+  "artifacts": [
+    {
+      "path": "/Users/lewis/Dev/Projects/The Redkeep/redkeep/build/app/outputs/flutter-apk/app-debug.apk",
+      "bytes": 172091831,
+      "sha256": "4f4608e91b7902aa6fdb5e4c2b2a2c19e94e0d420552179d9926310296aebc8e"
+    },
+    {
+      "path": "/tmp/redkeep-m10-release-verification.apk",
+      "bytes": 60926453,
+      "sha256": "f9a00058621e77c89956a5aa113a8d361c33ca1a1ba63d4a66d92f0ae05e69d5"
+    },
+    {
+      "path": "/Users/lewis/Dev/Projects/The Redkeep/redkeep/build/ios/iphonesimulator/Runner.app/Runner",
+      "bytes": 123600,
+      "sha256": "16692c3d0e77cc495bb2d95d7251bf4d14ae27276494831b30fdf3814c7c7207"
+    }
+  ],
+  "retained_evidence_files": [
+    {
+      "path": "android-assignment-reopened.png",
+      "bytes": 257027,
+      "sha256": "dfa7ad1d9fc44d6912db5f8bf6c679ab2408752958600666285a80cbc5fd7a27"
+    },
+    {
+      "path": "android-download-cancelled.png",
+      "bytes": 249136,
+      "sha256": "5ef4acafb6655d508b5ae14bd05b089ff40a6f9db4464ac9a2d9d7bff0122d8e"
+    },
+    {
+      "path": "android-download-progress.png",
+      "bytes": 249928,
+      "sha256": "74fbe8c219b998ff91b14f1aaf1f830a5dbdde0b0301b93bf5cfd307178fd052"
+    },
+    {
+      "path": "android-download-start.png",
+      "bytes": 248832,
+      "sha256": "cc7616dc28ef8ada9e4937858523047dee253e0a1557326596436dfd960fecf0"
+    },
+    {
+      "path": "android-model-ready.png",
+      "bytes": 244699,
+      "sha256": "63bd577d84f74946fa26777ccd50eb97c10568e9edd0bc49c133a5ea359d7ef6"
+    },
+    {
+      "path": "android-model-removal-confirmation.png",
+      "bytes": 219605,
+      "sha256": "569eefb9051f6590ed40ad3b037f1ff24f35c8e6b02f083dee762c7ea66143be"
+    },
+    {
+      "path": "android-model-removed-reopened.png",
+      "bytes": 257020,
+      "sha256": "4e4999405badb41174479f4967d5102816108819aea4c743f48473cb2218c11f"
+    },
+    {
+      "path": "android-post-gpu-meminfo.txt",
+      "bytes": 4345,
+      "sha256": "bb9392f68c0a2a2daed40510d988ae67e3cfdafef9374ccc0b3ea4ce99c0a231"
+    },
+    {
+      "path": "android-post-release-meminfo.txt",
+      "bytes": 4345,
+      "sha256": "78e402d71f63362959a27e536159ad092f9138bb7941c38edd4f6889255d7194"
+    },
+    {
+      "path": "android-s24-ordinary-restored.png",
+      "bytes": 114768,
+      "sha256": "96e96a21d314ce9b83f47ac0b59070dc99bde6085b41a851d2ca442cf6fb320f"
+    },
+    {
+      "path": "android-s24-ultra-cpu.json",
+      "bytes": 4235,
+      "sha256": "93add25f8b87d11dd0d2f986c7e4256c29673071e189c54dc1df98129aa1c0cf"
+    },
+    {
+      "path": "android-s24-ultra-gpu.json",
+      "bytes": 3237,
+      "sha256": "0cdfecd1162bfcea89d5a3a1ea9c7d955039ac47f95707479743b693de06de19"
+    },
+    {
+      "path": "android-s24-ultra-release-cpu.json",
+      "bytes": 4234,
+      "sha256": "73e5108d0d7658bfd9e7b549052020c112549bbc5a985e0d443bf4dd9552b4b9"
+    },
+    {
+      "path": "ios-ordinary-restored.png",
+      "bytes": 253274,
+      "sha256": "06b524d8f36927032481c954bc3b04f45d25aaa47a99e7c941213e9bf89c0e5c"
+    },
+    {
+      "path": "ios-simulator-cpu.json",
+      "bytes": 4214,
+      "sha256": "f8284c1e9b2737f15b482c68b85142edc11c18e9fc3fb81a6cfda5287c35d299"
+    }
+  ],
+  "logs": {
+    "pub-get": {
+      "source": "/tmp/redkeep-m10-pub-get.log",
+      "sha256": "36bebd87417d9f7300e61a38c371d12b89e89b532d1bed49a40c5cb2fe62e983",
+      "final_lines": [
+        "  xml 7.0.1 (7.1.0 available)",
+        "Got dependencies!",
+        "15 packages have newer versions incompatible with dependency constraints.",
+        "Try `flutter pub outdated` for more information."
+      ]
+    },
+    "format": {
+      "source": "/tmp/redkeep-m10-format.log",
+      "sha256": "227e8321d6404f563d369dff55a58a209777761cc75b2a4e518fcade48e38292",
+      "final_lines": [
+        "Formatted 144 files (0 changed) in 0.30 seconds."
+      ]
+    },
+    "analyze": {
+      "source": "/tmp/redkeep-m10-analyze.log",
+      "sha256": "37d48f5244f32d1966dd3c8dd0d9022630b815b63d4b6a742bd73730fab988eb",
+      "final_lines": [
+        "Analyzing redkeep...                                            ",
+        "No issues found! (ran in 2.8s)"
+      ]
+    },
+    "full-tests": {
+      "source": "/tmp/redkeep-m10-full-tests.log",
+      "sha256": "e2783e75962363eb1833e637835d2042d72e6d80b386916d651d85d82cb04a1f",
+      "final_lines": [
+        "00:10 +263: /Users/lewis/Dev/Projects/The Redkeep/redkeep/test/features/flow/flow_pages_test.dart: 320px 3x keyboard/safe areas composer/reader/editor/dialogs AppTheme.dark simple=true",
+        "00:10 +264: /Users/lewis/Dev/Projects/The Redkeep/redkeep/test/features/flow/flow_pages_test.dart: all four shell destinations remain usable with 3x text and no keyboard",
+        "00:11 +265: /Users/lewis/Dev/Projects/The Redkeep/redkeep/test/features/flow/flow_pages_test.dart: complete long Unicode reader/editor and lazy large collection",
+        "00:11 +266: All tests passed!"
+      ]
+    },
+    "brain-tests": {
+      "source": "/tmp/redkeep-m10-brain-tests.log",
+      "sha256": "ee7184c646f193d2e88a49efe3f8042ebe371db32a55ba5995135c7bc0edc67e",
+      "final_lines": [
+        "00:01 +49: /Users/lewis/Dev/Projects/The Redkeep/redkeep/test/features/brain/brain_page_test.dart: Brain and removal dialog at 320px/3x/safe/keyboard AppTheme.dark simpler=true",
+        "00:01 +50: /Users/lewis/Dev/Projects/The Redkeep/redkeep/test/features/brain/brain_page_test.dart: leaving Brain cancels active native work and late output",
+        "00:01 +51: /Users/lewis/Dev/Projects/The Redkeep/redkeep/test/features/brain/brain_page_test.dart: normal Flow writing never opens Brain storage or a model",
+        "00:01 +52: All tests passed!"
+      ]
+    },
+    "focused": {
+      "source": "/tmp/redkeep-m10-focused.log",
+      "sha256": "0db79c4253c5dee569e40cd8b816bd0f8b02ab1ad7ee388eec7cf103181f42a6",
+      "final_lines": [
+        "00:03 +104: /Users/lewis/Dev/Projects/The Redkeep/redkeep/test/app/app_router_test.dart: unknown navigation uses the same fallback and recovery",
+        "00:03 +105: /Users/lewis/Dev/Projects/The Redkeep/redkeep/test/app/app_router_test.dart: malformed cold and warm platform routes use a safe fallback",
+        "00:03 +106: /Users/lewis/Dev/Projects/The Redkeep/redkeep/test/app/app_router_test.dart: provider scopes own independent routers and navigation state",
+        "00:03 +107: All tests passed!"
+      ]
+    },
+    "assets": {
+      "source": "/tmp/redkeep-m10-assets.log",
+      "sha256": "851d0b61284fdb6cea665b90ba2cae312b62ed5b8c4f801b0db787f09546ce0a",
+      "final_lines": [
+        "Running build hooks...Running build hooks...Verified presentation-m07-v1: 4 PNGs, 479916 bytes. No publication performed."
+      ]
+    },
+    "android-build": {
+      "source": "/tmp/redkeep-m10-android-build.log",
+      "sha256": "38f593cf5ea556de0b4f9be3de995082a3c292d6749f9ebf9cf5e6ae4a51cc1f",
+      "final_lines": [
+        "WARNING: Restricted methods will be blocked in a future release unless native access is enabled",
+        "",
+        "Running Gradle task 'assembleDebug'...                              7.1s",
+        "✓ Built build/app/outputs/flutter-apk/app-debug.apk"
+      ]
+    },
+    "ios-build": {
+      "source": "/tmp/redkeep-m10-ios-build.log",
+      "sha256": "a176ba810083baaeabf1158d2975d873f204e934c901580d7bcb21c3a6456446",
+      "final_lines": [
+        "Building com.lewiseman.redkeep for simulator (ios)...",
+        "Running Xcode build...                                          ",
+        "Xcode build done.                                           12.4s",
+        "✓ Built build/ios/iphonesimulator/Runner.app"
+      ]
+    },
+    "release-harness-build": {
+      "source": "/tmp/redkeep-m10-release-harness-build.log",
+      "sha256": "77f63149ba586c002834be103c2d7520b485e267025ed6abd639cf45dfc8d199",
+      "final_lines": [
+        "",
+        "Font asset \"MaterialIcons-Regular.otf\" was tree-shaken, reducing it from 1645184 to 1256 bytes (99.9% reduction). Tree-shaking can be disabled by providing the --no-tree-shake-icons flag when building your app.",
+        "Running Gradle task 'assembleRelease'...                            7.7s",
+        "✓ Built build/app/outputs/flutter-apk/app-release.apk (60.9MB)"
+      ]
+    },
+    "android-harness-build": {
+      "source": "/tmp/redkeep-m10-android-harness-build.log",
+      "sha256": "63afcdf86450c54064d3aefe8992aa5351ffd27245246439539022cdadda3b80",
+      "final_lines": [
+        "WARNING: Restricted methods will be blocked in a future release unless native access is enabled",
+        "",
+        "Running Gradle task 'assembleDebug'...                              8.7s",
+        "✓ Built build/app/outputs/flutter-apk/app-debug.apk"
+      ]
+    },
+    "android-gpu-build": {
+      "source": "/tmp/redkeep-m10-android-gpu-build.log",
+      "sha256": "acef8cb9b3731baecb4b32a8b38a929b7a24324ddaedeace51ce6ceece7a169d",
+      "final_lines": [
+        "WARNING: Restricted methods will be blocked in a future release unless native access is enabled",
+        "",
+        "Running Gradle task 'assembleDebug'...                              6.8s",
+        "✓ Built build/app/outputs/flutter-apk/app-debug.apk"
+      ]
+    },
+    "ios-harness-build": {
+      "source": "/tmp/redkeep-m10-ios-harness-build.log",
+      "sha256": "291de4e0b14d92d021a726651a0de8dba8afd7f65eb136cb7bae3db2daabb630",
+      "final_lines": [
+        "Building com.lewiseman.redkeep for simulator (ios)...",
+        "Running Xcode build...                                          ",
+        "Xcode build done.                                           15.5s",
+        "✓ Built build/ios/iphonesimulator/Runner.app"
+      ]
+    }
+  },
+  "scope": "M10 only; M11 and later phases unstarted; raw_assets and legacy projects not accessed; no remote Git operation/publication",
+  "ios_bundle": {
+    "path": "/Users/lewis/Dev/Projects/The Redkeep/redkeep/build/ios/iphonesimulator/Runner.app",
+    "files": 104,
+    "bytes": 263123983,
+    "tree_sha256": "a9930306a5ac9266672774a8cbdc5e277c3f098148abe0347e148f8483579906",
+    "algorithm": "SHA-256 of UTF-8 compact JSON with sorted object keys: entries sorted by relative POSIX path, each containing path, bytes and SHA-256 of file bytes; regular files including symlink file targets"
+  }
+}

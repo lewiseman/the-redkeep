@@ -33,14 +33,14 @@ Use `Not started`, `In progress`, `Complete`, or `Partial`. A partial result mus
 | Documentation | Complete | Agreed architecture, roadmap, standalone prompts, and deferred planning prompts recorded in this file. | No application phase has been executed. |
 | M01 — Foundations | Complete | Root local Git repository, ignore rules, AGENTS/command/architecture guides, Riverpod composition, neutral go_router shell; formatting, analysis, and all 6 shell/DI/routing tests pass. | Native builds and physical-device behavior unverified; next eligible phase is M02. |
 | M02 — Design and accessibility | Complete | Light/dark tokens and system typography, shared paper surfaces, saved appearance settings in background Drift schema 1, reactive OS/app rendering policy; formatting, analysis, all 26 tests, Android debug build, and emulator restart persistence pass. | iOS, physical-device accessibility/keyboard behavior, and release performance unverified; next eligible phase is M03 (M04 is also eligible independently under its prerequisite rules). |
-| M03 — AI feasibility | Partial | Pinned core 2.5.5 / LiteRT-LM engine 1.19.1, minimal injected adapter and synthetic harness, 40 passing tests, Android ARM64/API 30 packaging, iOS simulator and unsigned device builds; pinned Qwen3 0.6B streaming/cancel/reuse/cleanup/failure checks pass on physical Galaxy S24 Ultra CPU/GPU and iOS simulator CPU. | Physical iOS/Metal, minimum-OS and low-end hardware, release/sustained resource evidence remain unverified and block corresponding AI release claims. M04 may proceed independently; see M03 record and docs/ai-feasibility.md. |
+| M03 — AI feasibility | Partial | Pinned core 2.5.5 / LiteRT-LM engine 1.19.1, minimal injected adapter and synthetic harness, 40 passing tests, Android ARM64/API 30 packaging, iOS simulator and unsigned device builds; pinned Qwen3 0.6B streaming/cancel/reuse/cleanup/failure checks pass on physical Galaxy S24 Ultra CPU/GPU and iOS simulator CPU. | Physical iOS/Metal, minimum-OS and low-end hardware, sustained resources and production signing remain unverified and block corresponding AI release claims. M10 adds short Galaxy release-mode CPU checks; see M03/M10 records and docs/ai-feasibility.md. |
 | M04 — Assets and startup | Complete | Reachable-media inventory/provenance, pinned three-image pack, catalog/publishing validator, injected persistent resolver, verified atomic installs/repair, bounded bootstrap/splash gate; all 88 tests, analysis/formatting, Android and iOS simulator debug builds pass. Android local HTTP download → offline restart and missing-file gating; iOS fresh gate and offline staged-pack recovery verified. | Real HTTPS hosting/publication and physical/minimum-OS/low-end release evidence remain prerequisites; iOS HTTP download and native failure/ENOSPC drills unverified. M03's AI gaps remain unchanged. Next eligible phase is M05. |
 | M05 — Onboarding and routing | Complete | Minimal welcome, committed schema-2 completion with migration preservation, validated bootstrap/onboarding continuations and safe fallback, framework back gestures; all 111 tests, formatting/analysis, Android and iOS simulator debug builds pass. Android interruption → requested settings → back/restart and iOS welcome render verified. | Physical accessibility/gestures, native iOS completion/restart, OS link registration/restoration and release/minimum-OS evidence unverified. M04 host and M03 AI gaps unchanged. Next eligible phase is M06. |
 | M06 — Notes vertical slice | Complete | Same primary database upgraded to schema 3; plain-text Notes CRUD, stable ID routes, revision/token checks, committed-save feedback and persistent recovery drafts. All 139 tests, analysis/formatting, Android/iOS simulator debug builds pass; Android airplane-mode create/recover/edit/save/delete and force-stop/reopen verified. See docs/notes-writing.md and docs/evidence/m06/verification.json. | Physical-device accessibility/IME, native iOS writing, minimum-OS/low-end/release and native disk-full/power-loss evidence unverified. M04 host and M03 AI gaps unchanged. Next eligible phase is M07. |
 | M07 — Notes organization | Complete | Schema 4 with local keyword/tag/pin filters, Trash/restore, typed permanent deletion, safe bounded Markdown preview and resolver-backed Notes artwork. All 155 tests, formatting/analysis, asset validation and Android/iOS simulator debug builds pass; Android offline reopen/filter/restore/delete and external browser launch verified. See docs/notes-writing.md and docs/evidence/m07/verification.json. | Native iOS writing/browser, physical accessibility/IME, minimum-OS/low-end/release and native storage-failure evidence unverified. Preview/search bounds documented; M04 host and M03 AI gaps unchanged. Next eligible phase is M08. |
 | M08 — Diary | Complete | Schema 5 separates civil-date Diary entries, recovery drafts and day headings; calendar/day/entry routes, CRUD, local keyword search and static/simpler notebook presentation. All 185 tests, formatting/analysis, four timezone suites, asset validation and Android/iOS simulator debug builds pass; Android offline draft recovery, committed reopen/search and deletion verified. See docs/diary-writing.md and docs/evidence/m08/verification.json. | Physical accessibility/IME, native iOS Diary writing, minimum-OS/low-end/release and native storage-failure evidence unverified. No expensive visual effect introduced or physical performance claim. M04 host and M03 AI gaps unchanged. Next eligible phase is M09. |
 | M09 — Flow | Complete | Schema 6 with quick capture committed before composer clearing, durable capture/edit drafts, newest-first thoughts, ID CRUD and complete Diary/Notes/Flow/More shell. All 213 tests, analysis/formatting, asset validation and Android/iOS simulator debug builds pass; Android offline capture/recovery/edit/delete/restart verified. See docs/flow-writing.md and docs/evidence/m09/verification.json. | Physical accessibility/IME, native iOS Flow writing, minimum-OS/low-end/release and native storage-failure evidence unverified. M04 host and M03 AI gaps unchanged. Next eligible phase is M10. |
-| M10 — Brain | Not started | — | Requires M09 and the M03 adapter; native acceptance evidence remains mandatory. |
+| M10 — Brain | Partial | Brain settings, schema-7 device assignments, optional verified model install/remove/progress/readiness, bounded session/resource ownership and cancellation; 266 tests, analysis/formatting and Android/iOS simulator builds pass. Physical Galaxy CPU/GPU debug, Galaxy CPU release and iOS simulator CPU checks pass with the pinned artifact; see docs/brain.md and docs/evidence/m10/verification.json. | Implementation and available checks finished. Physical iOS/Metal, minimum-OS/low-end, sustained resource/thermal/energy and native storage-failure qualification remain gaps blocking corresponding AI release claims. M11 is next; no helper implemented. |
 | M11 — Grand Maester | Not started | — | Requires M10. |
 | M12 — Mobile release preparation | Not started | — | Requires M01–M11; production media hosting is a release prerequisite. |
 | D01 — Flutter desktop foundation | Not started | — | Starts after mobile acceptance in M12. |
@@ -1487,3 +1487,99 @@ and M03's AI qualification gaps remain unchanged.
 
 **M09 is complete within its selected scope. Next eligible phase: M10 — Brain.
 M10 and every later implementation phase remain unstarted. Stop here.**
+
+### M10 — Brain — 2–3 November 2026
+
+**Status: Partial for remaining hardware qualification; implementation and all
+available checks finished.** M09 was complete and M03's qualified adapter/pin
+was retained. Initial Git status was clean. Read root AGENTS.md, architecture,
+AI feasibility, startup/routing and persistence contracts. During a pause the
+user changed Android release signing and added `.vscode/`; those unrelated
+changes were preserved. No native configuration, dependency/lockfile, legacy
+project or `raw_assets/` was changed by this phase.
+
+**Behavior and contracts.**
+
+- Added **More → Brain**, canonical `/settings/brain` and validated startup/
+  onboarding continuation. Schema **7** of the same background database stores
+  capability/model/source assignments with device-only constraints. Fresh Brain
+  is unassigned; populated versions 1–6 retain all writing, settings, day metadata,
+  draft/source revisions, tombstones and AUTOINCREMENT sequences. Assignment
+  feedback follows committed writes; failed saves retain the prior selection.
+- The only catalog entry is the exact M03 Apache-2.0 **Qwen3 0.6B INT8** artifact:
+  revision `722a0a54c1301a4b07a9856a9590d56362f0969b`, **613,722,264 bytes**,
+  SHA-256 `c5f39b4191926786c3e6668b62af4d6eb15248dfc7a5348252a9b406f33f2108`.
+  No weights are bundled/committed. Downloads are optional and independent of
+  required artwork/bootstrap. Core **2.5.5** / LiteRT-LM **1.19.1** remain pinned.
+- Added injected HTTPS transport with bounded HTTPS-only CDN redirects,
+  connection/body/total-transfer limits, progress and cancellation; app-private
+  model files use complete-size/hash verification on a worker isolate and
+  sibling partial → atomic rename. Missing, interrupted, corrupt and verified
+  states are distinct. Partial files never load or become trusted resume points.
+  Recheck before every native load detects same-size replacement; retries start
+  fresh. Storage/link failures never repair by deleting writing or artwork.
+- Model removal waits for resource cancellation, preserves assignments and
+  writing, and removes weights/partials plus only precisely matched model-specific
+  LiteRT caches. Unknown cache names and plugin registration metadata are retained.
+  Assignments may be saved before installation; unknown/incompatible assignments
+  cannot execute. File readiness does not establish hardware readiness.
+- A lazy device-only executor supports rewriting, summarizing and short
+  reflection. Each explicit request verifies files, loads CPU with fallback off,
+  validates the active backend, uses a fresh session, streams deltas and releases
+  weights before reporting success. Bounds are 1–2,000 input UTF-16 code units,
+  2,048 context tokens, 96 output tokens, 16,000 output code units and a 90-second
+  cooperative deadline. Character bounds do not guarantee tokenizer fit.
+- Cancel, route disposal, inactive/hidden/paused lifecycle and scope disposal
+  suppress late output, stop native generation and wait for cleanup. A late
+  native load closes without prompting. No automatic resume or startup loading.
+  Failed teardown poisons the executor until app restart; load/resource failures
+  provide safe memory/device/retry guidance. Deadlines cannot forcibly kill hung
+  native code. Allocator/driver memory may remain after successful close.
+- Brain's explicit tests use only its displayed synthetic tree paragraph. No
+  writing is read/changed and output stays ephemeral. Added the [Brain guide](docs/brain.md),
+  updated command/architecture references and documented explicit companion/API
+  source migrations and dispatch semantics for their future phases. No floating
+  helper, proposal-edit flow, provider/key field, companion transport, embeddings,
+  startup model loading, automatic fallback or dummy backend was introduced.
+
+**Exact verification.** Commands ran from `redkeep/` unless root/native paths
+are shown. Flutter **3.47.5** (`6a19cca564`), engine `af7e796e16`, Dart **3.13.4**;
+Xcode **27.2 / 27B52**. Reports, artifact hashes, native actions, interrupted
+attempts and evidence limits are in [verification.json](docs/evidence/m10/verification.json).
+All final checks below exited 0.
+
+| Command / check | Result |
+| --- | --- |
+| `dart run build_runner build`; `dart run drift_dev schema dump lib/core/storage/app_database.dart drift_schemas/`; `dart run drift_dev schema generate drift_schemas/ test/core/storage/generated/` | Passed; schema 7/current generated code retained. Historical v1–6 snapshots/helpers unchanged. |
+| `flutter pub get --enforce-lockfile` | Passed; no dependency or lockfile changes. |
+| `dart format --output=none --set-exit-if-changed lib test tool`; `flutter analyze` | **144 files, 0 changed**; **No issues found**. |
+| `flutter test` | **266 passed**, final **11s**. Includes **52 Brain tests**, all prior writing/shell tests and populated v6 preservation. No accounts/network/models/user databases used. |
+| `flutter test test/features/brain test/features/ai test/core/storage test/app` | **107 passed** before the final additional deterministic download-deadline case; the final full suite includes it. |
+| Fake/file/database acceptance | Background assignment close/reopen; delayed/failed saves; missing/same-size corrupt/replaced files; orphan/full-looking partials; short/long/hash/network/redirect/storage/link failures; cancelled stalled transfer; total/decode deadlines; incompatible capabilities; failed native load/create/prompt/stream/stop/session/model close; cancellation during load, scope/route/background disposal and no automatic resume; cache deletion isolation and normal Flow capture with unavailable AI storage all pass. |
+| Widget acceptance | Brain, assignment/test controls and removal confirmation work at **320×480, 3× text, safe areas, 180px keyboard**, both themes and standard/reduced/simpler presentation. The entire removal dialog scrolls with its actions; an initial overflow was fixed and final checks pass. |
+| `dart run tool/validate_assets.dart assets/catalog/presentation-v1.json tool/assets/pack` | Unchanged **4 PNGs, 479,916 bytes**, no publication. |
+| CPU harness: `flutter build apk --debug --target-platform android-arm64 -t tool/verify_ai.dart --dart-define-from-file=tool/ai/qwen3-0.6b.json --dart-define=VERIFY_BRAIN=true` | Physical **Galaxy S24 Ultra / SM-S928B**, ARM64, Android 17/API 37: **16/16** checks passed, including three Brain capabilities and cancel-after-first-delta. Exact pin/hash/backend/settings and output in [CPU report](docs/evidence/m10/android-s24-ultra-cpu.json). Brain rewrite/summary/reflection/cancel took **7,881 / 7,664 / 8,638 / 6,842 ms**. |
+| GPU harness: same M03 build without `VERIFY_BRAIN`, with `--dart-define=AI_BACKEND=gpu` | Same physical Galaxy: **12/12** M03 streaming/cancel/reuse/reload/missing/corrupt/cleanup checks passed, fallback disabled; [GPU report](docs/evidence/m10/android-s24-ultra-gpu.json). GPU is qualification-only; production Brain selects CPU. |
+| `flutter build ios --simulator --debug -t tool/verify_ai.dart --dart-define-from-file=tool/ai/qwen3-0.6b.json --dart-define=VERIFY_BRAIN=true`; install/stage/relaunch | **iPhone 17 Pro ARM64 / iOS 26.5 (23F77)** simulator: **16/16** CPU checks passed; [report](docs/evidence/m10/ios-simulator-cpu.json). Brain rewrite/summary/reflection/cancel **4,854 / 4,987 / 5,146 / 4,065 ms**. Not physical iOS/Metal evidence. |
+| `flutter build apk --release --target-platform android-arm64 -t tool/verify_ai.dart --dart-define-from-file=tool/ai/qwen3-0.6b.json --dart-define=VERIFY_BRAIN=true`; separately debug-sign verification copy; `adb -s R5CX530XFAX install -r ...` | Physical Galaxy release-mode CPU: **16/16** passed, including Brain **7,034 / 6,880 / 7,220 / 5,788 ms**. [Release report](docs/evidence/m10/android-s24-ultra-release-cpu.json) explicitly records release mode. Used a separate debug-signed verification APK to retain the installed app's data/certificate; preserved the user's new release signing config. No production signing/distribution claim. |
+| `adb ... shell dumpsys meminfo com.lewiseman.redkeep` after harness completion | Single uncontrolled post-close samples: GPU debug **407,097 KiB PSS / 522,540 KiB RSS**; release CPU **1,103,177 KiB PSS / 1,226,720 KiB RSS**. Raw samples retained. Successful native close does not prove return of all memory; neither sample is a peak/sustained benchmark. |
+| Ordinary Android Brain, emulator **sdk_gphone16k_arm64 / Android 17/API 37** | Real immutable HTTPS download: cancel → partial absent → explicit retry → observed **239.9 MiB** progress → verified **613,722,264-byte** installed file. [Ready screen](docs/evidence/m10/android-model-ready.png). Interrupted/cancelled partials were not reported installed. This run preceded a user-initiated app-data/build change during the pause; later checks are recorded separately. |
+| Current emulator installation; staged only approved presentation files and exact pinned optional model | Saved rewrite assignment; force-stop/reopen showed **Device · Qwen3 0.6B · INT8 · File ready**; model readback SHA-256 matches the pin. Confirmed model removal and restart preserve the assignment while reporting missing weights. Normal writing remains available. Screens/actions and current-installation staging are distinguished from the prior real-download run in JSON. |
+| `flutter build apk --debug --target-platform android-arm64`; `flutter build ios --simulator --debug` | Final ordinary app builds passed; installed/restored on physical Galaxy, emulator and iOS simulator without clearing app data. Removed only specifically staged harness weights/known caches. No harness is left as the normal app. |
+| `git diff --check`; `git diff --exit-code` over unchanged native iOS/macOS, manifests/lockfile and historical schema files | Passed. The user's unrelated Android signing and `.vscode/` changes remain preserved. No remote Git operation, publication, legacy access or `raw_assets/` change. |
+
+**Limitations and boundary.** Physical iOS/Metal, Android 11/iOS 15 hardware,
+low-end devices, sustained release latency/thermal/energy/peak memory, native
+OOM/OS-kill recovery and native disk-full/power-loss/fsync remain unverified.
+Short high-end release inference closes part of M03's evidence gap; it does not
+qualify sustained release behavior or production signing. Reflection invented
+emotion absent from the source; bounded output can also truncate. No broad
+quality, factuality or safety guarantee follows from functional capability tests.
+Hung native calls remain cooperative-cancellation limits. M04's production
+HTTPS artwork-host prerequisite is unchanged. These gaps block corresponding
+AI release claims and keep the M10 tracker **Partial**, without relabeling
+missing evidence as verified.
+
+**M10 implementation and available checks are finished. Next eligible phase:
+M11 — Grand Maester, with these limits carried forward. M11 and every later
+phase remain unstarted. Stop here.**

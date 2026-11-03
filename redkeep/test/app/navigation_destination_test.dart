@@ -35,13 +35,19 @@ void main() {
   );
 
   test('only canonical implemented destinations cross the boundary', () {
-    for (final location in ['/', '/settings', '/%73ettings', '/settings/../']) {
+    for (final location in [
+      '/',
+      '/settings',
+      '/settings/brain',
+      '/%73ettings',
+      '/settings/../',
+    ]) {
       expect(redirect(location), isNull);
     }
     for (final location in [
       '/notes/abc',
       '/flow/a',
-      '/settings/brain',
+      '/settings/brain/unknown',
       '/tasks',
       '/settings?x=private',
       '/settings#private',

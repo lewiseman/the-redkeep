@@ -19,6 +19,10 @@ import 'fake_appearance_repository.dart';
 import 'fake_required_assets.dart';
 import 'fake_onboarding_repository.dart';
 
+import 'package:redkeep/features/brain/domain/brain.dart';
+import 'package:redkeep/features/brain/application/brain_executor.dart';
+import 'package:redkeep/features/brain/application/brain_providers.dart';
+
 Future<GoRouter> pumpApp(
   WidgetTester tester, {
   String? initialLocation,
@@ -31,6 +35,9 @@ Future<GoRouter> pumpApp(
   String Function()? noteId,
   DiaryRepository? diary,
   String Function()? diaryId,
+  BrainAssignments? brainAssignments,
+  BrainModelFiles? brainFiles,
+  BrainModelLoader? brainLoader,
 }) async {
   final preferences = repository ?? FakeAppearanceRepository();
   if (repository == null) addTearDown(preferences.close);
@@ -54,6 +61,12 @@ Future<GoRouter> pumpApp(
         if (flowId != null) flowIdProvider.overrideWithValue(flowId),
         if (notes != null) notesRepositoryProvider.overrideWithValue(notes),
         if (noteId != null) noteIdProvider.overrideWithValue(noteId),
+        if (brainAssignments != null)
+          brainAssignmentsProvider.overrideWithValue(brainAssignments),
+        if (brainFiles != null)
+          brainModelFilesProvider.overrideWith((ref) async => brainFiles),
+        if (brainLoader != null)
+          brainModelLoaderProvider.overrideWithValue(brainLoader),
         if (initialLocation != null)
           appRouterProvider.overrideWith((ref) {
             return createAppRouter(ref, initialLocation: initialLocation);

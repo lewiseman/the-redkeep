@@ -4,11 +4,16 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart' show kReleaseMode, kProfileMode;
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:redkeep/features/ai/application/local_inference_adapter.dart';
 import 'package:redkeep/features/ai/data/flutter_edge_local_model.dart';
 import 'package:redkeep/features/ai/domain/local_inference.dart';
+import 'package:redkeep/features/brain/application/brain_executor.dart';
+import 'package:redkeep/features/brain/data/file_brain_models.dart';
+import 'package:redkeep/features/brain/data/model_download.dart';
+import 'package:redkeep/features/brain/domain/brain.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -43,7 +48,12 @@ Future<void> main() async {
   final report = <String, Object?>{
     'platform': Platform.operatingSystem,
     'os': Platform.operatingSystemVersion,
-    'mode': 'debug qualification; synthetic text only',
+    'mode':
+        '${kReleaseMode
+            ? 'release'
+            : kProfileMode
+            ? 'profile'
+            : 'debug'} qualification; synthetic text only',
     'core': '2.5.5',
     'engine': '1.19.1',
     'native': 'native-v0.18.0-h',
@@ -105,8 +115,9 @@ Future<void> main() async {
   try {
     const configuredPath = String.fromEnvironment('MODEL_PATH');
     const filename = String.fromEnvironment('MODEL_FILENAME');
+    const verifyBrain = bool.fromEnvironment('VERIFY_BRAIN');
     final path = configuredPath.isEmpty
-        ? '${directory.path}/$filename'
+        ? '${directory.path}/${verifyBrain ? '${qualifiedBrainModel.id}.litertlm' : filename}'
         : configuredPath;
     await record('artifact_integrity', () async {
       const expected = String.fromEnvironment('MODEL_SHA256');
@@ -202,6 +213,59 @@ Future<void> main() async {
         adapter = null;
         return {'closeMs': timer.elapsedMilliseconds};
       });
+    }
+    if (verifyBrain) {
+      final executor = BrainExecutor(
+        files: FileBrainModels(root: directory, download: HttpModelDownload()),
+        loadModel: openFlutterEdgeModel,
+      );
+      try {
+        for (final capability in BrainCapability.values) {
+          await record('brain_${capability.name}', () async {
+            final chunks = <String>[];
+            await executor.execute(
+              model: qualifiedBrainModel,
+              capability: capability,
+              text: 'Mira planted a tree. She watered it each morning. New leaves appeared.',
+              onChunk: chunks.add,
+            );
+            if (chunks.join().trim().isEmpty || executor.busy) {
+              throw StateError('Brain did not finish and release resources');
+            }
+            return {
+              'output': chunks.join(),
+              'chunks': chunks.length,
+              'activeBackend': 'cpu',
+              'resourcesReleased': !executor.busy,
+            };
+          });
+        }
+        await record('brain_cancel', () async {
+          var chunks = 0;
+          try {
+            await executor.execute(
+              model: qualifiedBrainModel,
+              capability: BrainCapability.rewrite,
+              text: 'Mira planted a tree. She watered it each morning. New leaves appeared.',
+              onChunk: (_) {
+                if (++chunks == 1) unawaited(executor.cancel());
+              },
+            );
+            throw StateError('Brain cancellation was not reported');
+          } on BrainException catch (error) {
+            if (error.failure != BrainFailure.cancelled || executor.busy) {
+              rethrow;
+            }
+            return {
+              'failure': error.failure.name,
+              'chunks': chunks,
+              'resourcesReleased': !executor.busy,
+            };
+          }
+        });
+      } finally {
+        await executor.dispose();
+      }
     }
     report['completed'] = true;
   } catch (error) {

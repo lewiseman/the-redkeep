@@ -13,15 +13,16 @@ import 'generated/schema_v2.dart' as v2;
 import 'generated/schema_v3.dart' as v3;
 import 'generated/schema_v4.dart' as v4;
 import 'generated/schema_v5.dart' as v5;
+import 'generated/schema_v6.dart' as v6;
 
 import 'package:redkeep/features/notes/data/drift_notes_repository.dart';
 import 'package:redkeep/features/notes/domain/note_document.dart';
 
 void main() {
-  test('fresh schema matches the committed version 6 snapshot', () async {
+  test('fresh schema matches the committed version 7 snapshot', () async {
     final database = AppDatabase(NativeDatabase.memory());
     addTearDown(database.close);
-    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 6);
+    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 7);
   });
 
   test('version 1 upgrade preserves every saved appearance choice', () async {
@@ -36,7 +37,7 @@ void main() {
       await old.close();
       final database = AppDatabase(schema.newConnection());
       try {
-        await verifier.migrateAndValidate(database, 6);
+        await verifier.migrateAndValidate(database, 7);
         expect(
           await DriftAppearanceRepository(database).watch().first,
           AppearancePreferences(
@@ -70,7 +71,7 @@ void main() {
       await old.close();
       final database = AppDatabase(schema.newConnection());
       try {
-        await verifier.migrateAndValidate(database, 6);
+        await verifier.migrateAndValidate(database, 7);
         expect(
           await DriftAppearanceRepository(database).watch().first,
           const AppearancePreferences(
@@ -118,7 +119,7 @@ void main() {
       await old.close();
       final database = AppDatabase(schema.newConnection());
       try {
-        await verifier.migrateAndValidate(database, 6);
+        await verifier.migrateAndValidate(database, 7);
         expect(await DriftOnboardingRepository(database).isComplete(), isTrue);
         expect(
           (await DriftAppearanceRepository(database).watch().first).theme,
@@ -180,7 +181,7 @@ void main() {
     await old.close();
     final database = AppDatabase(schema.newConnection());
     try {
-      await verifier.migrateAndValidate(database, 6);
+      await verifier.migrateAndValidate(database, 7);
       expect(
         (await DriftAppearanceRepository(database).watch().first),
         const AppearancePreferences(
@@ -276,7 +277,7 @@ void main() {
     await old.close();
     final database = AppDatabase(schema.newConnection());
     try {
-      await verifier.migrateAndValidate(database, 6);
+      await verifier.migrateAndValidate(database, 7);
       for (final table in tables) {
         expect(
           (await database.customSelect('SELECT * FROM $table').get())
@@ -304,6 +305,106 @@ void main() {
       await database.close();
     }
   });
+
+  test(
+    'populated v6 keeps all writing and recovery; Brain starts unassigned',
+    () async {
+      final verifier = SchemaVerifier(GeneratedHelper());
+      final schema = await verifier.schemaAt(6);
+      final old = v6.DatabaseAtV6(schema.newConnection());
+      await old.customStatement(
+        "INSERT INTO appearance_settings (id, theme) VALUES (1, 'dark')",
+      );
+      await old.customStatement(
+        'INSERT INTO onboarding_completion (id) VALUES (1)',
+      );
+      for (final deleted in [false, true]) {
+        final id = deleted ? 'b' * 32 : 'a' * 32;
+        await old.customStatement(
+          'INSERT INTO notes (id,title,body,revision,created_at,updated_at,deleted_at,pinned) VALUES (?, ?, ?, 7, 1, 2, ?, 1)',
+          [id, 'Note', 'Exact 👩🏽‍💻 中文', deleted ? 3 : null],
+        );
+        await old.customStatement(
+          "INSERT INTO note_tags (note_id,tag) VALUES (?, 'travel')",
+          [id],
+        );
+        await old.customStatement(
+          'INSERT INTO note_drafts (id,title,body,base_revision,draft_revision,updated_at) VALUES (?, ?, ?, 7, ?, 4)',
+          [id, 'Draft', 'Recovery', deleted ? 72 : 71],
+        );
+        await old.customStatement(
+          'INSERT INTO diary_entries (id,date_key,title,body,revision,created_at,updated_at,deleted_at) VALUES (?, ?, ?, ?, 9, 1, 2, ?)',
+          [id, '2024-02-29', 'Day', 'Diary 👩🏽‍💻', deleted ? 3 : null],
+        );
+        await old.customStatement(
+          'INSERT INTO diary_drafts (id,date_key,title,body,base_revision,draft_revision,updated_at) VALUES (?, ?, ?, ?, 9, ?, 4)',
+          [id, '2024-02-29', 'Draft', 'Recovery', deleted ? 82 : 81],
+        );
+        await old.customStatement(
+          'INSERT INTO flow_thoughts (id,body,revision,created_at,updated_at,deleted_at) VALUES (?, ?, 11, 1, 2, ?)',
+          [id, 'Flow 👩🏽‍💻', deleted ? 3 : null],
+        );
+        await old.customStatement(
+          'INSERT INTO flow_drafts (id,body,capture,base_revision,draft_revision,updated_at) VALUES (?, ?, 0, 11, ?, 4)',
+          [id, 'Flow recovery', deleted ? 92 : 91],
+        );
+      }
+      await old.customStatement(
+        "INSERT INTO diary_days (date_key,heading,revision) VALUES ('2024-02-29', 'Heading', 3)",
+      );
+      const tables = [
+        'appearance_settings',
+        'onboarding_completion',
+        'notes',
+        'note_tags',
+        'note_drafts',
+        'diary_entries',
+        'diary_drafts',
+        'diary_days',
+        'flow_thoughts',
+        'flow_drafts',
+        'sqlite_sequence',
+      ];
+      final before = <String, List<Map<String, dynamic>>>{};
+      for (final table in tables) {
+        before[table] = (await old.customSelect('SELECT * FROM $table').get())
+            .map((r) => r.data)
+            .toList();
+      }
+      await old.close();
+      final database = AppDatabase(schema.newConnection());
+      try {
+        await verifier.migrateAndValidate(database, 7);
+        for (final table in tables) {
+          expect(
+            (await database.customSelect('SELECT * FROM $table').get())
+                .map((r) => r.data)
+                .toList(),
+            before[table],
+            reason: table,
+          );
+        }
+        expect(
+          await database.select(database.brainAssignmentsTable).get(),
+          isEmpty,
+        );
+        await database.customStatement(
+          "INSERT INTO flow_drafts (id,body,capture,base_revision,updated_at) VALUES ('new', 'new recovery', 1, 0, 5)",
+        );
+        expect(
+          (await database
+                  .customSelect(
+                    "SELECT draft_revision FROM flow_drafts WHERE id = 'new'",
+                  )
+                  .getSingle())
+              .read<int>('draft_revision'),
+          greaterThan(92),
+        );
+      } finally {
+        await database.close();
+      }
+    },
+  );
 
   test(
     'schema rejects invalid theme values and non-singleton settings',

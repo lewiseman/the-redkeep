@@ -12,7 +12,7 @@ class WritingShell extends StatelessWidget {
         ? '/notes'
         : location.startsWith('/flow')
         ? '/flow'
-        : location == '/more' || location == '/settings'
+        : location == '/more' || location.startsWith('/settings')
         ? '/more'
         : '/diary';
     return Scaffold(

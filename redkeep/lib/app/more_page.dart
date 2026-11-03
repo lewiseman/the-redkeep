@@ -16,6 +16,10 @@ class MorePage extends StatelessWidget {
           onPressed: () => context.go('/settings'),
           child: const Text('Appearance'),
         ),
+        OutlinedButton(
+          onPressed: () => context.go('/settings/brain'),
+          child: const Text('Brain'),
+        ),
       ],
     ),
   );

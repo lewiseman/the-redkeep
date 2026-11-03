@@ -22,7 +22,7 @@ class LocalInferenceAdapter {
       throw const InferenceException(InferenceFailure.busy);
     }
     if (prompt.trim().isEmpty || prompt.length > 4096) {
-      throw ArgumentError('Use 1–4096 characters of synthetic text.');
+      throw ArgumentError('Use 1–4096 characters of text.');
     }
     final run = InferenceRun._();
     _active = run;

@@ -28,7 +28,7 @@ M08 adds `/diary`, `/diary/calendar/:date`, `/diary/:date`,
 See [Diary writing and recovery](diary-writing.md) for civil dates, separate day
 metadata, entry deletion and recovery. M09 adds `/flow`, `/flow/:id`, `/flow/:id/edit` and `/more`. A shared
 `WritingShell` wraps the normal route navigator and provides Diary/Notes/Flow/More,
-with Appearance under More. Labels wrap at large text; the bar hides while the
+with Appearance and Brain under More. M10 adds `/settings/brain`. Labels wrap at large text; the bar hides while the
 keyboard is open. The existing feature scaffolds keep their safe scroll viewports.
 See [Flow capture and recovery](flow-writing.md); no future destinations are registered.
 Invalid/unmatched input uses `/unavailable` with **Return home**, replacing the
@@ -78,6 +78,7 @@ flutter test test/features/diary
 flutter test test/features/flow
 flutter test test/core
 flutter test test/features/ai
+flutter test test/features/brain
 flutter test test/features/assets
 dart run tool/validate_assets.dart assets/catalog/presentation-v1.json tool/assets/pack
 ```
@@ -90,7 +91,7 @@ dart run tool/validate_assets.dart assets/catalog/presentation-v1.json tool/asse
   settings, and real background SQLite close/reopen. UI tests check themes,
   live system/app changes, mid-transition reduction, back, flat paper, contrast,
   and narrow/large-text/inset layouts in both themes.
-- `test/core` checks schema 6 against its snapshot, upgrades from versions 1–5,
+- `test/core` checks schema 7 against its snapshot, upgrades from versions 1–6,
   appearance/onboarding preservation, empty writing tables, SQL constraints,
   retained source/draft tokens and tombstones, all OS/app/lifecycle combinations, both OS flags live, inactive/offscreen
   ticker gating, resumption, and disposal.
@@ -136,6 +137,10 @@ dart run tool/validate_assets.dart assets/catalog/presentation-v1.json tool/asse
   failure/commit-gate decorator, disposed before database teardown.
 
 The [README](../README.md) documents schema generation and native build commands.
+Brain tests use injected files/network/models, fresh containers and disposable
+SQLite. They cover assignment reopen/failure, verified installs/removal,
+corruption/interruption, cancellation/resource races, readiness and writing with
+unavailable AI storage, including narrow/large-text/keyboard layouts.
 The AI adapter suite uses injected fake models/sessions, including setup and
 teardown races. The [AI feasibility guide](ai-feasibility.md) documents its
 contracts and the separate opt-in synthetic native harness under `tool/`.
@@ -163,7 +168,10 @@ are recorded separately. M08 adds civil-date Diary writing, metadata separation,
 calendar/search/routes, recovery and static notebook presentation. Its exact
 native evidence and remaining gaps are recorded separately. M09 adds Flow and
 the complete implemented shell, with native/offline evidence in its record.
-M10 — Brain is next.
+M10 adds the lazy Brain controller and device executor. Schema 7 stores only
+capability/model/source assignments; optional model files live outside required
+media. No model loads at startup. See [Brain](brain.md) for installation,
+readiness, cancellation and resource ownership. M11 remains unstarted.
 
 ## References
 

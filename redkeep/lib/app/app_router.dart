@@ -1,5 +1,6 @@
 import 'writing_shell.dart';
 import 'more_page.dart';
+import '../features/brain/presentation/brain_page.dart';
 import '../features/flow/presentation/flow_page.dart';
 import '../features/flow/presentation/thought_read_page.dart';
 import '../features/flow/presentation/thought_edit_page.dart';
@@ -202,6 +203,13 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
                 path: 'settings',
                 pageBuilder: (context, state) =>
                     _page(state, const AppearancePage()),
+                routes: [
+                  GoRoute(
+                    path: 'brain',
+                    pageBuilder: (context, state) =>
+                        _page(state, const BrainPage()),
+                  ),
+                ],
               ),
             ],
           ),

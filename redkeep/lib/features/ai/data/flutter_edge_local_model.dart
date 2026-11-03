@@ -3,7 +3,7 @@ import 'package:flutter_edge_ai_litertlm/flutter_edge_ai_litertlm.dart';
 
 import '../domain/local_inference.dart';
 
-/// Explicit opt-in only. Never called by main, bootstrap, or an app provider.
+/// Explicit opt-in only. Brain calls this only for a user-requested operation.
 /// The package's process registry is contained here; model/session ownership
 /// stays with the adapter. No active model or app writing database is used.
 Future<LocalModel> openFlutterEdgeModel(

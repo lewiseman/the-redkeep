@@ -3660,6 +3660,275 @@ class FlowDraftsCompanion extends UpdateCompanion<ThoughtDraftRow> {
   }
 }
 
+class $BrainAssignmentsTableTable extends BrainAssignmentsTable
+    with TableInfo<$BrainAssignmentsTableTable, BrainAssignmentRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $BrainAssignmentsTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _capabilityMeta = const VerificationMeta(
+    'capability',
+  );
+  @override
+  late final GeneratedColumn<String> capability = GeneratedColumn<String>(
+    'capability',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _modelIdMeta = const VerificationMeta(
+    'modelId',
+  );
+  @override
+  late final GeneratedColumn<String> modelId = GeneratedColumn<String>(
+    'model_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sourceMeta = const VerificationMeta('source');
+  @override
+  late final GeneratedColumn<String> source = GeneratedColumn<String>(
+    'source',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('device'),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [capability, modelId, source];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'brain_assignments';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<BrainAssignmentRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('capability')) {
+      context.handle(
+        _capabilityMeta,
+        capability.isAcceptableOrUnknown(data['capability']!, _capabilityMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_capabilityMeta);
+    }
+    if (data.containsKey('model_id')) {
+      context.handle(
+        _modelIdMeta,
+        modelId.isAcceptableOrUnknown(data['model_id']!, _modelIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_modelIdMeta);
+    }
+    if (data.containsKey('source')) {
+      context.handle(
+        _sourceMeta,
+        source.isAcceptableOrUnknown(data['source']!, _sourceMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {capability};
+  @override
+  BrainAssignmentRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return BrainAssignmentRow(
+      capability: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}capability'],
+      )!,
+      modelId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}model_id'],
+      )!,
+      source: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source'],
+      )!,
+    );
+  }
+
+  @override
+  $BrainAssignmentsTableTable createAlias(String alias) {
+    return $BrainAssignmentsTableTable(attachedDatabase, alias);
+  }
+}
+
+class BrainAssignmentRow extends DataClass
+    implements Insertable<BrainAssignmentRow> {
+  final String capability;
+  final String modelId;
+  final String source;
+  const BrainAssignmentRow({
+    required this.capability,
+    required this.modelId,
+    required this.source,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['capability'] = Variable<String>(capability);
+    map['model_id'] = Variable<String>(modelId);
+    map['source'] = Variable<String>(source);
+    return map;
+  }
+
+  BrainAssignmentsTableCompanion toCompanion(bool nullToAbsent) {
+    return BrainAssignmentsTableCompanion(
+      capability: Value(capability),
+      modelId: Value(modelId),
+      source: Value(source),
+    );
+  }
+
+  factory BrainAssignmentRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return BrainAssignmentRow(
+      capability: serializer.fromJson<String>(json['capability']),
+      modelId: serializer.fromJson<String>(json['modelId']),
+      source: serializer.fromJson<String>(json['source']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'capability': serializer.toJson<String>(capability),
+      'modelId': serializer.toJson<String>(modelId),
+      'source': serializer.toJson<String>(source),
+    };
+  }
+
+  BrainAssignmentRow copyWith({
+    String? capability,
+    String? modelId,
+    String? source,
+  }) => BrainAssignmentRow(
+    capability: capability ?? this.capability,
+    modelId: modelId ?? this.modelId,
+    source: source ?? this.source,
+  );
+  BrainAssignmentRow copyWithCompanion(BrainAssignmentsTableCompanion data) {
+    return BrainAssignmentRow(
+      capability: data.capability.present
+          ? data.capability.value
+          : this.capability,
+      modelId: data.modelId.present ? data.modelId.value : this.modelId,
+      source: data.source.present ? data.source.value : this.source,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BrainAssignmentRow(')
+          ..write('capability: $capability, ')
+          ..write('modelId: $modelId, ')
+          ..write('source: $source')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(capability, modelId, source);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is BrainAssignmentRow &&
+          other.capability == this.capability &&
+          other.modelId == this.modelId &&
+          other.source == this.source);
+}
+
+class BrainAssignmentsTableCompanion
+    extends UpdateCompanion<BrainAssignmentRow> {
+  final Value<String> capability;
+  final Value<String> modelId;
+  final Value<String> source;
+  final Value<int> rowid;
+  const BrainAssignmentsTableCompanion({
+    this.capability = const Value.absent(),
+    this.modelId = const Value.absent(),
+    this.source = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  BrainAssignmentsTableCompanion.insert({
+    required String capability,
+    required String modelId,
+    this.source = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : capability = Value(capability),
+       modelId = Value(modelId);
+  static Insertable<BrainAssignmentRow> custom({
+    Expression<String>? capability,
+    Expression<String>? modelId,
+    Expression<String>? source,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (capability != null) 'capability': capability,
+      if (modelId != null) 'model_id': modelId,
+      if (source != null) 'source': source,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  BrainAssignmentsTableCompanion copyWith({
+    Value<String>? capability,
+    Value<String>? modelId,
+    Value<String>? source,
+    Value<int>? rowid,
+  }) {
+    return BrainAssignmentsTableCompanion(
+      capability: capability ?? this.capability,
+      modelId: modelId ?? this.modelId,
+      source: source ?? this.source,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (capability.present) {
+      map['capability'] = Variable<String>(capability.value);
+    }
+    if (modelId.present) {
+      map['model_id'] = Variable<String>(modelId.value);
+    }
+    if (source.present) {
+      map['source'] = Variable<String>(source.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BrainAssignmentsTableCompanion(')
+          ..write('capability: $capability, ')
+          ..write('modelId: $modelId, ')
+          ..write('source: $source, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -3675,6 +3944,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $DiaryDaysTable diaryDays = $DiaryDaysTable(this);
   late final $FlowThoughtsTable flowThoughts = $FlowThoughtsTable(this);
   late final $FlowDraftsTable flowDrafts = $FlowDraftsTable(this);
+  late final $BrainAssignmentsTableTable brainAssignmentsTable =
+      $BrainAssignmentsTableTable(this);
   late final Index diaryEntriesDayOrder = Index(
     'diary_entries_day_order',
     'CREATE INDEX diary_entries_day_order ON diary_entries (date_key, created_at, id)',
@@ -3702,6 +3973,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     diaryDays,
     flowThoughts,
     flowDrafts,
+    brainAssignmentsTable,
     diaryEntriesDayOrder,
     flowThoughtsOrder,
     flowSingleCapture,
@@ -5997,6 +6269,200 @@ typedef $$FlowDraftsTableProcessedTableManager =
       ThoughtDraftRow,
       PrefetchHooks Function()
     >;
+typedef $$BrainAssignmentsTableTableCreateCompanionBuilder =
+    BrainAssignmentsTableCompanion Function({
+      required String capability,
+      required String modelId,
+      Value<String> source,
+      Value<int> rowid,
+    });
+typedef $$BrainAssignmentsTableTableUpdateCompanionBuilder =
+    BrainAssignmentsTableCompanion Function({
+      Value<String> capability,
+      Value<String> modelId,
+      Value<String> source,
+      Value<int> rowid,
+    });
+
+class $$BrainAssignmentsTableTableFilterComposer
+    extends Composer<_$AppDatabase, $BrainAssignmentsTableTable> {
+  $$BrainAssignmentsTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get capability => $composableBuilder(
+    column: $table.capability,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get modelId => $composableBuilder(
+    column: $table.modelId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get source => $composableBuilder(
+    column: $table.source,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$BrainAssignmentsTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $BrainAssignmentsTableTable> {
+  $$BrainAssignmentsTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get capability => $composableBuilder(
+    column: $table.capability,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get modelId => $composableBuilder(
+    column: $table.modelId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get source => $composableBuilder(
+    column: $table.source,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$BrainAssignmentsTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $BrainAssignmentsTableTable> {
+  $$BrainAssignmentsTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get capability => $composableBuilder(
+    column: $table.capability,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get modelId =>
+      $composableBuilder(column: $table.modelId, builder: (column) => column);
+
+  GeneratedColumn<String> get source =>
+      $composableBuilder(column: $table.source, builder: (column) => column);
+}
+
+class $$BrainAssignmentsTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $BrainAssignmentsTableTable,
+          BrainAssignmentRow,
+          $$BrainAssignmentsTableTableFilterComposer,
+          $$BrainAssignmentsTableTableOrderingComposer,
+          $$BrainAssignmentsTableTableAnnotationComposer,
+          $$BrainAssignmentsTableTableCreateCompanionBuilder,
+          $$BrainAssignmentsTableTableUpdateCompanionBuilder,
+          (
+            BrainAssignmentRow,
+            BaseReferences<
+              _$AppDatabase,
+              $BrainAssignmentsTableTable,
+              BrainAssignmentRow
+            >,
+          ),
+          BrainAssignmentRow,
+          PrefetchHooks Function()
+        > {
+  $$BrainAssignmentsTableTableTableManager(
+    _$AppDatabase db,
+    $BrainAssignmentsTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$BrainAssignmentsTableTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$BrainAssignmentsTableTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$BrainAssignmentsTableTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> capability = const Value.absent(),
+                Value<String> modelId = const Value.absent(),
+                Value<String> source = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => BrainAssignmentsTableCompanion(
+                capability: capability,
+                modelId: modelId,
+                source: source,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String capability,
+                required String modelId,
+                Value<String> source = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => BrainAssignmentsTableCompanion.insert(
+                capability: capability,
+                modelId: modelId,
+                source: source,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$BrainAssignmentsTableTable, BrainAssignmentRow>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $BrainAssignmentsTableTable,
+                    BrainAssignmentRow
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$BrainAssignmentsTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $BrainAssignmentsTableTable,
+      BrainAssignmentRow,
+      $$BrainAssignmentsTableTableFilterComposer,
+      $$BrainAssignmentsTableTableOrderingComposer,
+      $$BrainAssignmentsTableTableAnnotationComposer,
+      $$BrainAssignmentsTableTableCreateCompanionBuilder,
+      $$BrainAssignmentsTableTableUpdateCompanionBuilder,
+      (
+        BrainAssignmentRow,
+        BaseReferences<
+          _$AppDatabase,
+          $BrainAssignmentsTableTable,
+          BrainAssignmentRow
+        >,
+      ),
+      BrainAssignmentRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -6021,4 +6487,6 @@ class $AppDatabaseManager {
       $$FlowThoughtsTableTableManager(_db, _db.flowThoughts);
   $$FlowDraftsTableTableManager get flowDrafts =>
       $$FlowDraftsTableTableManager(_db, _db.flowDrafts);
+  $$BrainAssignmentsTableTableTableManager get brainAssignmentsTable =>
+      $$BrainAssignmentsTableTableTableManager(_db, _db.brainAssignmentsTable);
 }

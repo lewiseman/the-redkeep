@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../../core/presentation/diary_typography.dart';
+
 /// Ruled writing lines that open the editor. Optional text follows the lines.
 class DiaryWritingPrompt extends StatefulWidget {
   const DiaryWritingPrompt({super.key, required this.onTap, this.text});
@@ -86,52 +88,6 @@ class _DiaryWritingPromptState extends State<DiaryWritingPrompt> {
     _blankHeight = lineHeight * 2 + 4;
     _layoutKey = key;
     text.dispose();
-  }
-
-  // Bake a drifting centerline and uneven pen pressure into one filled shape.
-  // The seed keeps the imperfections still across repaints and page turns.
-  Path _stroke(double left, double right, double y, int index) {
-    final width = math.max(0.0, right - left);
-    final random = math.Random(104729 + index * 7919);
-    final inset = math.min(1.5, width * .01);
-    final start = left + random.nextDouble() * inset;
-    final end = right - random.nextDouble() * inset;
-    final phase = random.nextDouble() * math.pi * 2;
-    final segments = (width / 22).round().clamp(6, 18);
-    final upper = <Offset>[];
-    final lower = <Offset>[];
-    for (var point = 0; point <= segments; point++) {
-      final t = point / segments;
-      final drift =
-          (math.sin(t * math.pi * 1.6 + phase) * 1.05 +
-                  math.sin(t * math.pi * 4.3 + phase * .7) * .35 +
-                  (random.nextDouble() - .5) * .65 -
-                  .45)
-              .clamp(-1.6, .6);
-      final taper = .12 + .88 * (math.min(t, 1 - t) / .12).clamp(0.0, 1.0);
-      final pressure = (.36 + random.nextDouble() * .36) * taper;
-      final x = start + (end - start) * t;
-      upper.add(Offset(x, y + drift - pressure));
-      lower.add(Offset(x, y + drift + pressure));
-    }
-    final path = Path()..moveTo(upper.first.dx, upper.first.dy);
-    void trace(List<Offset> edge) {
-      for (var point = 1; point < edge.length - 1; point++) {
-        final middle = Offset.lerp(edge[point], edge[point + 1], .5)!;
-        path.quadraticBezierTo(
-          edge[point].dx,
-          edge[point].dy,
-          middle.dx,
-          middle.dy,
-        );
-      }
-      path.lineTo(edge.last.dx, edge.last.dy);
-    }
-
-    trace(upper);
-    path.lineTo(lower.last.dx, lower.last.dy);
-    trace(lower.reversed.toList());
-    return path..close();
   }
 
   @override
@@ -220,4 +176,123 @@ class _WritingLinesPainter extends CustomPainter {
   @override
   bool shouldRepaint(_WritingLinesPainter oldDelegate) =>
       lines != oldDelegate.lines || color != oldDelegate.color;
+}
+
+/// A blank day title uses the same pen strokes as the body invitation.
+class DiaryTitlePrompt extends StatelessWidget {
+  const DiaryTitlePrompt({super.key, required this.onTap, this.title = ''});
+
+  final VoidCallback? onTap;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Semantics(
+      button: true,
+      enabled: onTap != null,
+      label: title.isEmpty ? 'Name this day' : 'Edit day title: $title',
+      onTap: onTap,
+      excludeSemantics: true,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          key: const ValueKey('diary-day-title'),
+          onTap: onTap,
+          excludeFromSemantics: true,
+          borderRadius: BorderRadius.circular(4),
+          splashColor: colors.primary.withValues(alpha: .06),
+          highlightColor: colors.primary.withValues(alpha: .03),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 48),
+            child: title.isNotEmpty
+                ? Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: Text(
+                      title,
+                      style: DiaryTypography.of(context).title
+                          .copyWith(color: colors.onSurface),
+                    ),
+                  )
+                : LayoutBuilder(
+                    builder: (context, constraints) {
+                      final spacing = MediaQuery.textScalerOf(context)
+                          .scale(30.6);
+                      return CustomPaint(
+                        painter: _WritingLinesPainter(
+                          lines: [
+                            _stroke(
+                              1,
+                              constraints.maxWidth - 1,
+                              spacing - 2,
+                              0,
+                            ),
+                            _stroke(
+                              2,
+                              constraints.maxWidth / 2,
+                              spacing * 2 - 2,
+                              1,
+                            ),
+                          ],
+                          color: colors.onSurfaceVariant.withValues(
+                            alpha: colors.brightness == Brightness.dark
+                                ? .42
+                                : .30,
+                          ),
+                        ),
+                        child: SizedBox(height: spacing * 2 + 4),
+                      );
+                    },
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Bake a drifting centerline and uneven pen pressure into one filled shape.
+// The seed keeps the imperfections still across repaints and page turns.
+Path _stroke(double left, double right, double y, int index) {
+  final width = math.max(0.0, right - left);
+  final random = math.Random(104729 + index * 7919);
+  final inset = math.min(1.5, width * .01);
+  final start = left + random.nextDouble() * inset;
+  final end = right - random.nextDouble() * inset;
+  final phase = random.nextDouble() * math.pi * 2;
+  final segments = (width / 22).round().clamp(6, 18);
+  final upper = <Offset>[];
+  final lower = <Offset>[];
+  for (var point = 0; point <= segments; point++) {
+    final t = point / segments;
+    final drift =
+        (math.sin(t * math.pi * 1.6 + phase) * 1.05 +
+                math.sin(t * math.pi * 4.3 + phase * .7) * .35 +
+                (random.nextDouble() - .5) * .65 -
+                .45)
+            .clamp(-1.6, .6);
+    final taper = .12 + .88 * (math.min(t, 1 - t) / .12).clamp(0.0, 1.0);
+    final pressure = (.36 + random.nextDouble() * .36) * taper;
+    final x = start + (end - start) * t;
+    upper.add(Offset(x, y + drift - pressure));
+    lower.add(Offset(x, y + drift + pressure));
+  }
+  final path = Path()..moveTo(upper.first.dx, upper.first.dy);
+  void trace(List<Offset> edge) {
+    for (var point = 1; point < edge.length - 1; point++) {
+      final middle = Offset.lerp(edge[point], edge[point + 1], .5)!;
+      path.quadraticBezierTo(
+        edge[point].dx,
+        edge[point].dy,
+        middle.dx,
+        middle.dy,
+      );
+    }
+    path.lineTo(edge.last.dx, edge.last.dy);
+  }
+
+  trace(upper);
+  path.lineTo(lower.last.dx, lower.last.dy);
+  trace(lower.reversed.toList());
+  return path..close();
 }

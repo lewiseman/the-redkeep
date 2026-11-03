@@ -67,8 +67,12 @@ void main() {
       return;
     }
     if (label == 'Name this day') {
-      await tester.ensureVisible(find.byTooltip(label).hitTestable());
-      await tester.tap(find.byTooltip(label).hitTestable());
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('diary-day-title')).hitTestable(),
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('diary-day-title')).hitTestable(),
+      );
       await tester.pumpAndSettle();
       return;
     }
@@ -93,6 +97,9 @@ void main() {
     await tester.tap(control);
     await tester.pumpAndSettle();
   }
+
+  Future<DiaryDay> storedDay(WidgetTester tester) async =>
+      (await tester.runAsync(() => repo.watchDay(date).first))!;
 
   Future<void> seed({
     String body = 'Exact writing 👩🏽‍💻 中文 e\u0301',
@@ -243,6 +250,89 @@ void main() {
   );
 
   diaryTest(
+    'card title opens its own page, saves and clears without changing entries',
+    (tester) async {
+      await seed();
+      final original = (await repo.openDocument(id)).entry!;
+      final router = await pumpApp(
+        tester,
+        initialLocation: diaryDayLocation(date),
+        diary: repo,
+      );
+      await tap(tester, 'Name this day');
+      expect(
+        router.routeInformationProvider.value.uri.path,
+        diaryTitleLocation(date),
+      );
+      expect(find.byType(Dialog), findsNothing);
+      await tester.enterText(find.byType(TextField), 'A day to remember');
+      await tap(tester, 'Save title');
+      expect(
+        router.routeInformationProvider.value.uri.path,
+        diaryDayLocation(date),
+      );
+      expect(liveText('A day to remember'), findsOneWidget);
+      expect((await storedDay(tester)).heading, 'A day to remember');
+
+      await tap(tester, 'Name this day');
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        'A day to remember',
+      );
+      await tester.enterText(find.byType(TextField), '');
+      await tap(tester, 'Save title');
+      expect((await storedDay(tester)).heading, '');
+      expect(find.byType(DiaryTitlePrompt).hitTestable(), findsOneWidget);
+      final unchanged = (await repo.openDocument(id)).entry!;
+      expect(unchanged.revision, original.revision);
+      expect(unchanged.text.title, original.text.title);
+      expect(unchanged.text.body, original.text.body);
+    },
+  );
+
+  diaryTest(
+    'title editor protects unsaved changes and keeps the draft after a stale save',
+    (tester) async {
+      final router = await pumpApp(
+        tester,
+        initialLocation: diaryDayLocation(date),
+        diary: repo,
+      );
+      await tap(tester, 'Name this day');
+      await tester.enterText(find.byType(TextField), 'Draft title');
+      await tester.pumpAndSettle();
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      await tap(tester, 'Keep writing');
+      expect(
+        router.routeInformationProvider.value.uri.path,
+        diaryTitleLocation(date),
+      );
+      await repo.renameDay(await storedDay(tester), 'Newer title');
+      await tester.pumpAndSettle();
+      await tap(tester, 'Save title');
+      expect(
+        find.text('Title could not be saved. Reopen the day and retry.'),
+        findsOneWidget,
+      );
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        'Draft title',
+      );
+      expect((await storedDay(tester)).heading, 'Newer title');
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      await tap(tester, 'Discard');
+      expect(
+        router.routeInformationProvider.value.uri.path,
+        diaryDayLocation(date),
+      );
+      expect(liveText('Newer title'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  diaryTest(
     'selected calendar month, date steps and heading survive entry visits',
     (tester) async {
       final leap = CivilDate(2024, 2, 29);
@@ -276,7 +366,7 @@ void main() {
       await tap(tester, 'Previous day');
       await tap(tester, 'Name this day');
       await tester.enterText(find.byType(TextField), 'Leap day notebook');
-      await tap(tester, 'Save heading');
+      await tap(tester, 'Save title');
       expect(liveText('Leap day notebook'), findsOneWidget);
       await tap(tester, 'Calendar for this month');
       expect(find.byType(DiaryCalendarPage), findsOneWidget);
@@ -492,7 +582,7 @@ void main() {
           await tester.pumpAndSettle();
           await tap(tester, 'Name this day');
           await tester.enterText(find.byType(TextField), 'Large text heading');
-          await tap(tester, 'Save heading');
+          await tap(tester, 'Save title');
           expect(liveText('Large text heading'), findsOneWidget);
           expect(tester.takeException(), isNull);
           router.go(diaryEntryLocation(date, id));

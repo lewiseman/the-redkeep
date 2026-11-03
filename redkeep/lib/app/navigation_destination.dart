@@ -62,6 +62,11 @@ String _destination(String location) {
     return location;
   }
   if (location == '/diary/search') return location;
+  final diaryTitle = RegExp(r'^/diary/(\d{4}-\d{2}-\d{2})/title$')
+      .firstMatch(location);
+  if (diaryTitle != null && CivilDate.tryParse(diaryTitle[1]!) != null) {
+    return location;
+  }
   final diary = RegExp(
     r'^/diary/(?:calendar/)?(\d{4}-\d{2}-\d{2})(?:/entries/([0-9a-f]{32})(/edit)?)?$',
   ).firstMatch(location);
@@ -105,6 +110,7 @@ String _gate(String path, String destination) =>
     Uri(path: path, queryParameters: {'continue': destination}).toString();
 
 String diaryDayLocation(CivilDate date) => '/diary/${date.key}';
+String diaryTitleLocation(CivilDate date) => '/diary/${date.key}/title';
 String diaryCalendarLocation(CivilDate date) => '/diary/calendar/${date.key}';
 String diaryEntryLocation(CivilDate date, String id, {bool edit = false}) =>
     isDiaryId(id)

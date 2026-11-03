@@ -10,6 +10,7 @@ import '../features/diary/presentation/diary_calendar_page.dart';
 import '../features/diary/presentation/diary_day_page.dart';
 import '../features/diary/presentation/diary_entry_page.dart';
 import '../features/diary/presentation/diary_edit_page.dart';
+import '../features/diary/presentation/diary_title_page.dart';
 import '../features/diary/presentation/diary_search_page.dart';
 
 import 'package:flutter/material.dart';
@@ -106,6 +107,18 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
                       ),
                     ),
                     routes: [
+                      GoRoute(
+                        path: 'title',
+                        pageBuilder: (context, state) => _page(
+                          state,
+                          DiaryTitlePage(
+                            key: ValueKey(state.uri.path),
+                            date: CivilDate.tryParse(
+                              state.pathParameters['date']!,
+                            )!,
+                          ),
+                        ),
+                      ),
                       GoRoute(
                         path: 'entries/:id',
                         pageBuilder: (context, state) => _page(

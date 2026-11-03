@@ -150,6 +150,7 @@ void main() {
         '/diary/search',
         '/diary/calendar/2024-02-29',
         '/diary/2026-11-01',
+        '/diary/2026-11-01/title',
         '/diary/2026-11-01/entries/$id',
         '/diary/2026-11-01/entries/$id/edit',
       ]) {
@@ -160,6 +161,10 @@ void main() {
       }
       for (final path in [
         '/diary/2026-02-29',
+        '/diary/2026-02-29/title',
+        '/diary/calendar/2026-11-01/title',
+        '/diary/2026-11-01/title/extra',
+        '/diary/2026-11-01/title?text=secret',
         '/diary/0000-01-01',
         '/diary/2026-11-01T00:00:00Z',
         '/diary/2026-1-01',

@@ -172,13 +172,12 @@ class DiaryDayContent extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (day.heading.isNotEmpty) ...[
-              Padding(
-                padding: const EdgeInsets.only(right: 32),
-                child: Text(
-                  day.heading,
-                  style: typography.title.copyWith(color: colors.foreground),
-                ),
+            if (day.heading.isNotEmpty || canEdit) ...[
+              DiaryTitlePrompt(
+                title: day.heading,
+                onTap: interactive && canEdit && !busy
+                    ? () => context.go(diaryTitleLocation(day.date))
+                    : null,
               ),
               const SizedBox(height: 26),
             ],
@@ -241,83 +240,14 @@ class DiaryDayContent extends ConsumerWidget {
           vertical: 24,
           horizontal: math.max(24, (constraints.maxWidth - 560) / 2),
         ),
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: math.max(0, minimumHeight - 48),
-              ),
-              child: content,
-            ),
-            if (canEdit)
-              Positioned(
-                top: -12,
-                right: -16,
-                child: IconButton(
-                  tooltip: 'Name this day',
-                  icon: Icon(
-                    Icons.edit_outlined,
-                    size: 18,
-                    color: colors.secondary,
-                  ),
-                  onPressed: !interactive || busy
-                      ? null
-                      : () => renameDiaryDay(context, ref, day),
-                ),
-              ),
-          ],
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight: math.max(0, minimumHeight - 48),
+          ),
+          child: content,
         ),
       ),
     );
-  }
-}
-
-Future<void> renameDiaryDay(
-  BuildContext context,
-  WidgetRef ref,
-  DiaryPaperDay paper,
-) async {
-  final day = ref.read(diaryDayProvider(paper.date)).value;
-  if (day == null) return;
-  final controller = TextEditingController(text: day.heading);
-  final heading = await showDialog<String>(
-    context: context,
-    animationStyle: AnimationStyle.noAnimation,
-    builder: (context) => DiaryDialog(
-      children: [
-        Text('Name this day', style: Theme.of(context).textTheme.headlineSmall),
-        TextField(
-          controller: controller,
-          style: DiaryTypography.of(context).title,
-          maxLength: 160,
-          maxLines: null,
-          decoration: const InputDecoration(labelText: 'Day heading'),
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.pop(context, controller.text),
-          child: const Text('Save heading'),
-        ),
-      ],
-    ),
-  );
-  WidgetsBinding.instance.addPostFrameCallback((_) => controller.dispose());
-  if (heading == null) return;
-  try {
-    await ref
-        .read(diaryActionsProvider.notifier)
-        .run((repo) => repo.renameDay(day, heading));
-  } catch (_) {
-    if (context.mounted) {
-      diaryMessage(
-        context,
-        'Heading could not be saved. Reload the day and retry.',
-      );
-    }
   }
 }
 

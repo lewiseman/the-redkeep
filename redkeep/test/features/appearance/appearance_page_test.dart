@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:redkeep/core/presentation/paper_surface.dart';
+import 'package:redkeep/features/diary/presentation/diary_paper_material.dart';
 import 'package:redkeep/core/presentation/redkeep_theme.dart';
 import 'package:redkeep/core/presentation/rendering_policy.dart';
 import 'package:redkeep/features/appearance/domain/appearance_preferences.dart';
@@ -38,7 +38,7 @@ void main() {
       await tester.pageBack();
       await tester.pump();
       await tester.pump();
-      expect(find.text('My diary'), findsOneWidget);
+      expect(find.byKey(const ValueKey('diary-active-paper')), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );
@@ -83,7 +83,7 @@ void main() {
       expect(RenderingPolicyScope.of(context).simplerEffects, isTrue);
       await tester.pageBack();
       await tester.pumpAndSettle();
-      expect(find.text('My diary'), findsOneWidget);
+      expect(find.byKey(const ValueKey('diary-active-paper')), findsOneWidget);
     },
   );
 
@@ -188,22 +188,17 @@ void main() {
     final repository = FakeAppearanceRepository();
     addTearDown(repository.close);
     await pumpApp(tester, repository: repository);
-    BoxDecoration decoration() =>
+    DiaryPaperPainter painter() =>
         tester
-                .widget<DecoratedBox>(
-                  find
-                      .descendant(
-                        of: find.byType(PaperSurface),
-                        matching: find.byType(DecoratedBox),
-                      )
-                      .first,
+                .widget<CustomPaint>(
+                  find.byKey(const ValueKey('diary-active-paper')),
                 )
-                .decoration
-            as BoxDecoration;
-    expect(decoration().boxShadow, isNotEmpty);
+                .painter!
+            as DiaryPaperPainter;
+    expect(painter().shadow, isTrue);
     repository.emit(const AppearancePreferences(simplerEffects: true));
     await tester.pumpAndSettle();
-    expect(decoration().boxShadow, isEmpty);
+    expect(painter().shadow, isFalse);
   });
 
   test('light and dark paper retain readable text and control contrast', () {

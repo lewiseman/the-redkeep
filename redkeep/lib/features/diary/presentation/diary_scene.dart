@@ -236,8 +236,9 @@ class DiaryScene extends StatelessWidget {
       return Semantics(
         container: true,
         customSemanticsActions: {
-          const CustomSemanticsAction(label: 'Previous day'): () =>
-              onDateChanged(TimeHelper.addDays(day.calendarDate, -1)),
+          if (day.date.shift(-1) != null)
+            const CustomSemanticsAction(label: 'Previous day'): () =>
+                onDateChanged(TimeHelper.addDays(day.calendarDate, -1)),
           if (day.calendarDate.isBefore(today))
             const CustomSemanticsAction(label: 'Next day'): () =>
                 onDateChanged(TimeHelper.addDays(day.calendarDate, 1)),
@@ -289,7 +290,7 @@ class DiaryScene extends StatelessWidget {
                       ),
                     ),
                   ),
-                face(previous, current: false),
+                if (previous.date != day.date) face(previous, current: false),
                 if (day.calendarDate.isBefore(today))
                   face(next(), current: false),
                 face(day, current: true),

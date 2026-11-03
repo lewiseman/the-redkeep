@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/navigation_destination.dart';
 import 'diary_widgets.dart';
+import 'diary_style.dart' show TimeHelper, TimeFormat;
 import '../application/diary_editor_controller.dart';
 import '../domain/diary_document.dart';
 
@@ -101,16 +102,26 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'Write a diary entry',
-                    style: Theme.of(context).textTheme.headlineSmall,
+                    TimeHelper.format(
+                      DateTime(
+                        widget.address.date.year,
+                        widget.address.date.month,
+                        widget.address.date.day,
+                      ),
+                      pattern: TimeFormat.shortWeekdayDate,
+                      locale: Localizations.localeOf(context).toString(),
+                    ),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontSize: 12,
+                      letterSpacing: .5,
+                    ),
                   ),
-                  const SizedBox(height: 12),
-                  Text(widget.address.date.key),
                   if (state.sourceUnavailable)
                     const Text(
                       'The original entry was deleted. Save a copy to keep this writing as a new entry.',
                     ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
                   TextField(
                     key: const ValueKey('diary-title'),
                     style: DiaryTypography.of(context).title,

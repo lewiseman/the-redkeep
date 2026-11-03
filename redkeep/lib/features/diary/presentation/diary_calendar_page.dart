@@ -620,7 +620,24 @@ class _CalendarMonth extends StatelessWidget {
                   ],
                 ),
               ),
-              if (week < weeks - 1) const SizedBox(height: 8),
+              if (TimeHelper.addDays(monday, week * 7 + 6).month ==
+                      month.month &&
+                  TimeHelper.addDays(monday, week * 7 + 6).isBefore(lastDate))
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  child: Text(
+                    '${TimeHelper.format(TimeHelper.addDays(monday, week * 7), pattern: TimeFormat.localizedMonthDay, locale: locale)} – ${TimeHelper.format(TimeHelper.addDays(monday, week * 7 + 6), pattern: TimeFormat.localizedMonthDay, locale: locale)}',
+                    style: TextStyle(
+                      fontSize: 9,
+                      color: colors.onSurfaceVariant.withValues(alpha: .65),
+                    ),
+                  ),
+                )
+              else if (week < weeks - 1)
+                const SizedBox(height: 8),
             ],
           ],
         ),
@@ -747,24 +764,27 @@ class _CalendarDateState extends State<_CalendarDate> {
                                   )
                                 : null,
                             alignment: Alignment.center,
-                            child: Text(
-                              '${widget.date.day}',
-                              maxLines: 1,
-                              softWrap: false,
-                              style: TextStyle(
-                                fontSize: 15,
-                                height: 1.25,
-                                fontWeight: widget.selected || widget.today
-                                    ? FontWeight.w600
-                                    : FontWeight.w500,
-                                color:
-                                    data.hasEntry ||
-                                        widget.selected ||
-                                        widget.today
-                                    ? ink
-                                    : colors.onSurfaceVariant.withValues(
-                                        alpha: .65,
-                                      ),
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                '${widget.date.day}',
+                                maxLines: 1,
+                                softWrap: false,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  height: 1.25,
+                                  fontWeight: widget.selected || widget.today
+                                      ? FontWeight.w600
+                                      : FontWeight.w500,
+                                  color:
+                                      data.hasEntry ||
+                                          widget.selected ||
+                                          widget.today
+                                      ? ink
+                                      : colors.onSurfaceVariant.withValues(
+                                          alpha: .65,
+                                        ),
+                                ),
                               ),
                             ),
                           ),

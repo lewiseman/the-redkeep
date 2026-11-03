@@ -94,6 +94,7 @@ class _DiarySearchPromptsState extends State<DiarySearchPrompts> {
               ),
             ),
             Flexible(
+              flex: MediaQuery.textScalerOf(context).scale(13) > 20 ? 1 : 0,
               child: TextButton.icon(
                 key: const ValueKey('diary-search-more-ideas'),
                 onPressed: _moreIdeas,

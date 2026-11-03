@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:redkeep/app/navigation_destination.dart';
+import 'package:redkeep/app/bottom_navbar.dart';
 import 'package:redkeep/core/storage/app_database.dart';
 import 'package:redkeep/features/appearance/domain/appearance_preferences.dart';
 import 'package:redkeep/features/diary/application/diary_paper_providers.dart';
@@ -45,10 +46,24 @@ void main() {
     for (final font in <(String, String)>[
       ('Caveat', '../assets/reference/website/fonts/Caveat-Medium.ttf'),
       ('Lora', '../assets/reference/website/fonts/Lora-Regular.ttf'),
-      ('Poppins', File.fromUri(File(Platform.resolvedExecutable).uri.resolve('../../material_fonts/Roboto-Regular.ttf')).path),
-      ('MaterialIcons', 'build/unit_test_assets/fonts/MaterialIcons-Regular.otf'),
+      (
+        'Poppins',
+        File.fromUri(
+          File(Platform.resolvedExecutable).uri
+              .resolve('../../material_fonts/Roboto-Regular.ttf'),
+        ).path,
+      ),
+      (
+        'MaterialIcons',
+        'build/unit_test_assets/fonts/MaterialIcons-Regular.otf',
+      ),
     ]) {
-      await (FontLoader(font.$1)..addFont(Future.value(ByteData.sublistView(await File(font.$2).readAsBytes())))).load();
+      await (FontLoader(font.$1)..addFont(
+            Future.value(
+              ByteData.sublistView(await File(font.$2).readAsBytes()),
+            ),
+          ))
+          .load();
     }
   });
   late AppDatabase db;
@@ -121,6 +136,7 @@ void main() {
         diary: repo,
       );
       expect(scene(tester).day.date, today);
+      expect(find.byType(RedkeepBottomNavbar), findsOneWidget);
       final paper = find.byKey(const ValueKey('diary-active-paper'));
       final start = tester.getRect(paper).center;
       final gesture = await tester.startGesture(start);
@@ -157,6 +173,57 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(scene(tester).day.date, today);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  sceneTest(
+    'the curved date pin stays on today while focus and page turns move',
+    (tester) async {
+      final router = await pumpApp(
+        tester,
+        initialLocation: '/diary',
+        diary: repo,
+      );
+      final pin = find.byKey(const ValueKey('diary-calendar-pin'));
+      final todayTab = find.byKey(
+        ValueKey(
+          'diary-calendar-date-${DateTime(2026, 11, 2).toIso8601String()}',
+        ),
+      );
+      void expectTodayPinned() {
+        expect(pin, findsOneWidget);
+        expect(find.descendant(of: todayTab, matching: pin), findsOneWidget);
+        expect(
+          tester
+              .getRect(pin)
+              .overlaps(tester.getRect(find.byType(DiaryCalendar).last)),
+          isTrue,
+        );
+        for (final opacity in tester.widgetList<Opacity>(
+          find.ancestor(of: pin, matching: find.byType(Opacity)),
+        )) {
+          expect(opacity.opacity, greaterThan(0));
+        }
+      }
+
+      expectTodayPinned();
+      scene(tester).onDateChanged(DateTime(2026, 11, 1));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 60));
+      expectTodayPinned();
+      await tester.pumpAndSettle();
+      expect(scene(tester).day.date, today.shift(-1));
+      expectTodayPinned();
+      scene(tester).onDateChanged(DateTime(2026, 10, 31));
+      await tester.pumpAndSettle();
+      expectTodayPinned();
+      router.go(diaryDayLocation(today.shift(-10)!));
+      await tester.pumpAndSettle();
+      expect(pin, findsNothing);
+      router.go(diaryDayLocation(today));
+      await tester.pumpAndSettle();
+      expectTodayPinned();
       expect(tester.takeException(), isNull);
     },
   );
@@ -325,12 +392,111 @@ void main() {
     },
   );
 
+  sceneTest('earliest civil day has no previous face or underflow', (
+    tester,
+  ) async {
+    final first = CivilDate(1, 1, 1);
+    await pumpApp(
+      tester,
+      initialLocation: diaryDayLocation(first),
+      diary: repo,
+    );
+    expect(scene(tester).day.date, first);
+    await tester.dragFrom(
+      tester.getRect(find.byKey(const ValueKey('diary-active-paper'))).center,
+      const Offset(300, 0),
+    );
+    await tester.pumpAndSettle();
+    expect(scene(tester).day.date, first);
+    expect(tester.takeException(), isNull);
+  });
+
+  sceneTest(
+    'reduced motion enabled during a committed turn finishes and releases input',
+    (tester) async {
+      final appearance = FakeAppearanceRepository();
+      addTearDown(appearance.close);
+      await pumpApp(
+        tester,
+        initialLocation: '/diary',
+        diary: repo,
+        repository: appearance,
+      );
+      scene(tester).onDateChanged(DateTime(2026, 11, 1));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 30));
+      appearance.emit(const AppearancePreferences(reduceMotion: true));
+      await tester.pumpAndSettle();
+      expect(scene(tester).day.date, today.shift(-1));
+      expect(scene(tester).busy, isFalse);
+      scene(tester).onDateChanged(DateTime(2026, 11, 2));
+      await tester.pumpAndSettle();
+      expect(scene(tester).day.date, today);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  sceneTest('seven-column calendar remains usable at 320px and 3x text', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    tester.platformDispatcher.textScaleFactorTestValue = 3;
+    addTearDown(tester.view.reset);
+    addTearDown(tester.platformDispatcher.clearAllTestValues);
+    final leap = CivilDate(2024, 2, 29);
+    final router = await pumpApp(
+      tester,
+      initialLocation: diaryCalendarLocation(leap),
+      diary: repo,
+    );
+    await tester.ensureVisible(day(leap));
+    await tester.pumpAndSettle();
+    expect(tester.getSize(day(leap)).width, greaterThanOrEqualTo(44));
+    expect(day(leap).hitTestable(), findsOneWidget);
+    await tester.tap(day(leap));
+    await tester.pumpAndSettle();
+    expect(
+      router.routeInformationProvider.value.uri.path,
+      diaryDayLocation(leap),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  sceneTest(
+    'keyword suggestions refresh and submit without starting AI features',
+    (tester) async {
+      await seed();
+      await pumpApp(tester, initialLocation: '/diary/search', diary: repo);
+      final ideas = find.byKey(const ValueKey('diary-search-more-ideas'));
+      expect(ideas.hitTestable(), findsOneWidget);
+      expect(tester.getSize(ideas).width, greaterThanOrEqualTo(44));
+      await tester.tap(ideas);
+      await tester.pumpAndSettle();
+      expect(find.text('route'), findsOneWidget);
+      await tester.tap(ideas);
+      await tester.pumpAndSettle();
+      final coffee = find.text('coffee');
+      await tester.ensureVisible(coffee);
+      await tester.pumpAndSettle();
+      await tester.tap(coffee);
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('diary-search-match-0')),
+        findsOneWidget,
+      );
+      expect(find.textContaining('paired computer'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   for (final theme in [AppTheme.light, AppTheme.dark]) {
     sceneTest('paper, calendar, search and editor visual review $theme', (
       tester,
     ) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1;
+      tester.view.padding = const FakeViewPadding(top: 24, bottom: 16);
       addTearDown(tester.view.reset);
       await seed();
       final appearance = FakeAppearanceRepository(
@@ -346,14 +512,17 @@ void main() {
       await capture(tester, '${theme.name}-diary');
       router.go(diaryCalendarLocation(today));
       await tester.pumpAndSettle();
+      expect(find.byType(RedkeepBottomNavbar), findsNothing);
       await capture(tester, '${theme.name}-calendar');
       router.go('/diary/search');
       await tester.pumpAndSettle();
+      expect(find.byType(RedkeepBottomNavbar), findsNothing);
       await capture(tester, '${theme.name}-search');
       await submit(tester, 'coffee');
       await capture(tester, '${theme.name}-results');
       router.go(diaryEntryLocation(today, id, edit: true));
       await tester.pumpAndSettle();
+      expect(find.byType(RedkeepBottomNavbar), findsNothing);
       await capture(tester, '${theme.name}-editor');
       expect(tester.takeException(), isNull);
     });
@@ -363,7 +532,9 @@ void main() {
 Future<void> capture(WidgetTester tester, String name) async {
   if (!const bool.fromEnvironment('DIARY_CAPTURES')) return;
   for (var i = 0; i < 3; i++) {
-    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 30)));
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 30)),
+    );
     await tester.pumpAndSettle();
   }
   for (final element in find.byType(Image).evaluate().toList()) {
@@ -371,10 +542,18 @@ Future<void> capture(WidgetTester tester, String name) async {
     await tester.runAsync(() async {
       // Restart loads begun in the widget test's fake I/O zone.
       await image.image.evict();
-      await precacheImage(image.image, element).timeout(const Duration(seconds: 3));
+      await precacheImage(
+        image.image,
+        element,
+      ).timeout(const Duration(seconds: 3));
     });
   }
-  await tester.binding.reassembleApplication();
+  for (final element in find.byType(Image).evaluate().toList()) {
+    // Reconnect just the image listeners to the cache populated in real I/O.
+    // A full app reassemble also resets unrelated button and route animations.
+    // ignore: invalid_use_of_protected_member
+    element.reassemble();
+  }
   await tester.pumpAndSettle();
   final boundary = tester.renderObject<RenderRepaintBoundary>(
     find.byType(RepaintBoundary).first,

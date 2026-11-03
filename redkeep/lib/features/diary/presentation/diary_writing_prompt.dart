@@ -2,14 +2,13 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-/// Ruled writing lines that open the editor. With a J02 daily question the
-/// lines follow its typography; otherwise they are blank.
+/// Ruled writing lines that open the editor. Optional text follows the lines.
 class DiaryWritingPrompt extends StatefulWidget {
   const DiaryWritingPrompt({super.key, required this.onTap, this.text});
 
   final VoidCallback onTap;
 
-  /// Today's daily question, or null for blank lines.
+  /// Optional invitation, or null for blank lines.
   final String? text;
 
   /// Read by screen readers for blank lines.

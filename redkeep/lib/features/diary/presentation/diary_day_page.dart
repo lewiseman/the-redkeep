@@ -57,6 +57,7 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
   int _direction = 1;
   bool _dragging = false;
   bool _settling = false;
+  bool _commitTurn = false;
   bool _readingTurn = false;
 
   DateTime get _today => TimeHelper.dateOnly(ref.read(diaryClockProvider)());
@@ -100,6 +101,15 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
         setState(() => _fadingFrom = null);
       }
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_settling && _reduced) {
+      _turn.stop(canceled: false);
+      _turn.value = _commitTurn ? 1 : 0;
+    }
   }
 
   @override
@@ -224,6 +234,7 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
     setState(() {
       _dragging = false;
       _settling = true;
+      _commitTurn = commit;
     });
     void finishAtEdge() {
       if (commit ? _turn.value >= 1 : _turn.value <= 0) {

@@ -19,10 +19,15 @@ class WritingShell extends StatelessWidget {
         : location == '/more' || location.startsWith('/settings')
         ? 3
         : 0;
+    final focusedDiary =
+        location == '/diary/search' ||
+        location.startsWith('/diary/calendar/') ||
+        (location.startsWith('/diary/') && location.contains('/entries/'));
     return Scaffold(
       resizeToAvoidBottomInset: false,
       body: child,
-      bottomNavigationBar: MediaQuery.viewInsetsOf(context).bottom > 0
+      bottomNavigationBar:
+          focusedDiary || MediaQuery.viewInsetsOf(context).bottom > 0
           ? null
           : RedkeepBottomNavbar(
               selectedIndex: selected,

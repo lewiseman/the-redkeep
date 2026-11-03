@@ -291,6 +291,12 @@ Grand Maester controls throughout the app; Flow retains its decorative mascot.
 
 `diary_top_bg.png` reuses the previous Journal app illustration unchanged.
 `diary_calendar_pin.png` reuses the existing canonical website artwork.
-Both are project-supplied artwork, installed through the verified mobile catalog.
+The header is project-supplied. The pin was generated with image_gen on
+26 October 2026, as documented in the original `assets/images/ARTWORK.md`.
+Both are installed through the verified mobile catalog.
 Paper grain, silhouettes, stationery drawings and curl geometry are ported
 from the read-only Journal Flutter reference, without external image textures.
+
+Release order: deploy the canonical website artwork, including
+`diary_top_bg.png`, before shipping this mobile catalog. No artwork publication
+is performed by the offline catalog validator or Flutter tests.

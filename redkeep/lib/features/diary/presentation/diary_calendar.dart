@@ -56,6 +56,7 @@ class DiaryCalendar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final localizations = MaterialLocalizations.of(context);
+    final today = TimeHelper.dateOnly(lastDate ?? DateTime.now());
     final textScaler = MediaQuery.textScalerOf(context)
         .clamp(maxScaleFactor: 1.3);
     final collapse = collapseProgress.clamp(0.0, 1.0);
@@ -144,6 +145,7 @@ class DiaryCalendar extends StatelessWidget {
                                     compactDayWidth: compactDayWidth,
                                     textScaler: textScaler,
                                     localizations: localizations,
+                                    today: today,
                                   ),
                               ],
                             ),
@@ -170,6 +172,7 @@ class DiaryCalendar extends StatelessWidget {
     required double compactDayWidth,
     required TextScaler textScaler,
     required MaterialLocalizations localizations,
+    required DateTime today,
   }) {
     final relativeDay = day - dayOffset;
     final distance = relativeDay.abs();
@@ -178,7 +181,6 @@ class DiaryCalendar extends StatelessWidget {
       (1 - distance).clamp(0.0, 1.0),
     );
     final lift = 8 * (1 - prominence) * (1 - collapse);
-    final pinned = day == dayOffset.round();
     final expandedX =
         width / 2 +
         relativeDay.sign *
@@ -199,6 +201,7 @@ class DiaryCalendar extends StatelessWidget {
         lift;
     final targetWidth = ui.lerpDouble(76, compactDayWidth, collapse)!;
     final date = TimeHelper.addDays(selectedDate, day);
+    final pinned = date == today;
     final available = _available(date);
     final canSelect = enabled && available;
     final inactiveInk = Color.lerp(

@@ -23,7 +23,7 @@ final bookImageProvider = FutureProvider.autoDispose
       return provider;
     }, retry: (_, _) => null);
 
-class BookFileImage extends ConsumerWidget {
+class BookFileImage extends ConsumerStatefulWidget {
   const BookFileImage({
     super.key,
     required this.assetKey,
@@ -37,22 +37,34 @@ class BookFileImage extends ConsumerWidget {
   final Alignment alignment;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => ExcludeSemantics(
-    child: ref
-        .watch(bookImageProvider((assetKey, cacheWidth)))
-        .when(
-          loading: () => const SizedBox.expand(),
-          error: (_, _) => const BookArtworkFailure(),
-          data: (provider) => Image(
-            image: provider,
-            fit: fit,
-            alignment: alignment,
-            gaplessPlayback: true,
-            excludeFromSemantics: true,
-            errorBuilder: (_, _, _) => const BookArtworkFailure(),
-          ),
-        ),
-  );
+  ConsumerState<BookFileImage> createState() => _BookFileImageState();
+}
+
+class _BookFileImageState extends ConsumerState<BookFileImage> {
+  ImageProvider? _provider;
+
+  @override
+  Widget build(BuildContext context) {
+    final artwork = ref.watch(
+      bookImageProvider((widget.assetKey, widget.cacheWidth)),
+    );
+    if (artwork.hasError) return const BookArtworkFailure();
+    // Keep the Image mounted while a new decode size resolves. Otherwise the
+    // loading placeholder discards its frame before gaplessPlayback can help.
+    _provider = artwork.asData?.value ?? _provider;
+    return ExcludeSemantics(
+      child: _provider == null
+          ? const SizedBox.expand()
+          : Image(
+              image: _provider!,
+              fit: widget.fit,
+              alignment: widget.alignment,
+              gaplessPlayback: true,
+              excludeFromSemantics: true,
+              errorBuilder: (_, _, _) => const BookArtworkFailure(),
+            ),
+    );
+  }
 }
 
 class BookArtworkFailure extends ConsumerWidget {

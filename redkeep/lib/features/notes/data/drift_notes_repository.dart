@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 
 import '../../../core/storage/app_database.dart';
 import '../domain/note_document.dart';
+import '../domain/note_collection_entry.dart';
 import '../domain/notes_repository.dart';
 import '../domain/notes_query.dart';
 
@@ -16,6 +17,85 @@ class DriftNotesRepository implements NotesRepository {
 
   void _validate(String id) {
     if (!isNoteId(id)) throw const NoteException(NoteFailure.unavailable);
+  }
+
+  @override
+  Stream<List<NoteCollectionEntry>> watchCollection({
+    NotesQuery query = const NotesQuery(),
+    bool draftsOnly = false,
+  }) {
+    final conditions = <String>[
+      if (query.trash)
+        'deleted_at IS NOT NULL'
+      else
+        '(deleted_at IS NULL OR is_draft = 1)',
+      if (draftsOnly) query.trash ? '0' : 'is_draft = 1',
+      if (query.pinnedOnly) 'pinned = 1',
+    ];
+    final variables = <Variable>[];
+    if (query.tag != null) {
+      conditions.add(
+        'EXISTS (SELECT 1 FROM note_tags WHERE note_id = effective.id AND tag = ?)',
+      );
+      variables.add(Variable.withString(query.tag!));
+    }
+    for (final token
+        in query.search
+            .trim()
+            .split(RegExp(r'\s+'))
+            .where((t) => t.isNotEmpty)) {
+      conditions.add(
+        '(instr(lower(title), lower(?)) > 0 OR instr(lower(body), lower(?)) > 0)',
+      );
+      variables.addAll([
+        Variable.withString(token),
+        Variable.withString(token),
+      ]);
+    }
+    // The CTE keeps filtering and overlaying in SQLite. Only the final bounded
+    // excerpt crosses the database boundary, even for very large documents.
+    final source = query.trash
+        ? '''SELECT id, title, body, updated_at, pinned, deleted_at,
+             0 AS is_draft, 0 AS source_unavailable FROM notes'''
+        : '''SELECT ids.id,
+             CASE WHEN d.id IS NOT NULL THEN d.title ELSE n.title END AS title,
+             CASE WHEN d.id IS NOT NULL THEN d.body ELSE n.body END AS body,
+             CASE WHEN d.id IS NOT NULL THEN d.updated_at ELSE n.updated_at END AS updated_at,
+             coalesce(n.pinned, 0) AS pinned, n.deleted_at,
+             (d.id IS NOT NULL) AS is_draft,
+             (d.id IS NOT NULL AND d.base_revision > 0 AND
+               (n.id IS NULL OR n.deleted_at IS NOT NULL)) AS source_unavailable
+           FROM (SELECT id FROM notes UNION SELECT id FROM note_drafts) ids
+           LEFT JOIN notes n ON n.id = ids.id
+           LEFT JOIN note_drafts d ON d.id = ids.id''';
+    return _db
+        .customSelect(
+          '''WITH effective AS ($source)
+         SELECT id, title, substr(body, 1, ${NoteCollectionEntry.excerptCharacters}) AS excerpt,
+           updated_at, pinned, is_draft, source_unavailable
+         FROM effective WHERE ${conditions.join(' AND ')}
+         ORDER BY pinned DESC, updated_at DESC, id''',
+          variables: variables,
+          readsFrom: {_db.notes, _db.noteDrafts, _db.noteTags},
+        )
+        .watch()
+        .map(
+          (rows) => [
+            for (final row in rows)
+              NoteCollectionEntry(
+                id: row.read<String>('id'),
+                title: row.read<String>('title'),
+                excerpt: row.read<String>('excerpt'),
+                updatedAt: DateTime.fromMillisecondsSinceEpoch(
+                  row.read<int>('updated_at'),
+                  isUtc: true,
+                ),
+                pinned: row.read<int>('pinned') == 1,
+                isDraft: row.read<int>('is_draft') == 1,
+                sourceUnavailable: row.read<int>('source_unavailable') == 1,
+              ),
+          ],
+        );
   }
 
   @override

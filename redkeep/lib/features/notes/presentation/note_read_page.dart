@@ -4,13 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../app/app_shell.dart';
 import '../../../app/navigation_destination.dart';
 import '../../../core/presentation/paper_surface.dart';
 import '../application/notes_providers.dart';
 import '../domain/note_document.dart';
 import '../application/note_editor_controller.dart';
 import 'note_markdown_preview.dart';
+import 'note_paper.dart';
 import 'note_action_dialog.dart';
 
 class NoteReadPage extends ConsumerStatefulWidget {
@@ -23,163 +23,273 @@ class NoteReadPage extends ConsumerStatefulWidget {
 class _NoteReadPageState extends ConsumerState<NoteReadPage> {
   String? _error;
   bool _preview = false;
+  final _paper = NotePaperController();
+  final _expansion = ValueNotifier<double>(0);
+
+  @override
+  void dispose() {
+    _paper.dispose();
+    _expansion.dispose();
+    super.dispose();
+  }
+
+  void _back(bool available) {
+    if (available && _expansion.value > 0) {
+      _paper.collapse();
+    } else if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go(AppDestination.notes.location);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    ref.listen(noteDocumentProvider(widget.id), (previous, next) {
+      final before = previous?.value?.note;
+      final after = next.value?.note;
+      if (before != null &&
+          after != null &&
+          before.revision != after.revision) {
+        _paper.collapse();
+      }
+    });
     final opened = ref.watch(noteDocumentProvider(widget.id));
     final canEdit = ref.watch(syncCanEditProvider);
     final busy = ref.watch(notesActionsProvider) || !canEdit;
-    return AppShell(
-      child: opened.when(
-        loading: () => const Text('Loading note…'),
-        error: (_, _) => Column(
-          children: [
-            const Text('This note could not be loaded.'),
-            OutlinedButton(
-              onPressed: () => ref.invalidate(noteDocumentProvider(widget.id)),
-              child: const Text('Retry loading'),
+    final current = opened.value;
+    final note = current?.note;
+    return ValueListenableBuilder<double>(
+      valueListenable: _expansion,
+      builder: (context, expansion, _) => PopScope(
+        canPop: current?.available != true || expansion == 0,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) _paper.collapse();
+        },
+        child: Scaffold(
+          appBar: AppBar(
+            leading: IconButton(
+              tooltip: 'Back',
+              icon: const Icon(Icons.arrow_back_ios_new_rounded),
+              onPressed: () => _back(current?.available == true),
             ),
-          ],
-        ),
-        data: (value) {
-          final note = value.note;
-          if (!value.available) {
-            return PaperSurface(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'Note unavailable',
-                    style: Theme.of(context).textTheme.headlineSmall,
+            actions: [
+              if (current?.available == true) ...[
+                if (expansion > .3 || current!.draft != null)
+                  IconButton(
+                    tooltip: current!.draft == null
+                        ? 'Edit note'
+                        : 'Resume draft',
+                    onPressed: canEdit
+                        ? () => context.go(noteLocation(widget.id, edit: true))
+                        : null,
+                    icon: const Icon(Icons.edit_outlined),
                   ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'This note has not been saved, is missing, or was deleted.',
-                  ),
-                  if (note?.deletedAt != null) ...[
-                    const Text(
-                      'This note is in Trash. Restore it to read or edit the saved text.',
+                PopupMenuButton<String>(
+                  tooltip: 'Note actions',
+                  onSelected: (action) {
+                    switch (action) {
+                      case 'pin':
+                        _act(
+                          () => ref
+                              .read(notesActionsProvider.notifier)
+                              .organize(
+                                note!,
+                                pinned: !note.pinned,
+                                tags: note.tags,
+                              ),
+                        );
+                      case 'tags':
+                        _tags(note!);
+                      case 'preview':
+                        setState(() => _preview = !_preview);
+                      case 'delete':
+                        _delete(note!);
+                    }
+                  },
+                  itemBuilder: (_) => [
+                    PopupMenuItem(
+                      value: 'pin',
+                      enabled: !busy && current.draft == null,
+                      child: Text(note!.pinned ? 'Unpin note' : 'Pin note'),
                     ),
-                    OutlinedButton(
-                      onPressed: busy
-                          ? null
-                          : () => _act(
-                              () => ref
-                                  .read(notesActionsProvider.notifier)
-                                  .restore(note!),
-                            ),
-                      child: const Text('Restore note'),
-                    ),
-                    OutlinedButton(
-                      onPressed: busy ? null : () => _permanentlyDelete(value),
-                      child: const Text('Delete forever'),
-                    ),
-                  ],
-                  if (_error != null) _failure(),
-                  if (value.draft != null)
-                    OutlinedButton(
-                      onPressed: !canEdit
-                          ? null
-                          : () =>
-                                context.go(noteLocation(widget.id, edit: true)),
-                      child: const Text('Open recovery draft'),
-                    ),
-                  FilledButton(
-                    onPressed: () => context.go(AppDestination.notes.location),
-                    child: const Text('Return to Notes'),
-                  ),
-                ],
-              ),
-            );
-          }
-          return PaperSurface(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                SelectableText(
-                  noteTitle(note!.text.title),
-                  style: Theme.of(context).textTheme.headlineSmall,
-                ),
-                const SizedBox(height: 12),
-                Text('Saved revision ${note.revision}'),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 8,
-                  children: [
-                    FilledButton(
-                      onPressed: !canEdit
-                          ? null
-                          : () =>
-                                context.go(noteLocation(widget.id, edit: true)),
-                      child: Text(
-                        value.draft == null ? 'Edit note' : 'Resume draft',
-                      ),
-                    ),
-                    OutlinedButton(
-                      onPressed: busy || value.draft != null
-                          ? null
-                          : () => _act(
-                              () => ref
-                                  .read(notesActionsProvider.notifier)
-                                  .organize(
-                                    note,
-                                    pinned: !note.pinned,
-                                    tags: note.tags,
-                                  ),
-                            ),
-                      child: Text(note.pinned ? 'Unpin note' : 'Pin note'),
-                    ),
-                    OutlinedButton(
-                      onPressed: busy || value.draft != null
-                          ? null
-                          : () => _tags(note),
+                    PopupMenuItem(
+                      value: 'tags',
+                      enabled: !busy && current.draft == null,
                       child: const Text('Edit tags'),
                     ),
-                    OutlinedButton(
-                      onPressed: () => setState(() => _preview = !_preview),
+                    PopupMenuItem(
+                      value: 'preview',
                       child: Text(
                         _preview ? 'Show plain text' : 'Markdown preview',
                       ),
                     ),
-                    OutlinedButton(
-                      onPressed: busy ? null : () => _delete(note),
+                    const PopupMenuDivider(),
+                    PopupMenuItem(
+                      value: 'delete',
+                      enabled: !busy,
                       child: const Text('Delete note'),
                     ),
                   ],
                 ),
-                if (note.tags.isNotEmpty)
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 4,
-                    children: [
-                      for (final tag in note.tags) Chip(label: Text(tag)),
-                    ],
-                  ),
-                if (note.pinned) const Text('Pinned'),
-                if (value.draft != null)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 12),
-                    child: Text(
-                      'A separate recovery draft is available. This is the committed version. Save or discard the draft before changing tags or pinning.',
-                    ),
-                  ),
-                if (_error != null) _failure(),
-                const SizedBox(height: 24),
-                if (_preview)
-                  NoteMarkdownPreview(
-                    key: ValueKey(note.revision),
-                    text: note.text.body,
-                  )
-                else
-                  SelectableText(
-                    note.text.body.isEmpty
-                        ? 'This note is empty.'
-                        : note.text.body,
-                  ),
+                const SizedBox(width: 12),
               ],
+            ],
+          ),
+          body: SafeArea(
+            child: opened.when(
+              loading: () => const Center(child: Text('Loading note…')),
+              error: (_, _) => SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  children: [
+                    const Text('This note could not be loaded.'),
+                    OutlinedButton(
+                      onPressed: () =>
+                          ref.invalidate(noteDocumentProvider(widget.id)),
+                      child: const Text('Retry loading'),
+                    ),
+                  ],
+                ),
+              ),
+              data: (value) {
+                final note = value.note;
+                if (!value.available) {
+                  return SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: PaperSurface(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            'Note unavailable',
+                            style: Theme.of(context).textTheme.headlineSmall,
+                          ),
+                          const SizedBox(height: 12),
+                          const Text(
+                            'This note has not been saved, is missing, or was deleted.',
+                          ),
+                          if (note?.deletedAt != null) ...[
+                            const Text(
+                              'This note is in Trash. Restore it to read or edit the saved text.',
+                            ),
+                            OutlinedButton(
+                              onPressed: busy
+                                  ? null
+                                  : () => _act(
+                                      () => ref
+                                          .read(notesActionsProvider.notifier)
+                                          .restore(note!),
+                                    ),
+                              child: const Text('Restore note'),
+                            ),
+                            OutlinedButton(
+                              onPressed: busy
+                                  ? null
+                                  : () => _permanentlyDelete(value),
+                              child: const Text('Delete forever'),
+                            ),
+                          ],
+                          if (_error != null) _failure(),
+                          if (value.draft != null)
+                            OutlinedButton(
+                              onPressed: !canEdit
+                                  ? null
+                                  : () => context.go(
+                                      noteLocation(widget.id, edit: true),
+                                    ),
+                              child: const Text('Open recovery draft'),
+                            ),
+                          FilledButton(
+                            onPressed: () =>
+                                context.go(AppDestination.notes.location),
+                            child: const Text('Return to Notes'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+                return NotePaper(
+                  controller: _paper,
+                  color: Theme.of(context).colorScheme.surfaceContainerLow,
+                  isPreviewMode: true,
+                  readOnly: !canEdit,
+                  onExpansionChanged: (value) => _expansion.value = value,
+                  onEdit: () => context.go(noteLocation(widget.id, edit: true)),
+                  children: [
+                    SliverToBoxAdapter(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          SelectableText(
+                            noteTitle(note!.text.title),
+                            style: const TextStyle(
+                              fontSize: 24,
+                              height: 1.3,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          if (note.tags.isNotEmpty) ...[
+                            const SizedBox(height: 20),
+                            LayoutBuilder(
+                              builder: (context, constraints) => Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  for (final tag in note.tags)
+                                    ConstrainedBox(
+                                      constraints: BoxConstraints(
+                                        maxWidth: constraints.maxWidth,
+                                      ),
+                                      child: Chip(
+                                        label: Text(
+                                          tag,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        shape: const StadiumBorder(),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 20),
+                          if (_preview)
+                            NoteMarkdownPreview(
+                              key: ValueKey(note.revision),
+                              text: note.text.body,
+                            )
+                          else
+                            SelectableText(
+                              note.text.body.isEmpty
+                                  ? 'This note is empty.'
+                                  : note.text.body,
+                              style: const TextStyle(fontSize: 16, height: 1.6),
+                            ),
+                          const SizedBox(height: 24),
+                          Text(
+                            'Saved revision ${note.revision}',
+                            style: Theme.of(context).textTheme.labelSmall,
+                          ),
+                          if (note.pinned) const Text('Pinned'),
+                          if (value.draft != null) ...[
+                            const SizedBox(height: 12),
+                            const Text(
+                              'A separate recovery draft is available. This is the committed version. Save or discard the draft before changing tags or pinning.',
+                            ),
+                          ],
+                          if (_error != null) _failure(),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
-          );
-        },
+          ),
+        ),
       ),
     );
   }

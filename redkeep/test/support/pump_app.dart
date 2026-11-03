@@ -11,6 +11,7 @@ import 'package:redkeep/features/diary/domain/diary_repository.dart';
 import 'empty_diary_repository.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:redkeep/app/app_router.dart';
@@ -48,6 +49,7 @@ Future<GoRouter> pumpApp(
 }) async {
   final preferences = repository ?? FakeAppearanceRepository();
   if (repository == null) addTearDown(preferences.close);
+  addTearDown(() => tester.pumpWidget(const SizedBox()));
   await tester.pumpWidget(
     ProviderScope(
       overrides: [

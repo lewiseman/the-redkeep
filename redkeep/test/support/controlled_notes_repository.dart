@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:redkeep/features/notes/domain/note_document.dart';
+import 'package:redkeep/features/notes/domain/note_collection_entry.dart';
 import 'package:redkeep/features/notes/domain/notes_repository.dart';
 import 'package:redkeep/features/notes/domain/notes_query.dart';
 
@@ -14,6 +15,14 @@ class ControlledNotesRepository implements NotesRepository {
   Completer<void>? draftGate;
   Completer<void>? commitGate;
   int commits = 0;
+
+  @override
+  Stream<List<NoteCollectionEntry>> watchCollection({
+    NotesQuery query = const NotesQuery(),
+    bool draftsOnly = false,
+  }) => failRead
+      ? Stream.error(StateError('synthetic read failure'))
+      : inner.watchCollection(query: query, draftsOnly: draftsOnly);
 
   @override
   Future<RecoveryDraft> putDraft({

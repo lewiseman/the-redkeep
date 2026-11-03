@@ -1,4 +1,8 @@
 import 'package:redkeep/features/assets/presentation/local_artwork.dart';
+import 'package:redkeep/features/notes/presentation/note_card.dart';
+import 'package:redkeep/features/notes/presentation/note_paper_surface.dart';
+import 'package:redkeep/features/notes/presentation/note_paper.dart';
+import 'package:redkeep/app/bottom_navbar.dart';
 
 import 'dart:async';
 
@@ -47,7 +51,32 @@ void main() {
   Future<void> tap(WidgetTester tester, String text) async {
     FocusManager.instance.primaryFocus?.unfocus();
     await tester.pumpAndSettle();
-    final control = find.text(text);
+    if (text == 'Save note') text = 'Save';
+    final noteActions = {
+      'Pin note',
+      'Unpin note',
+      'Edit tags',
+      'Markdown preview',
+      'Show plain text',
+      'Delete note',
+    };
+    final collectionActions = {'Pinned only', 'Trash', 'Clear filters'};
+    if (noteActions.contains(text) && find.text(text).evaluate().isEmpty) {
+      await tester.tap(find.byTooltip('Note actions'));
+      await tester.pumpAndSettle();
+    }
+    if (collectionActions.contains(text) &&
+        find.text(text).evaluate().isEmpty) {
+      await tester.tap(find.byTooltip('Collection options'));
+      await tester.pumpAndSettle();
+    }
+    var control = find.text(text);
+    if (control.evaluate().isEmpty &&
+        find.byTooltip(text).evaluate().isNotEmpty) {
+      control = find.byTooltip(text).last;
+    } else {
+      control = control.first;
+    }
     if (control.evaluate().isEmpty) {
       await tester.scrollUntilVisible(
         control,
@@ -57,6 +86,11 @@ void main() {
     }
     await tester.ensureVisible(control);
     await tester.pumpAndSettle();
+    final checked = find.ancestor(
+      of: control,
+      matching: find.byType(CheckedPopupMenuItem<String>),
+    );
+    if (checked.evaluate().isNotEmpty) control = checked.first;
     expect(control.hitTestable(), findsOneWidget);
     await tester.tap(control);
     await tester.pumpAndSettle();
@@ -75,6 +109,137 @@ void main() {
     if (committed) await repo.commitDraft(id, draft.draftRevision);
   }
 
+  double paperFold(WidgetTester tester) =>
+      (tester
+                  .widget<ClipPath>(
+                    find
+                        .descendant(
+                          of: find.byType(NotePaper),
+                          matching: find.byType(ClipPath),
+                        )
+                        .first,
+                  )
+                  .clipper!
+              as NotePaperShape)
+          .fold;
+
+  noteTest(
+    'All overlays drafts, Drafts filters cards, and user draft tags stay distinct',
+    (tester) async {
+      await seed();
+      await repo.organize(id, 1, pinned: true, tags: ['drafts']);
+      await repo.putDraft(
+        id: id,
+        text: const PlainTextDocument(
+          title: 'Working title',
+          body: 'Recovery writing',
+        ),
+        baseRevision: 2,
+        expectedDraftRevision: null,
+      );
+      const other = '22222222222222222222222222222222';
+      final saved = await repo.putDraft(
+        id: other,
+        text: const PlainTextDocument(title: 'Other saved note'),
+        baseRevision: 0,
+        expectedDraftRevision: null,
+      );
+      await repo.commitDraft(other, saved.draftRevision);
+      final router = await pumpApp(
+        tester,
+        initialLocation: '/notes',
+        notes: repo,
+      );
+      expect(find.byType(RedkeepBottomNavbar), findsOneWidget);
+      expect(find.byType(NoteCard), findsNWidgets(2));
+      expect(find.text('Synthetic note'), findsNothing);
+      expect(find.text('Working title'), findsOneWidget);
+      expect(find.text('Draft'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('notes-drafts')));
+      await tester.pumpAndSettle();
+      expect(find.byType(NoteCard), findsOneWidget);
+      expect(tester.container().read(notesDraftsOnlyProvider), isTrue);
+      await tester.tap(find.byKey(const ValueKey('notes-tag-drafts')));
+      await tester.pumpAndSettle();
+      expect(tester.container().read(notesDraftsOnlyProvider), isFalse);
+      expect(tester.container().read(notesFilterProvider).tag, 'drafts');
+      await tap(tester, 'Working title');
+      expect(
+        router.routeInformationProvider.value.uri.path,
+        noteLocation(id, edit: true),
+      );
+      expect(find.byType(RedkeepBottomNavbar), findsNothing);
+      expect(
+        tester
+            .widget<TextField>(find.byKey(const ValueKey('note-body')))
+            .controller!
+            .text,
+        'Recovery writing',
+      );
+    },
+  );
+
+  for (final reducedMotion in [false, true]) {
+    noteTest(
+      'reading unfolds and Back collapses without creating a draft; reduced=$reducedMotion',
+      (tester) async {
+        await seed(
+          body: List.filled(80, 'A long line of writing to unfold.').join('\n'),
+        );
+        final appearance = FakeAppearanceRepository(
+          AppearancePreferences(
+            reduceMotion: reducedMotion,
+            simplerEffects: reducedMotion,
+          ),
+        );
+        addTearDown(appearance.close);
+        final router = await pumpApp(
+          tester,
+          initialLocation: noteLocation(id),
+          notes: repo,
+          repository: appearance,
+        );
+        expect(paperFold(tester), greaterThan(0));
+        expect(find.byType(RedkeepBottomNavbar), findsNothing);
+        await tester.drag(
+          find.byType(CustomScrollView).last,
+          const Offset(0, -180),
+        );
+        await tester.pumpAndSettle();
+        expect(paperFold(tester), 0);
+        expect((await repo.openDocument(id)).draft, isNull);
+        expect(
+          router.routeInformationProvider.value.uri.path,
+          noteLocation(id),
+        );
+        await tap(tester, 'Back');
+        expect(paperFold(tester), greaterThan(0));
+        expect(
+          router.routeInformationProvider.value.uri.path,
+          noteLocation(id),
+        );
+        await tap(tester, 'Edit note');
+        expect(paperFold(tester), 0);
+        await tester.enterText(
+          find.byKey(const ValueKey('note-body')),
+          'Changed writing',
+        );
+        await tester.pumpAndSettle();
+        await tap(tester, 'Save');
+        expect(
+          router.routeInformationProvider.value.uri.path,
+          noteLocation(id),
+        );
+        expect(paperFold(tester), greaterThan(0));
+        expect(find.text('Changed writing'), findsOneWidget);
+        expect((await repo.openDocument(id)).draft, isNull);
+        await tap(tester, 'Back');
+        expect(router.routeInformationProvider.value.uri.path, '/notes');
+        expect(find.byType(RedkeepBottomNavbar), findsOneWidget);
+      },
+    );
+  }
+
   noteTest('create, committed feedback, read, edit and confirmed deletion', (
     tester,
   ) async {
@@ -84,11 +249,7 @@ void main() {
       notes: repo,
       noteId: () => id,
     );
-    await tester.scrollUntilVisible(
-      find.text('No saved notes yet. Create your first note.'),
-      160,
-      scrollable: find.byType(Scrollable).first,
-    );
+    expect(find.text('A little room for your thoughts'), findsOneWidget);
     await tap(tester, 'Create note');
     expect(
       router.routeInformationProvider.value.uri.path,
@@ -102,7 +263,6 @@ void main() {
     await tester.pumpAndSettle();
     await tap(tester, 'Save note');
     expect(find.text('Saved revision 1 on this device.'), findsOneWidget);
-    await tap(tester, 'Read committed note');
     expect(find.text('Hello 👩🏽‍💻\nHabari • 中文'), findsOneWidget);
     await tap(tester, 'Edit note');
     await tester.enterText(
@@ -112,7 +272,6 @@ void main() {
     await tester.pumpAndSettle();
     await tap(tester, 'Save note');
     expect(find.text('Saved revision 2 on this device.'), findsOneWidget);
-    await tap(tester, 'Read committed note');
     await tap(tester, 'Delete note');
     await tap(tester, 'Keep note');
     expect((await repo.openDocument(id)).available, isTrue);
@@ -142,14 +301,30 @@ void main() {
         'Uncommitted navigation writing',
       );
       await tester.pumpAndSettle();
-      await tester.pageBack();
+      await tester.tap(
+        find.byTooltip('Close editor').evaluate().isNotEmpty
+            ? find.byTooltip('Close editor')
+            : find.byTooltip('Back'),
+      );
       await tester.pumpAndSettle();
       expect(router.routeInformationProvider.value.uri.path, noteLocation(id));
-      expect(find.text('Resume draft'), findsOneWidget);
-      await tester.pageBack();
+      expect(find.byTooltip('Resume draft'), findsOneWidget);
+      await tester.tap(
+        find.byTooltip('Close editor').evaluate().isNotEmpty
+            ? find.byTooltip('Close editor')
+            : find.byTooltip('Back'),
+      );
       await tester.pumpAndSettle();
-      expect(find.text('Recovery drafts'), findsOneWidget);
-      await tap(tester, 'Recovery draft • from revision 1');
+      if (router.routeInformationProvider.value.uri.path != '/notes') {
+        await tester.tap(
+          find.byTooltip('Close editor').evaluate().isNotEmpty
+              ? find.byTooltip('Close editor')
+              : find.byTooltip('Back'),
+        );
+        await tester.pumpAndSettle();
+      }
+      expect(find.byKey(const ValueKey('notes-drafts')), findsOneWidget);
+      await tap(tester, 'Synthetic note');
       expect(
         tester
             .widget<TextField>(find.byKey(const ValueKey('note-body')))
@@ -184,7 +359,11 @@ void main() {
         'Retain this buffer',
       );
       await tester.pumpAndSettle();
-      await tester.pageBack();
+      await tester.tap(
+        find.byTooltip('Close editor').evaluate().isNotEmpty
+            ? find.byTooltip('Close editor')
+            : find.byTooltip('Back'),
+      );
       await tester.pumpAndSettle();
       expect(
         router.routeInformationProvider.value.uri.path,
@@ -234,7 +413,11 @@ void main() {
       await tap(tester, 'Return to Notes');
       await tap(tester, 'Create note');
       expect((await repo.openDocument(id)).draft, isNull);
-      await tester.pageBack();
+      await tester.tap(
+        find.byTooltip('Close editor').evaluate().isNotEmpty
+            ? find.byTooltip('Close editor')
+            : find.byTooltip('Back'),
+      );
       await tester.pumpAndSettle();
       expect(find.text('Open recovery draft'), findsNothing);
       repo.failRead = true;
@@ -252,10 +435,7 @@ void main() {
         await tester.tap(find.text('Retry loading').first);
         await tester.pumpAndSettle();
       }
-      expect(
-        find.text('No saved notes yet. Create your first note.'),
-        findsOneWidget,
-      );
+      expect(find.text('A little room for your thoughts'), findsOneWidget);
       expect(tester.takeException(), isNull);
       // Router from the first disposed scope is intentionally never reused.
       expect(router, isNotNull);
@@ -412,7 +592,11 @@ void main() {
       'Pending recovery',
     );
     await tester.pump();
-    await tester.pageBack();
+    await tester.tap(
+      find.byTooltip('Close editor').evaluate().isNotEmpty
+          ? find.byTooltip('Close editor')
+          : find.byTooltip('Back'),
+    );
     await tester.pump();
     expect(
       router.routeInformationProvider.value.uri.path,
@@ -478,17 +662,12 @@ void main() {
       expect((await repo.openDocument(id)).note!.tags, ['travel', '工作']);
       router.go('/notes');
       await tester.pumpAndSettle();
-      await tap(tester, 'Search and filters');
       await tester.enterText(
         find.byKey(const ValueKey('notes-search')),
         'synthetic',
       );
       await tap(tester, 'Pinned only');
-      final dropdown = find.byType(DropdownButtonFormField<String>);
-      await tester.ensureVisible(dropdown);
-      await tester.tap(dropdown);
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('travel').last);
+      await tester.tap(find.byKey(const ValueKey('notes-tag-travel')));
       await tester.pumpAndSettle();
       expect(tester.container().read(notesFilterProvider).tag, 'travel');
       await tester.scrollUntilVisible(
@@ -578,10 +757,10 @@ void main() {
         .single;
     expect(art.image, isA<ResizeImage>());
     expect((art.image as ResizeImage).width, 120);
-    expect(find.byType(ListTile).evaluate().length, lessThan(20));
+    expect(find.byType(NoteCard).evaluate().length, lessThan(20));
     await tester.drag(find.byType(CustomScrollView), const Offset(0, -700));
     await tester.pumpAndSettle();
-    expect(find.byType(ListTile).evaluate().length, lessThan(30));
+    expect(find.byType(NoteCard).evaluate().length, lessThan(30));
     expect(tester.takeException(), isNull);
   });
   noteTest(

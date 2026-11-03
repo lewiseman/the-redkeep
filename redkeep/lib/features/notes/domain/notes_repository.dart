@@ -1,7 +1,13 @@
 import 'note_document.dart';
+import 'note_collection_entry.dart';
 import 'notes_query.dart';
 
 abstract interface class NotesRepository {
+  /// Overlay recovery drafts before searching. Trash shows saved sources only.
+  Stream<List<NoteCollectionEntry>> watchCollection({
+    NotesQuery query = const NotesQuery(),
+    bool draftsOnly = false,
+  });
   Stream<List<NoteListing>> watchNotes({NotesQuery query = const NotesQuery()});
   Stream<List<String>> watchTags({bool trash = false});
   Stream<List<NoteListing>> watchDrafts();

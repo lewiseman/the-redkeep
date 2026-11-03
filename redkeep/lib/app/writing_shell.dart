@@ -28,7 +28,9 @@ class WritingShell extends StatelessWidget {
       resizeToAvoidBottomInset: false,
       body: child,
       bottomNavigationBar:
-          focusedDiary || MediaQuery.viewInsetsOf(context).bottom > 0
+          focusedDiary ||
+              location.startsWith('/notes/') ||
+              MediaQuery.viewInsetsOf(context).bottom > 0
           ? null
           : RedkeepBottomNavbar(
               selectedIndex: selected,

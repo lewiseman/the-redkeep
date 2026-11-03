@@ -7,6 +7,7 @@ import '../data/drift_notes_repository.dart';
 import '../data/platform_note_link_launcher.dart';
 import '../domain/note_link_launcher.dart';
 import '../domain/note_document.dart';
+import '../domain/note_collection_entry.dart';
 import '../domain/notes_repository.dart';
 import '../domain/notes_query.dart';
 
@@ -30,6 +31,28 @@ final notesListProvider = StreamProvider.autoDispose<List<NoteListing>>(
       .watchNotes(query: ref.watch(notesFilterProvider)),
   retry: (_, _) => null,
 );
+final notesCollectionProvider =
+    StreamProvider.autoDispose<List<NoteCollectionEntry>>(
+      (ref) => ref
+          .watch(notesRepositoryProvider)
+          .watchCollection(
+            query: ref.watch(notesFilterProvider),
+            draftsOnly: ref.watch(notesDraftsOnlyProvider),
+          ),
+      retry: (_, _) => null,
+    );
+
+/// Separate from tag text: a user tag named "drafts" is still an ordinary tag.
+final notesDraftsOnlyProvider = NotifierProvider<NotesDraftsOnly, bool>(
+  NotesDraftsOnly.new,
+);
+
+class NotesDraftsOnly extends Notifier<bool> {
+  @override
+  bool build() => false;
+  void set(bool value) => state = value;
+}
+
 final recoveryListProvider = StreamProvider.autoDispose<List<NoteListing>>(
   (ref) => ref.watch(notesRepositoryProvider).watchDrafts(),
   retry: (_, _) => null,

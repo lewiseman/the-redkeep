@@ -36,10 +36,12 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
   final _name = TextEditingController();
   final _nameFocus = FocusNode();
   final _scroll = ScrollController();
+  Timer? _autoplay;
   _Stage _stage = _Stage.touring;
   int _page = 0, _direction = 1;
   bool _turning = false, _motion = false;
   bool _dragging = false, _finishingTurn = false;
+  bool _autoplayPaused = false;
 
   @override
   void initState() {
@@ -72,6 +74,20 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
       }
       if (_close.isAnimating) _close.value = _stage == _Stage.opening ? 0 : 1;
     }
+    _scheduleAutoplay();
+  }
+
+  void _scheduleAutoplay() {
+    _autoplay?.cancel();
+    if (!_motion ||
+        _autoplayPaused ||
+        _stage != _Stage.touring ||
+        _turning ||
+        _dragging ||
+        _page == onboardingFeatures.length - 1) {
+      return;
+    }
+    _autoplay = Timer(const Duration(seconds: 5), () => _flip(1));
   }
 
   Future<void> _flip(int direction) async {
@@ -82,6 +98,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
         _page + direction >= onboardingFeatures.length) {
       return;
     }
+    _autoplay?.cancel();
     setState(() {
       _turning = true;
       _direction = direction;
@@ -111,6 +128,12 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
       _turn.value = 0;
     });
     if (_scroll.hasClients) _scroll.jumpTo(0);
+    _scheduleAutoplay();
+  }
+
+  void _startDrag() {
+    _autoplay?.cancel();
+    _dragging = true;
   }
 
   void _updateDrag(double delta, double width) {
@@ -141,11 +164,14 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
           !canceled && (_turn.value > .25 || velocity * _direction < -350),
         ),
       );
+    } else {
+      _scheduleAutoplay();
     }
   }
 
   Future<void> _begin() async {
     if (_turning || _stage != _Stage.touring) return;
+    _autoplay?.cancel();
     setState(() => _stage = _Stage.closing);
     // Warm just the chosen cover before it is revealed halfway through the
     // fold. The destination-sized provider stays stable as the keyboard opens.
@@ -189,6 +215,9 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
       return;
     }
     _nameFocus.unfocus();
+    // Returning to the chapters leaves the reader in control, as in the
+    // original tour, rather than restarting the automatic page turns.
+    _autoplayPaused = true;
     setState(() => _stage = _Stage.opening);
     try {
       if (_motion) {
@@ -211,6 +240,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
 
   @override
   void dispose() {
+    _autoplay?.cancel();
     _turn.dispose();
     _close.dispose();
     _name.dispose();
@@ -356,7 +386,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
                     behavior: HitTestBehavior.opaque,
                     excludeFromSemantics: true,
                     onHorizontalDragStart: touring && !state.saving && !_turning
-                        ? (_) => _dragging = true
+                        ? (_) => _startDrag()
                         : null,
                     onHorizontalDragUpdate: touring && !state.saving
                         ? (d) => _updateDrag(d.delta.dx, width.toDouble())
@@ -457,7 +487,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
           onBegin: _begin,
           onSave: _save,
           onFlip: _flip,
-          onDragStart: () => _dragging = true,
+          onDragStart: _startDrag,
           onDragUpdate: _updateDrag,
           onDragEnd: (velocity) => _endDrag(velocity),
           onDragCancel: () => _endDrag(0, canceled: true),

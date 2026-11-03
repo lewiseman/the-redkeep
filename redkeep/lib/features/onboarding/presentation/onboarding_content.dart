@@ -140,6 +140,7 @@ class _OnboardingContentState extends State<OnboardingContent> {
                   const SizedBox(height: 8),
                 ],
                 Flexible(
+                  key: const ValueKey('onboarding-book-frame'),
                   child: LayoutBuilder(
                     builder: (context, bookConstraints) {
                       final settled = Curves.easeInOutCubic.transform(

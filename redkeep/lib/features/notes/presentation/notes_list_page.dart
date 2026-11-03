@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/navigation_destination.dart';
-import '../../../core/presentation/paper_surface.dart';
-import '../application/notes_providers.dart';
-import '../domain/note_document.dart';
-import '../domain/notes_query.dart';
+import '../../../core/presentation/rendering_policy.dart';
 import '../../assets/presentation/local_artwork.dart';
+import '../application/notes_providers.dart';
+import '../domain/notes_query.dart';
+import 'note_card.dart';
 
 class NotesListPage extends ConsumerStatefulWidget {
   const NotesListPage({super.key});
@@ -16,8 +17,9 @@ class NotesListPage extends ConsumerStatefulWidget {
 }
 
 class _NotesListPageState extends ConsumerState<NotesListPage> {
-  String? _error;
   final _search = TextEditingController();
+  String? _error;
+
   @override
   void initState() {
     super.initState();
@@ -50,179 +52,309 @@ class _NotesListPageState extends ConsumerState<NotesListPage> {
         );
   }
 
+  void _collection({String? tag, bool drafts = false}) {
+    ref.read(notesDraftsOnlyProvider.notifier).set(drafts);
+    _filter(tag: tag, clearTag: tag == null, trash: drafts ? false : null);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final notes = ref.watch(notesListProvider);
-    final drafts = ref.watch(recoveryListProvider);
+    final entries = ref.watch(notesCollectionProvider);
     final filter = ref.watch(notesFilterProvider);
+    final drafts = ref.watch(notesDraftsOnlyProvider);
     final tags = ref.watch(noteTagsProvider);
     final busy = ref.watch(notesActionsProvider);
+    final policy = RenderingPolicyScope.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Notes')),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 720),
-            child: CustomScrollView(
-              slivers: [
-                SliverPadding(
-                  padding: const EdgeInsets.all(20),
-                  sliver: SliverToBoxAdapter(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        PaperSurface(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Text(
-                                'A place for your words',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .headlineSmall,
+            constraints: const BoxConstraints(maxWidth: 900),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final scale = MediaQuery.textScalerOf(context).scale(14) / 14;
+                final columns = constraints.maxWidth < 300 || scale > 1.4
+                    ? (constraints.maxWidth >= 650 ? 2 : 1)
+                    : (constraints.maxWidth >= 700 ? 3 : 2);
+                return CustomScrollView(
+                  key: const PageStorageKey('notes-collection'),
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  slivers: [
+                    SliverFloatingHeader(
+                      animationStyle: AnimationStyle(
+                        duration: policy.duration,
+                        reverseDuration: policy.duration,
+                      ),
+                      child: ColoredBox(
+                        color: Theme.of(context).colorScheme.surface,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 12, 20, 6),
+                          child: TextField(
+                            key: const ValueKey('notes-search'),
+                            controller: _search,
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(fontSize: 14),
+                            maxLength: 256,
+                            textInputAction: TextInputAction.search,
+                            onSubmitted: (_) =>
+                                FocusScope.of(context).unfocus(),
+                            onChanged: (value) => _filter(search: value),
+                            decoration: InputDecoration(
+                              hintText: filter.trash
+                                  ? 'Search Trash…'
+                                  : 'Search notes…',
+                              counterText: '',
+                              prefixIcon: const Icon(Icons.search_rounded),
+                              filled: true,
+                              fillColor: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerLow,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(999),
                               ),
-                              const SizedBox(height: 12),
-                              const Text(
-                                'Write in plain text. Save when you’re ready; recovery drafts keep unfinished writing on this device.',
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 12,
                               ),
-                              const SizedBox(height: 16),
-                              FilledButton.icon(
-                                onPressed: busy ? null : _create,
-                                icon: const LocalArtwork(assetKey: 'notes.add'),
-                                label: const Text('Create note'),
+                              suffixIcon: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (filter.search.isNotEmpty)
+                                    IconButton(
+                                      tooltip: 'Clear search',
+                                      icon: const Icon(Icons.close_rounded),
+                                      onPressed: () {
+                                        _search.clear();
+                                        _filter(search: '');
+                                      },
+                                    ),
+                                  PopupMenuButton<String>(
+                                    tooltip: 'Collection options',
+                                    icon: const Icon(Icons.tune_rounded),
+                                    onSelected: (value) {
+                                      if (value == 'pin') {
+                                        _filter(pinned: !filter.pinnedOnly);
+                                      }
+                                      if (value == 'trash') {
+                                        ref
+                                            .read(
+                                              notesDraftsOnlyProvider.notifier,
+                                            )
+                                            .set(false);
+                                        _filter(trash: !filter.trash);
+                                      }
+                                      if (value == 'clear') {
+                                        _search.clear();
+                                        ref
+                                            .read(
+                                              notesDraftsOnlyProvider.notifier,
+                                            )
+                                            .set(false);
+                                        ref
+                                            .read(notesFilterProvider.notifier)
+                                            .set(const NotesQuery());
+                                      }
+                                    },
+                                    itemBuilder: (_) => [
+                                      CheckedPopupMenuItem(
+                                        value: 'pin',
+                                        checked: filter.pinnedOnly,
+                                        child: const Text('Pinned only'),
+                                      ),
+                                      CheckedPopupMenuItem(
+                                        value: 'trash',
+                                        checked: filter.trash,
+                                        child: const Text('Trash'),
+                                      ),
+                                      const PopupMenuItem(
+                                        value: 'clear',
+                                        child: Text('Clear filters'),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
-                              if (_error != null)
-                                Semantics(
-                                  liveRegion: true,
-                                  child: Text(_error!),
-                                ),
-                            ],
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 24),
-                        ExpansionTile(
-                          title: const Text('Search and filters'),
-                          subtitle: Text(
-                            '${filter.trash ? 'Trash' : 'Saved notes'}${filter.pinnedOnly ? ' • pinned' : ''}${filter.tag != null ? ' • ${filter.tag}' : ''}${filter.search.isNotEmpty ? ' • ${filter.search}' : ''}',
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          expansionAnimationStyle: AnimationStyle.noAnimation,
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.fromLTRB(20, 4, 20, 6),
+                        child: Row(
                           children: [
-                            TextField(
-                              maxLength: 256,
-                              key: const ValueKey('notes-search'),
-                              controller: _search,
-                              decoration: const InputDecoration(
-                                labelText: 'Search saved title and body',
-                                prefixIcon: Icon(Icons.search),
-                              ),
-                              onChanged: (value) => _filter(search: value),
+                            _chip(
+                              'All',
+                              key: 'notes-all',
+                              selected: !drafts && filter.tag == null,
+                              onTap: () => _collection(),
                             ),
-                            const SizedBox(height: 12),
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: [
-                                ChoiceChip(
-                                  label: const Text('Saved notes'),
-                                  selected: !filter.trash,
-                                  onSelected: (_) => _filter(trash: false),
-                                ),
-                                ChoiceChip(
-                                  label: const Text('Trash'),
-                                  selected: filter.trash,
-                                  onSelected: (_) => _filter(trash: true),
-                                ),
-                                FilterChip(
-                                  label: const Text('Pinned only'),
-                                  selected: filter.pinnedOnly,
-                                  onSelected: (value) => _filter(pinned: value),
-                                ),
-                              ],
+                            _chip(
+                              'Drafts',
+                              key: 'notes-drafts',
+                              selected: drafts,
+                              onTap: () => _collection(drafts: true),
                             ),
-                            const SizedBox(height: 12),
-                            tags.when(
-                              loading: () => const Text('Loading tags…'),
-                              error: (_, _) => Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  const Text('Tags could not be loaded.'),
-                                  OutlinedButton(
-                                    onPressed: () =>
-                                        ref.invalidate(noteTagsProvider),
-                                    child: const Text('Retry tags'),
-                                  ),
-                                ],
+                            for (final tag in {
+                              ...?tags.value,
+                              if (filter.tag != null) filter.tag!,
+                            })
+                              _chip(
+                                tag,
+                                key: 'notes-tag-$tag',
+                                selected: !drafts && filter.tag == tag,
+                                onTap: () => _collection(tag: tag),
                               ),
-                              data: (items) => DropdownButtonFormField<String>(
-                                key: ValueKey(filter.tag),
-                                initialValue: filter.tag ?? '',
-                                isExpanded: true,
-                                decoration: const InputDecoration(
-                                  labelText: 'Filter by tag',
-                                ),
-                                items: [
-                                  const DropdownMenuItem(
-                                    value: '',
-                                    child: Text('All tags'),
-                                  ),
-                                  for (final tag in {
-                                    ...items,
-                                    if (filter.tag != null) filter.tag!,
-                                  })
-                                    DropdownMenuItem(
-                                      value: tag,
-                                      child: Text(
-                                        tag,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                ],
-                                onChanged: (value) =>
-                                    _filter(tag: value, clearTag: value == ''),
-                              ),
-                            ),
-                            if (filter.search.isNotEmpty ||
-                                filter.tag != null ||
-                                filter.pinnedOnly)
-                              TextButton(
-                                onPressed: () {
-                                  _search.clear();
-                                  ref
-                                      .read(notesFilterProvider.notifier)
-                                      .set(NotesQuery(trash: filter.trash));
-                                },
-                                child: const Text('Clear filters'),
-                              ),
-                            const Text(
-                              'Recovery drafts are shown separately from saved-note filters.',
-                            ),
                           ],
                         ),
-                        const SizedBox(height: 24),
-                        Text(
-                          'Recovery drafts',
-                          style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                    ),
+                    if (filter.trash || filter.pinnedOnly)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 4,
+                          ),
+                          child: Text(
+                            [
+                              if (filter.trash) 'Trash',
+                              if (filter.pinnedOnly) 'Pinned only',
+                            ].join(' • '),
+                          ),
+                        ),
+                      ),
+                    if (tags.hasError)
+                      SliverToBoxAdapter(
+                        child: TextButton(
+                          onPressed: () => ref.invalidate(noteTagsProvider),
+                          child: const Text('Retry tags'),
+                        ),
+                      ),
+                    if (_error != null)
+                      SliverToBoxAdapter(
+                        child: Semantics(
+                          liveRegion: true,
+                          child: Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Text(_error!),
+                          ),
+                        ),
+                      ),
+                    ...entries.when(
+                      loading: () => [
+                        const SliverToBoxAdapter(
+                          child: Padding(
+                            padding: EdgeInsets.all(72),
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                semanticsLabel: 'Loading notes',
+                              ),
+                            ),
+                          ),
                         ),
                       ],
+                      error: (_, _) => [
+                        SliverToBoxAdapter(
+                          child: _message(
+                            'Notes could not be loaded.',
+                            action: 'Retry loading',
+                            onTap: () =>
+                                ref.invalidate(notesCollectionProvider),
+                          ),
+                        ),
+                      ],
+                      data: (items) => [
+                        if (items.isEmpty)
+                          SliverToBoxAdapter(
+                            child: _message(
+                              drafts
+                                  ? 'No drafts yet.'
+                                  : filter.trash
+                                  ? 'Trash is empty.'
+                                  : filter.search.isNotEmpty ||
+                                        filter.tag != null ||
+                                        filter.pinnedOnly
+                                  ? 'No notes match these filters.'
+                                  : 'A little room for your thoughts',
+                              action:
+                                  drafts ||
+                                      filter.trash ||
+                                      filter.search.isNotEmpty ||
+                                      filter.tag != null ||
+                                      filter.pinnedOnly
+                                  ? 'Show all notes'
+                                  : 'Create note',
+                              onTap: () {
+                                if (!drafts &&
+                                    !filter.trash &&
+                                    filter.search.isEmpty &&
+                                    filter.tag == null &&
+                                    !filter.pinnedOnly) {
+                                  _create();
+                                } else {
+                                  _search.clear();
+                                  ref
+                                      .read(notesDraftsOnlyProvider.notifier)
+                                      .set(false);
+                                  ref
+                                      .read(notesFilterProvider.notifier)
+                                      .set(const NotesQuery());
+                                }
+                              },
+                            ),
+                          )
+                        else
+                          SliverPadding(
+                            padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+                            sliver: SliverMasonryGrid.count(
+                              crossAxisCount: columns,
+                              mainAxisSpacing: 10,
+                              crossAxisSpacing: 10,
+                              childCount: items.length,
+                              itemBuilder: (context, index) {
+                                final entry = items[index];
+                                return NoteCard(
+                                  key: ValueKey(entry.id),
+                                  entry: entry,
+                                  index: index,
+                                  onTap: () => context.go(
+                                    noteLocation(entry.id, edit: entry.isDraft),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                      ],
                     ),
-                  ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 112)),
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+      floatingActionButton: Tooltip(
+        message: 'Create note',
+        excludeFromSemantics: true,
+        child: Semantics(
+          button: true,
+          label: 'Create note',
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: busy ? null : _create,
+              borderRadius: BorderRadius.circular(20),
+              child: const SizedBox.square(
+                dimension: 72,
+                child: Center(
+                  child: LocalArtwork(assetKey: 'notes.add', dimension: 64),
                 ),
-                ..._section(drafts, drafts: true),
-                SliverPadding(
-                  padding: const EdgeInsets.all(20),
-                  sliver: SliverToBoxAdapter(
-                    child: Text(
-                      filter.trash ? 'Notes in Trash' : 'Saved notes',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                  ),
-                ),
-                ..._section(notes, drafts: false),
-                const SliverToBoxAdapter(child: SizedBox(height: 24)),
-              ],
+              ),
             ),
           ),
         ),
@@ -230,97 +362,70 @@ class _NotesListPageState extends ConsumerState<NotesListPage> {
     );
   }
 
-  List<Widget> _section(
-    AsyncValue<List<NoteListing>> value, {
-    required bool drafts,
-  }) => value.when(
-    loading: () => [
-      const SliverToBoxAdapter(
-        child: Padding(padding: EdgeInsets.all(20), child: Text('Loading…')),
+  Widget _chip(
+    String label, {
+    required String key,
+    required bool selected,
+    required VoidCallback onTap,
+  }) => Padding(
+    padding: const EdgeInsetsDirectional.only(end: 6),
+    child: ChoiceChip(
+      key: ValueKey(key),
+      selected: selected,
+      selectedColor: Theme.of(context).colorScheme.primary,
+      backgroundColor: Colors.transparent,
+      labelStyle: TextStyle(
+        fontSize: 12,
+        fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+        color: selected
+            ? Theme.of(context).colorScheme.onPrimary
+            : Theme.of(context).colorScheme.onSurfaceVariant,
       ),
-    ],
-    error: (_, _) => [
-      SliverToBoxAdapter(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                drafts
-                    ? 'Recovery drafts could not be loaded.'
-                    : 'Notes could not be loaded.',
-              ),
-              OutlinedButton(
-                onPressed: () => drafts
-                    ? ref.invalidate(recoveryListProvider)
-                    : ref.invalidate(notesListProvider),
-                child: const Text('Retry loading'),
-              ),
-            ],
-          ),
+      showCheckmark: false,
+      label: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 240),
+        child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+      ),
+      shape: const StadiumBorder(),
+      onSelected: (_) => onTap(),
+    ),
+  );
+
+  Widget _message(
+    String title, {
+    required String action,
+    required VoidCallback onTap,
+  }) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
+    child: Column(
+      children: [
+        Icon(
+          Icons.notes_rounded,
+          size: 36,
+          color: Theme.of(context).colorScheme.primary,
         ),
-      ),
-    ],
-    data: (items) => items.isEmpty
-        ? [
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Text(
-                  drafts
-                      ? 'No unfinished drafts.'
-                      : ref.read(notesFilterProvider).search.isNotEmpty ||
-                            ref.read(notesFilterProvider).tag != null ||
-                            ref.read(notesFilterProvider).pinnedOnly
-                      ? 'No notes match these filters.'
-                      : ref.read(notesFilterProvider).trash
-                      ? 'Trash is empty.'
-                      : 'No saved notes yet. Create your first note.',
-                ),
-              ),
-            ),
-          ]
-        : [
-            SliverList.builder(
-              itemCount: items.length,
-              itemBuilder: (context, index) {
-                final item = items[index];
-                return ListTile(
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 8,
-                  ),
-                  title: Text(
-                    noteTitle(item.title),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  subtitle: Text(
-                    drafts
-                        ? 'Recovery draft • ${item.revision == 0 ? 'new note' : 'from revision ${item.revision}'}'
-                        : '${item.pinned ? 'Pinned • ' : ''}Saved revision ${item.revision}',
-                  ),
-                  trailing: Icon(
-                    drafts ? Icons.edit_outlined : Icons.chevron_right,
-                  ),
-                  onTap: () => context.go(noteLocation(item.id, edit: drafts)),
-                );
-              },
-            ),
-          ],
+        const SizedBox(height: 16),
+        Text(
+          title,
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
+        const SizedBox(height: 12),
+        TextButton(
+          onPressed: onTap,
+          child: Text(action, textAlign: TextAlign.center),
+        ),
+      ],
+    ),
   );
 
   Future<void> _create() async {
-    setState(() => _error = null);
     try {
       final id = await ref.read(notesActionsProvider.notifier).create();
       if (mounted && id != null) context.go(noteLocation(id, edit: true));
     } catch (_) {
       if (mounted) {
-        setState(
-          () => _error = 'The note editor could not be opened. Try again.',
-        );
+        setState(() => _error = 'The editor could not be opened. Try again.');
       }
     }
   }

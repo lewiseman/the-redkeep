@@ -21,6 +21,7 @@ import 'package:redkeep/features/notes/application/notes_providers.dart';
 import 'package:redkeep/features/notes/domain/notes_repository.dart';
 
 import 'fake_appearance_repository.dart';
+import 'fake_brain.dart';
 import 'fake_required_assets.dart';
 import 'fake_onboarding_repository.dart';
 
@@ -69,10 +70,12 @@ Future<GoRouter> pumpApp(
         if (flowId != null) flowIdProvider.overrideWithValue(flowId),
         if (notes != null) notesRepositoryProvider.overrideWithValue(notes),
         if (noteId != null) noteIdProvider.overrideWithValue(noteId),
-        if (brainAssignments != null)
-          brainAssignmentsProvider.overrideWithValue(brainAssignments),
-        if (brainFiles != null)
-          brainModelFilesProvider.overrideWith((ref) async => brainFiles),
+        brainAssignmentsProvider.overrideWithValue(
+          brainAssignments ?? FakeBrainAssignments(),
+        ),
+        brainModelFilesProvider.overrideWith(
+          (ref) async => brainFiles ?? FakeBrainFiles(),
+        ),
         if (brainLoader != null)
           brainModelLoaderProvider.overrideWithValue(brainLoader),
         if (initialLocation != null)

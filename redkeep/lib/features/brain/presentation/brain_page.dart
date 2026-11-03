@@ -15,22 +15,26 @@ class BrainPage extends ConsumerStatefulWidget {
 
 class _BrainPageState extends ConsumerState<BrainPage>
     with WidgetsBindingObserver {
+  late final BrainController _controller;
+
   @override
   void initState() {
     super.initState();
+    _controller = ref.read(brainControllerProvider.notifier);
+    _controller.setForeground(true);
     WidgetsBinding.instance.addObserver(this);
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    ref
-        .read(brainControllerProvider.notifier)
-        .setForeground(state == AppLifecycleState.resumed);
+    _controller.setForeground(state == AppLifecycleState.resumed);
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    // More can keep readiness observed after this settings route closes.
+    _controller.setForeground(false);
     super.dispose();
   }
 

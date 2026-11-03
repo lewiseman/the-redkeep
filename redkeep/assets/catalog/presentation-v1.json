@@ -221,6 +221,16 @@
       "sha256": "b5390d3733b05992d7d6e2a8e0c4d56703d103a767d5d8050dd9eedc8fb67611",
       "license": "LicenseRef-Project-Generated",
       "provenance": "tool/assets/PROVENANCE.md"
+    },
+    {
+      "key": "more.appearance",
+      "revision": "v1",
+      "path": "more/appearance-v1.png",
+      "bytes": 244609,
+      "sha256": "329082a440f8212a45a896077338ac2e009df29223a72d488bca844a2d1cf75b",
+      "license": "LicenseRef-Project-Supplied",
+      "provenance": "tool/assets/PROVENANCE.md",
+      "sourcePath": "more_appearance.png"
     }
   ]
 }

@@ -78,8 +78,15 @@ void main() {
         noteLocation(missingId),
         diaryEntryLocation(date, missingId),
       ]) {
+        final checksBefore = files.checks;
         router.go(location);
         await tester.pumpAndSettle();
+        if (location == '/more') {
+          expect(files.checks, greaterThan(checksBefore));
+        } else {
+          // Writing does not inspect models; only More reads local readiness.
+          expect(files.checks, checksBefore);
+        }
         expect(router.routeInformationProvider.value.uri.path, location);
         expect(
           find.byType(FloatingActionButton, skipOffstage: false),
@@ -93,7 +100,7 @@ void main() {
         );
         expect(tester.takeException(), isNull, reason: location);
       }
-      expect(files.checks, 0);
+      expect(files.installs, 0);
       expect(modelLoads, 0);
       expect((await notes.openDocument(id)).note!.text.body, writing);
       expect((await diary.openDocument(id)).entry!.text.body, writing);

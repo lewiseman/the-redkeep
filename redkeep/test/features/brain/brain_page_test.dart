@@ -68,7 +68,7 @@ void main() {
       expect(find.text('Not installed'), findsOneWidget);
       router.go('/more');
       await tester.pumpAndSettle();
-      await tap(tester, find.text('Brain'));
+      await tap(tester, find.text('Grand Maestar'));
       expect(find.byType(BrainPage), findsOneWidget);
       await tester.pumpWidget(const SizedBox());
       await tester.pumpAndSettle();
@@ -174,7 +174,7 @@ void main() {
       'Writing without AI',
     );
     await tester.pumpAndSettle();
-    await tap(tester, find.text('Capture thought'));
+    await tap(tester, find.byTooltip('Add thought'));
     expect(files.checks, 0);
     expect(model.sessions, isEmpty);
     expect(tester.container().exists(brainControllerProvider), isFalse);

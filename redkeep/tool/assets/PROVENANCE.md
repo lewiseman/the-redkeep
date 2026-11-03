@@ -300,3 +300,24 @@ from the read-only Journal Flutter reference, without external image textures.
 Release order: deploy the canonical website artwork, including
 `diary_top_bg.png`, before shipping this mobile catalog. No artwork publication
 is performed by the offline catalog validator or Flutter tests.
+
+## More page migration — 3 November 2026
+
+The user explicitly requested the previous app's More layout and selected
+Appearance illustration, omitting Friends and replacing Local QVAC with
+Grand Maestar. `website/public/art/more_appearance.png` is a byte-for-byte copy
+of `journal/assets/images/more_appearance.png`: 244,609 bytes, SHA-256
+`329082a440f8212a45a896077338ac2e009df29223a72d488bca844a2d1cf75b`. It is project-supplied artwork,
+registered as `more.appearance`, revision `v1`, installed at
+`more/appearance-v1.png` through the existing verified download flow.
+The illustration is not added to the Flutter bundle.
+
+Grand Maestar reuses the existing bundled `assets/branding/grand_maestar.png`
+unchanged; no QVAC or Friends illustration is migrated. The row typography,
+responsive layout and decorative wash are adapted from the read-only legacy
+More presentation. Redkeep's routing, model settings and sync logic remain
+in use. Simpler effects omits the decorative wash.
+
+Release order: publish `more_appearance.png` through the website hosting
+process before releasing the updated mobile catalog. Preparing this canonical
+source and validating it offline do not publish it.

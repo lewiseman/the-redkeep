@@ -6,6 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../features/assets/presentation/local_artwork.dart';
+import '../features/more/application/maestar_status.dart';
+import '../features/more/presentation/more_index_entry.dart';
 import '../features/sync/application/sync_providers.dart';
 import '../features/sync/presentation/sync_card.dart';
 import '../features/sync/presentation/sync_material.dart';
@@ -38,6 +41,7 @@ class _MorePageState extends ConsumerState<MorePage> {
 
   @override
   Widget build(BuildContext context) {
+    final maestar = ref.watch(maestarStatusProvider);
     final enabled = ref.watch(syncEnabledProvider);
     final ready = enabled && ref.watch(syncConfigurationProvider).hasValue;
     final signedIn = ready && ref.watch(syncAccountProvider) != null;
@@ -51,6 +55,7 @@ class _MorePageState extends ConsumerState<MorePage> {
               ),
               child: LayoutBuilder(
                 builder: (context, constraints) => CustomScrollView(
+                  key: const PageStorageKey('more-scroll'),
                   controller: _scroll,
                   slivers: [
                     if (ready)
@@ -79,24 +84,37 @@ class _MorePageState extends ConsumerState<MorePage> {
                               : 0,
                         ),
                         child: Padding(
-                          padding: const EdgeInsets.fromLTRB(28, 16, 28, 32),
+                          padding: const EdgeInsets.fromLTRB(28, 4, 28, 32),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              Text(
-                                'More',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .headlineSmall,
+                              MoreIndexEntry(
+                                title: 'Appearance',
+                                description: 'Colors, theme and fonts',
+                                artworkBuilder: (dimension) => LocalArtwork(
+                                  assetKey: 'more.appearance',
+                                  dimension: dimension,
+                                ),
+                                onTap: () => context.push('/settings'),
                               ),
-                              const SizedBox(height: 16),
-                              OutlinedButton(
-                                onPressed: () => context.go('/settings'),
-                                child: const Text('Appearance'),
-                              ),
-                              OutlinedButton(
-                                onPressed: () => context.go('/settings/brain'),
-                                child: const Text('Brain'),
+                              MoreIndexEntry(
+                                title: 'Grand Maestar',
+                                status: maestar.label,
+                                ready: maestar.ready,
+                                showDivider: false,
+                                artworkBuilder: (dimension) => Image.asset(
+                                  'assets/branding/grand_maestar.png',
+                                  fit: BoxFit.contain,
+                                  filterQuality: FilterQuality.medium,
+                                  excludeFromSemantics: true,
+                                  cacheHeight:
+                                      (dimension *
+                                              MediaQuery.devicePixelRatioOf(
+                                                context,
+                                              ))
+                                          .ceil(),
+                                ),
+                                onTap: () => context.push('/settings/brain'),
                               ),
                             ],
                           ),

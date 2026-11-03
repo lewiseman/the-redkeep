@@ -256,7 +256,12 @@ void main() {
       final catalog = AssetCatalog.parse(
         await File('assets/catalog/presentation-v1.json').readAsString(),
       );
-      expect(catalog.assets, hasLength(22));
+      expect(catalog.assets, hasLength(23));
+      expect(
+        catalog.asset('more.appearance').sourcePath,
+        'more_appearance.png',
+      );
+      expect(catalog.asset('more.appearance').path, 'more/appearance-v1.png');
       expect(
         catalog.asset('onboarding.cover').sourcePath,
         'cover-redkeep-castle-v1.jpg',

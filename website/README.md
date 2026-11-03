@@ -19,9 +19,8 @@ asset notices, evidence and publishing prerequisites. Production output is in
 `dist/`. W01 does not register or publish a Site.
 
 `public/art/` is the canonical local reference for shared website/mobile images.
-Vite copies all `public/` files into `dist/`, even images absent from its chunk
-size table. The final build check verifies every copy against its local source;
-no duplicate under `assets/reference/` is required. The reviewed 7.5 MB static
-output budget includes the four shared app images added on 3 November 2026.
-Deploy only after the final `Build integrity ... passed` line; successful Vite
-chunk rendering alone does not mean the complete build command succeeded.
+Vite copies `public/` into `dist/`, including images absent from its chunk size
+table. The build runs TypeScript, Vite and prerendering. There is no custom asset
+checker, duplicate-reference requirement or whole-site size gate. The mobile
+catalog and runtime retain their own download integrity checks. See
+[asset setup](../docs/onboarding-assets-setup.md) for adding shared images.

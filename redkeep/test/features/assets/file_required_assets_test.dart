@@ -79,6 +79,28 @@ void main() {
     expect(await file('art/one-pending.png').exists(), isFalse);
   });
 
+  test('moving sources to the website keeps installed files and uses new paths for repair', () async {
+    await store().download((_) {});
+    final json = testCatalogJson();
+    for (final row in json['assets'] as List) {
+      row['sourcePath'] = 'website/${row['path'].split('/').last}';
+    }
+    final catalog = AssetCatalog.parse(jsonEncode(json));
+    final next = store(catalog: catalog);
+    client.requests.clear();
+    expect(await next.inspect(), isEmpty);
+    await next.download((_) {});
+    expect(client.requests, isEmpty);
+    await file('art/two.png').delete();
+    client.response = (_) => Stream.value(testPayloads['art/two.png']!);
+    await next.download((_) {});
+    expect(client.requests, ['/website/two.png']);
+    expect(
+      await file('art/two.png').readAsBytes(),
+      testPayloads['art/two.png'],
+    );
+  });
+
   test(
     'saved keys do not hide missing, truncated or same-size replaced files',
     () async {

@@ -13,9 +13,9 @@ startup does not initialize AI or require a model.
 M04 adds bounded local bootstrap, a required-artwork download/repair gate, and
 an injectable persistent asset resolver. See [assets and startup](docs/assets-startup.md)
 for the media inventory, provenance, local fixture setup and release host checks.
-The default build has no configured host: a fresh installation stops at the
-artwork gate until run with the documented controlled fixture configuration.
-Complete installations reopen offline without a catalog/network check.
+The configured image directory is `https://redkeep.lewiseman.com/art/`, passed
+through the single `ASSET_BASE_URL` value in ignored `redkeep/env.json`.
+Complete installations reopen offline without a remote catalog/network check.
 M05 adds a minimal welcome, persisted completion in schema 2, validated startup/
 onboarding redirects and platform back behavior. See [onboarding and navigation](docs/onboarding-routing.md)
 for destination validation, recovery and interruption contracts.
@@ -52,38 +52,34 @@ commits the name before opening the validated router continuation. A user
 without a saved name opens onboarding, including an earlier completion-only
 installation. Schema 8 preserves all writing/settings while adding the name.
 See [the current book guide](docs/onboarding-ui-migration.md). Desktop and M12 remain separately scoped.
-W01 was explicitly reopened for the local `website/` copy/rename; the hosted site is unchanged.
+The user hosts the shared website and artwork at `https://redkeep.lewiseman.com/`.
 
 The user-selected Grand Maester mascot, script caption, page dots and bottom Terms/Privacy links
 are restored. Navigation uses page taps/swipes, keyboard and semantics, with no
 added Previous/Next, Back button or visible counter.
 
-`presentation-ui01-v3` contains **12 images / 2,658,676 bytes**: the four retained
-PNGs and eight exact onboarding references, including the original cover.
-`grand_maestar.png` and `ink-paper.webp` ship under `assets/branding/`; the
-startup page and both onboarding layouts use these bundled images offline.
-Normal views use the full original artwork; large-text/constrained views
-also provide current live text and accessible name entry. Reference originals
-remain unchanged and outside Flutter's bundle; tests never fetch or refresh them.
-Both branding images are byte-for-byte identical to their indexed references.
-The Allura caption uses `google_fonts` runtime fetching/caching;
-no font binary is bundled. A local font reference keeps tests offline.
-The former ink-paper download is retired; old source maps safely ignore it.
+`presentation-website-v1` contains **12 images / 2,800,992 bytes**, including the
+website's Redkeep castle cover. `website/public/art/` is the canonical local image
+source for both apps and offline tests. The mobile app receives one HTTPS image
+base through `env.json`. Per-image URL maps, tokens, HTTP fixture flags and
+preparation commands remain removed. The eleven unchanged installed images are reused during upgrades.
 
-From `redkeep/`, prepare the ignored full per-image source list and run with
-build-time configuration:
+`grand_maestar.png` and `ink-paper.webp` remain bundled for immediate startup and
+onboarding. Allura uses Google Fonts fetching/caching; its existing local font
+reference keeps tests offline. Historical reference files remain outside bundles.
+
+From `redkeep/`, copy `env.example.json` to ignored `env.json` on a new checkout,
+then run:
 
 ```sh
-dart run tool/prepare_asset_sources.dart onboarding-downloads.local.json env.json
 flutter run --dart-define-from-file=env.json
 ```
 
-Preparation writes the string define `ASSET_SOURCE_URLS_JSON`, preserving the
-existing directory fallback and all other env values. Tokens stay in ignored
-local files. See [asset setup](docs/onboarding-assets-setup.md). **The user has supplied sources for all 12 required downloads**;
-they are prepared in ignored build configuration. Live Firebase/fresh-install
-verification remains unperformed. Local fixture
-checks work independently of hosting.
+To add an image: put it in `website/public/art/`, add its key/source filename and
+reviewed metadata to the mobile catalog, connect its consumer, deploy the website
+and ship the updated app. See [asset setup](docs/onboarding-assets-setup.md).
+The website build runs TypeScript, Vite and prerendering with no custom asset
+checker or whole-site size gate.
 
 Use Flutter 3.47.5 / Dart 3.13.4 (the verified local baseline). From the workspace
 root:
@@ -94,7 +90,7 @@ flutter pub get --enforce-lockfile
 dart format --output=none --set-exit-if-changed lib test tool
 flutter analyze
 flutter test
-dart run tool/validate_assets.dart assets/catalog/presentation-v1.json tool/assets/pack
+dart run tool/validate_assets.dart assets/catalog/presentation-v1.json ../website/public/art
 ```
 
 Run the shell on an available mobile device or emulator:
@@ -102,7 +98,7 @@ Run the shell on an available mobile device or emulator:
 ```sh
 cd redkeep
 flutter devices
-flutter run -d <device-id>
+flutter run -d <device-id> --dart-define-from-file=env.json
 ```
 
 To apply formatting during development, run `dart format lib test tool` from `redkeep/`.

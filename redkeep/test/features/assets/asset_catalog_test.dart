@@ -10,6 +10,7 @@ void main() {
   test('pins stable keys, revisions, hashes, locations and provenance', () {
     final catalog = testCatalog();
     expect(catalog.asset('test.one').revision, 'v1');
+    expect(catalog.asset('test.one').sourcePath, 'art/one.png');
     expect(catalog.asset('test.one').license, isNotEmpty);
     expect(() => catalog.asset('absent.key'), throwsA(isA<AssetException>()));
   });
@@ -31,6 +32,12 @@ void main() {
     test('rejects unsafe/unassigned media path $path', () {
       final json = testCatalogJson();
       (json['assets'] as List).first['path'] = path;
+      expect(
+        () => AssetCatalog.parse(jsonEncode(json)),
+        throwsA(isA<AssetException>()),
+      );
+      (json['assets'] as List).first['path'] = 'art/one.png';
+      (json['assets'] as List).first['sourcePath'] = path;
       expect(
         () => AssetCatalog.parse(jsonEncode(json)),
         throwsA(isA<AssetException>()),
@@ -64,7 +71,7 @@ void main() {
   );
 
   test(
-    'host is explicit; HTTP fixtures cannot enable arbitrary insecure hosts',
+    'asset locations require HTTPS without credentials, queries or fragments',
     () {
       expect(
         () => AssetLocation('').url('a.png'),
@@ -72,6 +79,8 @@ void main() {
       );
       for (final value in [
         'http://localhost:8080/',
+        'http://127.0.0.1:8080/',
+        'http://host/',
         'https://user:secret@host/',
         'https://host/no-slash',
         'https://host/?token=x',
@@ -81,20 +90,23 @@ void main() {
         expect(() => AssetLocation(value), throwsA(isA<AssetException>()));
       }
       expect(
-        () => AssetLocation('http://host/', allowLocalFixture: true),
-        throwsA(isA<AssetException>()),
-      );
-      expect(
-        AssetLocation(
-          'http://127.0.0.1:8080/',
-          allowLocalFixture: true,
-        ).url('a.png').toString(),
-        'http://127.0.0.1:8080/a.png',
-      );
-      expect(
         AssetLocation('https://media.redkeep.org/v1/').url('a/b.png').path,
         '/v1/a/b.png',
       );
     },
   );
+
+  test('production images use one public website directory', () {
+    expect(
+      AssetLocation('https://redkeep.lewiseman.com/art/')
+          .url('notes.webp')
+          .toString(),
+      'https://redkeep.lewiseman.com/art/notes.webp',
+    );
+    final json = testCatalogJson();
+    (json['assets'] as List).first['sourcePath'] = 'one.png';
+    final asset = AssetCatalog.parse(jsonEncode(json)).asset('test.one');
+    expect(asset.path, 'art/one.png');
+    expect(asset.sourcePath, 'one.png');
+  });
 }

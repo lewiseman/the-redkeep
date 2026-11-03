@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "pack": "presentation-ui01-v3",
+  "pack": "presentation-website-v1",
   "assets": [
     {
       "key": "appearance.theme.system",
@@ -9,7 +9,8 @@
       "bytes": 159869,
       "sha256": "d4d4de4cb5ad3c83cf66db8838e69395cf61b90c7d697b84d7f3bbe8575c3176",
       "license": "LicenseRef-Project-Generated",
-      "provenance": "tool/assets/PROVENANCE.md"
+      "provenance": "tool/assets/PROVENANCE.md",
+      "sourcePath": "theme_system.png"
     },
     {
       "key": "appearance.theme.light",
@@ -18,7 +19,8 @@
       "bytes": 146694,
       "sha256": "2e08abe549f65713bcccfba9d19035c68946f3fbfef3e88b9e24a0c0f66649fc",
       "license": "LicenseRef-Project-Generated",
-      "provenance": "tool/assets/PROVENANCE.md"
+      "provenance": "tool/assets/PROVENANCE.md",
+      "sourcePath": "theme_light.png"
     },
     {
       "key": "appearance.theme.dark",
@@ -27,7 +29,8 @@
       "bytes": 127553,
       "sha256": "dd744501d2cfb75cb83948f0f83568c6dd31fd52e03bbcf538e91f9a6eb87e32",
       "license": "LicenseRef-Project-Generated",
-      "provenance": "tool/assets/PROVENANCE.md"
+      "provenance": "tool/assets/PROVENANCE.md",
+      "sourcePath": "theme_dark.png"
     },
     {
       "key": "notes.add",
@@ -36,7 +39,8 @@
       "bytes": 45800,
       "sha256": "5674c0849f384dc06e9b36ddbc34dd03acac1e2e67b6881a347a8a7a7ecc65b8",
       "license": "LicenseRef-Project-Generated",
-      "provenance": "tool/assets/PROVENANCE.md"
+      "provenance": "tool/assets/PROVENANCE.md",
+      "sourcePath": "notes_add.png"
     },
     {
       "key": "onboarding.chapter.appearance",
@@ -45,7 +49,8 @@
       "bytes": 526093,
       "sha256": "14de003461e6abaf33afcb6fb9081e61140883bfb46ffe610f7c44c0e0b3565b",
       "license": "LicenseRef-Project-Supplied",
-      "provenance": "tool/assets/PROVENANCE.md"
+      "provenance": "tool/assets/PROVENANCE.md",
+      "sourcePath": "appearance.jpg"
     },
     {
       "key": "onboarding.chapter.diary",
@@ -54,7 +59,8 @@
       "bytes": 222646,
       "sha256": "d978151960c5c719a5d4b2bc87c40d1ee1e87f55322b24fda51658ee5f515f79",
       "license": "LicenseRef-Project-Supplied",
-      "provenance": "tool/assets/PROVENANCE.md"
+      "provenance": "tool/assets/PROVENANCE.md",
+      "sourcePath": "diary.webp"
     },
     {
       "key": "onboarding.chapter.flow",
@@ -63,7 +69,8 @@
       "bytes": 544939,
       "sha256": "7bc3e0986659a6cba3b77e9071b6eaecb488c7b596158fc9b334083ef10e70fe",
       "license": "LicenseRef-Project-Supplied",
-      "provenance": "tool/assets/PROVENANCE.md"
+      "provenance": "tool/assets/PROVENANCE.md",
+      "sourcePath": "flow.jpg"
     },
     {
       "key": "onboarding.chapter.maester",
@@ -72,7 +79,8 @@
       "bytes": 238092,
       "sha256": "2697eba2fa89e753a34f03fa991e8010275ab9ec811f63db2d53f0e91e5a58d3",
       "license": "LicenseRef-Project-Supplied",
-      "provenance": "tool/assets/PROVENANCE.md"
+      "provenance": "tool/assets/PROVENANCE.md",
+      "sourcePath": "ai.webp"
     },
     {
       "key": "onboarding.chapter.notes",
@@ -81,7 +89,8 @@
       "bytes": 189794,
       "sha256": "83269b5e9896e8cdd0e4262212f23ac2163c3534d9927ea38ecd5d3547c66d0d",
       "license": "LicenseRef-Project-Supplied",
-      "provenance": "tool/assets/PROVENANCE.md"
+      "provenance": "tool/assets/PROVENANCE.md",
+      "sourcePath": "notes.webp"
     },
     {
       "key": "onboarding.material.binding",
@@ -90,7 +99,8 @@
       "bytes": 48248,
       "sha256": "f0ef207579defb5022adef395c32c8509770f755bee3fd01ba522835c753f42b",
       "license": "LicenseRef-Project-Supplied",
-      "provenance": "tool/assets/PROVENANCE.md"
+      "provenance": "tool/assets/PROVENANCE.md",
+      "sourcePath": "binding-cloth.webp"
     },
     {
       "key": "onboarding.material.paper",
@@ -99,16 +109,18 @@
       "bytes": 73934,
       "sha256": "7dea653273db75b72fb324b8d7372b01b419c774458c6e83da1a78ecb23af62a",
       "license": "LicenseRef-Project-Supplied",
-      "provenance": "tool/assets/PROVENANCE.md"
+      "provenance": "tool/assets/PROVENANCE.md",
+      "sourcePath": "paper-edge.webp"
     },
     {
       "key": "onboarding.cover",
-      "revision": "v1",
-      "path": "onboarding/cover.webp",
-      "bytes": 335014,
-      "sha256": "4208bb6602284ad78d3378595b2ecacbcf3b2f387ac5d41a8974de4e46a09698",
-      "license": "LicenseRef-Project-Supplied",
-      "provenance": "tool/assets/PROVENANCE.md"
+      "revision": "v2",
+      "path": "onboarding/cover-redkeep-castle-v1.jpg",
+      "bytes": 477330,
+      "sha256": "b4c92633c2bc035b51bc57c90eaa9f455afe673c0f55ff17659cf4432928d5e8",
+      "license": "LicenseRef-Project-Generated",
+      "provenance": "tool/assets/PROVENANCE.md",
+      "sourcePath": "cover-redkeep-castle-v1.jpg"
     }
   ]
 }

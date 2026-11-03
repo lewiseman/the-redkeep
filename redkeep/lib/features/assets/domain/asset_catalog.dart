@@ -1,9 +1,5 @@
 import 'dart:convert';
 
-/// Former download keys now shipped in the app. Ignore stale source overrides
-/// so existing build configuration remains usable without downloading them.
-const bundledArtworkKeys = {'onboarding.background.ink'};
-
 enum AssetFailure { catalog, configuration, storage, network, integrity }
 
 class AssetException implements Exception {
@@ -32,6 +28,7 @@ class AssetCatalog {
             final key = row['key'] as String;
             final revision = row['revision'] as String;
             final path = row['path'] as String;
+            final sourcePath = row['sourcePath'] as String? ?? path;
             final bytes = row['bytes'] as int;
             final hash = row['sha256'] as String;
             final license = row['license'] as String;
@@ -41,6 +38,9 @@ class AssetCatalog {
                 !safeAssetPath(path) ||
                 !RegExp(r'\.(png|webp|jpg|jpeg)$').hasMatch(path) ||
                 path.contains('-pending.') ||
+                !safeAssetPath(sourcePath) ||
+                !RegExp(r'\.(png|webp|jpg|jpeg)$').hasMatch(sourcePath) ||
+                sourcePath.contains('-pending.') ||
                 bytes <= 0 ||
                 bytes > 10 * 1024 * 1024 ||
                 !RegExp(r'^[a-f0-9]{64}$').hasMatch(hash) ||
@@ -52,6 +52,7 @@ class AssetCatalog {
               key: key,
               revision: revision,
               path: path,
+              sourcePath: sourcePath,
               bytes: bytes,
               sha256: hash,
               license: license,
@@ -93,6 +94,7 @@ class PresentationAsset {
     required this.key,
     required this.revision,
     required this.path,
+    required this.sourcePath,
     required this.bytes,
     required this.sha256,
     required this.license,
@@ -101,6 +103,9 @@ class PresentationAsset {
   final String key;
   final String revision;
   final String path;
+
+  /// Relative to the shared image host; [path] retains installed-file identity.
+  final String sourcePath;
   final int bytes;
   final String sha256;
   final String license;

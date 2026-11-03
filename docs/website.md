@@ -5,16 +5,17 @@ legacy Journal UI and renaming it to Redkeep. The sibling `website/` is a local
 React 19 / TypeScript / Vite 8 static website. The legacy `Journal/bookflip/`
 checkout remains read-only. The user subsequently selected
 `https://redkeep.lewiseman.com/` as the shared website/image host and publishes
-it externally. Desktop rebuilds, mobile source migration and agent-run publication
-remain separately scoped.
+it externally. Desktop rebuilds and agent-run publication remain separately scoped.
 
 **Current asset source — 3 November 2026:** `website/public/art/` is the canonical
-local reference for shared website/mobile images. No additional reference copy
-is required. The build verifies every `public/` file against its `dist/` copy,
-including images not displayed by the website or listed in Vite's chunk table.
-The current reviewed whole-output budget is 7.5 MB after the four shared app
-images were added; the output is 7,297,375 bytes. The previous reference-library
-descriptions below record historical work. Existing archives remain intact.
+local reference for shared website/mobile images. The mobile app downloads its
+12 required images from the `/art/` directory configured by `ASSET_BASE_URL` in
+the mobile `env.json`, and uses these local files in offline tests. No duplicate
+image reference or download pack is
+required. The website build is TypeScript → Vite → prerendering; the custom
+checker and whole-output size gate are removed. Vite copies `public/` files
+without requiring a page consumer. Older reference/budget descriptions below
+are historical evidence. Source artwork and historical archives remain intact.
 
 ## Current selected behavior
 
@@ -75,12 +76,10 @@ profiles. Alternatively run `npx playwright install chromium`, then
 is used. Tests block non-local HTTP requests; dependency installation and optional
 browser installation are separate network operations.
 
-`npm run build` checks TypeScript, builds all three HTML pages, prerenders the
-React landing page and validates metadata, static content, local assets, the
-7.5 MB reviewed output budget, exact copies from `public/`, the selected mascot,
-original screenshot hashes and the absence of release/download links. It never
-registers a Site or publishes. A build succeeds only after the final
-`Build integrity ... passed` line, after Vite and prerendering have completed.
+`npm run build` checks TypeScript, builds all three HTML pages and prerenders the
+React landing page. It has no custom image/content checker or size gate.
+`npm test` runs the independent browser/accessibility checks. Neither command
+registers a Site or publishes.
 
 ## Files and boundaries
 
@@ -91,7 +90,7 @@ registers a Site or publishes. A build succeeds only after the final
 - `src/components/Features.tsx`: readable feature descriptions outside the book.
 - `src/components/Buttons.tsx`: deliberately unavailable Download control.
 - `privacy.html`, `terms.html`: static, current-scope content, matching paper UI.
-- `scripts/prerender.mjs`, `check-build.mjs`: static HTML and artifact checks.
+- `scripts/prerender.mjs`: static HTML generation after the Vite build.
 - `tests/website.spec.ts`: meaningful production-browser behavior/axe checks.
 - `public/licenses/`: OFL notices and the selected asset provenance notice.
 
@@ -120,8 +119,9 @@ cover-name typing/caret keys, reload persistence, legacy-name preservation and
 blocked-storage behavior. The browser was also inspected through the
 in-app preview; browser emulation is not physical-device or screen-reader evidence.
 
-The complete reviewed static output is about 6.96 MB; the measured first-page
-encoded resource payload is about 6.64 MB including retained artwork and fonts.
+The current static output is about 7.30 MB, including the shared app images. The
+measured first-page encoded resource payload is about 6.64 MB including retained
+artwork and fonts.
 Those assets dominate the weight. No low-end-device, slow-network, battery,
 frame-rate, Safari/Firefox or physical touch/assistive-technology performance
 claim is made. No universal WCAG conformance claim is made, particularly given

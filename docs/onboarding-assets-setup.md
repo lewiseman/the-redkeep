@@ -1,138 +1,91 @@
-# Onboarding assets: build configuration and local pack
+# Adding and serving app artwork
 
-UI01 integrates the supplied originals without downloading them again or
-changing their formats. The canonical reference library remains under
-[`assets/reference/`](../assets/reference/README.md), outside Flutter's bundle.
-The revised download pack contains eight exact copies plus the four retained
-PNGs: `presentation-ui01-v3`, **12 images / 2,658,676 bytes**. Ink paper and the
-Grand Maester mascot ship under `assets/branding/` and render offline at startup
-and in onboarding; their exact reference originals are retained. The original cover now
-has a real consumer: the restored folding name-entry cover. See [the book guide](onboarding-ui-migration.md)
-for the restored full-spread presentation and name workflow.
+`website/public/art/` is the canonical local image source. Deploying the website
+serves those files at `https://redkeep.lewiseman.com/art/`. The mobile app uses
+the HTTPS image directory passed through `redkeep/env.json`:
 
-## Prepare the supplied Firebase sources
+```json
+{
+  "ASSET_BASE_URL": "https://redkeep.lewiseman.com/art/"
+}
+```
 
-Run from `/Users/lewis/Dev/Projects/The Redkeep/redkeep`:
+On a new checkout, copy tracked `env.example.json` to ignored `env.json` in
+`redkeep/`. From that directory run:
 
 ```sh
-dart run tool/prepare_asset_sources.dart onboarding-downloads.local.json env.json
 flutter run --dart-define-from-file=env.json
 ```
 
-For a new checkout, first copy `env.example.json` to ignored `env.json` and
-`onboarding-downloads.example.json` to ignored
-`onboarding-downloads.local.json`, then fill the real HTTPS sources locally.
-Add `-d <device-id>` to `flutter run` when needed. Use the same define-file flag
-for separately authorized builds. Hot reload does not replace compile-time
-values; stop and rerun after preparing changed source URLs.
+Debug/Profile/Release editor configurations pass the same file. Use the same
+flag for builds. Keep the `/art/` image directory and trailing `/`; source
+filenames resolve relative to it. This is build-time configuration, not a bundled
+file read at runtime. Fully stop and rerun after changing the value.
 
-The preparation command performs **no requests**. It validates cataloged keys
-and complete per-image HTTPS URLs for current catalog consumers, and
-serializes the consumed map as the **string** define `ASSET_SOURCE_URLS_JSON`
-inside `env.json`. It atomically replaces that file while preserving
-`ASSET_BASE_URL`, `ASSET_ALLOW_LOCAL_FIXTURE` and all unrelated values. It prints
-only a count or safe error, never URLs. `env.json.pending` is ignored too. The
-runtime reads compile-time defines, never repository/configuration files.
+There is no Firebase URL map, token list, env-file preparation step, duplicate
+download pack or automatic website asset checker. Tests read the local website
+files and never download images. Existing `assets/reference/` files remain
+historical material; the Allura font reference still serves offline font tests.
 
-Keep each Firebase URL intact, including the encoded object path and original
-`?alt=media&token=...` query. Do not reuse a token for other files, use `&amp;`
-in JSON, strip queries, or paste an object URL into `ASSET_BASE_URL`. Runtime
-keys describe purpose independently of remote filenames; the Maester key maps
-to the user's `ai.webp`. No Firebase SDK or dotenv dependency is needed.
+## Add or replace an image
 
-The handoff supplies all twelve required download source keys:
+1. Add the final still PNG, WebP or JPEG to `website/public/art/`. Keep its true
+   extension. Current app limits are 2048 × 2048 and 10 MiB per image.
+2. Add a real consumer and an entry in
+   `redkeep/assets/catalog/presentation-v1.json`: stable purpose key, revision,
+   installed `path`, website `sourcePath`, exact byte count, SHA-256, license and
+   provenance. `sourcePath` is relative to the image directory, for example
+   `notes.webp`. `path` identifies its persistent file on the device; retain it
+   for unchanged images so upgrades reuse them.
+3. Record provenance in `redkeep/tool/assets/PROVENANCE.md`. Changes to image
+   bytes need a new revision, size and hash; use a versioned filename for new
+   artwork so older app releases can still fetch their original file.
+4. Run the relevant feature tests. The optional offline catalog check, from
+   `redkeep/`, is:
 
-```text
-appearance.theme.system
-appearance.theme.light
-appearance.theme.dark
-notes.add
-onboarding.cover
-onboarding.chapter.notes
-onboarding.chapter.diary
-onboarding.chapter.maester
-onboarding.chapter.flow
-onboarding.chapter.appearance
-onboarding.material.paper
-onboarding.material.binding
-```
+   ```sh
+   dart run tool/validate_assets.dart assets/catalog/presentation-v1.json ../website/public/art
+   ```
 
-The input includes `onboarding.cover`; preparation now includes it because the
-original cover is consumed. It accepts reviewed sources for current catalog keys. Empty input
-values are omitted and use the directory fallback. The retired
-`onboarding.background.ink` entry is accepted and omitted from prepared maps;
-runtime also ignores it in older compiled maps, so no background is downloaded.
-Other unknown keys and invalid consumed sources reject preparation without
-modifying the previous env file.
+5. Deploy the website and ship the updated app catalog/consumer. Confirm hosted
+   bytes match the catalog. A website deployment alone does not change the
+   catalog compiled into existing app releases.
 
-## Supplied sources and directory fallback
+Every catalog entry is required by startup; do not add unused future artwork.
+The website can contain additional images absent from the mobile catalog.
 
-The user supplied the four existing PNG URLs after the initial UI01 check.
-Together with the eight remaining onboarding URLs, **all 12 required catalog
-entries have explicit HTTPS sources**. Preparation writes those 12 entries,
-including the now-consumed original cover. Existing onboarding URLs and every unrelated
-env value are preserved.
+## Current images
 
-The user's `ASSET_BASE_URL` directory template remains unchanged. This configured
-pack uses explicit sources for every required path, so it no longer selects that
-placeholder fallback. Source URLs are configuration input, not proof of live
-availability or matching remote bytes; no live requests were performed for this
-follow-up. Fully stop and rerun the app with the env define file to compile the
-updated map, then use **Retry download** if needed.
+`presentation-website-v1` pins **12 images / 2,800,992 bytes**:
 
-The four additional keys map to these unchanged local/catalog payloads:
-
-| Key | Path under the directory base |
+| Key | Website filename |
 | --- | --- |
-| `appearance.theme.system` | `appearance/theme-system-v1.png` |
-| `appearance.theme.light` | `appearance/theme-light-v1.png` |
-| `appearance.theme.dark` | `appearance/theme-dark-v1.png` |
-| `notes.add` | `notes/add-v1.png` |
+| `appearance.theme.system` | `theme_system.png` |
+| `appearance.theme.light` | `theme_light.png` |
+| `appearance.theme.dark` | `theme_dark.png` |
+| `notes.add` | `notes_add.png` |
+| `onboarding.cover` | `cover-redkeep-castle-v1.jpg` |
+| `onboarding.chapter.notes` | `notes.webp` |
+| `onboarding.chapter.diary` | `diary.webp` |
+| `onboarding.chapter.maester` | `ai.webp` |
+| `onboarding.chapter.flow` | `flow.jpg` |
+| `onboarding.chapter.appearance` | `appearance.jpg` |
+| `onboarding.material.paper` | `paper-edge.webp` |
+| `onboarding.material.binding` | `binding-cloth.webp` |
 
-`ASSET_BASE_URL` remains the normal directory host, ending in `/`, without
-credentials, query or fragment. Explicit object URLs take precedence only for
-their cataloged paths. Directory-only builds still work without a source map.
-The HTTP adapter retains identity bytes, HTTP 200/no redirects, deadlines and
-safe failures. No source URL is stored in the installation ledger.
+The eleven unchanged images retain their existing installed paths/revisions.
+The cover uses revision `v2` and a new JPEG path. The selected mascot and ink
+paper remain bundled separately and are not required downloads. Old installed
+cover files are harmless; do not clear app data to update artwork.
 
-## Offline verification and controlled local fixture
+## Host and recovery
 
-From `redkeep/`:
+The sole asset define is `ASSET_BASE_URL`, compiled from `env.json`. There are
+no per-image URL lists or HTTP fixture modes. Routine tests inject clients and
+read `website/public/art/`; they do not need the ignored env file or a live host.
 
-```sh
-flutter pub get --enforce-lockfile --offline
-dart format --output=none --set-exit-if-changed lib test tool
-flutter analyze
-flutter test
-dart run tool/validate_assets.dart assets/catalog/presentation-v1.json tool/assets/pack
-```
-
-The validator reads local payloads only: actual format/extension, still-image
-decode and dimensions ≤2048×2048, exact size/SHA-256, provenance and exact pack
-inventory. Runtime inspection/install/resolution uses the same decoder
-qualification off the UI isolate when files need verification. The byte/hash,
-symlink, atomic rename, repair and independent-writing guarantees remain.
-
-The controlled pack is under `redkeep/tool/assets/pack/`; its onboarding paths
-preserve the original `.webp`/`.jpg` extensions. Neither the pack nor the
-reference library is bundled. The user-selected `grand_maestar.png` mascot and
-`ink-paper.webp` background have separate exact bundled copies; Allura uses
-Google Fonts with no bundled font binary. Branding needs no Firebase URL and is
-excluded from required downloads and repair checks.
-
-If a future explicitly selected native smoke check needs directory-only local
-hosting, follow [the controlled fixture instructions](assets-startup.md#local-fixture-and-host-setup)
-and pass only the loopback/base flags there, **without** the token-bearing env
-file, so the source overrides do not select Firebase instead. Do not clear user
-app data to force onboarding; use an isolated incomplete test installation.
-
-UI01's checks use injected local resolvers/clients and disposable stores. No
-live Firebase request, reference refresh, native launch, device install, upload
-or host publication was performed. A complete verified installation still opens
-offline. Missing files use the preserved splash/local checks and Flutter repair
-screen while retaining completion, writing and the validated continuation.
-
-The earlier dummy-config, partial-source and reference-acquisition steps are
-recorded chronologically in [the migration plan](../MIGRATION_PLAN.md). They
-are superseded by this implementation. Public redistribution rights, real host
-verification and physical-device evidence remain release prerequisites.
+Missing/damaged files go through the existing download/repair gate. Verified
+files survive retries and reopen offline. Repair does not access writing or
+reset app storage. See [assets and startup](assets-startup.md) for store and
+bootstrap contracts. Live-host byte checks do not establish native fresh-install,
+physical accessibility, minimum-OS or low-end device qualification.

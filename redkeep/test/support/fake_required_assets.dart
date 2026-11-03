@@ -30,20 +30,19 @@ class FakeRequiredAssets implements RequiredAssets {
   }
 
   @override
-  Future<Uri> resolve(String key) async => Directory.current.uri.resolve(
-    key.startsWith('onboarding.')
-        ? '../assets/reference/images/onboarding/${_onboardingFile(key)}'
-        : key == 'notes.add'
-        ? 'tool/assets/pack/notes/add-v1.png'
-        : 'tool/assets/pack/appearance/theme-${key.split('.').last}-v1.png',
-  );
+  Future<Uri> resolve(String key) async =>
+      Directory.current.uri.resolve('../website/public/art/${_filename(key)}');
 
-  String _onboardingFile(String key) => switch (key) {
+  String _filename(String key) => switch (key) {
+    'notes.add' => 'notes_add.png',
+    'onboarding.cover' => 'cover-redkeep-castle-v1.jpg',
     'onboarding.material.paper' => 'paper-edge.webp',
     'onboarding.material.binding' => 'binding-cloth.webp',
     'onboarding.chapter.maester' => 'ai.webp',
     'onboarding.chapter.flow' => 'flow.jpg',
     'onboarding.chapter.appearance' => 'appearance.jpg',
+    _ when key.startsWith('appearance.theme.') =>
+      'theme_${key.split('.').last}.png',
     _ => '${key.split('.').last}.webp',
   };
 }

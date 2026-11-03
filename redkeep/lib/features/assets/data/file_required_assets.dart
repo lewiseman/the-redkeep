@@ -195,7 +195,7 @@ class FileRequiredAssets implements RequiredAssets {
     var completed = 0;
     for (final asset in catalog.assets) {
       if (!await _valid(asset, ledger)) {
-        final uri = location.url(asset.path);
+        final uri = location.url(asset.sourcePath);
         final target = await _file(asset.path);
         final pending = await _file(
           asset.path.replaceFirstMapped(

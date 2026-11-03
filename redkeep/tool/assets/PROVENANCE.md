@@ -234,3 +234,22 @@ retain the retired key; runtime ignores it, and preparation omits it while
 preserving all consumed source values and unrelated configuration. This section
 supersedes earlier 13-image delivery statements, without changing the preceding
 Google Fonts choice, supplied-source identity or distribution-rights limits.
+
+
+## Shared website image host — 3 November 2026
+
+The user selected `website/public/art/` as the canonical local image source and
+`https://redkeep.lewiseman.com/art/` as the default download directory. Current
+catalog `presentation-website-v1` keeps the eleven unchanged images with their
+prior hashes and installed paths. `sourcePath` names the corresponding website
+file. No duplicate pack/reference files are created; earlier records above are
+historical and their provenance remains retained.
+
+`onboarding.cover`, revision `v2`, uses the selected website export
+`cover-redkeep-castle-v1.jpg`, 477,330 bytes, SHA-256
+`b4c92633c2bc035b51bc57c90eaa9f455afe673c0f55ff17659cf4432928d5e8`.
+It is the same 1122×1402 Redkeep castle cover selected for W01, with its original
+image-generation prompt/master history in
+`assets/reference/website/cover-castle-prompt.md`. Its project-generated provenance
+does not assert a new third-party license. Public redistribution qualification
+remains separate. Website image bytes and bundled startup branding are unchanged.

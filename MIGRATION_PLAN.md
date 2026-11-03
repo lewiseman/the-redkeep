@@ -4,9 +4,36 @@ Agreed on 2 November 2026. Workspace: `/Users/lewis/Dev/Projects/The Redkeep`.
 
 ## 1. Purpose and how to use this guide
 
+**Latest engineering instruction — 3 November 2026:** Redkeep is a new app. Do
+not copy, port or import additional legacy code, manifests, services or native
+configuration. Older phase prompts do not grant current permission to do so.
+Earlier UI01 onboarding renderer/layout adaptation and W01 website copying
+remain recorded honestly as existing work; the current asset/config cleanup
+does not rewrite those components. Redkeep's own database schema upgrades are
+separate from importing an old app or its user data.
+
 Focus on the mobile writing app and selected legacy page UI migrations. As agreed on 3 November 2026, retain the existing desktop app; its rebuild track is parked. Later that day the user explicitly reopened W01 as a local-only website copy/rename, preserving the legacy UI and screenshots. The user subsequently selected `https://redkeep.lewiseman.com/` as the shared image host and publishes externally. `website/public/art/` is now the canonical local image reference, without additional reference copies. Agent-run publication remains separately scoped. Preserve the journal, paper, artwork, and book identity while improving architecture, accessibility, performance, and testability.
 
-**Current direction:** UI01 retains the legacy book/folding name cover, primary action, dots/hint and bottom Terms/Privacy links. The latest user choice replaces the old mascot with the supplied `grand_maestar.png` and uses `google_fonts` for Allura, with no bundled font binary. Added Previous/Next, numeric counter and Back controls remain removed. Missing name means onboarding; schema 8 preserves writing/settings and older completion rows without inventing names. The user confirmed onboarding and name only. `presentation-ui01-v3` contains 12 downloads / 2,658,676 bytes. The selected mascot and ink-paper background ship unchanged for startup and both onboarding layouts; retired ink-paper URL overrides are ignored. The startup screen now uses this branding and an accessible progress bar; exact local references keep tests offline. Formatting/analysis, all 361 offline tests, local pack validation and Android debug packaging pass; see [the current guide](docs/onboarding-ui-migration.md) and [current startup evidence](docs/evidence/ui01/startup/verification.json). Live font/Firebase/native-device qualification remains unverified. M12 and any other feature/UI need separate selection; desktop stays parked. W01 is separately reopened below; its website-only scope changes do not alter mobile.
+**Current direction:** UI01 retains the book/folding name cover, primary action,
+dots/hint, bottom Terms/Privacy links and selected Grand Maester/Allura identity.
+Missing name means onboarding; schema 8 preserves writing/settings. The selected
+asset simplification now uses `https://redkeep.lewiseman.com/art/` by default,
+with `website/public/art/` as the canonical local image source and offline test
+input. `presentation-website-v1` pins 12 images / 2,800,992 bytes, including the
+website's Redkeep castle cover. All eleven unchanged installed images are reused;
+startup mascot/ink paper remain bundled. Firebase URL maps/preparation, the
+duplicate payload pack and custom website build checker/size gate are removed.
+The latest user choice passes only `ASSET_BASE_URL` through ignored
+`redkeep/env.json`, with a tracked one-key example and matching editor arguments.
+Per-image maps, preparation and HTTP fixture flags remain removed. The old
+download list stays deleted; the new env file contains only the image-directory URL.
+All 12 live images returned HTTP 200 and
+match local bytes. Formatting, analysis, 361 offline mobile tests, 17 website
+browser checks, website build/lint, optional catalog validation and Android debug
+packaging pass; see `docs/evidence/assets-website/verification.json`. Native fresh
+install/download from this host, physical-device and AI release qualifications
+remain unverified. M12, desktop work and agent-run publication remain separately
+scoped.
 
 The documentation task creates this file only. It does not initialize Git, create `AGENTS.md`, install packages, migrate assets, or change application code. Those actions belong to the selected implementation phases below.
 
@@ -45,14 +72,15 @@ Use `Not started`, `In progress`, `Complete`, `Partial`, or `Deferred`. A partia
 | M10 — Brain | Partial | Brain settings, schema-7 device assignments, optional verified model install/remove/progress/readiness, bounded session/resource ownership and cancellation; 266 tests, analysis/formatting and Android/iOS simulator builds pass. Physical Galaxy CPU/GPU debug, Galaxy CPU release and iOS simulator CPU checks pass with the pinned artifact; see docs/brain.md and docs/evidence/m10/verification.json. | Implementation and available checks finished. Physical iOS/Metal, minimum-OS/low-end, sustained resource/thermal/energy and native storage-failure qualification remain gaps blocking corresponding AI release claims. Helper integration is recorded in M11; these AI qualification gaps remain. |
 | M11 — Grand Maester | Complete | Contextual floating helper, Brain setup/readiness, streamed review/copy-only results and revision/selection-guarded Note rewrite acceptance into recovery drafts. 322 tests, analysis/formatting and native builds pass; separate 10-check Galaxy CPU and iOS simulator CPU smoke reports. See docs/grand-maester.md and docs/evidence/m11/verification.json. | Physical iOS/low-end/minimum-OS, sustained resources, native helper touch acceptance/OS-background inference and physical accessibility remain unverified; M03/M10 limits and M04 production-host prerequisite remain. UI01 artwork handoff and onboarding UI are next; M12 follows selected mobile UI work. |
 | UI01 planning — Onboarding image handoff | Complete | Current standalone execution prompt is docs/prompts/ui01-onboarding.md, updated for nine local WebP/JPEG originals, Firebase source configuration, live copy and usable illustration regions. Earlier PNG-only handoff prompt superseded. | Prompt preparation only. Original reference pixels remain unchanged; implement UI01 only when the user selects the execution prompt. |
-| UI01 asset configuration | Partial | Full HTTPS source overrides, real PNG/WebP/JPEG verification and exact 12-image `presentation-ui01-v3` download pack implemented. Bundled ink paper no longer downloads; older 13-key maps remain compatible and preparation omits its retired key. Remaining URLs, query strings and unrelated settings are preserved. Local checks pass. | Live endpoint availability, pinned remote-byte agreement/fresh native install and redistribution-rights evidence remain unverified; no publication performed. |
-| UI01 local asset references | Complete | Nine supplied Firebase originals and their rows remain unchanged, 2,520,638 bytes. Indexed exact copies of the selected Grand Maester mascot and Allura test font/license remain available offline. | Reference paths remain outside bundles; the selected mascot and ink paper have separate exact bundled image copies. Font reference is test-only. No Firebase refresh or test download. |
-| UI01 — Onboarding book UI | Complete | Original book/name-cover layout, selected `grand_maestar.png` mascot, Google Fonts Allura caption, primary action, dots/hint and bottom Terms/Privacy links. Added Previous/Next, counter and Back controls removed; manual/keyboard/semantic navigation retained. Schema 8 preserves versions 1–7 data and requires the committed name. Bundled mascot/paper in startup and both onboarding layouts, rounded progress bar and 12-download `presentation-ui01-v3` pack; old paper URL maps remain compatible. Formatting, analysis, 361 offline tests, local validation and Android debug APK byte checks pass; see docs/evidence/ui01/startup/verification.json. | Prior visual-parity screenshots describe preceding variants. No live font/Firebase/device or universal pixel/performance/accessibility evidence claimed. Stop at selected startup/onboarding assets; M12 requires selection. |
+| UI01 asset configuration | Partial | One default website image directory; cataloged website filenames retain eleven installed identities and adopt the Redkeep castle cover. All twelve live files match local bytes; 361 offline tests, catalog validation and Android debug packaging pass. | Fresh native install/download/offline restart from the new HTTPS host and redistribution/device qualification remain unverified. Earlier Firebase configuration is retired. |
+| UI01 local asset references | Complete | Current image consumers/tests use website/public/art directly without a duplicate pack. Existing reference archives remain intact; the separate Allura font reference still serves offline font tests. | No routine test downloads; bundled mascot/ink paper remain required startup resources. |
+| UI01 — Onboarding book UI | Complete | Restored book/folding name cover, Grand Maester, Allura, primary action, dots/hint and bottom links; manual/keyboard/semantic navigation with no added controls. Schema 8 preserves writing/settings and requires a committed name. Shared website sources now supply the Redkeep castle cover and twelve required downloads; bundled startup branding remains unchanged. Current 361 offline tests and Android debug packaging pass; see docs/evidence/assets-website/verification.json. | Prior visual-parity screenshots describe earlier cover/branding variants. Live font/native fresh-install, physical performance/accessibility and M12 qualification remain separate. |
+| Asset simplification — Website delivery | Complete | Canonical website artwork and integrity-pinned installs/offline tests. Only ASSET_BASE_URL is passed through ignored env.json; one-key example and Debug/Profile/Release wiring restored. Old URL lists, HTTP fixture flags, duplicate pack and website checker remain removed. See docs/evidence/assets-website/env-base-url.json. | Single-setting follow-up only; no additional legacy code imports. Native fresh-install qualification and M12 remain separate. |
 | M12 — Mobile release preparation | Not started | — | Requires M01–M11 plus UI01 and any further individually selected mobile UI phases; production media hosting and recorded device qualification remain prerequisites. |
 | D01 — Flutter desktop foundation | Deferred | Existing desktop app retained by user decision on 3 November 2026. | Parked; not a gate for mobile acceptance and never automatic. Requires explicit user rescoping. |
 | D02 — Companion connection | Deferred | No new mobile-to-old-desktop compatibility work selected. | Parked with D01; retaining the old app does not establish protocol compatibility. |
 | D03 — Desktop release preparation | Deferred | — | Parked with the desktop rebuild. |
-| W01 — Marketing website | Complete | Explicitly reopened local React/TypeScript/Vite copy/rename with selected Grand Maester branding with original carousel/card animations and no added book controls or mascot mouse-follow movement, restored browser-local cover-name typing and all six screenshot bytes preserved; follow-up replaces the cover-title patch with generated lavender castle art and clear name space. TypeScript, lint, prerender/build integrity, 17 browser/axe checks and local preview pass. Shared app artwork now builds directly from canonical website/public/art without duplicate references; the 7,297,375-byte output passes the 7.5 MB budget. See docs/website.md and docs/evidence/w01/asset-host-build-verification.json. | User requested disabled destination-free Download buttons without the header status line, no release section and no website simpler/reduced-motion mode. The user publishes the selected host externally; this correction only prepares the local build. Mobile source migration and rights/metadata/browser qualification remain outstanding. Desktop stays deferred; no next phase automatically authorized. |
+| W01 — Marketing website | Complete | Selected React/TypeScript/Vite website retains Grand Maester, castle cover, name typing, original animations and all six screenshots. Build is TypeScript → Vite → prerendering; custom checker and size gate removed. Build, lint and 17 browser/axe tests pass; see docs/evidence/assets-website/verification.json. | User publishes the selected host externally. Download remains disabled; no website simpler/reduced-motion mode. Rights/metadata/browser/device qualification and agent-run publication remain separately scoped. |
 
 For each executed phase, append a record under **Phase records** with: date, phase ID, changed behavior and contracts, exact commands and results, device/build/model identifiers where relevant, remaining limitations, and the next eligible prompt. Never include API keys, pairing credentials, or private writing in evidence.
 
@@ -158,11 +186,11 @@ The user's UI01 resource choice adds two permanent bundled presentation assets:
 `grand_maestar.png` and `ink-paper.webp` ship unchanged with exact indexed
 references. Startup and both onboarding layouts use these bundled images,
 including before any download. The paper is removed from the required catalog
-and deployment fixture; old source maps ignore its retired key. Allura uses
+and deployment fixture; Firebase source maps are now retired. Allura uses
 `google_fonts` runtime fetching/caching instead
 of bundled font binaries; its OFL notice ships separately. Font loading and
 these branding images remain outside required-artwork downloads. The remaining
-`presentation-ui01-v3` pack contains 12 images / 2,658,676 bytes.
+`presentation-website-v1` catalog contains 12 images / 2,800,992 bytes.
 
 Download all assets required by the currently implemented release, not every old file or all future media. Inventory media required by planned first-release features so the initial complete release has a coherent pack. On later launches, validate catalog-key/revision mappings against real local files and the installation ledger; a key in a database is not proof the file exists. Verify size and hash before atomic installation. Avoid rehashing every large file on every launch without evidence that it is needed; validate suspicious files and failures, repair invalid installations, and test same-path replacement scenarios.
 
@@ -173,13 +201,15 @@ local reference for shared website/mobile images, deployed under
 `https://redkeep.lewiseman.com/art/`. Read these files first and use them offline
 in tests; do not create additional reference copies for images already there.
 Existing `assets/reference/` files remain historical evidence or support current
-consumers not yet migrated, including the UI01 cover/font tests. These local
+font consumers, including the Allura offline tests. These local
 references do not become Flutter bundles or installed-app fallbacks automatically.
 Review app catalog paths, revisions, sizes and hashes separately. The website
-build verifies byte-for-byte public-to-dist copies without the old reference
-manifest. Mobile source configuration/test migration remains separate work.
+uses normal Vite public-file copying and prerendering, without a custom asset
+checker or size gate. Mobile image tests and optional catalog
+validation now read the website artwork directly. The app preserves installed
+paths separately from website source filenames to reuse valid existing files.
 
-Routine startup with complete local assets needs no internet and must not fetch a remote catalog before opening. New media catalogs are versioned with releases initially. The selected image host is `https://redkeep.lewiseman.com/`; mobile catalog/source migration and verified device downloads from it remain outstanding. Controlled local fixtures still support offline development. Never ship a placeholder URL or a localhost production default.
+Routine startup with complete local assets needs no internet and must not fetch a remote catalog before opening. New media catalogs are versioned with releases initially. The selected image host is `https://redkeep.lewiseman.com/`; mobile source migration and host byte checks are complete; verified native fresh-install downloads remain outstanding. Controlled local fixtures still support offline development. Never ship a placeholder URL or a localhost production default.
 
 AI model downloads are separate and optional. Future videos and notification sounds use the media delivery boundary only after their own feature is authorized. Validate platform sound-location, format, and scheduling rules then; do not assume every downloaded sound can directly serve as a system notification sound.
 
@@ -2641,3 +2671,123 @@ startup behavior and cover selection are unchanged; their migration to the
 selected host remains outstanding. No source artwork, raw/legacy files,
 dependencies or native configuration changed. W01 remains Complete at this
 boundary; no other phase is selected automatically.
+
+
+### 3 November 2026 — Selected asset simplification: shared website delivery
+
+**User selection.** After selecting the website as the image host and its public
+art folder as the sole current local reference, the user confirmed the missing
+images were live and requested simplification. Scope covers the mobile artwork
+source boundary, offline image inputs, obsolete Firebase/pack tooling, website
+build checker removal and current guides. It does not select M12, device data
+reset/installation, publication, remote Git or another UI feature.
+
+**Delivered.** Default image directory is
+`https://redkeep.lewiseman.com/art/`; ordinary and editor Debug/Profile/Release
+runs need no env file. Catalog `presentation-website-v1` keeps twelve required
+images / 2,800,992 bytes. A safe relative `sourcePath` selects the website file;
+installed `path` remains unchanged for all eleven byte-identical existing images.
+This avoids needless redownloads. The cover adopts the website's selected
+Redkeep castle JPEG at revision v2/new path, with reviewed bytes/hash/provenance.
+The provider/resolver, verified atomic installation, repair, startup gate,
+continuations, writing storage and bundled startup branding remain intact.
+
+Removed per-image URL-map parsing, source preparation script/example inputs and
+its tests, Firebase refresh tool, duplicate payload pack, website checker and
+whole-site size gate. Ignored old token/env inputs remain untouched and ignored.
+Image widget fakes, real-file tests and optional catalog validation now read
+`website/public/art/`. The validator accepts unrelated website images and never
+copies or fetches them. Historical references and the consumed Allura font
+reference remain intact. No source image was edited or copied into a new library.
+
+**Verification.** Live HTTPS GETs for all twelve selected files returned 200
+without redirects and matched local source bytes. The source check is explicit
+verification, outside routine tests. `flutter pub get --enforce-lockfile --offline`
+passes without a lockfile change; formatting and analysis pass. All 43 focused
+asset checks and all 361 offline mobile tests pass, including eleven reused files,
+only-new-cover transfer, repair/offline reopen and writing preservation. Website
+TypeScript/build/prerender, zero-warning lint and all 17 Chrome/browser/axe checks
+pass. Android ARM64 debug APK builds and packages the exact new catalog and
+bundled branding without a payload pack, image reference library or Allura TTF.
+See `docs/evidence/assets-website/verification.json` for commands and source hashes.
+Routine generated website captures were restored; there is no website UI change.
+
+**Boundary and remaining evidence.** No device installation/launch, real writing
+access, asset upload/deployment, remote Git operation, dependency/native/schema
+change or raw/legacy access occurred. Existing system/native font-host behavior
+and AI qualification gaps remain separate. Fresh Android/iOS download/offline
+journeys from the new host, physical/minimum-OS/low-end checks and distribution
+rights are not inferred from unit/widget tests or APK packaging. The selected
+simplification is complete; UI01 native-host qualification remains Partial and
+M12 remains Not started. Stop here.
+
+
+### 3 November 2026 — Asset config cleanup and legacy-code audit
+
+**User clarification.** Redkeep is a new app; no further legacy code should be
+copied or ported. The user identified the remaining local download-list file
+and asset fixture/config flags after the source simplification. Preserve the
+existing UI and prior work while removing those setup leftovers; do not disguise
+existing code provenance or import from a legacy checkout.
+
+**Cleanup.** Deleted the actual ignored `onboarding-downloads.local.json` and
+asset-only `env.json` from disk without printing or backing up their contents.
+The pending env file was absent. Removed their obsolete ignore entries. Removed
+all asset compile-time defines and the HTTP fixture switch; production composition
+uses the built-in HTTPS image directory directly. Asset locations reject HTTP.
+Tests keep injected clients/local website files. Removed local-server/flag setup
+instructions and recorded the no-further-legacy-import rule in AGENTS/current
+plan/prompt guidance. Historical evidence retains its dated setup descriptions.
+
+**Provenance findings.** Git history places the fixture flag in Redkeep's own
+M04 commit `310cd12`; its presence was extra setup code, not evidence of a Journal
+service import. Existing UI01 source comments and phase records explicitly
+identify adaptation of onboarding fold/paper/book geometry and view composition.
+W01 records copying the legacy website UI. Those earlier adapted components
+remain; this cleanup neither rewrites them nor claims the codebase has zero
+legacy-derived UI. No legacy checkout was read and no additional code imported.
+Redkeep's own schema upgrade tests are not an old-app data importer.
+
+**Checks.** Formatting checks 171 files with zero changes; analysis finds no
+issues; all 361 mobile tests pass; Android ARM64 debug packaging passes. A local
+source/file audit confirms zero asset-flag references in runtime/asset tests/
+editor configuration and absence of the obsolete local files. See
+`docs/evidence/assets-website/config-cleanup.json`. No website behavior changed,
+so the earlier passing website build/browser checks were not repeated.
+
+**Boundary.** Existing pending source simplification work remains intact. No
+source artwork, writing/database schema, dependency, native configuration, raw
+work area or legacy checkout was changed. No device installation, deployment,
+remote Git operation or wider UI rewrite occurred. The config cleanup is complete;
+existing legacy-derived UI remains disclosed and further imports are prohibited.
+M12 and native host/device qualification remain separately scoped.
+
+
+### 3 November 2026 — One base URL through env.json
+
+**Latest user selection.** Restore passing the image base URL through `env.json`
+while keeping the removed per-image configuration and fixture modes retired.
+This narrowly supersedes the preceding no-env decision, not the prohibition
+on additional legacy code imports.
+
+**Delivered.** The ignored local `redkeep/env.json` and tracked
+`redkeep/env.example.json` contain only `ASSET_BASE_URL`, set to
+`https://redkeep.lewiseman.com/art/`. Bootstrap reads that compile-time string;
+there is no hardcoded fallback or runtime file reader. Debug/Profile/Release
+editor configurations pass the file using Flutter `toolArgs`, verified against
+Dart Code's official launch guidance. CLI runs/builds use
+`--dart-define-from-file=env.json`. Current guides/AGENTS record this one-setting
+contract and the full stop/rerun needed after changing compiled configuration.
+
+**Checks.** Formatting checks 171 files with zero changes; analysis finds no
+issues; all 361 routine mobile tests pass without requiring an env define.
+Android ARM64 debug build with the env-file flag passes. APK inspection confirms
+the configured URL is compiled into its Dart kernel and `env.json` is not bundled.
+Local checks confirm the file is ignored, both JSON files have exactly one key,
+all three editor tool configurations match and old source maps/fixture flags
+remain absent. See `docs/evidence/assets-website/env-base-url.json`.
+
+**Boundary.** No new dependency, legacy import, website behavior, artwork,
+writing storage/schema or native source change. No manual IDE/device launch,
+deployment or remote Git operation. Existing native host/device qualification
+limits remain; the selected one-setting configuration follow-up is complete.

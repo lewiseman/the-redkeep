@@ -1,5 +1,10 @@
 # UI01 — Legacy onboarding and name entry
 
+**Current engineering instruction — 3 November 2026:** Redkeep is a new app. Do
+not copy or port further legacy code. The renderer/layout adaptation described
+below is existing earlier UI01 work, not permission for additional imports. The
+asset/config cleanup does not rewrite or disguise that existing provenance.
+
 **User correction — 3 November 2026:** restore the previous app's visual design
 and take/persist the user's name. This supersedes the first UI01 implementation's
 cropped illustration cards, neutral replacement cover, completion-marker-only
@@ -24,15 +29,16 @@ geometry: curved facing leaves, page blocks, sewn cloth binding, fixed case,
 spreads are displayed whole at the original 4:3 geometry rather than cropped
 into cards. The ink-paper background uses bundled
 `assets/branding/ink-paper.webp` in
-both normal and constrained layouts. The full original lavender cover, paper
+both normal and constrained layouts. The lavender Redkeep castle cover, paper
 edge and binding textures use the existing verified-file resolver. The lavender pill
 action and name field on the cover restore the original composition.
 `onboarding_content.dart` retains the original view layout directly, including
 the user-selected Grand Maester mascot and Allura caption. The button uses the original
 `0xFF161658` ink and lavender gradient, with its original disabled appearance.
 
-The supplied original cover and spreads retain their printed Journal/AI wording
-and Appearance artwork, as requested for visual parity; source pixels are not
+The supplied spreads retain their printed Journal/AI wording
+and Appearance artwork, as requested for visual parity; the cover now matches the
+website's selected Redkeep artwork. Other source pixels are not
 edited or regenerated. Current accessible descriptions identify Grand Maester as
 optional on-device help with separately downloaded models and describe the
 implemented appearance controls. This visual restoration does not implement
@@ -110,48 +116,33 @@ with the page.
 
 ## Artwork and build configuration
 
-`presentation-ui01-v3` contains **12 images / 2,658,676 bytes**: the four
-unchanged PNGs and eight exact local onboarding originals, including the cover.
-The nine original reference rows and image bytes remain unchanged; ink paper
-now ships as a separate exact branding asset. All 12 required keys have supplied
-HTTPS URLs prepared in ignored build configuration; the original cover URL was
-already supplied. No new remote URL was invented.
+`presentation-website-v1` contains **12 images / 2,800,992 bytes** from the shared
+website image directory. `website/public/art/` is the canonical local source for
+current image inspection/tests. The app now uses the website's Redkeep castle
+cover (`cover-redkeep-castle-v1.jpg`), revision `v2`, instead of the old Journal
+cover. Its dimensions and reserved name area fit the existing folding renderer.
+The other eleven images retain their bytes and installed identities.
 
-The user-provided `assets/branding/grand_maestar.png` is the bundled mascot,
-unchanged at 1,842,097 bytes. Its decode height is bounded to its display height
-and device pixel ratio. An exact reference copy and source/hash remain indexed
-as `bundled-branding`; the unused old mascot copies are removed.
+The user-provided `assets/branding/grand_maestar.png` and `ink-paper.webp` remain
+bundled, unchanged, for startup and both onboarding layouts. They match the
+website's `j.png` and `ink-paper.webp`; neither needs a download URL.
 
-Both normal and accessible layouts use
-`GoogleFontsLite.getFont('Allura', fontSize: 30, fontWeight: FontWeight.w600)`
-from pinned `google_fonts` 9.0.0, matching the legacy entry point. No font binary
-or `flutter.fonts` entry is bundled. The package fetches/caches Allura on demand;
-while it loads or is unavailable, Flutter can render fallback text. Font loading
-does not block startup, name entry or Save. The OFL notice remains a license-only
-asset registered with Flutter. The existing exact font reference is tagged
-`test-reference`, outside the app bundle, for deterministic offline tests.
-The two bundled branding images require no Firebase URL. Old ink-paper source
-overrides are ignored and preparation omits them; all other supplied URLs stay
-unchanged. See [startup](assets-startup.md) for the branded download screen.
-The reference library itself remains outside Flutter's bundle. See
-[provenance](../redkeep/tool/assets/PROVENANCE.md).
+Both layouts retain `GoogleFontsLite.getFont('Allura', fontSize: 30,
+fontWeight: FontWeight.w600)` from pinned `google_fonts` 9.0.0. No TTF or
+`flutter.fonts` entry is bundled. Font loading remains independent of startup,
+name entry and Save, and the OFL notice remains registered. The existing archived
+Allura reference preloads the font in offline tests.
 
-From `redkeep/`, prepare configuration and fully restart the app:
-
-```sh
-dart run tool/prepare_asset_sources.dart onboarding-downloads.local.json env.json
-flutter run --dart-define-from-file=env.json
-```
-
-The command preserves every consumed URL, query, directory fallback and unrelated
-env value while omitting the retired ink-paper override. A full restart is
-required when changing bundled resources or compiled configuration.
-See [asset setup](onboarding-assets-setup.md) and
-[provenance](../redkeep/tool/assets/PROVENANCE.md).
+From `redkeep/`, run `flutter run --dart-define-from-file=env.json`. The env file
+contains only `ASSET_BASE_URL`; a tracked one-key example is provided. There is
+no Firebase source map or preparation step. A full stop/rerun compiles changed
+configuration. See [asset setup](onboarding-assets-setup.md),
+[startup](assets-startup.md) and [provenance](../redkeep/tool/assets/PROVENANCE.md).
 
 ## Verification and stopping point
 
-Run the README formatting/analyzer/full offline suite and local pack validator.
+Run the README formatting/analyzer/full offline suite and optional local
+website-source validator.
 Tests cover real local artwork, original spread aspect/geometry, manual navigation,
 cover folds, required/trimmed Unicode names, failed/duplicate saves, commit timing,
 interruption/relaunch, missing-name migration, version 1–7 data preservation,
@@ -166,7 +157,7 @@ describe the earlier legacy-mascot/bundled-font variant, before the user's new
 resource choice. They remain historical evidence of the restored composition,
 not a current mascot screenshot or a device claim.
 
-No Firebase requests, refresh of the nine original images, native builds/installs/smokes, device
-performance/accessibility qualification, uploads, remote Git actions or M12 work
-are included in this correction. Live host/remote-byte validation, public
-redistribution rights and physical-device qualification remain release inputs.
+Current website-host byte checks and packaging results are recorded in the
+selected asset-simplification migration record. Native fresh-install downloads,
+physical-device qualification and public redistribution rights remain release
+inputs. Historical UI01 captures above predate the shared website cover choice.

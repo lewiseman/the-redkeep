@@ -75,7 +75,7 @@ class StartupPage extends ConsumerWidget {
                                 excludeFromSemantics: true,
                               ),
                               const SizedBox(height: 20),
-                         
+
                               const SizedBox(height: 32),
                               Text(
                                 checking

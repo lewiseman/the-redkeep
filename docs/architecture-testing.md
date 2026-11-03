@@ -45,9 +45,9 @@ mascot and ink-paper background for startup and both onboarding layouts, and
 uses `GoogleFontsLite.getFont('Allura')` for its caption, without
 bundling a font binary. Google Fonts fetches/caches it on demand;
 the remaining required 12-image pack is downloaded and verified. Bundled branding
-never uses the required-file resolver or network. Stale ink-paper URL overrides
-are ignored during build preparation and runtime configuration. Only implemented
-destinations are registered; there are no future feature pages
+never uses the required-file resolver or network. Firebase URL maps and their
+build preparation are removed. Only implemented destinations are registered;
+there are no future feature pages
 or production writing fixtures.
 
 `app/storage_providers.dart` composes the primary database and repository.
@@ -64,23 +64,20 @@ lives in `features/notes/application/notes_providers.dart`.
 
 ## Tests and commands
 
-Shared website/mobile images now use `website/public/art/` as their canonical
-local reference, per the user's 3 November 2026 simplification. New shared images
-need no duplicate under `assets/reference/`. The website build checks exact
-copies from `public/` into `dist/`. Existing mobile catalog/source configuration
-and tests have not yet migrated; the UI01 cover/font references described below
-remain available for their current consumers. See [the website guide](website.md).
+Shared website/mobile images use `website/public/art/` directly for inspection,
+widget fakes, real-file asset tests and optional catalog validation. No duplicate
+pack or reference copy is needed. Tests never fetch images. The catalog's
+`sourcePath` names the website file; its installed `path` preserves existing
+verified files. The sole asset define `ASSET_BASE_URL` is passed from ignored
+`redkeep/env.json` with `--dart-define-from-file=env.json`; editor run modes use
+the same file. Per-image maps and HTTP modes remain removed. Routine tests
+inject clients/local files without requiring that ignored file.
 
-Remote presentation media also has a versioned reference library at
-[`assets/reference/`](../assets/reference/README.md), outside the Flutter bundle.
-Use its manifest and files for image inspection and future asset-dependent test
-inputs. Tests must not invoke the refresh tool or fetch remote URLs. UI01 uses
-eight exact onboarding copies in the separate deployment pack while retaining
-all nine originals and four existing runtime files. Ink paper now has a separate
-exact bundled copy. The two new
-manifest entries index the selected mascot (`bundled-branding`) and the exact
-font used by offline tests (`test-reference`). The mascot and ink paper have
-bundled image copies; font licensing is retained separately.
+Historical `assets/reference/` files remain outside Flutter bundles. The Allura
+font reference is still used by offline font tests because it is separate from
+website images. Bundled mascot/ink-paper copies remain necessary for immediate
+startup; they match the local website originals. The website build uses ordinary
+TypeScript, Vite and prerendering without a custom asset checker or size gate.
 
 `test/flutter_test_config.dart` disables Google Fonts runtime fetching and
 preloads the consumed Allura from its local reference through a temporary
@@ -112,7 +109,7 @@ flutter test test/features/ai
 flutter test test/features/brain
 flutter test test/features/maester
 flutter test test/features/assets
-dart run tool/validate_assets.dart assets/catalog/presentation-v1.json tool/assets/pack
+dart run tool/validate_assets.dart assets/catalog/presentation-v1.json ../website/public/art
 ```
 
 - `test/app` checks app-scope composition, unknown initial/subsequent routes,
@@ -149,10 +146,10 @@ dart run tool/validate_assets.dart assets/catalog/presentation-v1.json tool/asse
   redirect handling/cleanup through injected transport, real disposable file
   integrity and atomic-install recovery, missing/suspicious files, restart/retry,
   symlink rejection, storage failure and separate database preservation. The
-  publishing check decodes selected local PNG/WebP/JPEG files and rejects
-  wrong extensions, animation, invalid dimensions and bad packs. Source-config
-  tests preserve full object queries and unrelated env values atomically;
-  real-reference store tests prove upgrade/repair/offline reopen without URLs.
+  optional source check decodes cataloged website PNG/WebP/JPEG files and rejects
+  wrong extensions, animation, invalid dimensions and corrupt files while allowing
+  unrelated website artwork. Store tests prove website-source repair, reuse of all
+  eleven unchanged images, the new cover download and network-free offline reopen.
 - `test/app/bootstrap_test.dart` checks splash release before network, timeout,
   coalesced slow retries, local errors, disposal and progress. Startup widget
   checks cover required offline gating, preserved direct destinations, retry,

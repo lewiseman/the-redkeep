@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,13 +20,7 @@ final requiredAssetsProvider = FutureProvider<RequiredAssets>((ref) async {
   return FileRequiredAssets(
     catalog: catalog,
     root: Directory.fromUri(support.uri.resolve('required-artwork/')),
-    location: AssetLocation(
-      const String.fromEnvironment('ASSET_BASE_URL'),
-      sourceUrlsJson: const String.fromEnvironment('ASSET_SOURCE_URLS_JSON'),
-      catalog: catalog,
-      allowLocalFixture:
-          kDebugMode && const bool.fromEnvironment('ASSET_ALLOW_LOCAL_FIXTURE'),
-    ),
+    location: AssetLocation(const String.fromEnvironment('ASSET_BASE_URL')),
     client: HttpAssetDownloadClient(),
   );
 }, retry: (_, _) => null);

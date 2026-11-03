@@ -29,9 +29,9 @@ void main() {
   );
   test('actual local originals qualify as still PNG, WebP and JPEG; wrong extension, corruption, dimensions and animation fail', () async {
     for (final path in [
-      'tool/assets/pack/appearance/theme-light-v1.png',
-      '../assets/reference/images/onboarding/notes.webp',
-      '../assets/reference/images/onboarding/flow.jpg',
+      '../website/public/art/theme_light.png',
+      '../website/public/art/notes.webp',
+      '../website/public/art/flow.jpg',
     ]) {
       final bytes = await File(path).readAsBytes();
       verifyAssetImageBytes(bytes, path);
@@ -68,8 +68,7 @@ void main() {
           'redkeep-real-image-',
         );
         addTearDown(() => temp.delete(recursive: true));
-        final bytes = await File('../assets/reference/images/onboarding/$name')
-            .readAsBytes();
+        final bytes = await File('../website/public/art/$name').readAsBytes();
         final row = {
           'key': 'test.image',
           'revision': 'v1',
@@ -160,7 +159,7 @@ void main() {
     await writing.writeAsString(
       'existing writing, settings and completion sentinel',
     );
-    final client = _PackClient();
+    final client = _WebsiteClient();
     FileRequiredAssets store(AssetCatalog catalog) => FileRequiredAssets(
       catalog: catalog,
       root: Directory('${temp.path}/artwork'),
@@ -183,7 +182,7 @@ void main() {
     await upgraded.download((_) {});
     expect(
       client.requests.map((u) => u.path),
-      next.assets.skip(4).map((a) => '/${a.path}'),
+      next.assets.skip(4).map((a) => '/${a.sourcePath}'),
     );
     expect(await upgraded.inspect(), isEmpty);
     for (final asset in old.assets) {
@@ -206,64 +205,108 @@ void main() {
     );
   });
 
-  test('UI01 catalog copies manifest bytes exactly and preserves the four existing runtime entries', () async {
+  test('an existing installation reuses all eleven unchanged images and downloads only the Redkeep cover', () async {
+    final temp = await Directory.systemTemp.createTemp(
+      'redkeep-website-upgrade-',
+    );
+    addTearDown(() => temp.delete(recursive: true));
     final catalog = AssetCatalog.parse(
       await File('assets/catalog/presentation-v1.json').readAsString(),
     );
-    final manifest = jsonDecode(
-      await File('../assets/reference/manifest.json').readAsString(),
-    ) as Map;
-    expect(catalog.assets, hasLength(12));
-    expect(catalog.asset('onboarding.cover').path, 'onboarding/cover.webp');
-    for (final row in (manifest['assets'] as List).where(
-      (r) => r['remote'] != null && !bundledArtworkKeys.contains(r['key']),
+    final root = Directory('${temp.path}/artwork');
+    for (final asset in catalog.assets.where(
+      (a) => a.key != 'onboarding.cover',
     )) {
-      final asset = catalog.asset(row['key'] as String);
-      final local = await File('../assets/reference/${row['path']}')
-          .readAsBytes();
-      expect(await File('tool/assets/pack/${asset.path}').readAsBytes(), local);
-      expect(asset.bytes, row['bytes']);
-      expect(asset.sha256, row['sha256']);
+      final target = File.fromUri(root.uri.resolve(asset.path));
+      await target.parent.create(recursive: true);
+      await File('../website/public/art/${asset.sourcePath}').copy(target.path);
     }
-    // Both first-frame branding images ship exactly as supplied and never
-    // become required downloads, including on a fresh offline installation.
-    for (final entry in {
-      'onboarding.background.ink': 'ink-paper.webp',
-      'onboarding.brand.mascot': 'grand_maestar.png',
-    }.entries) {
-      expect(catalog.assets.any((a) => a.key == entry.key), isFalse);
-      final row = (manifest['assets'] as List).singleWhere(
-        (r) => r['key'] == entry.key,
-      );
-      final bytes = await File('assets/branding/${entry.value}').readAsBytes();
-      expect(
-        bytes,
-        await File('../assets/reference/${row['path']}').readAsBytes(),
-      );
-      expect(bytes.length, row['bytes']);
-      expect(sha256.convert(bytes).toString(), row['sha256']);
-    }
-    expect(
-      catalog.assets
-          .take(4)
-          .map(
-            (a) => '${a.key}|${a.revision}|${a.path}|${a.sha256}|${a.bytes}',
-          ),
-      [
-        'appearance.theme.system|v1|appearance/theme-system-v1.png|d4d4de4cb5ad3c83cf66db8838e69395cf61b90c7d697b84d7f3bbe8575c3176|159869',
-        'appearance.theme.light|v1|appearance/theme-light-v1.png|2e08abe549f65713bcccfba9d19035c68946f3fbfef3e88b9e24a0c0f66649fc|146694',
-        'appearance.theme.dark|v1|appearance/theme-dark-v1.png|dd744501d2cfb75cb83948f0f83568c6dd31fd52e03bbcf538e91f9a6eb87e32|127553',
-        'notes.add|v1|notes/add-v1.png|5674c0849f384dc06e9b36ddbc34dd03acac1e2e67b6881a347a8a7a7ecc65b8|45800',
-      ],
+    final writing = File('${temp.path}/redkeep.sqlite');
+    await writing.writeAsString('existing writing sentinel');
+    final client = _WebsiteClient();
+    final store = FileRequiredAssets(
+      catalog: catalog,
+      root: root,
+      location: AssetLocation('https://fixtures.redkeep.test/'),
+      client: client,
     );
+    expect(await store.inspect(), ['onboarding.cover']);
+    expect(client.requests, isEmpty);
+    await store.download((_) {});
+    expect(client.requests.map((u) => u.path), [
+      '/cover-redkeep-castle-v1.jpg',
+    ]);
+    expect(await store.inspect(verifyAll: true), isEmpty);
+    client.requests.clear();
+    final offline = FileRequiredAssets(
+      catalog: catalog,
+      root: root,
+      location: AssetLocation(''),
+      client: client,
+    );
+    expect(await offline.inspect(), isEmpty);
+    await offline.download((_) {});
+    expect(client.requests, isEmpty);
+    expect(await writing.readAsString(), 'existing writing sentinel');
   });
+
+  test(
+    'website catalog matches local sources and preserves installed paths',
+    () async {
+      final catalog = AssetCatalog.parse(
+        await File('assets/catalog/presentation-v1.json').readAsString(),
+      );
+      expect(catalog.assets, hasLength(12));
+      expect(
+        catalog.asset('onboarding.cover').sourcePath,
+        'cover-redkeep-castle-v1.jpg',
+      );
+      for (final asset in catalog.assets) {
+        final local = await File('../website/public/art/${asset.sourcePath}')
+            .readAsBytes();
+        expect(asset.bytes, local.length);
+        expect(asset.sha256, sha256.convert(local).toString());
+      }
+      // Branding is always bundled, even on a fresh offline installation.
+      for (final entry in {
+        'ink-paper.webp': 'ink-paper.webp',
+        'grand_maestar.png': 'j.png',
+      }.entries) {
+        expect(
+          await File('assets/branding/${entry.key}').readAsBytes(),
+          await File('../website/public/art/${entry.value}').readAsBytes(),
+        );
+      }
+      expect(
+        catalog.assets.any((a) => a.key == 'onboarding.background.ink'),
+        isFalse,
+      );
+      expect(
+        catalog.assets.any((a) => a.key == 'onboarding.brand.mascot'),
+        isFalse,
+      );
+      expect(
+        catalog.assets
+            .take(4)
+            .map(
+              (a) => '${a.key}|${a.revision}|${a.path}|${a.sha256}|${a.bytes}',
+            ),
+        [
+          'appearance.theme.system|v1|appearance/theme-system-v1.png|d4d4de4cb5ad3c83cf66db8838e69395cf61b90c7d697b84d7f3bbe8575c3176|159869',
+          'appearance.theme.light|v1|appearance/theme-light-v1.png|2e08abe549f65713bcccfba9d19035c68946f3fbfef3e88b9e24a0c0f66649fc|146694',
+          'appearance.theme.dark|v1|appearance/theme-dark-v1.png|dd744501d2cfb75cb83948f0f83568c6dd31fd52e03bbcf538e91f9a6eb87e32|127553',
+          'notes.add|v1|notes/add-v1.png|5674c0849f384dc06e9b36ddbc34dd03acac1e2e67b6881a347a8a7a7ecc65b8|45800',
+        ],
+      );
+    },
+  );
 }
 
-class _PackClient implements AssetDownloadClient {
+class _WebsiteClient implements AssetDownloadClient {
   final requests = <Uri>[];
   @override
   Stream<List<int>> open(Uri uri) {
     requests.add(uri);
-    return File('tool/assets/pack${uri.path}').openRead();
+    return File('../website/public/art${uri.path}').openRead();
   }
 }

@@ -1,0 +1,40 @@
+{
+  "phase": "Asset configuration cleanup and legacy-code provenance audit",
+  "date": "2026-11-03",
+  "deleted_local_files": [
+    "redkeep/onboarding-downloads.local.json",
+    "redkeep/env.json"
+  ],
+  "pending_env_file": "absent",
+  "configuration": "Built-in HTTPS website image directory; no asset environment defines, URL maps or local HTTP modes",
+  "active_source_audit": {
+    "asset_flag_references": 0,
+    "roots": [
+      "redkeep/lib",
+      "redkeep/test/features/assets",
+      ".vscode"
+    ]
+  },
+  "legacy_code_findings": {
+    "fixture_flag_origin": "Git commit 310cd12, M04 \u2014 Assets and startup; introduced within Redkeep development",
+    "existing_adapted_mobile_ui": [
+      "redkeep/lib/features/onboarding/presentation/book_fold.dart",
+      "redkeep/lib/features/onboarding/presentation/book_paper.dart",
+      "redkeep/lib/features/onboarding/presentation/onboarding_book.dart",
+      "redkeep/lib/features/onboarding/presentation/onboarding_content.dart"
+    ],
+    "basis": "Existing source provenance comments and UI01/W01 phase records; no legacy checkout inspected",
+    "website": "Earlier W01 explicitly copied the legacy website UI",
+    "current_cleanup": "No additional legacy code imported; existing adapted UI has not been rewritten",
+    "current_instruction": "Redkeep is a new app; do not copy/port further legacy code, manifests, services or native configuration"
+  },
+  "checks": [
+    "dart format --output=none --set-exit-if-changed lib test tool: 171 files, zero changes",
+    "flutter analyze: no issues",
+    "flutter test --reporter expanded: 361 passed",
+    "flutter build apk --debug --target-platform android-arm64: passed",
+    "File/source audit: obsolete local files absent and asset flags absent from runtime, asset tests and editor configuration"
+  ],
+  "preserved": "Pre-existing worktree changes, current UI, website artwork, writing storage, dependencies, native configuration and historical provenance",
+  "boundary": "No legacy checkout/raw access, UI rewrite, device installation, publication or remote Git operation"
+}

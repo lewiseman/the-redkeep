@@ -1,40 +1,33 @@
 # Redkeep mobile
 
-The Flutter shell uses Riverpod and go_router for a Diary-first home, Notes, Flow, More/appearance settings,
-a persisted welcome flow, and unavailable-page recovery. Diary, Notes, Flow and settings share the primary Drift database; system
-fonts and programmatic paper surfaces need no downloads.
-Required Appearance and Notes create artwork is downloaded separately. Fresh installations
-are gated until the pack is verified; complete installations work offline. A
-host is intentionally unconfigured by default. Use the controlled local fixture
-instructions in [assets and startup](../docs/assets-startup.md) for development.
+The Flutter app uses Riverpod and go_router for Diary, Notes, Flow, More/settings,
+onboarding and recovery. Writing and settings share the primary Drift database.
 
-UI01 restores the legacy full illustrated book and folding name-entry cover.
-**Save** requires and commits the user's name before routing; no name means
-onboarding. Schema 8 upgrades existing data without clearing writing/settings.
-`presentation-ui01-v3` contains eight supplied originals plus four retained
-PNGs: 12 images / 2,658,676 bytes. The selected Grand Maester mascot, Allura caption, dots and
-bottom Terms/Privacy links are restored; the added navigation buttons are gone.
-The user-provided `grand_maestar.png` and `ink-paper.webp` ship unchanged under
-`assets/branding/`. Startup uses the paper background, mascot and download
-progress bar; both onboarding layouts also use the bundled background. Allura uses
-`google_fonts` runtime fetching/caching, with no bundled font binary; its local
-reference keeps tests offline. Downloaded artwork remains outside the bundle. See
-[the current book guide](../docs/onboarding-ui-migration.md).
+Required artwork downloads from the `ASSET_BASE_URL` image directory in ignored
+`env.json`, currently `https://redkeep.lewiseman.com/art/`.
+`website/public/art/` is its canonical local source and the image input for offline
+tests. `presentation-website-v1` pins 12 images / 2,800,992 bytes, including the
+website's Redkeep castle cover. Existing installations reuse the eleven unchanged
+images. Downloads are verified and installed into persistent app-owned storage;
+a complete installation opens offline.
 
-Prepare the ignored sources and run from this directory:
+From this directory, copy `env.example.json` to ignored `env.json` on a new
+checkout. It contains only `ASSET_BASE_URL`. Run:
 
 ```sh
-dart run tool/prepare_asset_sources.dart onboarding-downloads.local.json env.json
 flutter run --dart-define-from-file=env.json
 ```
 
-The command serializes the consumed source map as the string define
-`ASSET_SOURCE_URLS_JSON`, preserving `ASSET_BASE_URL` and all unrelated entries.
-Keep complete Firebase object URLs and tokens in ignored inputs/configuration.
-All 12 required downloads have supplied HTTPS sources in ignored build
-configuration. Live Firebase/fresh-install verification remains unperformed. See
-[asset setup](../docs/onboarding-assets-setup.md) for exact contracts and offline
-checks. References remain outside the app bundle and are never fetched by tests.
+The editor's Debug/Profile/Release configurations pass the same env file. There is
+no Firebase source list, token map, HTTP fixture flag or preparation command.
+See [asset setup](../docs/onboarding-assets-setup.md) for adding artwork and the
+single base-URL configuration. Changing it requires a full stop and rerun.
+
+The Grand Maester mascot and ink-paper background remain bundled for startup and
+both onboarding layouts. Allura uses Google Fonts fetching/caching without a
+bundled font binary; the retained local font reference keeps tests offline.
+**Save** commits the onboarding name before continuing. Schema 8 and existing
+writing/settings are unchanged. See [the book guide](../docs/onboarding-ui-migration.md).
 
 M05 redirects through startup and onboarding while preserving validated
 requested destinations. See [onboarding and navigation](../docs/onboarding-routing.md)

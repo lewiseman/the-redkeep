@@ -1,5 +1,18 @@
 # UI01 — Migrate the onboarding book UI
 
+**Legacy-code permission superseded — 3 November 2026:** Redkeep is a new app;
+do not copy or port legacy application code. Earlier adaptation instructions
+below are historical. Use the current repository and approved artwork; preserve
+honest provenance for the renderer/layout code already adapted during UI01.
+
+**Asset setup superseded — 3 November 2026:** current shared artwork lives in
+`website/public/art/` and the app downloads from the website's `/art/` directory,
+configured by only `ASSET_BASE_URL` in `env.json`. The current cover is the
+website's Redkeep castle JPEG. Firebase
+URL maps, reference-copy acquisition and the duplicate payload pack are retired.
+Use [asset setup](../onboarding-assets-setup.md); asset instructions in the
+historical prompt below do not override the selected simplification.
+
 **Superseded in part by the user's 3 November 2026 correction.** Restore the
 legacy full-spread book/cover presentation and persist/require the user's name.
 The user confirmed onboarding and name only. The current implementation contract

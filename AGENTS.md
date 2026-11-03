@@ -16,12 +16,18 @@
   duplicate reference copies for images already there. Tests use local files and
   never download them. Preserve existing `assets/reference/` material as historical
   evidence or references not yet available in the website; do not refresh Firebase
-  copies for website-hosted images. App catalogs still need reviewed paths,
+  copies for website-hosted images. Pass only `ASSET_BASE_URL` through ignored
+  `redkeep/env.json` at build/run time; keep `env.example.json` tracked. Do not
+  restore per-image URL maps or HTTP fixture flags. App catalogs need reviewed paths,
   revisions, sizes and hashes; local website files do not enter Flutter bundles
   automatically. Keep any remaining token-bearing configuration ignored.
-- Legacy projects under `/Users/lewis/Dev/Projects/Journal/` are read-only
-  references. Inspect them only when the selected phase needs them; copy only
-  specifically approved behavior/assets. Never bulk-import code or manifests.
+- Redkeep is a new app. Do not copy, port or import legacy application code,
+  manifests, services or native configuration. Older migration prompts and UI
+  parity records do not authorize further legacy code reuse. Existing provenance
+  records must stay honest about earlier onboarding/website reuse. Use approved
+  artwork from the website as the image source. Projects under
+  `/Users/lewis/Dev/Projects/Journal/` remain read-only; inspect them only when the
+  user explicitly requests reference work.
 - Use feature-first organization with Riverpod composition and go_router. Create
   directories, abstractions, and dependencies only for real current consumers.
   Inject external boundaries and time/ID sources when used; keep tests isolated

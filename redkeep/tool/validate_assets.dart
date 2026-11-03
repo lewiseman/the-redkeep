@@ -1,27 +1,20 @@
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
-import 'package:redkeep/features/assets/data/asset_download_client.dart';
 import 'package:redkeep/features/assets/data/verify_asset_image.dart';
 import 'package:redkeep/features/assets/domain/asset_catalog.dart';
 
-/// Read-only pre-publication verification using the runtime catalog parser.
+/// Optional offline check of app catalog entries against the website artwork.
 Future<void> main(List<String> args) async {
-  if (args.length != 2 && args.length != 3) {
+  if (args.length != 2) {
     stderr.writeln(
-      'Usage: dart run tool/validate_assets.dart <catalog> <pack-directory> [https-base-url/]',
+      'Usage: dart run tool/validate_assets.dart <catalog> <website-art-directory>',
     );
     exitCode = 64;
     return;
   }
   try {
-    stdout.writeln(
-      await validateAssetPack(
-        args[0],
-        args[1],
-        releaseBase: args.length == 3 ? args[2] : null,
-      ),
-    );
+    stdout.writeln(await validateAssetSources(args[0], args[1]));
   } catch (error) {
     stderr.writeln(
       error is AssetException ? 'Invalid asset catalog or location.' : error,
@@ -30,34 +23,12 @@ Future<void> main(List<String> args) async {
   }
 }
 
-Future<String> validateAssetPack(
+Future<String> validateAssetSources(
   String catalogPath,
-  String packPath, {
-  String? releaseBase,
-}) async {
+  String sourcePath,
+) async {
   final catalog = AssetCatalog.parse(await File(catalogPath).readAsString());
-  final root = Directory(await Directory(packPath).resolveSymbolicLinks());
-  if (releaseBase != null) {
-    final base = Uri.parse(releaseBase);
-    AssetLocation(releaseBase);
-    if (base.scheme != 'https' ||
-        base.host == 'localhost' ||
-        InternetAddress.tryParse(base.host) != null ||
-        base.host == 'example.com' ||
-        base.host.endsWith('.example') ||
-        base.host.endsWith('.invalid') ||
-        base.host.endsWith('.test')) {
-      throw const FormatException('A real public HTTPS base is required.');
-    }
-  }
-  final actual = <String>{};
-  await for (final entity in root.list(recursive: true, followLinks: false)) {
-    if (entity is Link) {
-      throw const FormatException('Links are not publishable.');
-    }
-    if (entity is File) actual.add(entity.path);
-  }
-  final expected = <String>{};
+  final root = Directory(await Directory(sourcePath).resolveSymbolicLinks());
   for (final asset in catalog.assets) {
     if (!{
           'LicenseRef-Project-Generated',
@@ -67,8 +38,23 @@ Future<String> validateAssetPack(
         !await File(asset.provenance).exists()) {
       throw const FormatException('Missing reviewed license/provenance.');
     }
-    final file = File.fromUri(root.uri.resolve(asset.path));
-    expected.add(file.path);
+    var directory = root;
+    final parts = asset.sourcePath.split('/');
+    for (final part in parts.take(parts.length - 1)) {
+      directory = Directory.fromUri(directory.uri.resolve('$part/'));
+      if (await FileSystemEntity.type(
+            directory.path.replaceFirst(RegExp(r'[/\\]+$'), ''),
+            followLinks: false,
+          ) !=
+          FileSystemEntityType.directory) {
+        throw const FormatException('Expected a local artwork directory.');
+      }
+    }
+    final file = File.fromUri(directory.uri.resolve(parts.last));
+    if (await FileSystemEntity.type(file.path, followLinks: false) !=
+        FileSystemEntityType.file) {
+      throw const FormatException('Expected a regular local artwork file.');
+    }
     if (await file.length() != asset.bytes ||
         (await sha256.bind(file.openRead()).first).toString() != asset.sha256) {
       throw const FormatException(
@@ -82,11 +68,6 @@ Future<String> validateAssetPack(
         'Expected a bounded, decodable still PNG/WebP/JPEG matching its extension.',
       );
     }
-  }
-  if (actual.length != expected.length || !actual.containsAll(expected)) {
-    throw const FormatException(
-      'Pack must contain only cataloged presentation media.',
-    );
   }
   return 'Verified ${catalog.pack}: ${catalog.assets.length} images (PNG/WebP/JPEG), ${catalog.assets.fold(0, (sum, a) => sum + a.bytes)} bytes. No publication performed.';
 }

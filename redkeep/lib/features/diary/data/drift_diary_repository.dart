@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import '../../sync/data/drift_sync_store.dart';
 
 import 'package:drift/drift.dart';
@@ -5,6 +7,7 @@ import 'package:drift/drift.dart';
 import '../../../core/storage/app_database.dart';
 import '../domain/diary_document.dart';
 import '../domain/diary_repository.dart';
+import '../domain/diary_day_details.dart';
 import '../domain/civil_date.dart';
 
 class DriftDiaryRepository implements DiaryRepository {
@@ -57,16 +60,32 @@ class DriftDiaryRepository implements DiaryRepository {
         (r) => DiaryDay(
           date: date,
           heading: r?.heading ?? '',
+          mood: DiaryMood.tryParse(r?.mood),
+          themes: r == null
+              ? const []
+              : (jsonDecode(r.themes) as List).cast<String>(),
           revision: r?.revision ?? 0,
         ),
       );
   @override
-  Future<void> renameDay(DiaryDay day, String heading) async {
+  Future<void> renameDay(DiaryDay day, String heading) => saveDay(
+    DiaryDay(
+      date: day.date,
+      heading: heading,
+      mood: day.mood,
+      themes: day.themes,
+      revision: day.revision,
+    ),
+  );
+
+  @override
+  Future<void> saveDay(DiaryDay day) async {
     return _db.transaction(() async {
       await checkWritingAccess(_db, _generation);
-      if (heading.length > 160) {
+      if (day.heading.length > 160) {
         throw const DiaryException(DiaryFailure.invalidHeading);
       }
+      final themes = normalizeDiaryThemes(day.themes);
 
       final old = await (_db.select(
         _db.diaryDays,
@@ -79,7 +98,9 @@ class DriftDiaryRepository implements DiaryRepository {
           .insertOnConflictUpdate(
             DiaryDaysCompanion.insert(
               dateKey: day.date.key,
-              heading: heading,
+              heading: day.heading,
+              mood: Value(day.mood?.name),
+              themes: Value(jsonEncode(themes)),
               revision: day.revision + 1,
             ),
           );

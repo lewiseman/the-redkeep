@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/civil_date.dart';
+import '../domain/diary_day_details.dart';
 import '../domain/diary_document.dart';
 import 'diary_providers.dart';
 
@@ -9,12 +10,16 @@ class DiaryPaperDay {
   const DiaryPaperDay({
     required this.date,
     this.heading = '',
+    this.mood,
+    this.themes = const [],
     this.entries = const [],
     this.loading = false,
     this.failed = false,
   });
   final CivilDate date;
   final String heading;
+  final DiaryMood? mood;
+  final List<String> themes;
   final List<DiaryEntry> entries;
   final bool loading, failed;
   DateTime get calendarDate => DateTime(date.year, date.month, date.day);
@@ -32,6 +37,8 @@ final diaryPaperDayProvider = Provider.autoDispose
       return DiaryPaperDay(
         date: date,
         heading: day.value?.heading ?? '',
+        mood: day.value?.mood,
+        themes: day.value?.themes ?? const [],
         entries: [
           for (final document in documents)
             if (document.value case final opened?)

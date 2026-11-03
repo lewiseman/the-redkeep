@@ -15,6 +15,7 @@ import 'package:redkeep/features/diary/presentation/diary_writing_prompt.dart';
 import 'package:redkeep/features/diary/data/drift_diary_repository.dart';
 import 'package:redkeep/features/diary/domain/civil_date.dart';
 import 'package:redkeep/features/diary/domain/diary_document.dart';
+import 'package:redkeep/features/diary/domain/diary_day_details.dart';
 
 import '../../support/controlled_diary_repository.dart';
 import '../../support/fake_appearance_repository.dart';
@@ -265,28 +266,115 @@ void main() {
         diaryTitleLocation(date),
       );
       expect(find.byType(Dialog), findsNothing);
-      await tester.enterText(find.byType(TextField), 'A day to remember');
-      await tap(tester, 'Save title');
+      await tester.enterText(
+        find.byKey(const ValueKey('diary-day-title-field')),
+        'A day to remember',
+      );
+      await tap(tester, '😌 Calm');
+      await tester.enterText(
+        find.byKey(const ValueKey('diary-day-themes-field')),
+        'Work, Family',
+      );
+      await tap(tester, 'Save day');
       expect(
         router.routeInformationProvider.value.uri.path,
         diaryDayLocation(date),
       );
       expect(liveText('A day to remember'), findsOneWidget);
       expect((await storedDay(tester)).heading, 'A day to remember');
+      expect((await storedDay(tester)).mood, DiaryMood.calm);
+      expect((await storedDay(tester)).themes, ['Work', 'Family']);
+      expect(liveText('😌 Calm · Work · Family'), findsOneWidget);
 
       await tap(tester, 'Name this day');
       expect(
-        tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        tester
+            .widget<ChoiceChip>(
+              find.byKey(const ValueKey('diary-day-mood-calm')),
+            )
+            .selected,
+        isTrue,
+      );
+      expect(
+        tester
+            .widget<TextField>(
+              find.byKey(const ValueKey('diary-day-themes-field')),
+            )
+            .controller!
+            .text,
+        'Work, Family',
+      );
+      expect(
+        tester
+            .widget<TextField>(
+              find.byKey(const ValueKey('diary-day-title-field')),
+            )
+            .controller!
+            .text,
         'A day to remember',
       );
-      await tester.enterText(find.byType(TextField), '');
-      await tap(tester, 'Save title');
+      await tester.enterText(
+        find.byKey(const ValueKey('diary-day-title-field')),
+        '',
+      );
+      await tap(tester, 'None');
+      await tester.enterText(
+        find.byKey(const ValueKey('diary-day-themes-field')),
+        '',
+      );
+      await tap(tester, 'Save day');
       expect((await storedDay(tester)).heading, '');
+      expect((await storedDay(tester)).mood, isNull);
+      expect((await storedDay(tester)).themes, isEmpty);
       expect(find.byType(DiaryTitlePrompt).hitTestable(), findsOneWidget);
       final unchanged = (await repo.openDocument(id)).entry!;
       expect(unchanged.revision, original.revision);
       expect(unchanged.text.title, original.text.title);
       expect(unchanged.text.body, original.text.body);
+    },
+  );
+
+  diaryTest(
+    'mood-only changes are protected on back and invalid themes keep the draft',
+    (tester) async {
+      final router = await pumpApp(
+        tester,
+        initialLocation: diaryTitleLocation(date),
+        diary: repo,
+      );
+      await tap(tester, '😊 Happy');
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      await tap(tester, 'Keep writing');
+      expect(
+        tester
+            .widget<ChoiceChip>(
+              find.byKey(const ValueKey('diary-day-mood-happy')),
+            )
+            .selected,
+        isTrue,
+      );
+      final themes = find.byKey(const ValueKey('diary-day-themes-field'));
+      await tester.enterText(themes, 'One, Two, Three, Four');
+      await tap(tester, 'Save day');
+      expect(find.text('Choose up to three themes.'), findsOneWidget);
+      expect((await storedDay(tester)).revision, 0);
+      await tester.enterText(themes, 'x' * 41);
+      await tap(tester, 'Save day');
+      expect(
+        find.text('Each theme must be at most 40 characters.'),
+        findsOneWidget,
+      );
+      await tester.enterText(themes, ' Work, work, Family ');
+      await tap(tester, 'Save day');
+      expect(
+        router.routeInformationProvider.value.uri.path,
+        diaryDayLocation(date),
+      );
+      expect((await storedDay(tester)).heading, '');
+      expect((await storedDay(tester)).mood, DiaryMood.happy);
+      expect((await storedDay(tester)).themes, ['Work', 'Family']);
+      expect(liveText('😊 Happy · Work · Family'), findsOneWidget);
     },
   );
 
@@ -299,7 +387,10 @@ void main() {
         diary: repo,
       );
       await tap(tester, 'Name this day');
-      await tester.enterText(find.byType(TextField), 'Draft title');
+      await tester.enterText(
+        find.byKey(const ValueKey('diary-day-title-field')),
+        'Draft title',
+      );
       await tester.pumpAndSettle();
       await tester.pageBack();
       await tester.pumpAndSettle();
@@ -310,13 +401,18 @@ void main() {
       );
       await repo.renameDay(await storedDay(tester), 'Newer title');
       await tester.pumpAndSettle();
-      await tap(tester, 'Save title');
+      await tap(tester, 'Save day');
       expect(
-        find.text('Title could not be saved. Reopen the day and retry.'),
+        find.text('Day details could not be saved. Reopen the day and retry.'),
         findsOneWidget,
       );
       expect(
-        tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        tester
+            .widget<TextField>(
+              find.byKey(const ValueKey('diary-day-title-field')),
+            )
+            .controller!
+            .text,
         'Draft title',
       );
       expect((await storedDay(tester)).heading, 'Newer title');
@@ -365,8 +461,11 @@ void main() {
       );
       await tap(tester, 'Previous day');
       await tap(tester, 'Name this day');
-      await tester.enterText(find.byType(TextField), 'Leap day notebook');
-      await tap(tester, 'Save title');
+      await tester.enterText(
+        find.byKey(const ValueKey('diary-day-title-field')),
+        'Leap day notebook',
+      );
+      await tap(tester, 'Save day');
       expect(liveText('Leap day notebook'), findsOneWidget);
       await tap(tester, 'Calendar for this month');
       expect(find.byType(DiaryCalendarPage), findsOneWidget);
@@ -581,8 +680,11 @@ void main() {
           router.go(diaryDayLocation(date));
           await tester.pumpAndSettle();
           await tap(tester, 'Name this day');
-          await tester.enterText(find.byType(TextField), 'Large text heading');
-          await tap(tester, 'Save title');
+          await tester.enterText(
+            find.byKey(const ValueKey('diary-day-title-field')),
+            'Large text heading',
+          );
+          await tap(tester, 'Save day');
           expect(liveText('Large text heading'), findsOneWidget);
           expect(tester.takeException(), isNull);
           router.go(diaryEntryLocation(date, id));

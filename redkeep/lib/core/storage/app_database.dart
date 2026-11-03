@@ -36,7 +36,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   // Reset changes this generation before disposing editors. Old repositories
   // cannot write after cleanup, even when an async continuation finishes late.
@@ -94,6 +94,11 @@ class AppDatabase extends _$AppDatabase {
           appearanceSettings,
           appearanceSettings.diaryBodyFontFamily,
         );
+      }
+      // Earlier upgrades create diary_days with the current columns already.
+      if (from >= 5 && from < 11 && to >= 11) {
+        await migrator.addColumn(diaryDays, diaryDays.mood);
+        await migrator.addColumn(diaryDays, diaryDays.themes);
       }
       // createTable above already uses the current columns for version 1.
       if (from >= 2 && from < 8 && to >= 8) {

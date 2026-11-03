@@ -191,7 +191,7 @@ class DiaryTitlePrompt extends StatelessWidget {
     return Semantics(
       button: true,
       enabled: onTap != null,
-      label: title.isEmpty ? 'Name this day' : 'Edit day title: $title',
+      label: title.isEmpty ? 'Edit day details' : 'Edit day details: $title',
       onTap: onTap,
       excludeSemantics: true,
       child: Material(

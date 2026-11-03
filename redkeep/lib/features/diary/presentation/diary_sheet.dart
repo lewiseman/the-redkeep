@@ -120,6 +120,10 @@ class DiaryDayContent extends ConsumerWidget {
     final typography = DiaryTypography.of(context);
     final canEdit = ref.watch(syncCanEditProvider);
     final busy = ref.watch(diaryActionsProvider);
+    final details = [
+      if (day.mood case final mood?) '${mood.emoji} ${mood.label}',
+      ...day.themes,
+    ].join(' · ');
     final today = TimeHelper.dateOnly(ref.read(diaryClockProvider)());
     final canCreate =
         !day.calendarDate.isAfter(today) &&
@@ -178,6 +182,18 @@ class DiaryDayContent extends ConsumerWidget {
                 onTap: interactive && canEdit && !busy
                     ? () => context.go(diaryTitleLocation(day.date))
                     : null,
+              ),
+              SizedBox(height: details.isEmpty ? 26 : 10),
+            ],
+            if (details.isNotEmpty) ...[
+              Text(
+                details,
+                key: const ValueKey('diary-day-details'),
+                style: TextStyle(
+                  color: colors.secondary,
+                  fontSize: 13,
+                  height: 1.4,
+                ),
               ),
               const SizedBox(height: 26),
             ],

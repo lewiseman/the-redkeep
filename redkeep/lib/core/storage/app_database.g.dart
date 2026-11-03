@@ -2407,6 +2407,25 @@ class $DiaryDaysTable extends DiaryDays
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _moodMeta = const VerificationMeta('mood');
+  @override
+  late final GeneratedColumn<String> mood = GeneratedColumn<String>(
+    'mood',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _themesMeta = const VerificationMeta('themes');
+  @override
+  late final GeneratedColumn<String> themes = GeneratedColumn<String>(
+    'themes',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('[]'),
+  );
   static const VerificationMeta _revisionMeta = const VerificationMeta(
     'revision',
   );
@@ -2420,7 +2439,13 @@ class $DiaryDaysTable extends DiaryDays
     $customConstraints: 'NOT NULL CHECK (revision > 0)',
   );
   @override
-  List<GeneratedColumn> get $columns => [dateKey, heading, revision];
+  List<GeneratedColumn> get $columns => [
+    dateKey,
+    heading,
+    mood,
+    themes,
+    revision,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -2449,6 +2474,18 @@ class $DiaryDaysTable extends DiaryDays
     } else if (isInserting) {
       context.missing(_headingMeta);
     }
+    if (data.containsKey('mood')) {
+      context.handle(
+        _moodMeta,
+        mood.isAcceptableOrUnknown(data['mood']!, _moodMeta),
+      );
+    }
+    if (data.containsKey('themes')) {
+      context.handle(
+        _themesMeta,
+        themes.isAcceptableOrUnknown(data['themes']!, _themesMeta),
+      );
+    }
     if (data.containsKey('revision')) {
       context.handle(
         _revisionMeta,
@@ -2474,6 +2511,14 @@ class $DiaryDaysTable extends DiaryDays
         DriftSqlType.string,
         data['${effectivePrefix}heading'],
       )!,
+      mood: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}mood'],
+      ),
+      themes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}themes'],
+      )!,
       revision: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}revision'],
@@ -2490,10 +2535,14 @@ class $DiaryDaysTable extends DiaryDays
 class DiaryDayRow extends DataClass implements Insertable<DiaryDayRow> {
   final String dateKey;
   final String heading;
+  final String? mood;
+  final String themes;
   final int revision;
   const DiaryDayRow({
     required this.dateKey,
     required this.heading,
+    this.mood,
+    required this.themes,
     required this.revision,
   });
   @override
@@ -2501,6 +2550,10 @@ class DiaryDayRow extends DataClass implements Insertable<DiaryDayRow> {
     final map = <String, Expression>{};
     map['date_key'] = Variable<String>(dateKey);
     map['heading'] = Variable<String>(heading);
+    if (!nullToAbsent || mood != null) {
+      map['mood'] = Variable<String>(mood);
+    }
+    map['themes'] = Variable<String>(themes);
     map['revision'] = Variable<int>(revision);
     return map;
   }
@@ -2509,6 +2562,8 @@ class DiaryDayRow extends DataClass implements Insertable<DiaryDayRow> {
     return DiaryDaysCompanion(
       dateKey: Value(dateKey),
       heading: Value(heading),
+      mood: mood == null && nullToAbsent ? const Value.absent() : Value(mood),
+      themes: Value(themes),
       revision: Value(revision),
     );
   }
@@ -2521,6 +2576,8 @@ class DiaryDayRow extends DataClass implements Insertable<DiaryDayRow> {
     return DiaryDayRow(
       dateKey: serializer.fromJson<String>(json['dateKey']),
       heading: serializer.fromJson<String>(json['heading']),
+      mood: serializer.fromJson<String?>(json['mood']),
+      themes: serializer.fromJson<String>(json['themes']),
       revision: serializer.fromJson<int>(json['revision']),
     );
   }
@@ -2530,20 +2587,31 @@ class DiaryDayRow extends DataClass implements Insertable<DiaryDayRow> {
     return <String, dynamic>{
       'dateKey': serializer.toJson<String>(dateKey),
       'heading': serializer.toJson<String>(heading),
+      'mood': serializer.toJson<String?>(mood),
+      'themes': serializer.toJson<String>(themes),
       'revision': serializer.toJson<int>(revision),
     };
   }
 
-  DiaryDayRow copyWith({String? dateKey, String? heading, int? revision}) =>
-      DiaryDayRow(
-        dateKey: dateKey ?? this.dateKey,
-        heading: heading ?? this.heading,
-        revision: revision ?? this.revision,
-      );
+  DiaryDayRow copyWith({
+    String? dateKey,
+    String? heading,
+    Value<String?> mood = const Value.absent(),
+    String? themes,
+    int? revision,
+  }) => DiaryDayRow(
+    dateKey: dateKey ?? this.dateKey,
+    heading: heading ?? this.heading,
+    mood: mood.present ? mood.value : this.mood,
+    themes: themes ?? this.themes,
+    revision: revision ?? this.revision,
+  );
   DiaryDayRow copyWithCompanion(DiaryDaysCompanion data) {
     return DiaryDayRow(
       dateKey: data.dateKey.present ? data.dateKey.value : this.dateKey,
       heading: data.heading.present ? data.heading.value : this.heading,
+      mood: data.mood.present ? data.mood.value : this.mood,
+      themes: data.themes.present ? data.themes.value : this.themes,
       revision: data.revision.present ? data.revision.value : this.revision,
     );
   }
@@ -2553,36 +2621,46 @@ class DiaryDayRow extends DataClass implements Insertable<DiaryDayRow> {
     return (StringBuffer('DiaryDayRow(')
           ..write('dateKey: $dateKey, ')
           ..write('heading: $heading, ')
+          ..write('mood: $mood, ')
+          ..write('themes: $themes, ')
           ..write('revision: $revision')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(dateKey, heading, revision);
+  int get hashCode => Object.hash(dateKey, heading, mood, themes, revision);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is DiaryDayRow &&
           other.dateKey == this.dateKey &&
           other.heading == this.heading &&
+          other.mood == this.mood &&
+          other.themes == this.themes &&
           other.revision == this.revision);
 }
 
 class DiaryDaysCompanion extends UpdateCompanion<DiaryDayRow> {
   final Value<String> dateKey;
   final Value<String> heading;
+  final Value<String?> mood;
+  final Value<String> themes;
   final Value<int> revision;
   final Value<int> rowid;
   const DiaryDaysCompanion({
     this.dateKey = const Value.absent(),
     this.heading = const Value.absent(),
+    this.mood = const Value.absent(),
+    this.themes = const Value.absent(),
     this.revision = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   DiaryDaysCompanion.insert({
     required String dateKey,
     required String heading,
+    this.mood = const Value.absent(),
+    this.themes = const Value.absent(),
     required int revision,
     this.rowid = const Value.absent(),
   }) : dateKey = Value(dateKey),
@@ -2591,12 +2669,16 @@ class DiaryDaysCompanion extends UpdateCompanion<DiaryDayRow> {
   static Insertable<DiaryDayRow> custom({
     Expression<String>? dateKey,
     Expression<String>? heading,
+    Expression<String>? mood,
+    Expression<String>? themes,
     Expression<int>? revision,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (dateKey != null) 'date_key': dateKey,
       if (heading != null) 'heading': heading,
+      if (mood != null) 'mood': mood,
+      if (themes != null) 'themes': themes,
       if (revision != null) 'revision': revision,
       if (rowid != null) 'rowid': rowid,
     });
@@ -2605,12 +2687,16 @@ class DiaryDaysCompanion extends UpdateCompanion<DiaryDayRow> {
   DiaryDaysCompanion copyWith({
     Value<String>? dateKey,
     Value<String>? heading,
+    Value<String?>? mood,
+    Value<String>? themes,
     Value<int>? revision,
     Value<int>? rowid,
   }) {
     return DiaryDaysCompanion(
       dateKey: dateKey ?? this.dateKey,
       heading: heading ?? this.heading,
+      mood: mood ?? this.mood,
+      themes: themes ?? this.themes,
       revision: revision ?? this.revision,
       rowid: rowid ?? this.rowid,
     );
@@ -2624,6 +2710,12 @@ class DiaryDaysCompanion extends UpdateCompanion<DiaryDayRow> {
     }
     if (heading.present) {
       map['heading'] = Variable<String>(heading.value);
+    }
+    if (mood.present) {
+      map['mood'] = Variable<String>(mood.value);
+    }
+    if (themes.present) {
+      map['themes'] = Variable<String>(themes.value);
     }
     if (revision.present) {
       map['revision'] = Variable<int>(revision.value);
@@ -2639,6 +2731,8 @@ class DiaryDaysCompanion extends UpdateCompanion<DiaryDayRow> {
     return (StringBuffer('DiaryDaysCompanion(')
           ..write('dateKey: $dateKey, ')
           ..write('heading: $heading, ')
+          ..write('mood: $mood, ')
+          ..write('themes: $themes, ')
           ..write('revision: $revision, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -5685,12 +5779,16 @@ typedef $$DiaryEntriesTableProcessedTableManager =
 typedef $$DiaryDaysTableCreateCompanionBuilder = DiaryDaysCompanion Function({
   required String dateKey,
   required String heading,
+  Value<String?> mood,
+  Value<String> themes,
   required int revision,
   Value<int> rowid,
 });
 typedef $$DiaryDaysTableUpdateCompanionBuilder = DiaryDaysCompanion Function({
   Value<String> dateKey,
   Value<String> heading,
+  Value<String?> mood,
+  Value<String> themes,
   Value<int> revision,
   Value<int> rowid,
 });
@@ -5711,6 +5809,16 @@ class $$DiaryDaysTableFilterComposer
 
   ColumnFilters<String> get heading => $composableBuilder(
     column: $table.heading,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get mood => $composableBuilder(
+    column: $table.mood,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get themes => $composableBuilder(
+    column: $table.themes,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5739,6 +5847,16 @@ class $$DiaryDaysTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get mood => $composableBuilder(
+    column: $table.mood,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get themes => $composableBuilder(
+    column: $table.themes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get revision => $composableBuilder(
     column: $table.revision,
     builder: (column) => ColumnOrderings(column),
@@ -5759,6 +5877,12 @@ class $$DiaryDaysTableAnnotationComposer
 
   GeneratedColumn<String> get heading =>
       $composableBuilder(column: $table.heading, builder: (column) => column);
+
+  GeneratedColumn<String> get mood =>
+      $composableBuilder(column: $table.mood, builder: (column) => column);
+
+  GeneratedColumn<String> get themes =>
+      $composableBuilder(column: $table.themes, builder: (column) => column);
 
   GeneratedColumn<int> get revision =>
       $composableBuilder(column: $table.revision, builder: (column) => column);
@@ -5797,11 +5921,15 @@ class $$DiaryDaysTableTableManager
               ({
                 Value<String> dateKey = const Value.absent(),
                 Value<String> heading = const Value.absent(),
+                Value<String?> mood = const Value.absent(),
+                Value<String> themes = const Value.absent(),
                 Value<int> revision = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => DiaryDaysCompanion(
                 dateKey: dateKey,
                 heading: heading,
+                mood: mood,
+                themes: themes,
                 revision: revision,
                 rowid: rowid,
               ),
@@ -5809,11 +5937,15 @@ class $$DiaryDaysTableTableManager
               ({
                 required String dateKey,
                 required String heading,
+                Value<String?> mood = const Value.absent(),
+                Value<String> themes = const Value.absent(),
                 required int revision,
                 Value<int> rowid = const Value.absent(),
               }) => DiaryDaysCompanion.insert(
                 dateKey: dateKey,
                 heading: heading,
+                mood: mood,
+                themes: themes,
                 revision: revision,
                 rowid: rowid,
               ),

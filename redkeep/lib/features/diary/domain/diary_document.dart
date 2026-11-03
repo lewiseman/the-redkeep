@@ -1,4 +1,5 @@
 import 'civil_date.dart';
+import 'diary_day_details.dart';
 
 class DiaryText {
   const DiaryText({this.title = '', this.body = ''});
@@ -45,11 +46,19 @@ class DiaryListing {
   final String title;
 }
 
-/// Optional notebook heading. Never contains entries or controls their dates.
+/// Optional day details. Never contains entries or controls their dates.
 class DiaryDay {
-  const DiaryDay({required this.date, this.heading = '', this.revision = 0});
+  const DiaryDay({
+    required this.date,
+    this.heading = '',
+    this.mood,
+    this.themes = const [],
+    this.revision = 0,
+  });
   final CivilDate date;
   final String heading;
+  final DiaryMood? mood;
+  final List<String> themes;
   final int revision;
 }
 

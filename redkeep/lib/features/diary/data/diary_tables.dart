@@ -22,6 +22,8 @@ class DiaryEntries extends Table {
 class DiaryDays extends Table {
   TextColumn get dateKey => text().withLength(min: 10, max: 10)();
   TextColumn get heading => text().withLength(max: 160)();
+  TextColumn get mood => text().nullable()();
+  TextColumn get themes => text().withDefault(const Constant('[]'))();
   IntColumn get revision =>
       integer().customConstraint('NOT NULL CHECK (revision > 0)')();
   @override

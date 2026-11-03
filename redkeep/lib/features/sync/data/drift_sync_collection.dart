@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import '../../diary/domain/civil_date.dart';
+import '../../diary/domain/diary_day_details.dart';
 
 import 'package:drift/drift.dart';
 import 'package:sync_wise/sync_wise.dart';
@@ -54,6 +57,8 @@ class DriftSyncCollection implements SyncCollection {
                 ..orderBy([(r) => OrderingTerm.asc(r.id)]))
               .get();
       payload['heading'] = day?.heading ?? '';
+      payload['mood'] = day?.mood;
+      payload['themes'] = day == null ? <String>[] : jsonDecode(day.themes);
       payload['entries'] = entries
           .map(
             (e) => {
@@ -117,6 +122,20 @@ class DriftSyncCollection implements SyncCollection {
             payload['entries'] is! List) {
           throw const FormatException('Invalid diary day.');
         }
+        if ((payload['mood'] != null &&
+                (payload['mood'] is! String ||
+                    DiaryMood.tryParse(payload['mood'] as String) == null)) ||
+            (payload['themes'] != null &&
+                (payload['themes'] is! List ||
+                    (payload['themes'] as List).any(
+                      (theme) => theme is! String,
+                    )))) {
+          throw const FormatException('Invalid diary day details.');
+        }
+        final themes = normalizeDiaryThemes(
+          (payload['themes'] as List? ?? const []).cast<String>(),
+        );
+        payload = {...payload, 'mood': payload['mood'], 'themes': themes};
         final ids = <String>{};
         for (final item in payload['entries'] as List) {
           if (item is! Map<String, dynamic> ||
@@ -157,7 +176,7 @@ class DriftSyncCollection implements SyncCollection {
     SyncDocument document, {
     required DateTime now,
   }) => db.transaction(() async {
-    decode(document.payload);
+    document = decode(document.payload);
     final local = await read(document.id);
     // Dirty/local-only snapshots win. The engine uses the remote as a guarded
     // baseline and uploads the latest local snapshot without acknowledging it.
@@ -213,6 +232,8 @@ class DriftSyncCollection implements SyncCollection {
             DiaryDaysCompanion.insert(
               dateKey: document.id,
               heading: p['heading'] as String,
+              mood: Value(p['mood'] as String?),
+              themes: Value(jsonEncode(p['themes'])),
               revision: (old?.revision ?? 0) + 1,
             ),
           );

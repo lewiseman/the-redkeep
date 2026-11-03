@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:redkeep/core/storage/app_database.dart';
 import 'package:redkeep/features/diary/data/drift_diary_repository.dart';
 import 'package:redkeep/features/diary/domain/diary_document.dart';
+import 'package:redkeep/features/diary/domain/diary_day_details.dart';
 import 'package:redkeep/features/diary/domain/civil_date.dart';
 
 const id = '11111111111111111111111111111111';
@@ -17,6 +18,47 @@ void main() {
     repo = DriftDiaryRepository(db, clock: () => now);
   });
   tearDown(() => db.close());
+
+  test('day details save atomically, normalize themes, preserve metadata on rename and reject stale changes', () async {
+    final date = CivilDate(2026, 11, 2);
+    await repo.saveDay(
+      DiaryDay(
+        date: date,
+        heading: 'A quiet day',
+        mood: DiaryMood.calm,
+        themes: const [' Work  ', 'work', '  Family   time '],
+      ),
+    );
+    final saved = await repo.watchDay(date).first;
+    expect(saved.heading, 'A quiet day');
+    expect(saved.mood, DiaryMood.calm);
+    expect(saved.themes, ['Work', 'Family time']);
+    expect(saved.revision, 1);
+    await expectLater(
+      repo.saveDay(DiaryDay(date: date, mood: DiaryMood.low)),
+      throwsA(isA<DiaryException>()),
+    );
+    await expectLater(
+      repo.saveDay(
+        DiaryDay(
+          date: date,
+          revision: 1,
+          themes: const ['One', 'Two', 'Three', 'Four'],
+        ),
+      ),
+      throwsFormatException,
+    );
+    expect((await repo.watchDay(date).first).revision, 1);
+    await repo.renameDay(saved, 'New title');
+    final renamed = await repo.watchDay(date).first;
+    expect(renamed.mood, DiaryMood.calm);
+    expect(renamed.themes, saved.themes);
+    await repo.saveDay(DiaryDay(date: date, revision: renamed.revision));
+    final cleared = await repo.watchDay(date).first;
+    expect(cleared.mood, isNull);
+    expect(cleared.themes, isEmpty);
+    expect(cleared.heading, '');
+  });
 
   test(
     'fresh schema has drafts only for notes; blank saves leave no writing',
@@ -123,9 +165,19 @@ void main() {
         text: const DiaryText(body: 'Exact 👩🏽‍💻 中文'),
         expectedRevision: 0,
       );
+      await local.saveDay(
+        DiaryDay(
+          date: CivilDate(2026, 11, 2),
+          mood: DiaryMood.happy,
+          themes: const ['Family', '工作'],
+        ),
+      );
       await disk.close();
       disk = AppDatabase(NativeDatabase.createInBackground(file));
       final reopened = DriftDiaryRepository(disk, clock: () => now);
+      final details = await reopened.watchDay(CivilDate(2026, 11, 2)).first;
+      expect(details.mood, DiaryMood.happy);
+      expect(details.themes, ['Family', '工作']);
       expect(
         (await reopened.openDocument(id)).entry!.text.body,
         'Exact 👩🏽‍💻 中文',

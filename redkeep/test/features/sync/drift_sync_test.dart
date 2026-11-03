@@ -10,6 +10,7 @@ import 'package:redkeep/features/notes/domain/note_document.dart';
 import 'package:redkeep/features/diary/data/drift_diary_repository.dart';
 import 'package:redkeep/features/diary/domain/civil_date.dart';
 import 'package:redkeep/features/diary/domain/diary_document.dart';
+import 'package:redkeep/features/diary/domain/diary_day_details.dart';
 import 'package:redkeep/features/flow/data/drift_flow_repository.dart';
 import 'package:redkeep/features/sync/data/drift_sync_store.dart';
 import 'package:redkeep/features/sync/data/drift_sync_collection.dart';
@@ -232,7 +233,14 @@ void main() {
       expectedRevision: 0,
     );
     await h.engine.syncNow(manual: true);
-    await h.diary.renameDay(await h.diary.watchDay(date).first, 'My heading');
+    await h.diary.saveDay(
+      DiaryDay(
+        date: date,
+        heading: 'My heading',
+        mood: DiaryMood.excited,
+        themes: const ['Work'],
+      ),
+    );
     final old = h.drive.documents['diary/${date.key}']!.payload;
     h.drive.seed('diary', date.key, {
       ...old,
@@ -251,6 +259,8 @@ void main() {
     await h.engine.syncNow(manual: true);
     final payload = h.drive.documents['diary/${date.key}']!.payload;
     expect(payload['heading'], 'My heading');
+    expect(payload['mood'], 'excited');
+    expect(payload['themes'], ['Work']);
     expect((payload['entries'] as List).length, 2);
   });
   test('secondary Diary append preserves remote headings, tombstones and existing IDs', () async {
@@ -263,7 +273,14 @@ void main() {
       expectedRevision: 0,
     );
     await h.diary.deleteEntry(oldId, old.revision);
-    await h.diary.renameDay(await h.diary.watchDay(date).first, 'Keep heading');
+    await h.diary.saveDay(
+      DiaryDay(
+        date: date,
+        heading: 'Keep heading',
+        mood: DiaryMood.calm,
+        themes: const ['Family', '工作'],
+      ),
+    );
     await h.engine.syncNow(manual: true);
     final secondary = Harness(
       AppDatabase(NativeDatabase.memory()),
@@ -272,6 +289,10 @@ void main() {
     );
     try {
       await secondary.engine.syncNow(manual: true);
+      await expectLater(
+        secondary.diary.saveDay(DiaryDay(date: date, mood: DiaryMood.low)),
+        throwsStateError,
+      );
       final newId = 'f' * 32;
       await secondary.diary.save(
         id: newId,
@@ -282,6 +303,8 @@ void main() {
       await secondary.engine.syncNow(manual: true);
       final payload = h.drive.documents['diary/${date.key}']!.payload;
       expect(payload['heading'], 'Keep heading');
+      expect(payload['mood'], 'calm');
+      expect(payload['themes'], ['Family', '工作']);
       expect((payload['entries'] as List).length, 2);
       expect(
         (payload['entries'] as List).firstWhere(
@@ -293,6 +316,72 @@ void main() {
       expect((await h.diary.openDocument(newId)).entry!.text.body, 'new item');
     } finally {
       await secondary.close();
+    }
+  });
+  test('legacy day payloads default to empty details and malformed metadata is rejected', () async {
+    final collection = DriftSyncCollection(h.db, 'diary');
+    final date = CivilDate(2026, 11, 2);
+    final legacy = <String, dynamic>{
+      'schema': 1,
+      'id': date.key,
+      'heading': 'Old title',
+      'entries': <Map<String, dynamic>>[],
+    };
+    final decoded = collection.decode(legacy);
+    expect(decoded.payload['mood'], isNull);
+    expect(decoded.payload['themes'], isEmpty);
+    await collection.mergeRemote(
+      SyncDocument(id: date.key, payload: legacy),
+      now: now,
+    );
+    final first = await h.diary.watchDay(date).first;
+    expect(first.heading, 'Old title');
+    expect(first.mood, isNull);
+    expect(first.themes, isEmpty);
+    await collection.mergeRemote(
+      SyncDocument(id: date.key, payload: legacy),
+      now: now,
+    );
+    expect((await h.diary.watchDay(date).first).revision, first.revision);
+    await collection.mergeRemote(
+      collection.decode({
+        ...legacy,
+        'mood': 'calm',
+        'themes': ['Family', '工作'],
+      }),
+      now: now,
+    );
+    final details = await h.diary.watchDay(date).first;
+    expect(details.mood, DiaryMood.calm);
+    expect(details.themes, ['Family', '工作']);
+    final serialized = (await collection.read(date.key))!.payload;
+    expect(serialized['mood'], 'calm');
+    expect(serialized['themes'], ['Family', '工作']);
+    await collection.mergeRemote(
+      collection.decode({...serialized, 'mood': null, 'themes': <String>[]}),
+      now: now,
+    );
+    final cleared = await h.diary.watchDay(date).first;
+    expect(cleared.mood, isNull);
+    expect(cleared.themes, isEmpty);
+    for (final invalid in [
+      {...legacy, 'mood': 'unknown'},
+      {...legacy, 'mood': 1},
+      {...legacy, 'themes': 'Work'},
+      {
+        ...legacy,
+        'themes': [1],
+      },
+      {
+        ...legacy,
+        'themes': ['One', 'Two', 'Three', 'Four'],
+      },
+      {
+        ...legacy,
+        'themes': ['x' * 41],
+      },
+    ]) {
+      expect(() => collection.decode(invalid), throwsFormatException);
     }
   });
   test(

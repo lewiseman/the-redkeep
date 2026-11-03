@@ -4,7 +4,7 @@ Agreed on 2 November 2026. Workspace: `/Users/lewis/Dev/Projects/The Redkeep`.
 
 ## 1. Purpose and how to use this guide
 
-Focus on the mobile writing app and selected legacy page UI migrations. As agreed on 3 November 2026, retain the existing desktop app; its rebuild track is parked. Later that day the user explicitly reopened W01 as a local-only website copy/rename, preserving the legacy UI and screenshots. The hosted website stays unchanged until separately authorized publication. Preserve the journal, paper, artwork, and book identity while improving architecture, accessibility, performance, and testability.
+Focus on the mobile writing app and selected legacy page UI migrations. As agreed on 3 November 2026, retain the existing desktop app; its rebuild track is parked. Later that day the user explicitly reopened W01 as a local-only website copy/rename, preserving the legacy UI and screenshots. The user subsequently selected `https://redkeep.lewiseman.com/` as the shared image host and publishes externally. `website/public/art/` is now the canonical local image reference, without additional reference copies. Agent-run publication remains separately scoped. Preserve the journal, paper, artwork, and book identity while improving architecture, accessibility, performance, and testability.
 
 **Current direction:** UI01 retains the legacy book/folding name cover, primary action, dots/hint and bottom Terms/Privacy links. The latest user choice replaces the old mascot with the supplied `grand_maestar.png` and uses `google_fonts` for Allura, with no bundled font binary. Added Previous/Next, numeric counter and Back controls remain removed. Missing name means onboarding; schema 8 preserves writing/settings and older completion rows without inventing names. The user confirmed onboarding and name only. `presentation-ui01-v3` contains 12 downloads / 2,658,676 bytes. The selected mascot and ink-paper background ship unchanged for startup and both onboarding layouts; retired ink-paper URL overrides are ignored. The startup screen now uses this branding and an accessible progress bar; exact local references keep tests offline. Formatting/analysis, all 361 offline tests, local pack validation and Android debug packaging pass; see [the current guide](docs/onboarding-ui-migration.md) and [current startup evidence](docs/evidence/ui01/startup/verification.json). Live font/Firebase/native-device qualification remains unverified. M12 and any other feature/UI need separate selection; desktop stays parked. W01 is separately reopened below; its website-only scope changes do not alter mobile.
 
@@ -52,7 +52,7 @@ Use `Not started`, `In progress`, `Complete`, `Partial`, or `Deferred`. A partia
 | D01 — Flutter desktop foundation | Deferred | Existing desktop app retained by user decision on 3 November 2026. | Parked; not a gate for mobile acceptance and never automatic. Requires explicit user rescoping. |
 | D02 — Companion connection | Deferred | No new mobile-to-old-desktop compatibility work selected. | Parked with D01; retaining the old app does not establish protocol compatibility. |
 | D03 — Desktop release preparation | Deferred | — | Parked with the desktop rebuild. |
-| W01 — Marketing website | Complete | Explicitly reopened local React/TypeScript/Vite copy/rename with selected Grand Maester branding with original carousel/card animations and no added book controls or mascot mouse-follow movement, restored browser-local cover-name typing and all six screenshot bytes preserved; follow-up replaces the cover-title patch with generated lavender castle art and clear name space. TypeScript, lint, prerender/build integrity, 17 browser/axe checks and local preview pass; see docs/website.md and docs/evidence/w01/verification.json. | User requested disabled destination-free Download buttons without the header status line, no release section and no website simpler/reduced-motion mode. No publication; rights/host/metadata/browser qualification prerequisites remain in the guide. Desktop stays deferred; no next phase automatically authorized. |
+| W01 — Marketing website | Complete | Explicitly reopened local React/TypeScript/Vite copy/rename with selected Grand Maester branding with original carousel/card animations and no added book controls or mascot mouse-follow movement, restored browser-local cover-name typing and all six screenshot bytes preserved; follow-up replaces the cover-title patch with generated lavender castle art and clear name space. TypeScript, lint, prerender/build integrity, 17 browser/axe checks and local preview pass. Shared app artwork now builds directly from canonical website/public/art without duplicate references; the 7,297,375-byte output passes the 7.5 MB budget. See docs/website.md and docs/evidence/w01/asset-host-build-verification.json. | User requested disabled destination-free Download buttons without the header status line, no release section and no website simpler/reduced-motion mode. The user publishes the selected host externally; this correction only prepares the local build. Mobile source migration and rights/metadata/browser qualification remain outstanding. Desktop stays deferred; no next phase automatically authorized. |
 
 For each executed phase, append a record under **Phase records** with: date, phase ID, changed behavior and contracts, exact commands and results, device/build/model identifiers where relevant, remaining limitations, and the next eligible prompt. Never include API keys, pairing credentials, or private writing in evidence.
 
@@ -168,15 +168,18 @@ Download all assets required by the currently implemented release, not every old
 
 Use persistent app-owned storage rather than a purgeable image cache as the authoritative asset location. Keep completed valid downloads across retries, reject partial/corrupt files as installed assets, prevent writes outside the asset directory, and surface interruption/storage/network failures with actionable retry UI. Required missing artwork blocks normal entry, including on an offline first launch. Existing writing must never be deleted to repair assets.
 
-The repository also retains exact, Git-visible local copies of remote
-presentation assets under `assets/reference/`, indexed by stable key, source
-identity, local path, bytes and SHA-256. Agents inspect these copies first and
-tests use them offline. Keep reference images outside Flutter's bundled assets;
-they do not become installed-app fallbacks. Refresh deliberately after remote
-changes and review source/copy differences before changing a shipping catalog.
-Token-bearing download URLs remain in ignored local inputs, not the manifest.
+The user's latest source decision uses `website/public/art/` as the canonical
+local reference for shared website/mobile images, deployed under
+`https://redkeep.lewiseman.com/art/`. Read these files first and use them offline
+in tests; do not create additional reference copies for images already there.
+Existing `assets/reference/` files remain historical evidence or support current
+consumers not yet migrated, including the UI01 cover/font tests. These local
+references do not become Flutter bundles or installed-app fallbacks automatically.
+Review app catalog paths, revisions, sizes and hashes separately. The website
+build verifies byte-for-byte public-to-dist copies without the old reference
+manifest. Mobile source configuration/test migration remains separate work.
 
-Routine startup with complete local assets needs no internet and must not fetch a remote catalog before opening. New media catalogs are versioned with releases initially. Production hosting is not yet chosen: use configurable locations and controlled local fixtures during development, and require a real HTTPS asset host before release. Never ship a placeholder URL or a localhost production default.
+Routine startup with complete local assets needs no internet and must not fetch a remote catalog before opening. New media catalogs are versioned with releases initially. The selected image host is `https://redkeep.lewiseman.com/`; mobile catalog/source migration and verified device downloads from it remain outstanding. Controlled local fixtures still support offline development. Never ship a placeholder URL or a localhost production default.
 
 AI model downloads are separate and optional. Future videos and notification sounds use the media delivery boundary only after their own feature is authorized. Validate platform sound-location, format, and scheduling rules then; do not assume every downloaded sound can directly serve as a system notification sound.
 
@@ -2603,3 +2606,38 @@ result. Static output is about 6.97 MB, within the existing 7 MB limit. All 34
 reference hashes and original screenshot bytes remain unchanged. Existing
 physical-device/browser/publication limitations persist. W01 stays Complete;
 stop here without publishing or changing the user's staged work.
+
+
+### 3 November 2026 — W01: build shared app artwork from the website source
+
+**Selected scope and cause.** The user selected the existing website as the
+image host, replaced the duplicate-reference requirement with
+`website/public/art/`, added four missing images, and supplied the Vite chunk
+output while diagnosing their unavailable public URLs. Reproduced the complete
+`npm run build` failure immediately after Vite/prerendering:
+`Unindexed asset: dist/art/notes_add.png`. The four files existed locally, but
+the earlier build output lacked them. A fresh output also exceeds the old
+7 MB whole-site limit by including their additional 327,851 bytes.
+
+**Delivered.** The final build checker verifies every `public/` file against its
+exact output copy, including images with no website UI consumer. Images/fonts
+in the output must have a public source. It no longer reads duplicate files or
+the manifest under `assets/reference/`. Preserved the existing mascot and six
+original screenshot SHA-256 guards as metadata in the checker. Revised the
+reviewed whole-output limit to 7.5 MB for these user-added images. Updated AGENTS
+and current guides to make the website folder the canonical shared image
+reference; historical archives remain intact.
+
+**Evidence.** `npm run build` passes TypeScript, Vite, prerendering, source-copy,
+metadata/content, mascot/screenshot and output-budget checks. The output is
+7,297,375 bytes and includes all four added files under `dist/art/`.
+`npm run lint` passes with zero warnings; all 17 existing Chrome/browser/axe
+checks pass. See `docs/evidence/w01/asset-host-build-verification.json`.
+Routine regenerated captures were restored because presentation did not change.
+
+**Boundary.** This is a local build correction, not a deployment or remote Git
+operation. The mobile catalog, compiled Firebase source configuration, tests,
+startup behavior and cover selection are unchanged; their migration to the
+selected host remains outstanding. No source artwork, raw/legacy files,
+dependencies or native configuration changed. W01 remains Complete at this
+boundary; no other phase is selected automatically.

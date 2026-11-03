@@ -3,8 +3,18 @@
 The user explicitly reopened W01 on 3 November 2026, then selected copying the
 legacy Journal UI and renaming it to Redkeep. The sibling `website/` is a local
 React 19 / TypeScript / Vite 8 static website. The legacy `Journal/bookflip/`
-checkout remains read-only; the existing hosted website is unchanged. Desktop
-rebuilds, mobile release preparation and publication remain separately scoped.
+checkout remains read-only. The user subsequently selected
+`https://redkeep.lewiseman.com/` as the shared website/image host and publishes
+it externally. Desktop rebuilds, mobile source migration and agent-run publication
+remain separately scoped.
+
+**Current asset source — 3 November 2026:** `website/public/art/` is the canonical
+local reference for shared website/mobile images. No additional reference copy
+is required. The build verifies every `public/` file against its `dist/` copy,
+including images not displayed by the website or listed in Vite's chunk table.
+The current reviewed whole-output budget is 7.5 MB after the four shared app
+images were added; the output is 7,297,375 bytes. The previous reference-library
+descriptions below record historical work. Existing archives remain intact.
 
 ## Current selected behavior
 
@@ -67,8 +77,10 @@ browser installation are separate network operations.
 
 `npm run build` checks TypeScript, builds all three HTML pages, prerenders the
 React landing page and validates metadata, static content, local assets, the
-7 MB reviewed output budget, indexed hashes, screenshot preservation and the
-absence of release/download links. It never registers a Site or publishes.
+7.5 MB reviewed output budget, exact copies from `public/`, the selected mascot,
+original screenshot hashes and the absence of release/download links. It never
+registers a Site or publishes. A build succeeds only after the final
+`Build integrity ... passed` line, after Vite and prerendering have completed.
 
 ## Files and boundaries
 

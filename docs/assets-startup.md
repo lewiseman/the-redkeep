@@ -1,5 +1,13 @@
 # Presentation assets and startup
 
+**Current source decision — 3 November 2026:** the user selected
+`https://redkeep.lewiseman.com/` for image delivery and `website/public/art/` as
+the canonical local image reference. Shared images need no additional reference
+copy. The website build now validates this folder's published copies directly;
+see [the website guide](website.md). The mobile catalog, compiled source map and
+existing tests still use their earlier configuration until the mobile source
+migration is implemented. Historical Firebase/reference setup follows below.
+
 **Tracked local-reference policy — 3 November 2026:** remote presentation assets
 must have exact local copies under
 [`assets/reference/`](../assets/reference/README.md), with key/path/size/hash and

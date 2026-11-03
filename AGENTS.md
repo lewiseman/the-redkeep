@@ -10,13 +10,15 @@
   native configuration, and the mobile path `redkeep/`.
 - Leave `raw_assets/` untouched. It is the user's local artwork/audio work area,
   ignored by Git and outside application bundles.
-- Keep byte-for-byte, Git-visible local copies of remote presentation assets in
-  `assets/reference/`, indexed by `manifest.json`. Read these copies before
-  fetching URLs for UI/reference/test work. Refresh remote bytes deliberately
-  when assets change; use `tools/sync_asset_references.py` for the current
-  Firebase image handoff. Keep full token-bearing URLs in ignored local input
-  files. Tests use local copies and never download them. This reference library
-  stays outside Flutter bundles; runtime catalogs still require their own review.
+- Use `website/public/art/` as the canonical local image source and reference for
+  shared website/mobile artwork, hosted at `https://redkeep.lewiseman.com/art/`.
+  Read these files before fetching URLs for UI/reference/test work. Do not create
+  duplicate reference copies for images already there. Tests use local files and
+  never download them. Preserve existing `assets/reference/` material as historical
+  evidence or references not yet available in the website; do not refresh Firebase
+  copies for website-hosted images. App catalogs still need reviewed paths,
+  revisions, sizes and hashes; local website files do not enter Flutter bundles
+  automatically. Keep any remaining token-bearing configuration ignored.
 - Legacy projects under `/Users/lewis/Dev/Projects/Journal/` are read-only
   references. Inspect them only when the selected phase needs them; copy only
   specifically approved behavior/assets. Never bulk-import code or manifests.

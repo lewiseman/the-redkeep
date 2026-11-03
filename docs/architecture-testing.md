@@ -64,6 +64,13 @@ lives in `features/notes/application/notes_providers.dart`.
 
 ## Tests and commands
 
+Shared website/mobile images now use `website/public/art/` as their canonical
+local reference, per the user's 3 November 2026 simplification. New shared images
+need no duplicate under `assets/reference/`. The website build checks exact
+copies from `public/` into `dist/`. Existing mobile catalog/source configuration
+and tests have not yet migrated; the UI01 cover/font references described below
+remain available for their current consumers. See [the website guide](website.md).
+
 Remote presentation media also has a versioned reference library at
 [`assets/reference/`](../assets/reference/README.md), outside the Flutter bundle.
 Use its manifest and files for image inspection and future asset-dependent test

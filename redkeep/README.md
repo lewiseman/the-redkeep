@@ -8,6 +8,34 @@ are gated until the pack is verified; complete installations work offline. A
 host is intentionally unconfigured by default. Use the controlled local fixture
 instructions in [assets and startup](../docs/assets-startup.md) for development.
 
+UI01 restores the legacy full illustrated book and folding name-entry cover.
+**Save** requires and commits the user's name before routing; no name means
+onboarding. Schema 8 upgrades existing data without clearing writing/settings.
+`presentation-ui01-v3` contains eight supplied originals plus four retained
+PNGs: 12 images / 2,658,676 bytes. The selected Grand Maester mascot, Allura caption, dots and
+bottom Terms/Privacy links are restored; the added navigation buttons are gone.
+The user-provided `grand_maestar.png` and `ink-paper.webp` ship unchanged under
+`assets/branding/`. Startup uses the paper background, mascot and download
+progress bar; both onboarding layouts also use the bundled background. Allura uses
+`google_fonts` runtime fetching/caching, with no bundled font binary; its local
+reference keeps tests offline. Downloaded artwork remains outside the bundle. See
+[the current book guide](../docs/onboarding-ui-migration.md).
+
+Prepare the ignored sources and run from this directory:
+
+```sh
+dart run tool/prepare_asset_sources.dart onboarding-downloads.local.json env.json
+flutter run --dart-define-from-file=env.json
+```
+
+The command serializes the consumed source map as the string define
+`ASSET_SOURCE_URLS_JSON`, preserving `ASSET_BASE_URL` and all unrelated entries.
+Keep complete Firebase object URLs and tokens in ignored inputs/configuration.
+All 12 required downloads have supplied HTTPS sources in ignored build
+configuration. Live Firebase/fresh-install verification remains unperformed. See
+[asset setup](../docs/onboarding-assets-setup.md) for exact contracts and offline
+checks. References remain outside the app bundle and are never fetched by tests.
+
 M05 redirects through startup and onboarding while preserving validated
 requested destinations. See [onboarding and navigation](../docs/onboarding-routing.md)
 for completion, back behavior, parameter validation and retry contracts.

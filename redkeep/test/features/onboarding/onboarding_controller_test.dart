@@ -13,6 +13,25 @@ void main() {
         overrides: [onboardingRepositoryProvider.overrideWithValue(repository)],
       );
 
+  test('blank names never save; names trim and loading cannot replace a pending save', () async {
+    final repository = FakeOnboardingRepository(completed: false);
+    final container = scope(repository);
+    final controller = container.read(onboardingControllerProvider.notifier);
+    await controller.load();
+    await controller.complete('   ');
+    expect(repository.saves, 0);
+    expect(container.read(onboardingControllerProvider).nameInvalid, true);
+    repository.saveGate = Completer<void>();
+    final save = controller.complete('  Léa 王  ');
+    await controller.load();
+    expect(container.read(onboardingControllerProvider).saving, true);
+    expect(container.read(onboardingControllerProvider).complete, false);
+    repository.saveGate!.complete();
+    await save;
+    expect(repository.savedName, 'Léa 王');
+    expect(container.read(onboardingControllerProvider).name, 'Léa 王');
+  });
+
   test(
     'completion waits for commit, serializes and retains incomplete on failure',
     () async {
@@ -20,11 +39,11 @@ void main() {
         ..saveGate = Completer<void>();
       final container = scope(repository);
       final controller = container.read(onboardingControllerProvider.notifier);
-      await controller.complete();
+      await controller.complete('Test Writer');
       expect(repository.saves, 0);
       await controller.load();
-      final save = controller.complete();
-      await controller.complete();
+      final save = controller.complete('Test Writer');
+      await controller.complete('Test Writer');
       expect(repository.saves, 1);
       expect(container.read(onboardingControllerProvider).complete, isFalse);
       expect(container.read(onboardingControllerProvider).saving, isTrue);
@@ -34,9 +53,9 @@ void main() {
       expect(repository.completed, isFalse);
       expect(container.read(onboardingControllerProvider).saveFailed, isTrue);
       repository.failSave = false;
-      await controller.complete();
+      await controller.complete('Test Writer');
       expect(container.read(onboardingControllerProvider).complete, isTrue);
-      await controller.complete();
+      await controller.complete('Test Writer');
       expect(repository.saves, 2);
     },
   );
@@ -50,7 +69,9 @@ void main() {
     expect(first.read(onboardingControllerProvider).complete, isFalse);
     expect(second.read(onboardingControllerProvider).complete, isTrue);
     firstRepository.saveGate = Completer<void>();
-    final saving = first.read(onboardingControllerProvider.notifier).complete();
+    final saving = first
+        .read(onboardingControllerProvider.notifier)
+        .complete('Test Writer');
     first.dispose();
     firstRepository.saveGate!.complete();
     await saving;

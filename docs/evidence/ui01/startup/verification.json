@@ -1,0 +1,82 @@
+{
+  "date": "2026-11-03",
+  "phase": "UI01 selected startup/onboarding branding follow-up",
+  "scope": "Permanent bundled Grand Maester/ink-paper assets; branded asset-loading page and existing consumers",
+  "bundled_assets": [
+    {
+      "path": "redkeep/assets/branding/grand_maestar.png",
+      "bytes": 1842097,
+      "sha256": "5e698de4f5ab0413e36094c45ee16a67e11bcbc7408a9a7fb558c391a9be10e5"
+    },
+    {
+      "path": "redkeep/assets/branding/ink-paper.webp",
+      "bytes": 341878,
+      "sha256": "461bd93693da157da5f80651ee1a15c2537fd6c1d7bf6a5b2f28da4e947b2e57"
+    }
+  ],
+  "pack": {
+    "id": "presentation-ui01-v3",
+    "images": 12,
+    "bytes": 2658676,
+    "retired_download_key": "onboarding.background.ink",
+    "remaining_metadata_unchanged": true
+  },
+  "configuration": "Old source maps ignore the retired paper key; preparation omits it. All consumed URLs/queries and unrelated values retained. Ignored local config not rewritten.",
+  "checks": [
+    {
+      "command": "flutter pub get --enforce-lockfile --offline",
+      "result": "passed; lockfile unchanged"
+    },
+    {
+      "command": "dart format --output=none --set-exit-if-changed lib test tool",
+      "result": "passed; 173 files, zero changes"
+    },
+    {
+      "command": "flutter analyze",
+      "result": "passed; no issues"
+    },
+    {
+      "command": "flutter test --reporter expanded",
+      "result": "passed; all 361 offline tests"
+    },
+    {
+      "command": "dart run tool/validate_assets.dart assets/catalog/presentation-v1.json tool/assets/pack",
+      "result": "passed; 12 images / 2658676 bytes"
+    },
+    {
+      "command": "flutter build apk --debug --target-platform android-arm64",
+      "result": "passed"
+    },
+    {
+      "command": "Local ZIP/hash/reference checks",
+      "result": "both exact bundled images and current catalog in APK; no reference/deployment fixtures bundled; all 11 reference hashes valid; original manifest unchanged"
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed"
+    }
+  ],
+  "visual_review": {
+    "method": "Actual StartupPage widget with injected local assets/progress; body font loaded locally as PreviewBody (Roboto). Temporary helper removed.",
+    "viewport": "390x844, DPR 1, safe top 44 / bottom 34",
+    "files": [
+      "ready.png",
+      "progress.png"
+    ],
+    "progress": "Synthetic 1661672 / 2658676 bytes (62%)",
+    "limitations": "Widget previews with controlled body font; no device/pixel-parity/performance claim."
+  },
+  "preserved": [
+    "Original branding/reference bytes and manifest",
+    "Remaining 12 download entries",
+    "Name/schema-8/workflow and route continuations",
+    "Local startup retry/repair and saved writing/settings",
+    "Unrelated staged changes, native configuration and lockfile"
+  ],
+  "not_run": [
+    "Live Firebase/font transfer or reference refresh",
+    "Device install/smoke or physical accessibility/performance",
+    "iOS build",
+    "Model work, publication, remote Git or later phases"
+  ]
+}

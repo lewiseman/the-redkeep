@@ -23,6 +23,8 @@ final requiredAssetsProvider = FutureProvider<RequiredAssets>((ref) async {
     root: Directory.fromUri(support.uri.resolve('required-artwork/')),
     location: AssetLocation(
       const String.fromEnvironment('ASSET_BASE_URL'),
+      sourceUrlsJson: const String.fromEnvironment('ASSET_SOURCE_URLS_JSON'),
+      catalog: catalog,
       allowLocalFixture:
           kDebugMode && const bool.fromEnvironment('ASSET_ALLOW_LOCAL_FIXTURE'),
     ),

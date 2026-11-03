@@ -1,9 +1,8 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
-import 'package:image/image.dart' as image;
 import 'package:redkeep/features/assets/data/asset_download_client.dart';
+import 'package:redkeep/features/assets/data/verify_asset_image.dart';
 import 'package:redkeep/features/assets/domain/asset_catalog.dart';
 
 /// Read-only pre-publication verification using the runtime catalog parser.
@@ -60,7 +59,10 @@ Future<String> validateAssetPack(
   }
   final expected = <String>{};
   for (final asset in catalog.assets) {
-    if (asset.license != 'LicenseRef-Project-Generated' ||
+    if (!{
+          'LicenseRef-Project-Generated',
+          'LicenseRef-Project-Supplied',
+        }.contains(asset.license) ||
         asset.provenance != 'tool/assets/PROVENANCE.md' ||
         !await File(asset.provenance).exists()) {
       throw const FormatException('Missing reviewed license/provenance.');
@@ -73,22 +75,12 @@ Future<String> validateAssetPack(
         'Size/hash does not match the pinned catalog.',
       );
     }
-    final header = await file
-        .openRead(0, 33)
-        .fold<List<int>>([], (a, b) => a..addAll(b));
-    final data = ByteData.sublistView(Uint8List.fromList(header));
-    if (header.length != 33 ||
-        header.take(8).join(',') != '137,80,78,71,13,10,26,10' ||
-        String.fromCharCodes(header.sublist(12, 16)) != 'IHDR' ||
-        data.getUint32(16) == 0 ||
-        data.getUint32(20) == 0 ||
-        data.getUint32(16) > 2048 ||
-        data.getUint32(20) > 2048) {
-      throw const FormatException('Expected a bounded PNG image.');
-    }
-    final decoded = image.decodePng(await file.readAsBytes());
-    if (decoded == null || decoded.numFrames != 1) {
-      throw const FormatException('Expected a decodable still PNG.');
+    try {
+      verifyAssetImageBytes(await file.readAsBytes(), asset.path);
+    } on AssetException {
+      throw const FormatException(
+        'Expected a bounded, decodable still PNG/WebP/JPEG matching its extension.',
+      );
     }
   }
   if (actual.length != expected.length || !actual.containsAll(expected)) {
@@ -96,5 +88,5 @@ Future<String> validateAssetPack(
       'Pack must contain only cataloged presentation media.',
     );
   }
-  return 'Verified ${catalog.pack}: ${catalog.assets.length} PNGs, ${catalog.assets.fold(0, (sum, a) => sum + a.bytes)} bytes. No publication performed.';
+  return 'Verified ${catalog.pack}: ${catalog.assets.length} images (PNG/WebP/JPEG), ${catalog.assets.fold(0, (sum, a) => sum + a.bytes)} bytes. No publication performed.';
 }

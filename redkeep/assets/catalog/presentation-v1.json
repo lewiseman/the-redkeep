@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "pack": "presentation-m07-v1",
+  "pack": "presentation-ui01-v3",
   "assets": [
     {
       "key": "appearance.theme.system",
@@ -36,6 +36,78 @@
       "bytes": 45800,
       "sha256": "5674c0849f384dc06e9b36ddbc34dd03acac1e2e67b6881a347a8a7a7ecc65b8",
       "license": "LicenseRef-Project-Generated",
+      "provenance": "tool/assets/PROVENANCE.md"
+    },
+    {
+      "key": "onboarding.chapter.appearance",
+      "revision": "v1",
+      "path": "onboarding/appearance.jpg",
+      "bytes": 526093,
+      "sha256": "14de003461e6abaf33afcb6fb9081e61140883bfb46ffe610f7c44c0e0b3565b",
+      "license": "LicenseRef-Project-Supplied",
+      "provenance": "tool/assets/PROVENANCE.md"
+    },
+    {
+      "key": "onboarding.chapter.diary",
+      "revision": "v1",
+      "path": "onboarding/diary.webp",
+      "bytes": 222646,
+      "sha256": "d978151960c5c719a5d4b2bc87c40d1ee1e87f55322b24fda51658ee5f515f79",
+      "license": "LicenseRef-Project-Supplied",
+      "provenance": "tool/assets/PROVENANCE.md"
+    },
+    {
+      "key": "onboarding.chapter.flow",
+      "revision": "v1",
+      "path": "onboarding/flow.jpg",
+      "bytes": 544939,
+      "sha256": "7bc3e0986659a6cba3b77e9071b6eaecb488c7b596158fc9b334083ef10e70fe",
+      "license": "LicenseRef-Project-Supplied",
+      "provenance": "tool/assets/PROVENANCE.md"
+    },
+    {
+      "key": "onboarding.chapter.maester",
+      "revision": "v1",
+      "path": "onboarding/ai.webp",
+      "bytes": 238092,
+      "sha256": "2697eba2fa89e753a34f03fa991e8010275ab9ec811f63db2d53f0e91e5a58d3",
+      "license": "LicenseRef-Project-Supplied",
+      "provenance": "tool/assets/PROVENANCE.md"
+    },
+    {
+      "key": "onboarding.chapter.notes",
+      "revision": "v1",
+      "path": "onboarding/notes.webp",
+      "bytes": 189794,
+      "sha256": "83269b5e9896e8cdd0e4262212f23ac2163c3534d9927ea38ecd5d3547c66d0d",
+      "license": "LicenseRef-Project-Supplied",
+      "provenance": "tool/assets/PROVENANCE.md"
+    },
+    {
+      "key": "onboarding.material.binding",
+      "revision": "v1",
+      "path": "onboarding/binding-cloth.webp",
+      "bytes": 48248,
+      "sha256": "f0ef207579defb5022adef395c32c8509770f755bee3fd01ba522835c753f42b",
+      "license": "LicenseRef-Project-Supplied",
+      "provenance": "tool/assets/PROVENANCE.md"
+    },
+    {
+      "key": "onboarding.material.paper",
+      "revision": "v1",
+      "path": "onboarding/paper-edge.webp",
+      "bytes": 73934,
+      "sha256": "7dea653273db75b72fb324b8d7372b01b419c774458c6e83da1a78ecb23af62a",
+      "license": "LicenseRef-Project-Supplied",
+      "provenance": "tool/assets/PROVENANCE.md"
+    },
+    {
+      "key": "onboarding.cover",
+      "revision": "v1",
+      "path": "onboarding/cover.webp",
+      "bytes": 335014,
+      "sha256": "4208bb6602284ad78d3378595b2ecacbcf3b2f387ac5d41a8974de4e46a09698",
+      "license": "LicenseRef-Project-Supplied",
       "provenance": "tool/assets/PROVENANCE.md"
     }
   ]

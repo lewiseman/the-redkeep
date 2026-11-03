@@ -13,7 +13,7 @@ the supported Flutter platform initial location. A route-information adapter
 validates warm platform input and handles malformed encoded queries safely.
 
 The router redirects through `/startup` for local checks/downloads/retries and
-`/onboarding` for the welcome page, carrying a validated continuation in its URI.
+`/onboarding` for the onboarding book, carrying a validated continuation in its URI.
 Its five-second aggregate local limit and splash lifecycle are documented in
 [assets and startup](assets-startup.md). Persisted onboarding, URI/parameter
 validation, continuation/relaunch semantics, history and recovery are defined in
@@ -40,8 +40,14 @@ presentation, including live reduction and framework back gestures.
 viewport, and bounded content width. `core/presentation` contains consumed theme,
 paper-surface, and rendering-policy primitives. They use system fonts and
 programmatic surfaces. Appearance consumes three downloaded static theme images
-through the injectable resolver; bootstrap requires only bundled metadata and
-system fonts. Only implemented destinations are registered; there are no future feature pages
+through the injectable resolver. UI01 bundles the user-selected Grand Maester
+mascot and ink-paper background for startup and both onboarding layouts, and
+uses `GoogleFontsLite.getFont('Allura')` for its caption, without
+bundling a font binary. Google Fonts fetches/caches it on demand;
+the remaining required 12-image pack is downloaded and verified. Bundled branding
+never uses the required-file resolver or network. Stale ink-paper URL overrides
+are ignored during build preparation and runtime configuration. Only implemented
+destinations are registered; there are no future feature pages
 or production writing fixtures.
 
 `app/storage_providers.dart` composes the primary database and repository.
@@ -57,6 +63,24 @@ lives in `features/diary/application/diary_providers.dart`. Notes repository/clo
 lives in `features/notes/application/notes_providers.dart`.
 
 ## Tests and commands
+
+Remote presentation media also has a versioned reference library at
+[`assets/reference/`](../assets/reference/README.md), outside the Flutter bundle.
+Use its manifest and files for image inspection and future asset-dependent test
+inputs. Tests must not invoke the refresh tool or fetch remote URLs. UI01 uses
+eight exact onboarding copies in the separate deployment pack while retaining
+all nine originals and four existing runtime files. Ink paper now has a separate
+exact bundled copy. The two new
+manifest entries index the selected mascot (`bundled-branding`) and the exact
+font used by offline tests (`test-reference`). The mascot and ink paper have
+bundled image copies; font licensing is retained separately.
+
+`test/flutter_test_config.dart` disables Google Fonts runtime fetching and
+preloads the consumed Allura from its local reference through a temporary
+in-memory test asset response. The handler is removed and the root asset cache
+cleared before test registration, then the real manifest is loaded outside
+widget fake-async zones so application assets resolve independently of prior tests.
+Tests need no font network request, device cache or font binary in the app bundle.
 
 Run from `redkeep/`:
 
@@ -92,8 +116,8 @@ dart run tool/validate_assets.dart assets/catalog/presentation-v1.json tool/asse
   settings, and real background SQLite close/reopen. UI tests check themes,
   live system/app changes, mid-transition reduction, back, flat paper, contrast,
   and narrow/large-text/inset layouts in both themes.
-- `test/core` checks schema 7 against its snapshot, upgrades from versions 1–6,
-  appearance/onboarding preservation, empty writing tables, SQL constraints,
+- `test/core` checks schema 8 against its snapshot, upgrades from versions 1–7,
+  appearance/writing preservation, missing-name gating for older completion rows, empty writing tables, SQL constraints,
   retained source/draft tokens and tombstones, all OS/app/lifecycle combinations, both OS flags live, inactive/offscreen
   ticker gating, resumption, and disposal.
 - `test/support/pump_app.dart` creates a fresh scope with a small observable fake
@@ -103,7 +127,14 @@ dart run tool/validate_assets.dart assets/catalog/presentation-v1.json tool/asse
   containers are fresh; repository tests clean up disposable files.
 - `test/features/onboarding` checks commit timing, save/load failure, isolated
   controllers, disposal, incomplete/complete background-database reopen,
-  interruption/relaunch, continuation preservation and accessible welcome UI.
+  interruption/relaunch, continuation preservation and the accessible five-chapter book/cover UI.
+  UI01 adds real local reference decodes, manual page taps/swipes, keyboard and
+  semantic chapter navigation/boundaries,
+  no autoplay, skipped tour, repeated saves, cover/back, themes, landscape,
+  live reduced/simpler/OS/inactive/offscreen behavior and ticker disposal.
+  Footer tests guard the original layout/mascot/script, absence of added visible
+  controls, safe-area/keyboard placement, exact external URLs, safe launch
+  failures and disposal through an injected launcher; they open no browser.
   `test/app` also checks URI validation, readiness/loop combinations, malformed
   cold/warm platform input, latest/duplicate requests, Android back-channel
   cancellation/commit and iOS edge-swipe cancellation/completion in both motion modes.
@@ -111,7 +142,10 @@ dart run tool/validate_assets.dart assets/catalog/presentation-v1.json tool/asse
   redirect handling/cleanup through injected transport, real disposable file
   integrity and atomic-install recovery, missing/suspicious files, restart/retry,
   symlink rejection, storage failure and separate database preservation. The
-  publishing check decodes the selected local PNGs and rejects bad packs.
+  publishing check decodes selected local PNG/WebP/JPEG files and rejects
+  wrong extensions, animation, invalid dimensions and bad packs. Source-config
+  tests preserve full object queries and unrelated env values atomically;
+  real-reference store tests prove upgrade/repair/offline reopen without URLs.
 - `test/app/bootstrap_test.dart` checks splash release before network, timeout,
   coalesced slow retries, local errors, disposal and progress. Startup widget
   checks cover required offline gating, preserved direct destinations, retry,

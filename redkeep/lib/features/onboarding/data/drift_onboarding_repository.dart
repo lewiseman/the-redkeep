@@ -8,18 +8,25 @@ class DriftOnboardingRepository implements OnboardingRepository {
   final AppDatabase _database;
 
   @override
-  Future<bool> isComplete() async =>
-      await _database
-          .select(_database.onboardingCompletion)
-          .getSingleOrNull() !=
-      null;
+  Future<String?> readName() async => normalizedOnboardingName(
+    (await _database.select(_database.onboardingCompletion).getSingleOrNull())
+        ?.name,
+  );
 
   @override
-  Future<void> complete() async {
+  Future<bool> isComplete() async => await readName() != null;
+
+  @override
+  Future<void> complete(String name) async {
+    final savedName = normalizedOnboardingName(name);
+    if (savedName == null) throw ArgumentError('A name is required.');
     await _database
         .into(_database.onboardingCompletion)
         .insertOnConflictUpdate(
-          OnboardingCompletionCompanion.insert(id: const Value(1)),
+          OnboardingCompletionCompanion.insert(
+            id: const Value(1),
+            name: Value(savedName),
+          ),
         );
   }
 }

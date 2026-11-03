@@ -9,6 +9,9 @@
 *.log
 
 # Local configuration and signing credentials.
+/redkeep/env.json
+/redkeep/env.json.pending
+/redkeep/onboarding-downloads.local.json
 .env
 .env.*
 !.env.example

@@ -4,15 +4,17 @@
 the user's own legacy Journal project, reused under the user's M04 migration
 authorization. It is a project provenance notice, not a third-party open-source
 license grant. These outputs carry no third-party license in the source project.
-No external stock images, marks, screenshots, or former branding are included.
+No external stock images are included. The later UI01 correction deliberately
+retains the original printed artwork and mascot, as recorded below.
 Retain this notice with the published pack and the application source.
 
 The three unmodified files are copied individually from
 `/Users/lewis/Dev/Projects/Journal/journal/assets/images/theme_{system,light,dark}.png`
 to `pack/appearance/theme-{system,light,dark}-v1.png`. The bundled catalog pins
 their exact sizes and SHA-256 digests. They are 384 × 384 transparent PNGs.
-Only catalog JSON is in the application bundle; this pack is a controlled local
-fixture and source for eventual separately authorized hosting.
+This pack is a controlled local fixture and source for eventual separately
+authorized hosting; none of its payloads are bundled. The later UI01 fixed
+mascot/font exception is recorded separately below.
 
 The following source provenance and generation prompts were preserved verbatim
 from that project's `assets/images/ARTWORK.md` (read-only reference).
@@ -91,3 +93,144 @@ The cream folded paper, indigo pencil and inked plus form the floating Add note 
 ```text
 Use case: style-transfer. Asset type: one production transparent-background illustration for the floating ADD NOTE control in a personal journaling Flutter app, displayed at 64 by 64 pixels. Input image role: reference for the hand-painted stationery style, materials, lighting and palette ONLY; create a new composition distinct from this existing Notes navigation icon. Primary request: ONE fresh blank cream paper sheet with a softly folded upper-right corner, a short muted-indigo wooden pencil resting diagonally along its lower-right edge, and ONE clearly readable small indigo inked plus sign on the paper to mean create a new note. The paper is warm ivory #f4ead4; the folded corner may have a restrained sage underside #8c9b81; the pencil is muted indigo #65618c with warm wood and a tiny honey-gold ferrule #cfaa62. Keep the paper mostly blank except for the single plus, no writing lines, words or letters. Match the reference's refined hand-painted gouache on tactile cut paper, softly sculptural 2.5D handmade stationery look, delicate natural fiber texture, softly rounded irregular paper edges, and soft upper-left illumination. Near-frontal three-quarter view from slightly above; compact roughly square silhouette, gentle tilt, simple readable large shapes. The paper is the dominant shape, with medium-value lilac/indigo edge shading and ivory highlights so the same full-color cutout reads on both off-white #faf8fc and near-black #17151d. Restrained contained contact shadow under the paper and pencil only. Square canvas, object centered and filling about 85 percent, consistent modest transparent padding, nothing clipped. Genuine transparent RGBA background, including all negative space. No surrounding scene, no colored button surface, no enclosing circle or tile or badge, no background, no baked checkerboard, no watermark, no text except the plus symbol, no notebook/book binding, no stack of sage notes, no flowers or extra decorative objects, no photorealism or glossy plastic. Produce one illustration, not a sprite sheet.
 ```
+
+## UI01 supplied onboarding originals — 3 November 2026
+
+`LicenseRef-Project-Supplied` records the user's explicit UI01 authorization to
+reuse the supplied local onboarding originals. This is a project-use provenance
+record, not a claim that these files are newly generated, public domain, or
+licensed by Firebase. The input is the user's completed Firebase handoff,
+mirrored byte-for-byte in `assets/reference/` at the repository root. That
+manifest records bucket/object identity, media type, bytes and SHA-256; secret
+source URLs remain in ignored configuration. No source image was edited,
+recompressed, regenerated, or copied from the user's raw work directory.
+
+Only these eight originals join `presentation-ui01-v1`, unchanged:
+
+| Key suffix below `onboarding.` | Pack path | Original dimensions | Presentation use |
+| --- | --- | --- | --- |
+| `chapter.notes` | `onboarding/notes.webp` | 1448×1086 | Bulb, paper and foliage crop |
+| `chapter.diary` | `onboarding/diary.webp` | 1448×1086 | Window and coffee crop |
+| `chapter.maester` | `onboarding/ai.webp` | 1448×1086 | Pen and lavender crop |
+| `chapter.flow` | `onboarding/flow.jpg` | 1448×1086 | Pencil and flowers crop |
+| `chapter.appearance` | `onboarding/appearance.jpg` | 1448×1086 | Neutral paper swatches crop |
+| `background.ink` | `onboarding/ink-paper.webp` | 1024×1536 | Ivory ink background |
+| `material.paper` | `onboarding/paper-edge.webp` | 1024×341 | Page block edge |
+| `material.binding` | `onboarding/binding-cloth.webp` | 192×576 | Binding and neutral cloth cover |
+
+Source images contain old printed copy; explicit per-image source rectangles
+in `onboarding_chapter.dart` keep it outside the visible viewport. All current
+functional copy is live Flutter text. The supplied `cover.webp` says Journal
+and has no runtime consumer, so it remains reference-only. The four existing
+PNG entries, their payloads, provenance, keys, revisions and hashes are retained.
+
+The reference handoff does not establish a third-party redistribution license.
+The M12 publication audit must confirm distribution rights with the project
+owner before public release. No publication or live-host verification is part
+of UI01.
+
+
+## UI01 visual-parity and name correction — 3 November 2026
+
+The user explicitly requested the legacy visuals as-is and persisted name entry,
+superseding the earlier crop-only/reference-only-cover policy. The previously
+supplied `cover.webp` is now consumed by the folding editable cover, so
+`presentation-ui01-v2` adds key `onboarding.cover`, revision `v1`, path
+`onboarding/cover.webp`. It is an exact copy from the canonical reference manifest:
+1122×1402 WebP, 335,014 bytes,
+SHA-256 `4208bb6602284ad78d3378595b2ecacbcf3b2f387ac5d41a8974de4e46a09698`.
+Its existing supplied URL is prepared in ignored configuration. No new image or
+remote source was invented, fetched, regenerated or edited. Full original
+printed artwork is retained under the user's visual instruction; the app's
+current functional/accessible descriptions remain separate.
+
+Selected book-paper/fold geometry and composition were adapted from the user's
+legacy Flutter renderer under that same specific authorization. Its global
+services, storage, timers, unrelated features and package manifests were not
+imported. This iteration did not yet restore the original mascot/font; that
+omission is superseded by the exact-layout correction below.
+The four existing PNG entries remain untouched. This supersedes the preceding
+UI01 paragraph that excluded the original cover; earlier records describe the
+initial implementation. Public distribution-rights and native-device evidence
+remain separately unverified.
+
+## UI01 exact layout, mascot and script caption — 3 November 2026
+
+The later resource choice below supersedes this iteration's old mascot and
+bundled font. This record describes the intermediate visual-parity version.
+
+The user explicitly requested the same visual screen, including its omitted
+bottom Terms/Privacy links, and rejected the added Previous/Next controls.
+The original composition, primary-button colors, dots, hint, mascot and caption
+are now restored. This authorizes only the following narrow fixed resources,
+not a bulk asset or font import:
+
+- `assets/branding/onboarding-mascot.png`: exact legacy
+  `journal/assets/images/j.png`, 638×617 PNG, 64,238 bytes, SHA-256
+  `acca16b0754653de5140fc4bb16eaeace75a8b62900c007fec9a0f0df02e0f1a`.
+  Reused under the user's instruction to copy this onboarding screen.
+- `assets/fonts/Allura-Regular.ttf`: the legacy caption's Allura Regular,
+  109,228 bytes, SHA-256
+  `7e712992f9e6ecb3eab1eb7e0b0dc5903ea40467147f930e8e3728832e42080b`.
+  The legacy installed Google Fonts mapping identifies this exact font digest;
+  it was acquired once from the pinned `fonts.gstatic.com` URL in the manifest.
+  Its unmodified OFL notice is retained as `assets/fonts/Allura-OFL.txt`, copied
+  from [Google Fonts' official Allura source](https://github.com/google/fonts/blob/main/ofl/allura/OFL.txt).
+  Flutter's license registry includes this notice. No `google_fonts` runtime
+  dependency or network font loader is added.
+
+Both have byte-for-byte copies under the top-level `assets/reference/`, indexed
+in two additional `bundled-branding` manifest rows with their source identities.
+The original nine rows and bytes stay unchanged. The reference directory itself
+is not bundled. The small fixed app copies are outside `presentation-ui01-v2`;
+that pack stays at 13 images / 3,000,554 bytes with the same 13 supplied URLs.
+No Firebase reference was refreshed or new Firebase source invented.
+
+## UI01 user-selected Grand Maester and Google Fonts — 3 November 2026
+
+The user supplied `redkeep/assets/branding/grand_maestar.png` and explicitly
+selected it as the onboarding mascot. The exact 1,842,097-byte PNG is used
+without editing/recompression; the existing display height is retained and its
+decode height is bounded by device pixel ratio. A byte-for-byte reference copy
+at `assets/reference/branding/grand_maestar.png` is indexed by the existing
+`onboarding.brand.mascot` key with its current SHA-256 and local source identity.
+The unused original J mascot app/reference copies are removed.
+
+The user also selected the old app's Google Fonts approach instead of asset
+fonts. Pinned `google_fonts` 9.0.0 uses `GoogleFontsLite.getFont('Allura')` for
+both caption layouts, matching the old app's API and typography. The former
+bundled TTF and `flutter.fonts` declaration are removed. Only the OFL notice
+remains at `assets/licenses/Allura-OFL.txt` and in Flutter's license registry.
+The package owns runtime fetching/caching; no font fetch joins bootstrap or
+required-artwork verification. The local reference TTF remains outside bundles,
+tagged `test-reference`, to preload the exact font in offline test isolates.
+
+Verified the [official package usage/SDK requirements](https://pub.dev/packages/google_fonts/versions/9.0.0)
+and installed source against Flutter 3.47.5 / Dart 3.13.4 before adding the
+dependency. Only `google_fonts` was added; all other resolved versions remain
+unchanged. The 13-image pack, source URLs and nine Firebase reference rows stay
+unchanged. No image regeneration or Firebase request was performed.
+
+
+## UI01 bundled startup branding — 3 November 2026
+
+The user explicitly selected `assets/branding/grand_maestar.png` and
+`assets/branding/ink-paper.webp` as permanent bundled app resources. Startup now
+uses the paper background, centered Grand Maester logo and determinate progress
+bar. Normal and constrained onboarding use the same bundled paper; the mascot
+continues to use its existing bundled copy. Neither image is downloaded.
+
+The exact ink-paper WebP is 1024×1536, 341,878 bytes, SHA-256
+`461bd93693da157da5f80651ee1a15c2537fd6c1d7bf6a5b2f28da4e947b2e57`.
+The Grand Maester PNG remains 1,842,097 bytes, SHA-256
+`5e698de4f5ab0413e36094c45ee16a67e11bcbc7408a9a7fb558c391a9be10e5`.
+Both are identical to the existing indexed references; all nine original remote
+reference rows and bytes are unchanged. No remote refresh or image edit occurred.
+
+`presentation-ui01-v3` removes `onboarding.background.ink` and its redundant
+deployment payload, leaving 12 downloads / 2,658,676 bytes. Every remaining
+key/revision/path/hash/byte size is unchanged. Existing compiled source maps may
+retain the retired key; runtime ignores it, and preparation omits it while
+preserving all consumed source values and unrelated configuration. This section
+supersedes earlier 13-image delivery statements, without changing the preceding
+Google Fonts choice, supplied-source identity or distribution-rights limits.

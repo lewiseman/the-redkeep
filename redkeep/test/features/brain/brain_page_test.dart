@@ -39,7 +39,9 @@ void main() {
         brainLoader: (_, _) async => model,
       );
       expect(router.routeInformationProvider.value.uri.path, '/onboarding');
-      await tap(tester, find.text('Enter Redkeep'));
+      await tap(tester, find.text("Let's begin"));
+      await tester.enterText(find.byType(TextField), 'Test Writer');
+      await tap(tester, find.text('Save'));
       expect(find.byType(BrainPage), findsOneWidget);
       expect(model.sessions, isEmpty);
       await tap(tester, find.text('Assign ${qualifiedBrainModel.label}').first);

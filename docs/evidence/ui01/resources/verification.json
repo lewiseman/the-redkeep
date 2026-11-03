@@ -1,0 +1,90 @@
+{
+  "date": "2026-11-03",
+  "phase": "UI01 resource correction",
+  "scope": "Use Google Fonts instead of bundled font binaries, and the user-provided grand_maestar.png for onboarding; retain existing layout/name behavior",
+  "font": {
+    "dependency": "google_fonts 9.0.0",
+    "entry_point": "GoogleFontsLite.getFont('Allura', fontSize: 30, fontWeight: FontWeight.w600)",
+    "consumers": [
+      "Normal name-cover caption",
+      "Accessible constrained-layout caption"
+    ],
+    "runtime": "Package-managed fetch/cache; not part of bootstrap or required-artwork gate",
+    "bundled_font_binary": false,
+    "license_asset": "assets/licenses/Allura-OFL.txt; registered with Flutter",
+    "test_reference": "assets/reference/fonts/Allura-Regular.ttf, outside app bundle",
+    "official_apis": [
+      "https://pub.dev/packages/google_fonts/versions/9.0.0",
+      "https://pub.dev/documentation/google_fonts/latest/google_fonts/GoogleFontsConfig-class.html"
+    ],
+    "compatibility": "Package SDK requirements Dart ^3.13.0 / Flutter >=3.47.0 match local 3.13.4 / 3.47.5 baseline; installed source inspected",
+    "other_resolved_versions_unchanged": true
+  },
+  "mascot": {
+    "app_path": "redkeep/assets/branding/grand_maestar.png",
+    "reference_path": "branding/grand_maestar.png",
+    "bytes": 1842097,
+    "sha256": "5e698de4f5ab0413e36094c45ee16a67e11bcbc7408a9a7fb558c391a9be10e5",
+    "unchanged_user_bytes": true,
+    "decode": "Display-height \u00d7 device-pixel-ratio bounded cacheHeight; original placement/height preserved"
+  },
+  "removed": [
+    "Unused original J mascot app/reference copies",
+    "Bundled Allura TTF and flutter.fonts declaration"
+  ],
+  "pack": {
+    "id": "presentation-ui01-v2",
+    "images": 13,
+    "bytes": 3000554,
+    "sources": 13,
+    "unchanged": true
+  },
+  "checks": [
+    {
+      "command": "flutter pub get --enforce-lockfile --offline",
+      "result": "passed; google_fonts is the only new dependency; all other resolved versions unchanged"
+    },
+    {
+      "command": "dart format --output=none --set-exit-if-changed lib test tool",
+      "result": "passed; 173 files; zero changes"
+    },
+    {
+      "command": "flutter analyze",
+      "result": "passed; no issues"
+    },
+    {
+      "command": "flutter test --reporter expanded",
+      "result": "passed; all 360 tests"
+    },
+    {
+      "command": "dart run tool/validate_assets.dart assets/catalog/presentation-v1.json tool/assets/pack",
+      "result": "passed; 13 images / 3000554 bytes"
+    },
+    {
+      "command": "Manifest/hash/original-row/copy checks, bundled-font absence, ignored source-map/token checks, git diff --check",
+      "result": "passed"
+    }
+  ],
+  "test_isolation": "Test bootstrap disables Google Fonts runtime fetching, preloads exact reference bytes through a temporary in-memory asset response, removes the handler/clears that manifest and primes the real manifest outside widget fake-async zones. Book tests clear their image cache between cases. No network, device font cache or real font-storage writes.",
+  "visual_review": {
+    "method": "390x844 offline actual OnboardingPage widget captures with local resolver, locally loaded body/icon preview fonts and Google Fonts Allura loaded from local reference; temporary capture helper removed",
+    "files": [
+      "tour.png",
+      "name.png"
+    ],
+    "limitations": "Current mascot choice intentionally differs from prior parity captures. No new universal pixel-parity or native/device claim."
+  },
+  "preserved": [
+    "Legacy layout/primary action/dots/footer and legal destinations",
+    "Required committed-name/schema-8 gate and router/repair behavior",
+    "Original nine Firebase rows and image bytes",
+    "13-image catalog/pack and exact supplied source-map values",
+    "Unrelated staged/unstaged, launcher/env, native/signing work and writing/settings"
+  ],
+  "not_run": [
+    "Live Google Fonts runtime download/cache or offline first-use device check",
+    "Firebase requests/reference refresh",
+    "Native builds/installs/smokes/device performance",
+    "Remote Git/publication, M12 or other features"
+  ]
+}

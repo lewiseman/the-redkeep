@@ -1,20 +1,25 @@
 # Onboarding and navigation
 
+**UI01 correction — 3 November 2026:** the user requested the legacy full book
+presentation and persisted name entry, superseding the earlier cropped-card/
+completion-only design. See [the current book guide](onboarding-ui-migration.md).
+
 ## Responsibility and persistence
 
-M05 adds one accessible welcome page with live Redkeep text and **Enter Redkeep**.
-It describes the implemented appearance, accessibility and offline artwork
-behavior. It introduces no additional media, feature tabs or unavailable feature
-claims. `features/onboarding/domain/OnboardingRepository` exposes `isComplete`
-and `complete`; the Drift adapter uses the same background primary database as
-Appearance. `app/storage_providers.dart` owns its composition.
+The five manually navigated chapters fold into the original name-entry cover.
+**Let's begin** changes presentation only. **Save** requires a nonblank name and
+waits for commit before routing. Chapter/cover state and uncommitted input are
+transient; **Back to chapters** retains the name within that page instance.
 
-Schema **2** adds only `onboarding_completion`. Its constrained singleton row
-(`id = 1`) means completion; no row means incomplete. Reading never seeds it.
-Completion is idempotent and the repository future resolves after commit.
-Migration 1 → 2 creates that table and preserves all appearance values. Both
-schema snapshots and generated migration helpers remain in the repository.
-There is no onboarding reset, account, old-data importer or competing store.
+Schema **8** adds nullable `name` to the existing constrained singleton
+`onboarding_completion` row (`id=1`). `readName()` returns a trimmed, nonblank
+name, and `isComplete()` derives from it. `complete(name)` commits the validated
+name in one statement. Reading never seeds a row. A missing/blank name means
+incomplete, including earlier completion-only installations: migration preserves
+the old row with a null name and the user supplies their own name on onboarding.
+No writing/settings are reset and no fake name is backfilled. Versions 1–7
+upgrade to schema 8; snapshots and generated helpers remain in the repository.
+There is no account, legacy-data importer or competing store.
 
 `OnboardingController.load` runs through the bootstrap coordinator after the
 settings/database read and before asset inspection. All local work shares the
@@ -23,10 +28,10 @@ A failed/slow onboarding read uses **Retry local checks**; it cannot grant entry
 Required artwork downloads still occur only after the splash is released and
 must finish before onboarding appears. Complete installations need no network.
 
-The completion button disables during a save. Only a committed save changes
-routing. Failure retains the page and continuation, reports a safe live-region
+The completion button disables during a save. Only a committed name save changes
+routing. Failure retains the cover and continuation, reports a safe live-region
 message and offers **Try again**. Leaving the app before completing does not mark
-it complete. SQLite interruption leaves the marker either committed or absent;
+it complete. SQLite interruption leaves the name either committed or absent;
 relaunch reads that actual state. Disposal ignores late UI updates, without
 pretending an already committed transaction was canceled.
 
@@ -65,8 +70,8 @@ upgrading go_router. Normal history reporting is forwarded unchanged.
 `navigationRedirect` is a pure, tested policy:
 
 1. Local checks, errors, missing artwork and downloads use `/startup`.
-2. Ready startup with incomplete onboarding uses `/onboarding`.
-3. Ready startup with committed completion opens the requested destination.
+2. Ready startup without a saved name uses `/onboarding`.
+3. Ready startup with a committed nonblank name opens the requested destination.
 
 The gate URI carries exactly one `continue` parameter containing only `/`,
 `/settings`, the implemented Notes/Diary/Flow/More destinations or the canonical `/unavailable` fallback. For example,
@@ -88,8 +93,9 @@ ordinary launches.
 ## Back behavior, rendering and recovery
 
 Startup and onboarding replace the normal route stack. They have no hidden
-normal screen to pop into. Root system back can leave the app; no PopScope or
-back interception traps the user. Completion does not leave onboarding in back
+normal screen to pop into. Root system back can leave during the tour. On the naming cover, back first
+dismisses input focus/keyboard, then reopens the book as in the legacy workflow;
+back from the tour can exit. An in-flight save retains normal root-exit behavior. Completion does not leave onboarding in back
 history. `/settings` is a child of home, so direct entry as well as the home
 Appearance control has a real home route underneath. Toolbar back, Android
 system back and iOS edge swipe return home. The fallback has a **Return home**
@@ -104,9 +110,16 @@ Live OS/app reduction removes visible transition motion, and the existing
 lifecycle/TickerMode policy remains in force. No widget performs route selection
 or startup work, and no custom gesture recognizer overrides framework behavior.
 
-Welcome, save-error and startup screens use safe areas, scrolling bounded
-content, system fonts, wrapping text, accessible buttons and simple paper.
-Neither the welcome page nor navigation needs a new downloaded asset.
+Book, save-error and startup screens use safe areas, scrolling bounded
+content, wrapping text and accessible actions. UI01 restores the original
+bottom legal links and uses page taps/swipes, keyboard arrows and semantic
+chapter actions instead of added navigation buttons. The user-selected
+`grand_maestar.png` is bundled; Allura uses Google Fonts runtime fetching/caching
+without a bundled font binary. Other typography uses system fonts. UI01 adds nine
+required presentation files through the existing catalog/repair gate. The book preserves its original facing-page geometry at ordinary sizes, adds
+scrolling live text and name entry when constrained, and uses immediate flat/
+static presentation with reduced motion or simpler effects. No startup or
+route-selection logic lives inside book widgets.
 
 ## Verification and limitations
 
@@ -137,7 +150,7 @@ M06 extends these contracts for Notes. M07 keeps the same routes and adds
 trashed-source restore/deletion actions on the existing reader. M08 adds the
 Diary calendar, civil dates and entry routes. M09 adds Flow and a shared
 Diary/Notes/Flow/More shell. More contains Appearance; the `/settings` route and
-its home back stack remain supported. M10 is next.
+its home back stack remain supported. UI01 does not authorize a further phase.
 
 Official APIs checked alongside the locally resolved source:
 

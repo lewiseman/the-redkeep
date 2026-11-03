@@ -1,5 +1,9 @@
 import 'dart:convert';
 
+/// Former download keys now shipped in the app. Ignore stale source overrides
+/// so existing build configuration remains usable without downloading them.
+const bundledArtworkKeys = {'onboarding.background.ink'};
+
 enum AssetFailure { catalog, configuration, storage, network, integrity }
 
 class AssetException implements Exception {
@@ -35,7 +39,7 @@ class AssetCatalog {
             if (!RegExp(r'^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)+$').hasMatch(key) ||
                 !_identifier(revision) ||
                 !safeAssetPath(path) ||
-                !path.endsWith('.png') ||
+                !RegExp(r'\.(png|webp|jpg|jpeg)$').hasMatch(path) ||
                 path.contains('-pending.') ||
                 bytes <= 0 ||
                 bytes > 10 * 1024 * 1024 ||

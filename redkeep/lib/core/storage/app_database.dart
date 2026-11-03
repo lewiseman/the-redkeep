@@ -32,7 +32,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -62,6 +62,13 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 7 && to >= 7) {
         await migrator.createTable(brainAssignmentsTable);
+      }
+      // createTable above already uses the current columns for version 1.
+      if (from >= 2 && from < 8 && to >= 8) {
+        await migrator.addColumn(
+          onboardingCompletion,
+          onboardingCompletion.name,
+        );
       }
     },
   );

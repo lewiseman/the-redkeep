@@ -1,6 +1,42 @@
 # Presentation assets and startup
 
+**Tracked local-reference policy — 3 November 2026:** remote presentation assets
+must have exact local copies under
+[`assets/reference/`](../assets/reference/README.md), with key/path/size/hash and
+remote object identity in its manifest. The first nine Firebase onboarding
+images are mirrored there. Use them offline for reference and tests; no test or
+application startup refreshes this repository library. Token-bearing URLs remain
+in the ignored source list. The reference library is not in Flutter's bundle
+and does not automatically add shipping requirements to the runtime catalog.
+
+**UI01 user correction — 3 November 2026:** full legacy spreads, book geometry,
+folding original cover and persisted name entry replace the first crop/card
+presentation. `presentation-ui01-v3` contains **12 images / 2,658,676 bytes**:
+four retained PNGs, six WebPs and two JPEGs. All nine canonical onboarding
+references remain consumed without changing their bytes: eight download, while
+ink paper ships in the bundle. See [the book guide](onboarding-ui-migration.md)
+and [setup](onboarding-assets-setup.md).
+The latest resource correction ships `assets/branding/grand_maestar.png` and
+`assets/branding/ink-paper.webp` unchanged for startup and onboarding. Allura uses
+Google Fonts runtime fetching/caching without a bundled font binary; font
+loading does not join the required-artwork gate.
+
 ## Inventory and selection
+
+`AssetLocation` accepts reviewed complete per-image HTTPS URLs from the string
+define `ASSET_SOURCE_URLS_JSON`, indexed by catalog key. It keeps encoded Firebase
+object names and query parameters intact. Catalog paths remain safe local paths;
+source URLs are neither catalog payloads nor ledger entries. Paths without an
+override use the existing `ASSET_BASE_URL` directory fallback. The ignored source
+list is serialized into ignored `env.json` by an explicit, atomic, offline
+preparation command; no runtime file reader or Firebase SDK is added.
+
+All 12 required download sources are supplied: eight onboarding URLs plus
+the three theme icons and Notes add icon. They are prepared in ignored build
+configuration. Every required path has an explicit source; the preserved
+directory template is no longer selected by this configured pack. Local
+pack/tests are qualified; live HTTPS/fresh-install downloads remain unverified. Fixture-only native commands below must omit the env source
+map to stay on the loopback server.
 
 M04 inspected the reachable legacy path `journal/lib/main.dart` →
 `OnboardingPage` / `RootLayout` → Notes, Diary, Flow and Appearance; their actual
@@ -16,8 +52,8 @@ consumer and add them to a release catalog when implemented.
 | Surface | Reachable legacy reference | Selection for Redkeep |
 | --- | --- | --- |
 | Current Appearance themes | `assets/images/theme_{system,light,dark}.png`; `ARTWORK.md`; Appearance page | Selected: three original generated 384×384 transparent PNGs. Current required keys `appearance.theme.system`, `.light`, `.dark`, revision `v1`. Individually copied unchanged; 434,116 bytes total. |
-| Onboarding cover/spreads | `onboarding_book.dart`, `onboarding/ARTWORK.md`, `CURRENT_ARTWORK.md`; website book | Excluded: baked-in Journal / former AI branding and chapters promising People, Sync, Tasks, Movies or other deferred behavior. M05 must use accessible live Redkeep copy and re-evaluate any art it needs. |
-| Onboarding material textures | `onboarding/{paper-edge,binding-cloth,ink-paper}.webp`, book materials | Documented original generated candidates; neutral textures are usable if M05's chosen design consumes them. No texture needed by the current shell. Do not import the book implementation. |
+| Onboarding cover/spreads | `onboarding_book.dart`, `onboarding/ARTWORK.md`, `CURRENT_ARTWORK.md`; website book | The user’s UI01 correction restores five whole original spreads and the original folding cover. Current semantic/live accessible descriptions accompany the original artwork. Deferred chapters remain excluded. |
+| Onboarding material textures | `onboarding/{paper-edge,binding-cloth,ink-paper}.webp`, book materials | UI01 consumes the exact local ink, page-edge and binding-cloth originals as background, page block and cloth material. No legacy renderer is imported. |
 | Primary navigation | `root_layout.dart` / `bottom_navbar.dart`; `navigation/ARTWORK.md` | Original generated Diary, Notes and Flow active/inactive PNGs are candidates for M05's real navigation consumers. More's keepsake box depends on the selected navigation design. No inactive tabs registered in M04. |
 | Notes add artwork | `notes/views/pages/notes_page.dart:483`; `images/ARTWORK.md` | Selected in M07: original generated `notes_add.png`, 192×192 RGBA, 45,800 bytes. Individually copied unchanged as key `notes.add`, revision `v1`, for the live Create note control through the resolver. Fixed 120-pixel decode width; no custom press animation. |
 | Diary | `diary_page.dart`, `diary_calendar.dart` | Original generated `diary_calendar_pin.png` is a candidate for M08 (`diary.calendar.pin`). `diary_top_bg.png` has no provenance note found; excluded until ownership/use is established. Paper surfaces can remain code based. |
@@ -37,13 +73,18 @@ copyright ownership claims are inferred for undocumented files.
 
 ## Runtime contracts
 
-M07 updates the pinned pack identity to `presentation-m07-v1`: the original three
-appearance images plus the selected Notes add illustration, **4 PNGs / 479,916
-bytes** total. The metadata filename remains `presentation-v1.json` (catalog
-format version 1). Existing files keep their keys, revisions, hashes and paths;
-an M04–M06 installation downloads only the new missing file and retains writing.
-M07 did not inspect or access `raw_assets/`. Historical inventory/evidence below
-records M04 inspection only.
+UI01 now pins `presentation-ui01-v3`: **12 images / 2,658,676 bytes**. The three
+Appearance PNGs and Notes add PNG keep their exact keys, revisions, paths, sizes
+and hashes. Eight onboarding originals add 2,178,760 bytes. The ink-paper
+background now ships under `assets/branding/ink-paper.webp`, alongside
+`grand_maestar.png`; both remain identical to their indexed references. Neither
+is downloaded or resolved through the required-file store. The cover
+now has a real name-entry consumer and is required. Catalog filename/schema stay
+`presentation-v1.json`/1. Upgrades retain valid installed files and transfer only
+missing media. Schema 8 adds the saved name while preserving writing/settings;
+see [name and routing](onboarding-routing.md). Supplied-art provenance and public
+redistribution-rights limits remain recorded in
+[`PROVENANCE.md`](../redkeep/tool/assets/PROVENANCE.md).
 
 `features/assets/domain/asset_catalog.dart` owns immutable release metadata,
 safe failures, `RequiredAssets`, and the injectable `AssetResolver`. The current
@@ -55,16 +96,21 @@ also detects a revision/hash change at the same path.
 
 The parser rejects missing metadata, invalid schema, duplicate keys/paths,
 unsafe paths (absolute paths, traversal, links at the file boundary, percent
-encoding, queries, backslashes), empty packs, non-PNG entries, reserved temporary
+encoding, queries, backslashes), empty packs, entries other than PNG/WebP/JPEG, reserved temporary
 names and excessive payloads. Current bounds: 100 files, 10 MiB per file and
-50 MiB total. Publishing additionally verifies still-image decode, dimensions
-up to 2048×2048, reviewed provenance and an exact payload inventory. These are
+50 MiB total. Publishing verifies still-image decode, dimensions
+up to 2048×2048, actual format matching the path extension, reviewed provenance
+and an exact payload inventory. Runtime uses the same image qualification for
+cold/suspicious files and downloaded payloads, off the UI isolate. The already
+resolved `image` 4.12.0 dependency is now a pinned runtime dependency; its version
+and transitive resolution are unchanged. These are
 intentional limits for the current image consumer, not future audio/video APIs.
 
 `FileRequiredAssets` owns `application-support/required-artwork/`, separate from
 `redkeep.sqlite`. `ledger.json` maps keys to revision, path, hash, size and file
-modified/changed times. Every launch checks real files and metadata. Missing or
-changed mappings/files require hash verification; unchanged verified records
+modified/changed times plus an image-verification version. Old ledgers receive
+one real qualification pass. Every launch checks real files and metadata. Missing or
+changed mappings/files require hash and format/decode verification; unchanged verified records
 avoid redundant rehashing. Explicit repair verifies every file. The resolver
 rechecks availability and suspicious metadata; image/resolve errors close the
 startup gate and offer local recheck/repair. Automatic async provider retries are
@@ -72,8 +118,9 @@ disabled at these boundaries so required-file failures surface immediately;
 explicit user retry refreshes failed store initialization. FileImage's path-only memory cache
 is evicted when resolving artwork so replacement files can render correctly.
 
-Downloads are sequential streams to sibling `-pending.png` files. Size is
-bounded while receiving, then SHA-256 is checked, output flushed/closed, and the
+Downloads are sequential streams to sibling `-pending.<original-extension>`
+files. Size is bounded while receiving, then SHA-256 and real image qualification
+are checked, output flushed/closed, and the
 file renamed in the same directory before committing the ledger by another
 flushed sibling rename. A crash after payload rename is recovered by local
 verification without a download. Incomplete streams are never resolved as
@@ -92,6 +139,11 @@ explicit debug fixtures permit HTTP only to loopback. Empty host configuration
 is deliberate and yields a safe actionable download error. No placeholder or
 localhost production default exists. Catalogs are release pinned, with no
 online catalog fetch during launch. Models remain separate and optional.
+
+Existing source maps may retain `onboarding.background.ink`: runtime ignores this retired bundled key,
+and preparation omits it while preserving every remaining URL/query and unrelated
+env value. Other unknown keys still fail validation. Existing installed ink-paper
+files are harmless unused files; no writing or app storage is cleared.
 
 ## Bootstrap, recovery and accessibility
 
@@ -120,9 +172,13 @@ database/settings failures have a local retry; saved settings are reloaded after
 a successful recovery. Asset failures explain connection, storage, integrity,
 catalog or service setup issues without exposing raw errors or local paths.
 
-The gate uses system fonts, safe areas, a scrolling narrow-screen layout, large
-buttons, status semantics and determinate progress. It adds no decorative motion
-or indeterminate spinner. Appearance images are static and decorative beside
+The gate uses the bundled ink-paper background and centered Grand Maester logo,
+system fonts, safe areas, a scrolling narrow-screen layout, large buttons, live
+status semantics and a rounded plum progress bar. Actual transferred bytes drive
+the percentage and readable KB/MB totals; local checks/connecting use a stationary
+empty track rather than invented progress. It adds no decorative motion or
+indeterminate spinner. The fixed paper/ink colors stay readable in both themes.
+Appearance images are static and decorative beside
 live accessible theme labels. Existing reduced-motion/simpler-effects behavior
 continues to apply. Widget checks at 320×480, 3× text, safe padding and keyboard
 insets are distinct from physical accessibility verification.
@@ -152,9 +208,11 @@ the selected `adb reverse` mapping when finished. Debug manifest permits local
 HTTP; the adapter still requires explicit fixture opt-in and loopback. Release
 ignores that opt-in and retains HTTPS validation. No iOS ATS exception was added.
 
-Production hosting is unselected. Before a separately authorized release:
+Firebase object URLs are supplied for the entire pinned pack; live availability
+and pinned-byte agreement remain unverified. A directory-host alternative, when
+selected, follows these separately authorized release steps:
 
-1. Select a real public HTTPS base ending in `/`, with an immutable pack prefix.
+1. For directory hosting, select a real public HTTPS base ending in `/`, with an immutable pack prefix.
    Publish the exact verified relative payloads and retain the provenance notice
    alongside the distribution. Configure raw 200 responses, no authentication,
    redirects, signed expiring URLs or content mutation. Do not publish this pack
@@ -184,7 +242,8 @@ Run the README commands and `flutter test test/features/assets test/app`.
 Catalog, transport, disk, controller and widget tests use injected fixtures,
 fresh scopes and disposable directories/databases. Synthetic bytes used by
 integrity tests are never production artwork. Publishing tests decode the
-reviewed PNG pack. Cases cover fresh/complete offline startup, missing files
+reviewed PNG/WebP/JPEG pack, and real-reference file tests qualify fresh install,
+upgrade, corruption/repair and offline reopen without network. Cases cover fresh/complete offline startup, missing files
 despite saved keys, changed revision/same path, same-size replacement with
 restored mtime, corrupt/short/oversized streams, interruption, orphan temporary
 files, rename-before-ledger crash recovery, malformed ledger, symlink escape,
@@ -205,6 +264,19 @@ Official APIs/compatibility checked for adoption:
   [HttpClient](https://api.dart.dev/dart-io/HttpClient-class.html).
 - [image 4.12.0](https://pub.dev/packages/image/versions/4.12.0) and
   [decodePng](https://pub.dev/documentation/image/4.12.0/image/decodePng.html).
-  `image` is a development-only publishing validator dependency, already required
-  transitively by splash tooling; no image-editing pipeline or runtime decoder
-  dependency was added to the application.
+  `image` was already resolved; UI01 promotes the same exact 4.12.0 version
+  to runtime for shared off-isolate verification. Its installed public decoder
+  APIs (`startDecode`, `decodeFrame`, per-decoder pixel limits and WebP
+  `hasAnimation`) were inspected, along with the
+  [official WebP decoder source](https://github.com/brendan-duncan/image/blob/main/lib/src/formats/webp_decoder.dart).
+  No image-editing pipeline or new package version was added.
+
+
+## Bundled-branding follow-up evidence
+
+The selected startup follow-up passes formatting, analysis, all 361 offline tests,
+local pack validation and an Android ARM64 debug build. ZIP/hash inspection
+confirms both unchanged branding images and the twelve-entry catalog in the APK.
+Actual-page widget previews and exact checks are in
+[`evidence/ui01/startup/`](evidence/ui01/startup/). These are widget/package checks;
+no device installation or live host/font transfer was performed.

@@ -19,6 +19,9 @@ void main() {
         root: root,
         location: location ?? AssetLocation('https://fixtures.redkeep.test/'),
         client: client,
+        // Storage edge cases use tiny synthetic bytes; real image qualification
+        // has its own suite with the production verifier and local originals.
+        verifyImage: (_, _) async {},
       );
   File file(String path) => File.fromUri(root.uri.resolve(path));
   final storageError = isA<AssetException>().having(
@@ -60,6 +63,7 @@ void main() {
       location: AssetLocation('https://fixtures.redkeep.test/'),
       client: client,
       createDownloadTimer: _ExpiredDownloadTimer.new,
+      verifyImage: (_, _) async {},
     );
     await expectLater(
       assets.download((_) {}),

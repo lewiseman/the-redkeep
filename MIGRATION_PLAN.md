@@ -4,7 +4,9 @@ Agreed on 2 November 2026. Workspace: `/Users/lewis/Dev/Projects/The Redkeep`.
 
 ## 1. Purpose and how to use this guide
 
-Rebuild the mobile writing app first, then its Flutter desktop AI companion, then the marketing website. Preserve the journal, paper, artwork, and book identity while improving architecture, accessibility, performance, and testability.
+Focus on the mobile writing app and selected legacy page UI migrations. As agreed on 3 November 2026, retain the existing desktop app and marketing website; their rebuild tracks are parked. Preserve the journal, paper, artwork, and book identity while improving architecture, accessibility, performance, and testability.
+
+**Current direction:** UI01 retains the legacy book/folding name cover, primary action, dots/hint and bottom Terms/Privacy links. The latest user choice replaces the old mascot with the supplied `grand_maestar.png` and uses `google_fonts` for Allura, with no bundled font binary. Added Previous/Next, numeric counter and Back controls remain removed. Missing name means onboarding; schema 8 preserves writing/settings and older completion rows without inventing names. The user confirmed onboarding and name only. `presentation-ui01-v3` contains 12 downloads / 2,658,676 bytes. The selected mascot and ink-paper background ship unchanged for startup and both onboarding layouts; retired ink-paper URL overrides are ignored. The startup screen now uses this branding and an accessible progress bar; exact local references keep tests offline. Formatting/analysis, all 361 offline tests, local pack validation and Android debug packaging pass; see [the current guide](docs/onboarding-ui-migration.md) and [current startup evidence](docs/evidence/ui01/startup/verification.json). Live font/Firebase/native-device qualification remains unverified. M12 and any other feature/UI need separate selection; desktop/website stay parked.
 
 The documentation task creates this file only. It does not initialize Git, create `AGENTS.md`, install packages, migrate assets, or change application code. Those actions belong to the selected implementation phases below.
 
@@ -26,7 +28,7 @@ To begin development, copy the complete **M01** prompt into a new or existing ch
 
 ### Progress tracker
 
-Use `Not started`, `In progress`, `Complete`, or `Partial`. A partial result must identify the missing acceptance evidence and any dependent work it prevents. Do not mark a phase complete merely because its code exists.
+Use `Not started`, `In progress`, `Complete`, `Partial`, or `Deferred`. A partial result must identify the missing acceptance evidence and any dependent work it prevents. A deferred track requires the user to reopen its scope explicitly. Do not mark a phase complete merely because its code exists.
 
 | Phase | Status | Completed work / evidence | Limitations / next action |
 | --- | --- | --- | --- |
@@ -41,12 +43,16 @@ Use `Not started`, `In progress`, `Complete`, or `Partial`. A partial result mus
 | M08 — Diary | Complete | Schema 5 separates civil-date Diary entries, recovery drafts and day headings; calendar/day/entry routes, CRUD, local keyword search and static/simpler notebook presentation. All 185 tests, formatting/analysis, four timezone suites, asset validation and Android/iOS simulator debug builds pass; Android offline draft recovery, committed reopen/search and deletion verified. See docs/diary-writing.md and docs/evidence/m08/verification.json. | Physical accessibility/IME, native iOS Diary writing, minimum-OS/low-end/release and native storage-failure evidence unverified. No expensive visual effect introduced or physical performance claim. M04 host and M03 AI gaps unchanged. Next eligible phase is M09. |
 | M09 — Flow | Complete | Schema 6 with quick capture committed before composer clearing, durable capture/edit drafts, newest-first thoughts, ID CRUD and complete Diary/Notes/Flow/More shell. All 213 tests, analysis/formatting, asset validation and Android/iOS simulator debug builds pass; Android offline capture/recovery/edit/delete/restart verified. See docs/flow-writing.md and docs/evidence/m09/verification.json. | Physical accessibility/IME, native iOS Flow writing, minimum-OS/low-end/release and native storage-failure evidence unverified. M04 host and M03 AI gaps unchanged. Next eligible phase is M10. |
 | M10 — Brain | Partial | Brain settings, schema-7 device assignments, optional verified model install/remove/progress/readiness, bounded session/resource ownership and cancellation; 266 tests, analysis/formatting and Android/iOS simulator builds pass. Physical Galaxy CPU/GPU debug, Galaxy CPU release and iOS simulator CPU checks pass with the pinned artifact; see docs/brain.md and docs/evidence/m10/verification.json. | Implementation and available checks finished. Physical iOS/Metal, minimum-OS/low-end, sustained resource/thermal/energy and native storage-failure qualification remain gaps blocking corresponding AI release claims. Helper integration is recorded in M11; these AI qualification gaps remain. |
-| M11 — Grand Maester | Complete | Contextual floating helper, Brain setup/readiness, streamed review/copy-only results and revision/selection-guarded Note rewrite acceptance into recovery drafts. 322 tests, analysis/formatting and native builds pass; separate 10-check Galaxy CPU and iOS simulator CPU smoke reports. See docs/grand-maester.md and docs/evidence/m11/verification.json. | Physical iOS/low-end/minimum-OS, sustained resources, native helper touch acceptance/OS-background inference and physical accessibility remain unverified; M03/M10 limits and M04 production-host prerequisite remain. Next eligible phase: M12 audit; not started. |
-| M12 — Mobile release preparation | Not started | — | Requires M01–M11; production media hosting is a release prerequisite. |
-| D01 — Flutter desktop foundation | Not started | — | Starts after mobile acceptance in M12. |
-| D02 — Companion connection | Not started | — | Requires D01. |
-| D03 — Desktop release preparation | Not started | — | Requires D02 and platform packaging evidence. |
-| W01 — Marketing website | Not started | — | Starts after D03. |
+| M11 — Grand Maester | Complete | Contextual floating helper, Brain setup/readiness, streamed review/copy-only results and revision/selection-guarded Note rewrite acceptance into recovery drafts. 322 tests, analysis/formatting and native builds pass; separate 10-check Galaxy CPU and iOS simulator CPU smoke reports. See docs/grand-maester.md and docs/evidence/m11/verification.json. | Physical iOS/low-end/minimum-OS, sustained resources, native helper touch acceptance/OS-background inference and physical accessibility remain unverified; M03/M10 limits and M04 production-host prerequisite remain. UI01 artwork handoff and onboarding UI are next; M12 follows selected mobile UI work. |
+| UI01 planning — Onboarding image handoff | Complete | Current standalone execution prompt is docs/prompts/ui01-onboarding.md, updated for nine local WebP/JPEG originals, Firebase source configuration, live copy and usable illustration regions. Earlier PNG-only handoff prompt superseded. | Prompt preparation only. Original reference pixels remain unchanged; implement UI01 only when the user selects the execution prompt. |
+| UI01 asset configuration | Partial | Full HTTPS source overrides, real PNG/WebP/JPEG verification and exact 12-image `presentation-ui01-v3` download pack implemented. Bundled ink paper no longer downloads; older 13-key maps remain compatible and preparation omits its retired key. Remaining URLs, query strings and unrelated settings are preserved. Local checks pass. | Live endpoint availability, pinned remote-byte agreement/fresh native install and redistribution-rights evidence remain unverified; no publication performed. |
+| UI01 local asset references | Complete | Nine supplied Firebase originals and their rows remain unchanged, 2,520,638 bytes. Indexed exact copies of the selected Grand Maester mascot and Allura test font/license remain available offline. | Reference paths remain outside bundles; the selected mascot and ink paper have separate exact bundled image copies. Font reference is test-only. No Firebase refresh or test download. |
+| UI01 — Onboarding book UI | Complete | Original book/name-cover layout, selected `grand_maestar.png` mascot, Google Fonts Allura caption, primary action, dots/hint and bottom Terms/Privacy links. Added Previous/Next, counter and Back controls removed; manual/keyboard/semantic navigation retained. Schema 8 preserves versions 1–7 data and requires the committed name. Bundled mascot/paper in startup and both onboarding layouts, rounded progress bar and 12-download `presentation-ui01-v3` pack; old paper URL maps remain compatible. Formatting, analysis, 361 offline tests, local validation and Android debug APK byte checks pass; see docs/evidence/ui01/startup/verification.json. | Prior visual-parity screenshots describe preceding variants. No live font/Firebase/device or universal pixel/performance/accessibility evidence claimed. Stop at selected startup/onboarding assets; M12 requires selection. |
+| M12 — Mobile release preparation | Not started | — | Requires M01–M11 plus UI01 and any further individually selected mobile UI phases; production media hosting and recorded device qualification remain prerequisites. |
+| D01 — Flutter desktop foundation | Deferred | Existing desktop app retained by user decision on 3 November 2026. | Parked; not a gate for mobile acceptance and never automatic. Requires explicit user rescoping. |
+| D02 — Companion connection | Deferred | No new mobile-to-old-desktop compatibility work selected. | Parked with D01; retaining the old app does not establish protocol compatibility. |
+| D03 — Desktop release preparation | Deferred | — | Parked with the desktop rebuild. |
+| W01 — Marketing website | Deferred | Existing website retained by user decision on 3 November 2026. | Parked; not a gate for mobile or later feature planning. |
 
 For each executed phase, append a record under **Phase records** with: date, phase ID, changed behavior and contracts, exact commands and results, device/build/model identifiers where relevant, remaining limitations, and the next eligible prompt. Never include API keys, pairing credentials, or private writing in evidence.
 
@@ -71,9 +77,9 @@ For each executed phase, append a record under **Phase records** with: date, pha
 
 The first mobile release contains Notes, Diary, Flow, appearance/accessibility settings, required-asset startup handling, and basic on-device Grand Maester assistance. Start with a fresh database and retain the new app identity, currently `com.lewiseman.redkeep`. No legacy data importer, in-place upgrade, or old cloud-account migration is included.
 
-The first desktop release is an **AI companion**, not a desktop journal. Target macOS Apple Silicon and Windows x64. Linux and other desktop architectures are deferred.
+The existing desktop app and marketing website will continue to be used unchanged. New desktop/website applications and their packaging, publishing, shared-package extraction, and connection work are outside the active mobile migration scope. Compatibility between Redkeep mobile and the old desktop protocol has not been established or selected by this UI planning step.
 
-Use React, TypeScript, and Vite for the later marketing website, following the applicable Sites workflow at implementation time. The website advertises implemented behavior; it is not a browser version of the writing app.
+The historical D01–D03/W01 prompts are retained below as parked reference material. If the user explicitly reopens them, revisit their assumptions against the then-current apps before execution. They are not prerequisites for mobile completion or deferred mobile feature planning.
 
 Defer third-party API backends, tasks/alarms/notifications, People and P2P note sharing, collaborative text editing, semantic search/embeddings, advanced attachments/media, voice, and cloud sync. Their planning prompts appear later in this guide. The desktop AI transport does not constitute P2P note sharing or journal synchronization.
 
@@ -83,7 +89,7 @@ The new product uses **Grand Maester**, with no QVAC branding, QVAC runtime, Ele
 
 ### 3.1 Workspace and code organization
 
-Use one repository rooted at `/Users/lewis/Dev/Projects/The Redkeep`. Keep the current mobile location. Add sibling `desktop` and `website` apps only in their phases. Extract shared Dart packages when the desktop app becomes a real second consumer; do not create a speculative package hierarchy now. Preserve `raw_assets` as source material outside application asset bundles.
+Use one repository rooted at `/Users/lewis/Dev/Projects/The Redkeep`. Keep the current mobile location. Creating sibling `desktop` and `website` apps is parked; no shared Dart package extraction is justified by those future consumers now. If that scope is explicitly reopened later, extract shared code only for a real second consumer. Preserve `raw_assets` as source material outside application asset bundles and do not access it.
 
 Within mobile, use feature-first organization with MVVM-style presentation:
 
@@ -148,9 +154,27 @@ After local checks, show the appropriate Flutter screen and remove the native sp
 
 Use a release-pinned catalog containing stable asset keys, revisions, expected size/hash, safe relative locations, and configurable download URLs/base location. Catalog metadata may be bundled; presentation media is downloaded. Preserve selected media licenses and provenance. Bootstrap screens can use system fonts. Only required native launcher/splash and minimal bootstrap resources are bundled as exceptions.
 
+The user's UI01 resource choice adds two permanent bundled presentation assets:
+`grand_maestar.png` and `ink-paper.webp` ship unchanged with exact indexed
+references. Startup and both onboarding layouts use these bundled images,
+including before any download. The paper is removed from the required catalog
+and deployment fixture; old source maps ignore its retired key. Allura uses
+`google_fonts` runtime fetching/caching instead
+of bundled font binaries; its OFL notice ships separately. Font loading and
+these branding images remain outside required-artwork downloads. The remaining
+`presentation-ui01-v3` pack contains 12 images / 2,658,676 bytes.
+
 Download all assets required by the currently implemented release, not every old file or all future media. Inventory media required by planned first-release features so the initial complete release has a coherent pack. On later launches, validate catalog-key/revision mappings against real local files and the installation ledger; a key in a database is not proof the file exists. Verify size and hash before atomic installation. Avoid rehashing every large file on every launch without evidence that it is needed; validate suspicious files and failures, repair invalid installations, and test same-path replacement scenarios.
 
 Use persistent app-owned storage rather than a purgeable image cache as the authoritative asset location. Keep completed valid downloads across retries, reject partial/corrupt files as installed assets, prevent writes outside the asset directory, and surface interruption/storage/network failures with actionable retry UI. Required missing artwork blocks normal entry, including on an offline first launch. Existing writing must never be deleted to repair assets.
+
+The repository also retains exact, Git-visible local copies of remote
+presentation assets under `assets/reference/`, indexed by stable key, source
+identity, local path, bytes and SHA-256. Agents inspect these copies first and
+tests use them offline. Keep reference images outside Flutter's bundled assets;
+they do not become installed-app fallbacks. Refresh deliberately after remote
+changes and review source/copy differences before changing a shipping catalog.
+Token-bearing download URLs remain in ignored local inputs, not the manifest.
 
 Routine startup with complete local assets needs no internet and must not fetch a remote catalog before opening. New media catalogs are versioned with releases initially. Production hosting is not yet chosen: use configurable locations and controlled local fixtures during development, and require a real HTTPS asset host before release. Never ship a placeholder URL or a localhost production default.
 
@@ -182,7 +206,7 @@ Brain owns installation/removal state, capability assignments, readiness, option
 
 Initial operations are note rewriting, note/diary text summarization, and an optional short Flow reflection. The floating helper presents contextual actions for available content and can open Brain when setup is needed. Results are proposals, with explicit review and acceptance for any source modification. Summaries/reflections may be viewed or copied without silently changing writing. Prevent late or stale results from modifying another record, a newer revision, or a changed selection. Closing a screen, canceling, and backgrounding need explicit lifecycle handling.
 
-The first desktop app provides model management, capability assignments, phone pairing, and AI jobs. Add the device-to-companion backend only in D02. Use established Dart/native dependencies for authenticated encrypted communication, reviewed pairing/trust primitives, and tested protocol versioning. Do not recreate the old JavaScript transport or invent cryptography.
+The desktop rebuild and D02 connection backend are parked. The existing desktop app is retained without an implied guarantee of Redkeep protocol compatibility. Any later companion-integration scope must be explicitly selected and planned against that real desktop implementation. Use established Dart/native dependencies and reviewed trust primitives rather than recreating a JavaScript bridge or inventing cryptography.
 
 ### 3.8 Testing and AI-friendly maintenance
 
@@ -330,24 +354,46 @@ Acceptance: test contextual availability, no-model setup, streaming/cancel/failu
 Finish: update the M11 progress row and feature guides, and append a phase record with checks, evidence limits, and next phase. Stop after M11.
 ```
 
+### UI01 — Onboarding book UI
+
+UI01 and its explicit user corrections are implemented. The current
+[book guide](docs/onboarding-ui-migration.md) documents the five original full
+spreads, actual folding cover, persisted required name, original view layout,
+bottom legal links, selected Grand Maester mascot, Google Fonts caption and
+manual interactions. Added visible controls
+are removed. Native/device and live hosting evidence remains unverified.
+
+The correction notices in [docs/prompts/ui01-onboarding.md](docs/prompts/ui01-onboarding.md)
+supersede its historical crop-only/neutral-cover/no-name and Previous/Next
+requirements. Do not revive the rejected layout or expand beyond onboarding and
+name. Required downloaded assets are the 12-image `presentation-ui01-v3` pack;
+the mascot and paper background are bundled and no font binary is bundled.
+The explicitly selected startup follow-up uses that branding and a progress bar.
+
+Further page UI migrations are individually selectable; none are authorized by UI01. M12 audits the resulting mobile app after the selected UI work. The existing M03/M10 hardware and M04 hosting gaps continue to apply.
+
 ### M12 — Mobile release preparation
 
 ```text
 Read /Users/lewis/Dev/Projects/The Redkeep/MIGRATION_PLAN.md and applicable AGENTS.md instructions. Implement M12 only.
 
-Prerequisite: M01–M11; audit actual completion/evidence instead of assuming tracker labels prove readiness.
+Prerequisite: M01–M11, UI01, and any further explicitly selected mobile UI migration phases; audit actual completion/evidence instead of assuming tracker labels prove readiness. The desktop/website rebuilds are parked and are not prerequisites.
 Scope: complete end-to-end startup/writing/AI journeys, accessibility review, representative low-end Android/iOS profiling, asset-pack validation, dependency/dead-code cleanup, release configuration, and available release builds. Verify compatible ABI/minimum-OS settings and absence of obsolete bridges/runtime branding. Configure the production HTTPS asset location only from real provided hosting details; document publishing and fresh-install download verification.
 Exclusions: no new product features, hosting purchases, fabricated URLs/device results, store submission, public release, cloud credentials, or signing secrets committed to Git.
 Acceptance: fast suite and relevant integration/build checks pass; verify complete offline launches and all core writing without an installed model. Record exact devices/builds/models, performance measurements, licenses, signing/host prerequisites, and any release blockers. Missing external prerequisites leave release readiness partial.
-Finish: update the M12 progress row and append a phase record covering release readiness, exact evidence, limitations, and next phase. Stop; D01 begins only after mobile acceptance. Do not publish anything.
+Finish: update the M12 progress row and append a phase record covering release readiness, exact evidence, limitations, and next eligible work. Stop. Do not auto-start parked desktop/website work or deferred product features, and do not publish anything.
 ```
+
+### Parked desktop and website rebuild prompts
+
+D01–D03 and W01 are retained for reference. The user parked these tracks on 3 November 2026 and will keep using the existing apps. Copying or reading a historical prompt does not remove that scope decision; execution needs the user to explicitly reopen the relevant rebuild.
 
 ### D01 — Flutter desktop foundation
 
 ```text
 Read /Users/lewis/Dev/Projects/The Redkeep/MIGRATION_PLAN.md and applicable AGENTS.md instructions. Implement D01 only.
 
-Prerequisite: M12 mobile acceptance is recorded.
+Prerequisite: the user has explicitly reopened this parked desktop rebuild and its assumptions have been revalidated; M12 mobile acceptance is recorded. Otherwise do not execute this historical prompt.
 Scope: create /Users/lewis/Dev/Projects/The Redkeep/desktop as a Flutter AI companion targeting macOS Apple Silicon and Windows x64. Recheck current runtime/platform requirements, implement model management and capability assignments, and extract proven shared Dart contracts/runtime code now that both apps consume them. Keep independent app composition and lifecycles. Reuse the asset/rendering policy where appropriate without importing the entire mobile application.
 Exclusions: no Electron/JS bridge, phone pairing yet, desktop journal editing/sync, API providers, P2P notes, Linux support, or broad speculative package splitting.
 Acceptance: test shared packages and both affected apps, verify synthetic local-model execution/cleanup on available supported hardware, and run native builds where supported. Record exact platform floors and unverified Windows/macOS evidence rather than assuming cross-platform Flutter compilation proves runtime behavior.
@@ -359,7 +405,7 @@ Finish: update the D01 progress row and desktop/shared-package guides, and appen
 ```text
 Read /Users/lewis/Dev/Projects/The Redkeep/MIGRATION_PLAN.md and applicable AGENTS.md instructions. Implement D02 only.
 
-Prerequisite: D01 is complete, with model/platform evidence recorded.
+Prerequisite: the user has explicitly reopened the parked companion connection scope; D01 is complete with model/platform evidence recorded. Otherwise do not execute this historical prompt. Any integration with the retained old desktop instead needs its own selected compatibility plan.
 Scope: implement Dart-based phone pairing, authenticated encrypted transport using established primitives, trust revocation, capability/readiness discovery, and versioned AI job requests/results. Add the real companion backend to mobile Brain. Document the protocol and trust lifecycle, use stable job IDs and idempotent handling, and define explicit cancel/timeout/interrupted/reconnect states. A lost connection must not silently replay an accepted source modification or switch execution location.
 Exclusions: no JavaScript transport, invented cryptography, P2P note sharing, journal sync, API providers, or public internet relay service.
 Acceptance: test protocol compatibility, pairing approval and invalid/expired requests, unauthorized clients, revocation, duplicate jobs/results, cancellation, disconnect/reconnect, app restarts, interrupted jobs, stale source revisions, and unavailable models. Perform a synthetic end-to-end paired-device check where hardware permits; keep fast tests isolated.
@@ -371,7 +417,7 @@ Finish: update the D02 progress row and protocol/feature guides, and append a ph
 ```text
 Read /Users/lewis/Dev/Projects/The Redkeep/MIGRATION_PLAN.md and applicable AGENTS.md instructions. Implement D03 only.
 
-Prerequisite: D02 is implemented and its paired-device evidence is recorded.
+Prerequisite: the user has explicitly reopened the parked desktop release scope; D02 is implemented and its paired-device evidence is recorded. Otherwise do not execute this historical prompt.
 Scope: finish companion model/assignment management, phone connection status/revocation, useful diagnostics without private content or credentials, lifecycle cleanup, packaging configuration, and supported-platform acceptance. Verify packaged runtime/native libraries and model paths, not just debug builds. Record install/update/signing requirements and the production asset configuration.
 Exclusions: no desktop writing features, platform expansion, auto-updater service, store submission, signing purchases, public publication, or unrelated product additions.
 Acceptance: run affected mobile/shared/desktop checks and synthetic packaged inference/pairing journeys on available macOS Apple Silicon and Windows x64 systems. Verify restart, disconnect, cancellation, reduced motion, and resource cleanup. Missing hardware/signing evidence remains an explicit release limitation.
@@ -383,7 +429,7 @@ Finish: update the D03 progress row and append a phase record with packaged arti
 ```text
 Read /Users/lewis/Dev/Projects/The Redkeep/MIGRATION_PLAN.md and applicable AGENTS.md instructions. Implement W01 only.
 
-Prerequisite: D03 desktop acceptance is recorded; inspect actual mobile/desktop release availability.
+Prerequisite: the user has explicitly reopened this parked website rebuild and its assumptions have been revalidated. Otherwise do not execute this historical prompt. Inspect actual mobile/desktop release availability; the existing website is retained until this scope is reopened.
 Scope: read and follow the applicable Sites skill/workflow, then create the sibling website using React, TypeScript, and Vite. Use the legacy site as a read-only reference for a refined journal/book identity. Implement accurate product pages, accessible static content, progressive decorative book interactions, responsive layout, metadata, and real available download destinations. Honor prefers-reduced-motion and provide simpler presentation. Reuse only selected licensed assets.
 Exclusions: no QVAC claims/branding, unimplemented-feature promises, placeholder release links, browser journal app, framework migration, production publication, or analytics/accounts not requested by the user.
 Acceptance: TypeScript, lint, relevant behavior/accessibility checks, and production build pass. Verify keyboard/touch use, large text, mobile layout, reduced motion, initial content usability, asset weight, metadata, and download URLs. If releases are unavailable, show honest availability text without fake download buttons.
@@ -498,7 +544,7 @@ Finish: save the plan, add/update P07 progress and the phase record with externa
 | --- | --- |
 | Legacy data | Fresh start. No importer or old account migration. |
 | Mobile support | Android 11+ ARM64 and iOS 15+, revalidated against the qualified engine versions. |
-| Desktop support | macOS Apple Silicon and Windows x64. Record current minimum OS/runtime requirements in D01. |
+| Desktop support | Rebuild parked on 3 November 2026; existing desktop app retained. Historical macOS Apple Silicon/Windows x64 assumptions need revalidation only if D01 is explicitly reopened. |
 | Media hosting | Unselected. A real HTTPS host, published verified pack, and fresh-install download evidence are prerequisites to mobile release. |
 | Missing required media offline | Download/retry screen; no automatic basic-writing bypass. |
 | AI | Optional on-device model initially. Qualified artifacts and physical-device evidence required; writing remains available without AI. |
@@ -1675,3 +1721,671 @@ checks.
 **M11 is complete within its selected scope. Next eligible phase: M12 — Mobile
 release preparation, including its explicit completion/evidence audit. M12 and
 all later implementation phases remain unstarted. Stop here.**
+
+### 3 November 2026 — Mobile focus and UI01 onboarding planning
+
+**User scope.** After M11, the user parked the desktop and website rebuilds,
+chose to retain the existing apps, and selected onboarding as the first mobile
+page UI migration before deferred product work. When asked whether to implement
+immediately or prepare the prompt/image list first, the user selected **Prepare
+prompt and image list first**. This record supersedes the previous automatic
+M11 → M12 → desktop/website sequencing; it does not rewrite earlier evidence.
+
+**Documentation delivered.** Added
+[UI01: onboarding book prompt and artwork handoff](docs/onboarding-ui-migration.md),
+with five relevant chapters, nine proposed PNGs and exact keys/paths/dimensions,
+six new text-free image briefs, three reusable neutral texture sources, safe
+staging/catalog handoff instructions, accessible rendering/interaction behavior,
+and a standalone UI01 implementation prompt. Updated the active roadmap,
+progress rows, README and onboarding/asset guides. UI01 implementation remains
+**Not started**; M12 follows UI01 and further individually selected mobile UI
+work. D01–D03/W01 are **Deferred**, with copied historical prompts guarded against
+automatic execution.
+
+**Inspection and verification.** Initial `git status --porcelain=v1` was clean.
+Read current migration/architecture/onboarding/asset contracts and the relevant
+runtime/tests/validator; inspected only the legacy onboarding widgets and their
+artwork records. Read dimensions of the relevant legacy images with `sips`, and
+visually inspected the old AI spread to confirm its printed JOURNAL / AI copy.
+No legacy file was modified; `raw_assets/` was not accessed.
+
+- `git diff --check` passed.
+- Documentation checks verified the nine unique PNG keys/paths, proposed image
+  dimensions within current limits, local links/fences, UI01 prompt boundaries,
+  parked rebuild rows, and UI01's unstarted implementation status.
+- The runtime catalog is still `presentation-m07-v1`, with four images and no
+  placeholder onboarding entries. No media was copied/converted/published.
+- SHA-256 comparison of all **282 tracked files under `redkeep/`** matched the
+  pre-edit aggregate fingerprint
+  `2a1eefad3fa11d881cae9f838fb928f0258697776db9be518ecbe4a1bac8fa5a`.
+  App source/tests, schema, native configuration, dependencies, catalog and pack
+  are unchanged. No Flutter/native tests were rerun for documentation-only work.
+
+**Remaining handoff and stopping point.** The six replacement images need user
+handoff outside `raw_assets/`. The three listed neutral legacy textures can be
+converted as individual copies during UI01. No startup requirement is added
+until real reviewed media and matching pinned metadata are ready. The existing
+M04 production-host and M03/M10 device/resource qualification gaps remain.
+Next eligible implementation: the linked **UI01** prompt after artwork handoff,
+not M12, another page, deferred product features, desktop or website. Stop here.
+
+### 3 November 2026 — UI01 onboarding asset configuration: dummy env.json
+
+**Selected follow-up.** The user requested the asset base URL in `env.json`, a
+dummy file, and concrete placement/download instructions, scoped to onboarding.
+The user explicitly deferred tests until actual values are supplied. Existing
+uncommitted UI01 planning changes were preserved.
+
+**Changes.** Created local ignored `redkeep/env.json` and tracked
+`redkeep/env.example.json`, each with dummy
+`ASSET_BASE_URL = https://your-asset-host.invalid/redkeep/` and
+`ASSET_ALLOW_LOCAL_FIXTURE = false`. The existing compile-time configuration
+already consumes these keys through Flutter's
+`--dart-define-from-file=env.json`; no dotenv package or runtime loader was added.
+The local file is not bundled or uploaded. Existing IDE launch configurations
+remain unchanged and do not implicitly load the file.
+
+Created `artwork/onboarding-ready/README.md` as the actual handoff directory and
+added [Onboarding assets: env.json and download handoff](docs/onboarding-assets-setup.md).
+The guide distinguishes local input, hosted `onboarding/` paths, final pack
+files, bundled catalog metadata, and device-installed storage. Updated related
+README/asset/UI01 documentation and the progress row. The six new PNGs and three
+texture copies remain pending; no dummy image, size, digest, or catalog entry
+was fabricated. A fresh installation still needs the existing four media files
+at the shared base; an upgraded installation retains valid installed copies.
+
+**Verification intentionally deferred.** Inspected current configuration and
+reviewed Git changes only. Per the user's instruction, no tests, analyzers,
+validators, builds, app launches, HTTP requests, uploads, or downloads were run.
+There is no claim that the dummy URL or download flow has been tested. Dart
+runtime code, dependency pins, database/schema, current catalog/pack, native
+configuration, legacy sources, and `raw_assets/` were not modified; `raw_assets/`
+was not accessed.
+
+**Next handoff and boundary.** The user fills in the actual base URL and provides
+the finished PNGs outside `raw_assets/`. Once selected, integrate their real
+catalog metadata and hosting layout, then test downloads/repair/offline reopen.
+The book UI remains unstarted. No other page, deferred feature, desktop or
+website work is included in this configuration-only step. Stop here.
+
+### 3 November 2026 — UI01 Firebase Storage URL handoff
+
+**New source information.** The user provided one Firebase Storage download
+link for `redkeep/assets/images/onboarding/diary.webp` in bucket
+`mypple.firebasestorage.app`, and stated that the media will be under the assets
+folder. The encoded object endpoint and per-object query parameters are not
+compatible with treating it as the current generic directory base. The user
+has not yet requested download testing; the earlier no-test instruction remains.
+
+**Concrete handoff.** Created ignored `redkeep/onboarding-downloads.local.json`
+with the supplied Diary URL and eight empty onboarding URL values, and a tracked
+empty `onboarding-downloads.example.json`. Actual token-bearing links are not
+copied into tracked examples or documentation. Updated the setup/UI01/handoff
+guides and READMEs to retain the real Firebase layout and copy full URLs intact,
+rather than reusing one file's token or concatenating paths through the query.
+The local list is preparation input, not a runtime-readable feature. The prior
+dummy `env.json` remains unchanged as the directory-host fallback template.
+
+**Implementation boundary.** Explicit per-image HTTPS source URLs in the asset
+metadata/resolver, preserving Firebase query parameters, still need integration.
+The provided WebP example also requires real WebP catalog/publisher support;
+the existing PNG-only catalog is not modified and no extension is faked. Stable
+runtime keys need not equal remote filenames. Existing required artwork is
+preserved; no bucket access rules, Firebase project setup, SDK dependencies,
+source assets, profile data, book UI or other features are changed.
+
+**Evidence and limits.** Inspected the local directory resolver, bootstrap
+composition, catalog and relevant tests. Read official Firebase download-URL
+documentation; that is research, not asset verification. No request was sent
+to the user's asset URL, and no tests, validators, analyzers, builds, asset
+downloads, uploads, metadata measurements or image edits were performed.
+`raw_assets/` and legacy files were not accessed in this follow-up. No download
+success or format qualification is claimed.
+
+**Next action.** The user fills the eight remaining complete Firebase download
+URLs and supplies/reviews final media. Integrate source URLs, supported formats
+and real catalog metadata in a subsequent selected step before testing. Stop
+at this onboarding-only handoff; desktop, website and other features stay parked.
+
+### 3 November 2026 — UI01 exact local copies of supplied remote assets
+
+**User scope.** The user filled all nine Firebase URLs and requested permanent
+local duplicates for reference/testing, included in the GitHub repository.
+Downloading those exact reference copies is explicitly authorized by this new
+request; the earlier pause on app/download tests remains in effect. No book UI,
+runtime asset pipeline, desktop/website or deferred feature was selected.
+
+**Delivered.** Added `assets/reference/images/onboarding/` with all nine original
+downloaded files, preserving remote filenames/extensions and bytes. Added
+`assets/reference/manifest.json`, recording stable key, relative path, source
+bucket/object identity, byte size, SHA-256 and media type without token-bearing
+URLs. Full download URLs remain in the user's ignored local input, unchanged.
+The total is **2,520,638 bytes**, comprising seven WebPs and two JPEGs.
+
+Added `tools/sync_asset_references.py`, a standard-library image mirror tool.
+The default mode lists the local manifest without reading URLs or contacting
+the network. `--download` fetches missing/changed source identities or mismatched
+local copies; `--download --refresh` deliberately refetches the supplied sources
+after remote replacement. It preserves successful downloads, writes files and
+metadata atomically, bounds image transfers, checks actual image signatures,
+omits token URLs from diagnostics, and never changes runtime assets or raw work.
+No automatic test/startup/CI network hook was added.
+
+Updated root `AGENTS.md` to make the local-copy policy persistent, plus the
+reference README, architecture/testing, asset/UI01 guides and READMEs. Future
+asset-dependent tests must consume local copies or derived fixtures through
+injected boundaries. The reference folder is outside Flutter's bundle; existing
+runtime/deployment requirements and the four-image fixture remain unchanged.
+
+**Acquisition and inspection evidence.**
+
+- `python3 tools/sync_asset_references.py --download` completed with **9 recorded
+  references, 0 failed inputs**. This was the requested file acquisition, not an
+  installed-app download test or app-suite run. Actual response bytes were
+  hashed while saving and their PNG/WebP/JPEG signature/extension checked.
+- Read dimensions from the nine saved files using `sips -g pixelWidth -g
+  pixelHeight`; recorded them in the reference README. Inspected the local
+  cover, AI and Appearance images visually. The cover still says Journal, the
+  AI spread says JOURNAL / AI, and Appearance mentions fonts. No artwork was
+  re-encoded/rebranded or silently approved for the new product.
+- `git add -- assets/reference tools/sync_asset_references.py AGENTS.md` placed
+  the references, manifest, README, refresh tool and agent policy in the Git
+  index. Reviewed staged file statistics; no commit, push or remote Git
+  operation was performed. Other pending planning/configuration changes remain
+  outside that staging scope.
+- No Flutter tests, analyzers, builds, shipping-catalog validator or installed-app
+  startup/repair checks were run. No private writing, model, runtime Dart/schema/
+  native configuration, source URL values, `raw_assets/` or legacy files were
+  changed. `raw_assets/` was not accessed.
+
+**Next boundary.** Assets can now be identified and inspected offline. Review
+their approved UI01 content/rebranding, then explicitly select source-URL/
+format/catalog integration and book UI work. Mirror acquisition does not make
+the new files required at startup or prove their runtime download flow. Stop
+after this local-reference task; all other phase boundaries remain in place.
+
+### 3 November 2026 — Current UI01 implementation prompt prepared
+
+**Selected task.** The user requested a prompt for migrating onboarding UI,
+not execution. Read current progress, agent/architecture/onboarding/asset guides,
+the existing welcome implementation and the local nine-asset manifest. No new
+asset fetch, reference refresh, native launch or test was required.
+
+**Delivered.** Added the authoritative standalone prompt at
+[docs/prompts/ui01-onboarding.md](docs/prompts/ui01-onboarding.md), with a short
+copyable launcher in the onboarding guide. Updated the active UI01 section,
+planning row and README links. The old six-new-PNG prerequisite is superseded
+by the real local WebP/JPEG handoff. Existing reference files stay unchanged;
+the prompt uses neutral book surfaces, live current copy and usable unbranded
+illustration regions rather than displaying old product claims or silently
+editing the supplied bitmaps. Only actual runtime consumers become required
+assets; the original cover can remain reference-only.
+
+The prompt covers the relevant legacy book presentation and manual navigation,
+committed completion/continuation preservation, optional-AI messaging, existing
+rendering policy, narrow/large-text presentation, Firebase source configuration,
+actual image formats and pinned metadata, local-fixture verification, failure/
+repair behavior, and a strict UI01 boundary. It identifies the existing four
+images' production-source gap without inventing URLs or removing requirements.
+Offline implementation checks are specified for when the user selects execution;
+live Firebase/native operations remain outside that default verification scope.
+
+**Evidence and stopping point.** Documentation prepared and inspected only. No
+application code, asset bytes, runtime catalog, dependency, native configuration,
+database, local source URLs, `raw_assets/` or legacy file changed in this step.
+No tests, analyzers, validators, builds, downloads or remote Git operations were
+run. Existing staged asset-reference work was preserved. UI01 remains **Not
+started**. Next action is to copy/select the prepared prompt; stop here.
+
+
+### 3 November 2026 — UI01: Onboarding book UI and consumed assets
+
+**Selected scope and baseline.** The user selected
+`docs/prompts/ui01-onboarding.md` for implementation, superseding the earlier
+handoff-only no-test restriction and six-new-PNG prerequisite. Read the agent,
+migration, architecture, onboarding and asset guides, current controller/router/
+bootstrap/policy/resolver/publisher and tests. Inspected only the requested
+legacy onboarding widgets/material renderer as read-only references and the
+nine canonical local images. Initial Git status contained staged reference/
+agent/sync-tool work, unstaged planning/docs and untracked handoff files. Those
+changes were retained; no reset, unstaging, commit or remote Git action occurred.
+
+**Presentation delivered.** Replaced the minimal welcome with Notes → Diary →
+Grand Maester → Flow → Appearance. Current headings/descriptions remain live,
+scalable Flutter text, including optional on-device help with separately
+downloaded models. Added chapter position, Previous/Next, swipe navigation,
+manual perspective turns, and a neutral material Redkeep cover. There is no
+autoplay or requirement to visit every chapter. **Let's begin** only shows the
+cover; **Back to chapters** returns to the chosen chapter. **Enter Redkeep**
+uses the unchanged completion controller, disables competing actions while
+saving, retains the cover/safe error/**Try again** on failure and permits the
+existing validated continuation only after commit.
+
+Used the local spreads only through five explicit, visually inspected source
+rectangles recorded in `docs/onboarding-ui-migration.md`. Printed Journal/AI
+headers, conflicting left-page copy and font promises are outside every crop.
+The original cover remains unchanged/reference-only. Neutral ink, page-edge and
+cloth textures plus Flutter paper/case/border/title/ornament primitives provide
+the book composition. No replacement art, bitmap text, name input or future
+feature claim was added. Removed the superseded welcome body; no legacy renderer
+or dependencies were imported.
+
+The rendering policy permits motion only when active, visible and using full
+effects. Reduced/simpler modes settle immediately with static flat presentation.
+Live app/OS reduction, inactivity/offscreen and disposal settle/stop the turn.
+Safe scrolling and a single column handle narrow widths, landscape, large text,
+safe areas and keyboard constraints; a portrait tablet can show facing pages.
+Ivory pages use dark ink in both themes. Functional semantics/focus follow the
+live reading order; decorative art is excluded. Artwork resolves only for the
+visible face/current outgoing neighbor, with quantized bounded decode sizes,
+repaint boundaries and eviction on departure/repair, not an all-image precache.
+
+**Asset boundary delivered.** Advanced the pinned pack to
+`presentation-ui01-v1`: four untouched PNG rows/payloads plus eight exact copies
+from the manifest, **12 images / 2,665,540 bytes** (4 PNG, 6 WebP, 2 JPEG).
+All nine reference images and the token-free manifest remain unchanged. The
+reference-only original cover is not a required download. The runtime parser,
+publisher and persistent resolver now accept real PNG/WebP/JPEG and share still
+format/extension, pre-allocation dimension (≤2048×2048) and real decode
+qualification. Retained byte limits, SHA-256, safe paths, symlink rejection,
+sequential transfers, same-directory atomic install, repair/retry and ledger
+stat verification. Verification decodes cold/suspicious files off the UI isolate;
+an image-verification ledger version safely requalifies existing installations.
+Pending files preserve their actual extension. The already resolved `image`
+4.12.0 package was promoted to a pinned runtime dependency; no package version
+or other lockfile resolution changed. Public installed APIs and the official
+package/Flutter sources were checked; no mutable decoder-global policy was used.
+
+Added complete per-image HTTPS source overrides while preserving query strings
+and encoded Firebase object names; safe catalog paths remain separate. Missing
+overrides still use the existing directory base. Added the explicit offline
+`tool/prepare_asset_sources.dart` command, which filters unused cover input,
+validates catalog keys/URLs and atomically serializes the map as the string
+`ASSET_SOURCE_URLS_JSON` define into ignored `env.json`. Ran it for the eight
+supplied consumed sources, verifying that the existing directory fallback and
+all unrelated entries were preserved. The full original input list is unchanged.
+No real URL/token was written to tracked files or logs; interrupted env pending
+output is ignored. The app reads compile-time defines, never repository files.
+
+**Verification, from `redkeep/`.**
+
+- `flutter pub get --enforce-lockfile --offline` — passed against installed
+  packages; exact versions retained.
+- `dart format --output=none --set-exit-if-changed lib test tool` — passed,
+  163 files checked with no remaining formatting changes.
+- `flutter analyze` — passed, no issues.
+- `flutter test --reporter expanded` — **346 tests passed**. Focused development
+  runs also passed for onboarding, assets and the Brain continuation consumer.
+  New checks cover manual boundaries/buttons/swipes/canceled drag/no autoplay,
+  skipped tour/cover/back/repeated taps, save/retry/commit timing, cover
+  interruption/relaunch, completed bypass, continuation/repair, actual local
+  decodes, bounded image providers and semantic copy. Layout/policy coverage
+  includes both themes, 320px/3×, landscape, safe areas/keyboard, facing pages,
+  normal/reduced/simpler modes, live app/OS reduction, inactivity/offscreen and
+  ticker disposal. Real-reference file tests cover format mismatch, malformed/
+  animated/oversized media, atomic WebP/JPEG install, corruption/repair/offline
+  reopen and an M07→UI01 upgrade that transfers only the eight missing files
+  while retaining the four existing payloads and a writing/settings sentinel.
+  Existing schema-7, persistence, back/navigation and writing suites also pass.
+- `dart run tool/validate_assets.dart assets/catalog/presentation-v1.json tool/assets/pack`
+  — passed: `Verified presentation-ui01-v1: 12 images (PNG/WebP/JPEG), 2665540 bytes.`
+  No publication performed.
+- `dart run tool/prepare_asset_sources.dart onboarding-downloads.local.json env.json`
+  — prepared **8** consumed sources with no requests; all unrelated configuration
+  values compared equal before/after. Tests additionally prove failure leaves
+  the previous env intact and source queries stay complete.
+- SHA-256/size verification against the local manifest — all **9** originals
+  match; comparison with `HEAD` — all **4** old catalog entries identical.
+  `git diff --check` — passed.
+- Used a temporary offline widget capture with injected local resolver and
+  locally loaded SDK Roboto for legible visual review; inspected all five
+  chapter crops, cover, portrait spread and dark presentation. Retained four
+  representative widget PNGs and a machine-readable record under
+  `docs/evidence/ui01/`. Removed the temporary capture helper and other temporary
+  repository work. These are widget renders, not native-device evidence.
+
+**Preserved contracts and honest limits.** The completion controller/repository,
+router destinations/continuations, bootstrap/splash ownership, schema 7,
+writing/settings and native/signing configuration are unchanged. No user
+writing/database was opened or reset. No raw work directory access, legacy
+writes, model/AI initialization, native build, device install/smoke, live Firebase
+request/reference refresh, upload, publication or remote Git operation occurred.
+The authorized tests are fully offline and use fresh scopes/disposable files.
+
+The existing four required PNGs still have no supplied usable production URLs;
+the preserved dummy directory fallback does not solve that gap. Their source
+locations or a real HTTPS directory host are the specific remaining hosting
+input. Even the supplied onboarding URLs have not been live-verified by UI01.
+Fresh production download, native interruption/repair/storage-failure drills,
+physical accessibility/gestures, release frame/memory/energy, low-end/minimum-OS
+and actual iOS hardware evidence remain unverified. Public redistribution rights
+for project-supplied originals remain an M12 audit input, not inferred from
+Firebase hosting. Existing M03/M10 AI hardware limits remain. None of those
+unverified release claims is marked accepted by the offline UI01 result.
+
+**Stopping point.** UI01 implementation and its selected offline checks are
+complete. M12 is the next eligible mobile audit only after separate user
+selection; any further page UI also needs its own selection. No M12, deferred
+feature, desktop/website work or publication was started.
+
+### 3 November 2026 — UI01 follow-up: remaining artwork source URLs supplied
+
+**Selected scope.** The user supplied complete Firebase URLs for the three
+existing theme icons and Notes add icon to resolve the known source-configuration
+gap. Integrated those four values into ignored
+`redkeep/onboarding-downloads.local.json` under `appearance.theme.system`,
+`appearance.theme.light`, `appearance.theme.dark` and `notes.add`. Preserved all
+nine preceding input values, including the reference-only cover, and the user's
+existing launcher changes. Tokens remain solely in ignored input/build config.
+
+**Delivered and checks.** Ran
+`dart run tool/prepare_asset_sources.dart onboarding-downloads.local.json env.json`
+from `redkeep/`: **12 cataloged sources prepared, no requests performed**.
+Compared the generated map against the supplied values and catalog: every
+required key has an explicit HTTPS source with its original full query, and the
+unused cover is excluded. Compared all unrelated env values, including the
+directory fallback, before/after: unchanged. No required image now selects the
+placeholder fallback when this configuration is compiled into the app. Updated
+the blank source example, current setup/feature guides, progress row and evidence
+to distinguish provided sources from verified live downloads.
+
+`flutter test test/features/assets/asset_source_configuration_test.dart` passed
+(2 tests); local pinned-pack validation passed (12 images / 2,665,540 bytes).
+`git diff --check` passed. A scan confirmed supplied URLs/tokens do not appear in
+Git-visible text files. Catalog entries, payload/reference bytes, completion,
+writing/schema and native/signing configuration are unchanged.
+
+**Limits and stopping point.** No live Firebase request, reference refresh,
+native rebuild/install/relaunch, upload, remote Git operation or later phase was
+performed. Live endpoint status and remote bytes still need separate evidence.
+The current app must be fully stopped and rerun with
+`--dart-define-from-file=env.json`; hot reload does not compile new values. After
+startup successfully verifies every required file, an incomplete user reaches
+onboarding. Stop at this configuration follow-up; M12 remains separately selected.
+
+### 3 November 2026 — UI01 correction: legacy visual parity and persisted name
+
+This iteration's added controls, wordmark and substituted caption typography
+are superseded by the subsequent exact-layout correction below. Its schema,
+name and verified-asset contracts remain current.
+
+**Explicit scope change.** The user rejected the cropped-card/neutral-cover
+result, requested the original onboarding visuals (copy the selected renderer
+as-is if optimization would change them), and required the user's name. The user
+then confirmed **just onboarding and name for now**. This supersedes UI01's
+initial restrictions on full printed artwork, copying the book renderer, name
+persistence and schema changes. No other feature or phase is selected.
+
+**Delivered.** Adapted the specific legacy paper/fold/material/book renderer
+into the feature: full 4:3 illustrated spreads, curved leaves, page blocks,
+stitched binding, 64-band bending pages, stationary case, perspective/shadows,
+folding original lavender cover and the original-style lavender action. Retained
+five implemented chapters with manual buttons/taps/finger-following swipes and
+canceled-turn recovery; no autoplay or
+unavailable route was added. The ordinary presentation uses the exact supplied
+original artwork; constrained/large-text views add live current descriptions
+and an unconstrained name field. The external wordmark remains Redkeep rather
+than adding an unprovided old mascot/font asset. Original printed Journal/AI
+artwork is retained under the user's visual instruction.
+
+**Name contract.** Schema 8 adds nullable `name` to the existing completion row.
+The repository normalizes/validates and commits it atomically; the controller
+unlocks the existing validated continuation only after that commit. System back dismisses input focus and reopens the book before tour/root exit. Blank input
+cannot save; failure retains the typed name/cover and safe retry. A user with no
+saved name now sees onboarding, including an older completion-only row. No fake
+name is backfilled; migration preserves the row, every writing/recovery table,
+settings and tokens. Committed Unicode names survive background database
+close/reopen. Generated code, the v8 snapshot and migration helpers are retained.
+
+**Optimizations.** Both leaves share bounded file-image providers;
+only current/turning-adjacent artwork resolves. Only the selected cover warms on
+Begin, and its decode size stays stable through folding/keyboard changes. No
+all-chapter precache was restored. Texture streams own/dispose handles and
+cached/asynchronous errors use repair. Final cover camera settles to identity
+for stable editable text/caret composition. Reduced/simpler/live/inactive/
+offscreen modes settle promptly and simple presentation removes expensive
+perspective/bends/shadows. No physical performance improvement is claimed.
+
+**Artwork/configuration.** Added the exact already-local cover to the pinned
+`presentation-ui01-v2` pack: now **13 images / 3,000,554 bytes**. The four original
+PNG rows/payloads and all nine reference bytes/manifest remain unchanged. The
+original cover's source URL was already supplied; preparation now includes all
+13 catalog consumers while preserving prior URLs, queries, fallback and unrelated
+env settings. No token appears in tracked files. No new artwork, remote URL,
+font/model dependency or bundled presentation fallback was introduced.
+
+**Commands/evidence, from `redkeep/`.**
+
+- `dart run build_runner build` — passed; regenerated current Drift adapter.
+- `dart run drift_dev schema dump lib/core/storage/app_database.dart drift_schemas/`
+  and `dart run drift_dev schema generate drift_schemas/ test/core/storage/generated/`
+  — passed; v8 snapshot/helper added, historical versions retained.
+- `dart format --output=none --set-exit-if-changed lib test tool` and
+  `flutter analyze` — passed; no remaining formatting/analyzer issues.
+- `flutter test --reporter expanded` — **355 tests passed**. New/updated coverage
+  includes original spread geometry, manual navigation/cover/name input,
+  blank/trimmed Unicode names, duplicate/failed/retry/commit timing, real failed
+  SQLite writes, close/reopen, migrations 1–7 with writing/settings preservation,
+  missing-name gating, continuation/interruption, current/adjacent decode bounds,
+  cover/texture decoder repair, both themes, narrow/3×/landscape/safe/keyboard,
+  live reduction while turning/folding, simpler/inactive/offscreen and disposal.
+- Local pack validator — passed for `presentation-ui01-v2`, 13 actual still
+  PNG/WebP/JPEG images, 3,000,554 bytes. No publication performed.
+- Source preparation — **13** supplied catalog URLs prepared with no requests;
+  prior 12 source values and unrelated env values compared unchanged.
+- Manifest size/SHA-256 check — all nine references match. The first four
+  catalog rows still equal their original `HEAD` rows. `git diff --check` and
+  supplied-token scan passed.
+- Temporary offline widget captures reviewed the full spreads, folding original
+  cover, name entry, portrait tablet and simpler presentation. Current artifacts
+  and a machine-readable record are under `docs/evidence/ui01/revision/`.
+  The capture helper was removed; original cropped-card evidence remains
+  historical. These are widget renders with locally loaded preview fonts, not
+  physical/native or pixel-identical font/logo evidence.
+
+**Preservation and limits.** Existing staged/unstaged work and user launcher/URL
+changes were preserved. No raw-work directory access, legacy write, remote Git,
+publication, live Firebase request, reference refresh, model initialization,
+native build/install/smoke or actual user database access occurred. A full app
+stop/restart with the env define file is required for schema/catalog/defines.
+Startup still verifies required artwork before the name gate; a complete local
+pack and saved name reopen offline. Physical accessibility/gestures, low-end/
+minimum-OS/release frame/resource evidence, remote-byte agreement and public
+redistribution rights remain unverified.
+
+**Boundary.** Onboarding and name are complete within the authorized offline
+scope. No additional old-app feature, other page UI, M12, desktop/website or
+deferred feature was implemented. M12 remains separately selectable.
+
+### 3 November 2026 — UI01 correction: original layout and bottom legal links
+
+The latest resource choice below supersedes this iteration's original J mascot
+and bundled Allura binary; its layout, footer and name behavior remain current.
+
+**Selected task.** The user required the same legacy visual screen, identified
+its missing bottom Terms of Service footer and rejected the added Previous/Next
+buttons. Scope remains **onboarding and name only**. This supersedes conflicting
+historical prompt requirements and the prior wordmark/extra-control revision.
+
+**Delivered.** Retained the original onboarding view composition directly,
+including its mascot, page dots, tap/swipe hint, lavender primary action, exact
+ink/spacing, original Allura caption and bottom inline Terms/Privacy policy
+footer. Removed visible Previous/Next, numeric counter and Back buttons. The
+single visible primary action is **Let's begin**, then **Save** on the original
+name-entry cover; **Save** also retries a failed committed-name write. Keyboard
+arrows, semantic chapter actions, page taps/swipes and system back/Escape retain
+access without extra visible controls. The settled cover uses its original
+camera transform. Safe areas, keyboard footer hiding, reduced/simpler effects,
+large-text scrolling and repair/navigation/name persistence remain intact.
+
+The restored inline links use the original
+`https://journal.lewiseman.com/terms.html` and
+`https://journal.lewiseman.com/privacy.html` destinations through an injected
+external launcher. False/throwing launches show the original safe message;
+late results after disposal are ignored. Tests invoke injected launchers only.
+
+**Resources and preservation.** The exact 64,238-byte legacy mascot and the exact
+109,228-byte Allura font have separate bundled copies and indexed local
+references. Allura was acquired once from the public pinned Google Fonts source
+identified by the legacy font mapping; its unmodified OFL notice is retained
+and registered with Flutter. This narrow fixed-resource exception avoids new
+runtime downloads or unprovided Firebase URLs. No font package/dependency was
+added. The original nine manifest rows/image bytes, 13-image catalog/pack and
+13 supplied source values stay unchanged. Unrelated staged/unstaged edits,
+launcher/env values, native/signing files and writing/settings were preserved.
+Legacy sources were read-only; `raw_assets/` was not accessed.
+
+**Verification.** From `redkeep/`:
+
+- `flutter pub get --enforce-lockfile --offline` — passed, no new dependency/version.
+- `dart format --output=none --set-exit-if-changed lib test tool` — passed,
+  172 files, zero changes.
+- `flutter analyze` — passed, no issues.
+- `flutter test --reporter expanded` — **all 360 tests passed**. The five new
+  footer tests cover exact semantic link actions/destinations, false/throwing
+  launches, late disposal, original visual elements/absent added controls,
+  bottom safe-area placement and keyboard hiding.
+- `dart run tool/validate_assets.dart assets/catalog/presentation-v1.json tool/assets/pack`
+  — passed, **13 images / 3,000,554 bytes**, no publication.
+- Offline manifest/hash/copy checks — original nine indexed rows unchanged;
+  all eleven reference hashes valid; bundled/reference/legacy mascot and font
+  copies identical. All thirteen compiled sources match ignored local input;
+  supplied tokens are absent from Git-visible files. `git diff --check` passed.
+
+A separate adapted render of the original legacy view/button composition was
+compared against the actual new page at **390×844, pixel ratio 1**, for the tour
+and named cover. Both had **zero differing pixels out of 329,160**. These renders
+share the selected migrated book renderer, local artwork and controlled preview
+fonts; they establish composition parity for those scenes, not universal
+font/device or independently verified renderer parity. Byte-identical PNGs and
+the method/results are retained under
+[`docs/evidence/ui01/parity/`](docs/evidence/ui01/parity/). Temporary comparison
+helpers were removed. Prior UI01 screenshots remain historical.
+
+**Limitations and boundary.** No Firebase request or refresh of the nine original
+images, native build/install/smoke, real-browser launch, physical-device or
+release-performance qualification was performed. Fully restart with the
+existing `env.json` defines to see the fixed resources; no data reset is needed.
+The authorized onboarding/name work stops here. M12, other page UIs, product
+features, desktop/website, publication and remote Git remain separately scoped.
+
+### 3 November 2026 — UI01 resource choice: Google Fonts and Grand Maester mascot
+
+**Selected task.** The user explicitly chose the previous app's Google Fonts
+approach, without asset fonts, and supplied
+`redkeep/assets/branding/grand_maestar.png` as the onboarding mascot. This is a
+resource-only follow-up within UI01; the restored layout and name workflow stay
+in scope and no additional page or feature is selected.
+
+**Delivered.** Both normal and constrained name-cover captions now use
+`GoogleFontsLite.getFont('Allura', fontSize: 30, fontWeight: FontWeight.w600)`,
+the legacy entry point. Added pinned `google_fonts` 9.0.0 after checking its
+[official usage/API documentation](https://pub.dev/packages/google_fonts/versions/9.0.0)
+and installed SDK constraints against Flutter 3.47.5 / Dart 3.13.4. Only this
+package was added; all other resolved dependency versions remain unchanged.
+Removed the app's Allura TTF and `flutter.fonts` declaration. The OFL notice
+remains as a license-only asset under `assets/licenses/` and in Flutter's license
+registry. Google Fonts owns on-demand fetching/caching; font loading does not
+join startup checks or block the name/Save gate.
+
+The exact 1,842,097-byte user-supplied `grand_maestar.png` replaces the old J
+mascot, retaining the original placement and display height. Its decode height
+is bounded by the display height/device pixel ratio. The user file was not
+edited/recompressed; a byte-for-byte reference and its current source/hash are
+indexed under the stable mascot key. Removed the unused old J app/reference
+copies. The local Allura reference remains outside the bundle as `test-reference`.
+The original nine Firebase manifest rows and bytes, 13-image pack and supplied
+source values remain unchanged. The footer, manual navigation, committed name,
+schema 8, route continuation and asset repair contracts are preserved.
+
+**Offline isolation.** `test/flutter_test_config.dart` disables Google Fonts
+runtime fetching and preloads the exact local Allura through a temporary
+in-memory asset response. It then removes that response, clears the temporary
+manifest and primes the real asset manifest outside widget fake-async zones.
+Book tests clear their image cache between cases, avoiding unfinished earlier
+decodes of the larger mascot. No routine test uses a real font network/cache,
+font-storage writes, account, model or user database.
+
+**Checks and evidence.** From `redkeep/`:
+
+- `flutter pub get --enforce-lockfile --offline` — passed, reproducible lock.
+- `dart format --output=none --set-exit-if-changed lib test tool` — passed,
+  173 files, zero changes.
+- `flutter analyze` — passed, no issues.
+- `flutter test --reporter expanded` — **all 360 tests passed**.
+- `dart run tool/validate_assets.dart assets/catalog/presentation-v1.json tool/assets/pack`
+  — passed, unchanged **13 images / 3,000,554 bytes**, no publication.
+- Original-row/hash/exact-copy checks — all nine original rows unchanged, all
+  eleven references valid, selected mascot and license copies identical, no
+  app font binary/declaration, no changed existing lock versions, all thirteen
+  compiled source values preserved/ignored and no supplied token in Git-visible
+  files. `git diff --check` passed.
+
+Current actual-page widget previews and machine-readable evidence are under
+[`docs/evidence/ui01/resources/`](docs/evidence/ui01/resources/). They use local
+artwork/font references and controlled body/icon preview fonts at 390×844; the
+temporary capture helper was removed. Prior `parity/` captures describe the
+preceding J-mascot/bundled-font variant, not the current resource choice.
+
+**Boundary and remaining evidence.** No live Google Fonts runtime download/cache,
+Firebase request/reference refresh, native build/install/smoke, physical-device
+or release-performance check was performed. No unrelated staged/unstaged work,
+launcher/env values, native/signing configuration or writing/settings were
+changed; legacy projects stayed read-only and `raw_assets/` was not accessed.
+Stop at UI01. Other feature/UI work, M12, desktop/website, publication and remote
+Git remain separately selectable.
+
+
+### 3 November 2026 — UI01 follow-up: bundled branding and artwork startup
+
+**Selected task.** The user explicitly chose
+`redkeep/assets/branding/grand_maestar.png` and
+`redkeep/assets/branding/ink-paper.webp` as permanent shipped assets, with the
+paper background, mascot logo and progress bar on the asset-loading page.
+This follow-up covers startup branding and existing uses of these two images.
+
+**Delivered.** Added ink paper to Flutter's asset manifest; the mascot was
+already bundled. Startup now has the full paper background, centered mascot,
+readable ink/plum text and buttons, rounded determinate progress, percentage and
+KB/MB totals. Safe-area scrolling supports narrow screens, large text and
+keyboard insets; no decorative animation or indeterminate ticker was added.
+Existing download/retry/local repair and validated continuation behavior stays
+in place. Both normal and constrained onboarding use bundled ink paper.
+
+`presentation-ui01-v3` removes the paper key and redundant deployment payload,
+leaving **12 downloads / 2,658,676 bytes**. All remaining metadata is unchanged.
+Runtime ignores the exact retired `onboarding.background.ink` source key in
+older maps; offline preparation omits it and preserves consumed URLs/queries
+and unrelated env values. Other unknown keys still fail validation. No ignored
+local configuration was rewritten. Existing installed paper files are harmless
+and no app storage is cleared. Both branding files match their reference hashes;
+all eleven reference hashes and the original manifest remain unchanged.
+
+**Checks.** Commands run from `redkeep/` unless stated otherwise:
+
+- `flutter pub get --enforce-lockfile --offline` — passed; lockfile unchanged.
+- `dart format --output=none --set-exit-if-changed lib test tool` — passed,
+  173 files and zero changes.
+- `flutter analyze` — passed, no issues.
+- `flutter test --reporter expanded` — all **361 tests passed**. Coverage includes
+  fresh startup/retry, actual progress, narrow/3× text/insets in both themes,
+  both onboarding layouts, exact local bytes and old full source maps.
+- `dart run tool/validate_assets.dart assets/catalog/presentation-v1.json tool/assets/pack`
+  — passed, **12 images / 2,658,676 bytes**, no publication.
+- `flutter build apk --debug --target-platform android-arm64` — passed.
+- Local Python ZIP/hash checks — both exact branding binaries present in the
+  debug APK, the current twelve-entry catalog packaged, no reference/deployment
+  fixture bundled, all eleven reference hashes valid and manifest unchanged.
+- `git diff --check` — passed.
+
+Actual `StartupPage` widget captures at 390×844 with safe insets, local images,
+synthetic progress and a locally loaded preview body font are under
+[`docs/evidence/ui01/startup/`](docs/evidence/ui01/startup/), alongside the
+machine-readable evidence. The temporary capture helper was removed.
+
+**Boundary.** No live Firebase/font requests, reference refresh, model load,
+device installation, physical accessibility/performance qualification or iOS
+build was performed. Existing native configuration, writing/settings, user
+artwork bytes and unrelated staged work are preserved; `raw_assets/` and legacy
+projects were not accessed. M03/M10 hardware and M04 hosting gaps remain. Stop
+at this selected startup/onboarding follow-up; further UI or M12 requires selection.

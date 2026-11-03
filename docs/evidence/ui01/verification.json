@@ -1,0 +1,123 @@
+{
+  "phase": "UI01",
+  "date": "2026-11-03",
+  "scope": "Onboarding book UI and its consumed asset boundary only",
+  "checks": [
+    {
+      "command": "flutter pub get --enforce-lockfile --offline",
+      "result": "passed; image 4.12.0 promoted from dev to main; no resolved version change"
+    },
+    {
+      "command": "dart format --output=none --set-exit-if-changed lib test tool",
+      "result": "passed; 163 Dart files, 0 changes"
+    },
+    {
+      "command": "flutter analyze",
+      "result": "passed; no issues"
+    },
+    {
+      "command": "flutter test --reporter expanded",
+      "result": "passed; 346 tests"
+    },
+    {
+      "command": "dart run tool/validate_assets.dart assets/catalog/presentation-v1.json tool/assets/pack",
+      "result": "passed; presentation-ui01-v1, 12 images (PNG/WebP/JPEG), 2665540 bytes; no publication"
+    },
+    {
+      "command": "dart run tool/prepare_asset_sources.dart onboarding-downloads.local.json env.json",
+      "result": "passed; 8 consumed HTTPS source URLs serialized; cover excluded; fallback/all unrelated env values verified unchanged; no requests"
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed"
+    },
+    {
+      "command": "local manifest SHA-256/size verification and comparison of first four catalog rows against HEAD",
+      "result": "passed; all nine reference images preserved; four existing rows identical"
+    }
+  ],
+  "offline_coverage": [
+    "manual boundaries/buttons/swipes/canceled drag/no autoplay",
+    "tour skip/cover/back/repeated taps/save failure/retry/commit timing",
+    "cover interruption/relaunch and complete bypass",
+    "validated continuation through checks/download/save/repair",
+    "real PNG/WebP/JPEG bytes, wrong extension, corruption, animation and dimension rejection",
+    "M07 pack upgrade transfers only eight missing originals; atomic install/repair/offline reopen",
+    "semantic live text and decorative artwork; bounded current/adjacent file-image providers",
+    "light/dark; 320px and 3x text; landscape; safe-area and keyboard constraints",
+    "facing-page portrait tablet; ivory contrast; flat simpler effects",
+    "live app/OS reduction, inactivity, offscreen and ticker disposal"
+  ],
+  "pack": {
+    "id": "presentation-ui01-v1",
+    "count": 12,
+    "bytes": 2665540,
+    "added": 8,
+    "formats": {
+      "png": 4,
+      "webp": 6,
+      "jpeg": 2
+    },
+    "reference_only": "onboarding.cover"
+  },
+  "screenshots": {
+    "method": "Temporary offline Flutter widget capture with an injected resolver reading canonical references; Roboto loaded from the installed Flutter SDK for legibility; no production font dependency. Capture helper removed after review.",
+    "files": [
+      "notes.png",
+      "spread.png",
+      "cover.png",
+      "dark.png"
+    ],
+    "sizes": {
+      "notes.png": "390x844",
+      "spread.png": "900x1200",
+      "cover.png": "390x844",
+      "dark.png": "390x844"
+    },
+    "limits": "Widget-rendered review artifacts; no native/device or physical-performance evidence."
+  },
+  "preserved": [
+    "existing staged/unstaged work",
+    "all reference image bytes and manifest",
+    "four previous runtime entries and payloads",
+    "completion repository/controller and validated router continuations",
+    "schema 7 and writing/settings/completion data contracts",
+    "native/signing configuration",
+    "directory fallback and unrelated local configuration"
+  ],
+  "unverified": [
+    "Live Firebase source availability, byte/hash agreement and fresh production download",
+    "Android/iOS native builds/installs and interruption/repair smoke for UI01 were not requested or run",
+    "Physical accessibility/gestures, low-end/minimum-OS, release frame/memory/energy and native storage-failure qualification",
+    "Public redistribution-rights confirmation during M12"
+  ],
+  "excluded": [
+    "reference refresh/download",
+    "native launch/install/smoke",
+    "remote Git operations/publication",
+    "raw work directory access",
+    "legacy writes/bulk imports",
+    "models/AI initialization",
+    "database migration/reset",
+    "M12/other pages/deferred features/desktop/website"
+  ],
+  "follow_ups": [
+    {
+      "date": "2026-11-03",
+      "scope": "User supplied remaining three theme-icon and Notes-add source URLs",
+      "prepared_required_sources": 12,
+      "reference_only_input_retained": "onboarding.cover",
+      "checks": [
+        "Every catalog key has an explicit HTTPS source",
+        "Original query parameters and onboarding input values preserved",
+        "Directory fallback and unrelated env values unchanged",
+        "Source configuration tests: 2 passed",
+        "Local pack validation: 12 images / 2665540 bytes",
+        "git diff --check and supplied-secret scan passed"
+      ],
+      "network_requests": 0,
+      "native_build_install_relaunch": false,
+      "remaining": "Live source availability, pinned-byte agreement and installed-app download/offline reopen remain unverified."
+    }
+  ]
+}

@@ -14,15 +14,49 @@ import 'generated/schema_v3.dart' as v3;
 import 'generated/schema_v4.dart' as v4;
 import 'generated/schema_v5.dart' as v5;
 import 'generated/schema_v6.dart' as v6;
+import 'generated/schema_v7.dart' as v7;
 
 import 'package:redkeep/features/notes/data/drift_notes_repository.dart';
 import 'package:redkeep/features/notes/domain/note_document.dart';
 
 void main() {
-  test('fresh schema matches the committed version 7 snapshot', () async {
+  test('version 7 completion without a name returns to onboarding and preserves every table', () async {
+    final verifier = SchemaVerifier(GeneratedHelper());
+    final schema = await verifier.schemaAt(7);
+    final old = v7.DatabaseAtV7(schema.newConnection());
+    await old.customStatement(
+      'INSERT INTO onboarding_completion (id) VALUES (1)',
+    );
+    await old.customStatement(
+      "INSERT INTO appearance_settings (id,theme) VALUES (1,'dark')",
+    );
+    await old.customStatement(
+      "INSERT INTO notes (id,title,body,revision,created_at,updated_at,pinned) VALUES (?, 'Saved note','Keep this writing',3,1,2,1)",
+      ['a' * 32],
+    );
+    await old.close();
+    final db = AppDatabase(schema.newConnection());
+    try {
+      await verifier.migrateAndValidate(db, 8);
+      expect(await DriftOnboardingRepository(db).isComplete(), false);
+      expect((await db.select(db.onboardingCompletion).getSingle()).id, 1);
+      expect((await db.select(db.notes).getSingle()).body, 'Keep this writing');
+      expect(
+        (await DriftAppearanceRepository(db).watch().first).theme,
+        AppTheme.dark,
+      );
+      await DriftOnboardingRepository(db).complete('  Léa 王  ');
+      expect(await DriftOnboardingRepository(db).readName(), 'Léa 王');
+      expect(await DriftOnboardingRepository(db).isComplete(), true);
+    } finally {
+      await db.close();
+    }
+  });
+
+  test('fresh schema matches the committed version 8 snapshot', () async {
     final database = AppDatabase(NativeDatabase.memory());
     addTearDown(database.close);
-    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 7);
+    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 8);
   });
 
   test('version 1 upgrade preserves every saved appearance choice', () async {
@@ -37,7 +71,7 @@ void main() {
       await old.close();
       final database = AppDatabase(schema.newConnection());
       try {
-        await verifier.migrateAndValidate(database, 7);
+        await verifier.migrateAndValidate(database, 8);
         expect(
           await DriftAppearanceRepository(database).watch().first,
           AppearancePreferences(
@@ -47,7 +81,7 @@ void main() {
           ),
         );
         expect(await DriftOnboardingRepository(database).isComplete(), isFalse);
-        await DriftOnboardingRepository(database).complete();
+        await DriftOnboardingRepository(database).complete('Test Writer');
         expect(await DriftOnboardingRepository(database).isComplete(), isTrue);
       } finally {
         await database.close();
@@ -71,7 +105,7 @@ void main() {
       await old.close();
       final database = AppDatabase(schema.newConnection());
       try {
-        await verifier.migrateAndValidate(database, 7);
+        await verifier.migrateAndValidate(database, 8);
         expect(
           await DriftAppearanceRepository(database).watch().first,
           const AppearancePreferences(
@@ -80,10 +114,7 @@ void main() {
             simplerEffects: true,
           ),
         );
-        expect(
-          await DriftOnboardingRepository(database).isComplete(),
-          complete,
-        );
+        expect(await DriftOnboardingRepository(database).isComplete(), isFalse);
         expect(await database.select(database.notes).get(), isEmpty);
         expect(await database.select(database.noteDrafts).get(), isEmpty);
       } finally {
@@ -119,8 +150,8 @@ void main() {
       await old.close();
       final database = AppDatabase(schema.newConnection());
       try {
-        await verifier.migrateAndValidate(database, 7);
-        expect(await DriftOnboardingRepository(database).isComplete(), isTrue);
+        await verifier.migrateAndValidate(database, 8);
+        expect(await DriftOnboardingRepository(database).isComplete(), isFalse);
         expect(
           (await DriftAppearanceRepository(database).watch().first).theme,
           AppTheme.dark,
@@ -181,7 +212,7 @@ void main() {
     await old.close();
     final database = AppDatabase(schema.newConnection());
     try {
-      await verifier.migrateAndValidate(database, 7);
+      await verifier.migrateAndValidate(database, 8);
       expect(
         (await DriftAppearanceRepository(database).watch().first),
         const AppearancePreferences(
@@ -190,7 +221,7 @@ void main() {
           simplerEffects: true,
         ),
       );
-      expect(await DriftOnboardingRepository(database).isComplete(), isTrue);
+      expect(await DriftOnboardingRepository(database).isComplete(), isFalse);
       final repo = DriftNotesRepository(
         database,
         clock: () => DateTime.utc(2026),
@@ -277,11 +308,15 @@ void main() {
     await old.close();
     final database = AppDatabase(schema.newConnection());
     try {
-      await verifier.migrateAndValidate(database, 7);
+      await verifier.migrateAndValidate(database, 8);
       for (final table in tables) {
         expect(
           (await database.customSelect('SELECT * FROM $table').get())
-              .map((r) => r.data)
+              .map(
+                (r) => table == 'onboarding_completion'
+                    ? (Map<String, dynamic>.of(r.data)..remove('name'))
+                    : r.data,
+              )
               .toList(),
           before[table],
           reason: table,
@@ -374,11 +409,15 @@ void main() {
       await old.close();
       final database = AppDatabase(schema.newConnection());
       try {
-        await verifier.migrateAndValidate(database, 7);
+        await verifier.migrateAndValidate(database, 8);
         for (final table in tables) {
           expect(
             (await database.customSelect('SELECT * FROM $table').get())
-                .map((r) => r.data)
+                .map(
+                  (r) => table == 'onboarding_completion'
+                      ? (Map<String, dynamic>.of(r.data)..remove('name'))
+                      : r.data,
+                )
                 .toList(),
             before[table],
             reason: table,

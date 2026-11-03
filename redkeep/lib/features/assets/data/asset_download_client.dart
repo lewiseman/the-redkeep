@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import '../domain/asset_catalog.dart';
@@ -37,7 +38,41 @@ class HttpAssetDownloadClient implements AssetDownloadClient {
 
 /// Unconfigured by default. HTTP is restricted to explicit debug fixtures.
 class AssetLocation {
-  AssetLocation(String base, {bool allowLocalFixture = false}) {
+  AssetLocation(
+    String base, {
+    bool allowLocalFixture = false,
+    String sourceUrlsJson = '',
+    AssetCatalog? catalog,
+  }) {
+    try {
+      if (sourceUrlsJson.isNotEmpty) {
+        final sources = jsonDecode(sourceUrlsJson) as Map<String, dynamic>;
+        if (catalog == null ||
+            sources.length >
+                catalog.assets.length + bundledArtworkKeys.length) {
+          throw const FormatException();
+        }
+        for (final entry in sources.entries) {
+          if (bundledArtworkKeys.contains(entry.key)) continue;
+          final asset = catalog.asset(entry.key);
+          final uri = Uri.parse(entry.value as String);
+          if (uri.scheme != 'https' ||
+              !uri.hasAuthority ||
+              uri.host.isEmpty ||
+              uri.userInfo.isNotEmpty ||
+              uri.hasFragment ||
+              uri.path.isEmpty ||
+              uri.path.endsWith('/') ||
+              uri.pathSegments.any((p) => p == '.' || p == '..')) {
+            throw const FormatException();
+          }
+          // Keep the complete object URL, including its original query.
+          _sources[asset.path] = uri;
+        }
+      }
+    } catch (_) {
+      throw const AssetException(AssetFailure.configuration);
+    }
     if (base.isEmpty) return;
     final value = Uri.tryParse(base);
     if (value == null ||
@@ -58,10 +93,13 @@ class AssetLocation {
   }
 
   Uri? _base;
+  final _sources = <String, Uri>{};
   Uri url(String path) {
-    if (_base == null || !safeAssetPath(path)) {
+    if (!safeAssetPath(path)) {
       throw const AssetException(AssetFailure.configuration);
     }
+    if (_sources[path] case final source?) return source;
+    if (_base == null) throw const AssetException(AssetFailure.configuration);
     return _base!.resolve(path);
   }
 }

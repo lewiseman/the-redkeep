@@ -1,0 +1,110 @@
+{
+  "date": "2026-11-03",
+  "phase": "UI01 correction",
+  "scope": "Legacy onboarding visuals and persisted name only; user explicitly confirmed this scope",
+  "supersedes": "Earlier cropped-card/neutral-cover/no-name UI01 implementation and its visual captures",
+  "behavior": [
+    "Selected legacy full-spread paper/fold/book/material renderer adapted directly",
+    "Full original artwork and original folding name-entry cover; lavender primary action",
+    "Five implemented chapters; manual page taps, buttons and finger-following swipes; canceled drags restore the current chapter",
+    "Back dismisses name focus/keyboard then reopens book, with root exit available from tour",
+    "Blank names cannot save; trimmed Unicode name persists before the validated continuation opens",
+    "Earlier completion marker without a name now opens onboarding; no name backfill or writing/settings reset",
+    "Save failure retains typed name and cover; repeated save prevention and late/disposed work are guarded",
+    "Reduced/simpler/live/inactive/offscreen changes settle, and constrained/large-text layouts remain scrollable"
+  ],
+  "storage": {
+    "schema": 8,
+    "migration": "Nullable name added to existing onboarding_completion row; versions 1\u20137 preserved",
+    "completion": "Committed nonblank normalized name",
+    "production_fixtures": false
+  },
+  "pack": {
+    "id": "presentation-ui01-v2",
+    "images": 13,
+    "bytes": 3000554,
+    "format_counts": {
+      "png": 4,
+      "webp": 7,
+      "jpeg": 2
+    },
+    "new_consumer": "onboarding.cover, exact existing reference and supplied URL",
+    "compiled_source_count": 13,
+    "prior_source_values_and_unrelated_env_preserved": true
+  },
+  "checks": [
+    {
+      "command": "dart run build_runner build",
+      "result": "passed"
+    },
+    {
+      "command": "dart run drift_dev schema dump lib/core/storage/app_database.dart drift_schemas/",
+      "result": "passed; v8 snapshot added"
+    },
+    {
+      "command": "dart run drift_dev schema generate drift_schemas/ test/core/storage/generated/",
+      "result": "passed; v8 helper added; historical versions retained"
+    },
+    {
+      "command": "flutter pub get --enforce-lockfile --offline",
+      "result": "passed; no new dependency/version"
+    },
+    {
+      "command": "dart format --output=none --set-exit-if-changed lib test tool",
+      "result": "passed; 168 files; no changes"
+    },
+    {
+      "command": "flutter analyze",
+      "result": "passed; no issues"
+    },
+    {
+      "command": "flutter test --reporter expanded",
+      "result": "passed; 355 tests"
+    },
+    {
+      "command": "dart run tool/validate_assets.dart assets/catalog/presentation-v1.json tool/assets/pack",
+      "result": "passed; 13 images / 3000554 bytes"
+    },
+    {
+      "command": "dart run tool/prepare_asset_sources.dart onboarding-downloads.local.json env.json",
+      "result": "13 sources prepared; prior 12 values and unrelated settings unchanged; no requests"
+    },
+    {
+      "command": "manifest byte/hash check, comparison of original four catalog rows with HEAD, supplied-token scan, git diff --check",
+      "result": "passed"
+    }
+  ],
+  "optimizations": [
+    "Bounded shared decoded image per visible chapter; only current/destination neighbor is resolved during a turn",
+    "Selected cover alone is warmed on Begin; stable cover decode width through keyboard/fold transitions",
+    "Small texture stream/image-handle ownership and safe cached/asynchronous error repair",
+    "Recorded faces reused through the legacy page bands; no all-chapter precache",
+    "Identity camera after cover settles avoids editable caret compositing artifacts"
+  ],
+  "visual_review": {
+    "method": "Offline widget captures using local reference resolver and locally loaded Roboto/Georgia preview fonts; temporary capture helper removed",
+    "files": [
+      "notes.png",
+      "cover.png",
+      "name.png",
+      "tablet.png",
+      "simple.png"
+    ],
+    "limitations": "Same book geometry/materials/original images; Redkeep wordmark replaces external old mascot and system fonts remain in production. Widget renders are not native/device or pixel-identical font/logo evidence."
+  },
+  "preserved": [
+    "Existing staged/unstaged and user launcher/config changes",
+    "All nine canonical reference bytes and manifest",
+    "Four original catalog rows/payloads",
+    "All writing/settings/recovery data and prior schema snapshots",
+    "Validated router continuation and existing required-artwork repair boundary",
+    "Native/signing configuration"
+  ],
+  "not_run": [
+    "Live Firebase requests/reference refresh or remote-byte verification",
+    "Native builds/installs/relaunch/smoke checks",
+    "Physical accessibility/gestures, low-end/minimum-OS and release performance/resources",
+    "Remote Git/publication or M12/other features"
+  ],
+  "restart": "Fully stop/relaunch with env.json defines for schema 8, v2 pack and 13 sources. No app-data reset."
+}

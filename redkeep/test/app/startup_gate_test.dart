@@ -69,6 +69,16 @@ void main() {
         ..downloadError = const AssetException(AssetFailure.network);
       await pump(tester, assets);
       expect(find.text('Prepare your artwork'), findsOneWidget);
+      for (final entry in {
+        'startup-background': 'assets/branding/ink-paper.webp',
+        'startup-logo': 'assets/branding/grand_maestar.png',
+      }.entries) {
+        final image = tester.widget<Image>(find.byKey(ValueKey(entry.key)));
+        expect(
+          ((image.image as ResizeImage).imageProvider as AssetImage).assetName,
+          entry.value,
+        );
+      }
       expect(find.text('Theme'), findsNothing);
       expect(find.textContaining('Skip'), findsNothing);
       await tester.tap(find.text('Download artwork'));
@@ -150,7 +160,7 @@ void main() {
       await pump(tester, assets);
       await tester.tap(find.text('Download artwork'));
       await tester.pump();
-      expect(find.text('1 of 2 bytes'), findsOneWidget);
+      expect(find.text('50% · 1 B of 2 B'), findsOneWidget);
       expect(
         tester
             .widget<LinearProgressIndicator>(

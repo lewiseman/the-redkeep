@@ -13,6 +13,19 @@ import '../../support/fake_appearance_repository.dart';
 import '../../support/fake_onboarding_repository.dart';
 import '../../support/fake_required_assets.dart';
 import '../../support/pump_app.dart';
+import '../../support/onboarding_navigation.dart';
+
+Future<void> enterRedkeep(WidgetTester tester) async {
+  if (find.text("Let's begin").evaluate().isNotEmpty) {
+    await tester.ensureVisible(find.text("Let's begin"));
+    await tester.tap(find.text("Let's begin"));
+    await tester.pumpAndSettle();
+  }
+  await tester.enterText(find.byType(TextField), 'Test Writer');
+  await tester.pump();
+  await tester.ensureVisible(find.text('Save'));
+  await tester.tap(find.text('Save'));
+}
 
 void main() {
   testWidgets(
@@ -55,18 +68,18 @@ void main() {
       );
       expect(router.canPop(), isFalse);
       onboarding.failSave = true;
-      await tester.tap(find.text('Enter Redkeep'));
+      await enterRedkeep(tester);
       await tester.pumpAndSettle();
       expect(onboarding.completed, isFalse);
-      expect(find.text('Try again'), findsOneWidget);
+      expect(find.text('Save'), findsOneWidget);
       expect(find.textContaining('Synthetic private'), findsNothing);
       expect(
         router.routeInformationProvider.value.uri.queryParameters['continue'],
         '/settings',
       );
       onboarding.failSave = false;
-      await tester.ensureVisible(find.text('Try again'));
-      await tester.tap(find.text('Try again'));
+      await tester.ensureVisible(find.text('Save'));
+      await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
       expect(onboarding.completed, isTrue);
       expect(find.byType(AppearancePage), findsOneWidget);
@@ -91,6 +104,10 @@ void main() {
       );
       expect(await tester.binding.handlePopRoute(), isFalse);
       expect(onboarding.completed, isFalse);
+      await tester.ensureVisible(find.text("Let's begin"));
+      await tester.tap(find.text("Let's begin"));
+      await tester.pumpAndSettle();
+      expect(onboarding.saves, 0);
       final pending = router.routeInformationProvider.value.uri.toString();
       await tester.pumpWidget(const SizedBox());
       router = await pumpApp(
@@ -99,10 +116,11 @@ void main() {
         onboarding: onboarding,
       );
       expect(find.byType(OnboardingPage), findsOneWidget);
+      expect(chapterPosition(1), findsOneWidget);
       expect(onboarding.saves, 0);
       onboarding.saveGate = Completer<void>();
       onboarding.failSave = true;
-      await tester.tap(find.text('Enter Redkeep'));
+      await enterRedkeep(tester);
       await tester.pump();
       expect(find.text('Saving…'), findsOneWidget);
       await tester.pumpWidget(const SizedBox());
@@ -112,7 +130,7 @@ void main() {
       expect(find.byType(OnboardingPage), findsOneWidget);
       expect(onboarding.completed, isFalse);
       onboarding.failSave = false;
-      await tester.tap(find.text('Enter Redkeep'));
+      await enterRedkeep(tester);
       await tester.pumpAndSettle();
       await tester.pumpWidget(const SizedBox());
       router = await pumpApp(
@@ -176,7 +194,7 @@ void main() {
         router.routeInformationProvider.value.uri.queryParameters['continue'],
         '/',
       );
-      await tester.tap(find.text('Enter Redkeep'));
+      await enterRedkeep(tester);
       await tester.pumpAndSettle();
       expect(router.routeInformationProvider.value.uri.path, '/');
       expect(find.text('My diary'), findsOneWidget);
@@ -206,7 +224,7 @@ void main() {
           router.routeInformationProvider.value.uri.queryParameters['continue'],
           '/unavailable',
         );
-        await tester.tap(find.text('Enter Redkeep'));
+        await enterRedkeep(tester);
         await tester.pumpAndSettle();
         expect(find.text('Page not found'), findsOneWidget);
         expect(router.routeInformationProvider.value.uri.path, '/unavailable');
@@ -250,12 +268,11 @@ void main() {
           Theme.of(context).brightness,
           theme == AppTheme.dark ? Brightness.dark : Brightness.light,
         );
-        await tester.ensureVisible(find.text('Enter Redkeep'));
-        await tester.tap(find.text('Enter Redkeep'));
+        await enterRedkeep(tester);
         await tester.pumpAndSettle();
         onboarding.failSave = false;
-        await tester.ensureVisible(find.text('Try again'));
-        await tester.tap(find.text('Try again'));
+        await tester.ensureVisible(find.text('Save'));
+        await tester.tap(find.text('Save'));
         await tester.pumpAndSettle();
         expect(router.routeInformationProvider.value.uri.path, '/');
         expect(tester.takeException(), isNull);

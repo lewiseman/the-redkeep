@@ -6,6 +6,7 @@ import 'package:crypto/crypto.dart';
 
 import '../domain/asset_catalog.dart';
 import 'asset_download_client.dart';
+import 'verify_asset_image.dart';
 
 /// Owns only [root]. Neither this adapter nor its repair path knows the database.
 class FileRequiredAssets implements RequiredAssets {
@@ -15,13 +16,16 @@ class FileRequiredAssets implements RequiredAssets {
     required this.location,
     required this.client,
     Stopwatch Function()? createDownloadTimer,
-  }) : _createDownloadTimer = createDownloadTimer ?? Stopwatch.new;
+    Future<void> Function(File, String)? verifyImage,
+  }) : _createDownloadTimer = createDownloadTimer ?? Stopwatch.new,
+       _verifyImage = verifyImage ?? verifyAssetImageFile;
 
   final AssetCatalog catalog;
   final Directory root;
   final AssetLocation location;
   final AssetDownloadClient client;
   final Stopwatch Function() _createDownloadTimer;
+  final Future<void> Function(File, String) _verifyImage;
   Future<void> _tail = Future.value();
 
   Future<T> _exclusive<T>(Future<T> Function() work) async {
@@ -117,6 +121,7 @@ class FileRequiredAssets implements RequiredAssets {
     'bytes': stat.size,
     'modified': stat.modified.microsecondsSinceEpoch,
     'changed': stat.changed.microsecondsSinceEpoch,
+    'imageVerification': 1,
   };
 
   Future<bool> _valid(
@@ -138,6 +143,12 @@ class FileRequiredAssets implements RequiredAssets {
       return true;
     }
     if ((await sha256.bind(file.openRead()).first).toString() != asset.sha256) {
+      ledger.remove(asset.key);
+      return false;
+    }
+    try {
+      await _verifyImage(file, asset.path);
+    } on AssetException {
       ledger.remove(asset.key);
       return false;
     }
@@ -187,7 +198,10 @@ class FileRequiredAssets implements RequiredAssets {
         final uri = location.url(asset.path);
         final target = await _file(asset.path);
         final pending = await _file(
-          asset.path.replaceFirst('.png', '-pending.png'),
+          asset.path.replaceFirstMapped(
+            RegExp(r'\.[a-z]+$'),
+            (match) => '-pending${match[0]}',
+          ),
         );
         // A partial stream is never an installation or a trusted resume point.
         RandomAccessFile? output;
@@ -223,6 +237,7 @@ class FileRequiredAssets implements RequiredAssets {
                   asset.sha256) {
             throw const AssetException(AssetFailure.integrity);
           }
+          await _verifyImage(pending, asset.path);
           // Sibling rename stays on one filesystem; ledger commits afterwards.
           await pending.rename(target.path);
           ledger[asset.key] = _record(asset, await target.stat());

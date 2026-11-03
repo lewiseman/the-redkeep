@@ -1,0 +1,138 @@
+{
+  "schema": 1,
+  "assets": [
+    {
+      "key": "onboarding.background.ink",
+      "path": "images/onboarding/ink-paper.webp",
+      "remote": {
+        "provider": "firebase-storage",
+        "bucket": "mypple.firebasestorage.app",
+        "object": "redkeep/assets/images/onboarding/ink-paper.webp"
+      },
+      "bytes": 341878,
+      "sha256": "461bd93693da157da5f80651ee1a15c2537fd6c1d7bf6a5b2f28da4e947b2e57",
+      "media_type": "image/webp"
+    },
+    {
+      "key": "onboarding.brand.mascot",
+      "path": "branding/grand_maestar.png",
+      "source": {
+        "provider": "user-provided-local",
+        "path": "redkeep/assets/branding/grand_maestar.png"
+      },
+      "bytes": 1842097,
+      "sha256": "5e698de4f5ab0413e36094c45ee16a67e11bcbc7408a9a7fb558c391a9be10e5",
+      "media_type": "image/png",
+      "delivery": "bundled-branding"
+    },
+    {
+      "key": "onboarding.chapter.appearance",
+      "path": "images/onboarding/appearance.jpg",
+      "remote": {
+        "provider": "firebase-storage",
+        "bucket": "mypple.firebasestorage.app",
+        "object": "redkeep/assets/images/onboarding/appearance.jpg"
+      },
+      "bytes": 526093,
+      "sha256": "14de003461e6abaf33afcb6fb9081e61140883bfb46ffe610f7c44c0e0b3565b",
+      "media_type": "image/jpeg"
+    },
+    {
+      "key": "onboarding.chapter.diary",
+      "path": "images/onboarding/diary.webp",
+      "remote": {
+        "provider": "firebase-storage",
+        "bucket": "mypple.firebasestorage.app",
+        "object": "redkeep/assets/images/onboarding/diary.webp"
+      },
+      "bytes": 222646,
+      "sha256": "d978151960c5c719a5d4b2bc87c40d1ee1e87f55322b24fda51658ee5f515f79",
+      "media_type": "image/webp"
+    },
+    {
+      "key": "onboarding.chapter.flow",
+      "path": "images/onboarding/flow.jpg",
+      "remote": {
+        "provider": "firebase-storage",
+        "bucket": "mypple.firebasestorage.app",
+        "object": "redkeep/assets/images/onboarding/flow.jpg"
+      },
+      "bytes": 544939,
+      "sha256": "7bc3e0986659a6cba3b77e9071b6eaecb488c7b596158fc9b334083ef10e70fe",
+      "media_type": "image/jpeg"
+    },
+    {
+      "key": "onboarding.chapter.maester",
+      "path": "images/onboarding/ai.webp",
+      "remote": {
+        "provider": "firebase-storage",
+        "bucket": "mypple.firebasestorage.app",
+        "object": "redkeep/assets/images/onboarding/ai.webp"
+      },
+      "bytes": 238092,
+      "sha256": "2697eba2fa89e753a34f03fa991e8010275ab9ec811f63db2d53f0e91e5a58d3",
+      "media_type": "image/webp"
+    },
+    {
+      "key": "onboarding.chapter.notes",
+      "path": "images/onboarding/notes.webp",
+      "remote": {
+        "provider": "firebase-storage",
+        "bucket": "mypple.firebasestorage.app",
+        "object": "redkeep/assets/images/onboarding/notes.webp"
+      },
+      "bytes": 189794,
+      "sha256": "83269b5e9896e8cdd0e4262212f23ac2163c3534d9927ea38ecd5d3547c66d0d",
+      "media_type": "image/webp"
+    },
+    {
+      "key": "onboarding.cover",
+      "path": "images/onboarding/cover.webp",
+      "remote": {
+        "provider": "firebase-storage",
+        "bucket": "mypple.firebasestorage.app",
+        "object": "redkeep/assets/images/onboarding/cover.webp"
+      },
+      "bytes": 335014,
+      "sha256": "4208bb6602284ad78d3378595b2ecacbcf3b2f387ac5d41a8974de4e46a09698",
+      "media_type": "image/webp"
+    },
+    {
+      "key": "onboarding.font.allura",
+      "path": "fonts/Allura-Regular.ttf",
+      "source": {
+        "provider": "google-fonts",
+        "url": "https://fonts.gstatic.com/s/a/7e712992f9e6ecb3eab1eb7e0b0dc5903ea40467147f930e8e3728832e42080b.ttf",
+        "license_path": "fonts/Allura-OFL.txt"
+      },
+      "bytes": 109228,
+      "sha256": "7e712992f9e6ecb3eab1eb7e0b0dc5903ea40467147f930e8e3728832e42080b",
+      "media_type": "font/ttf",
+      "delivery": "test-reference"
+    },
+    {
+      "key": "onboarding.material.binding",
+      "path": "images/onboarding/binding-cloth.webp",
+      "remote": {
+        "provider": "firebase-storage",
+        "bucket": "mypple.firebasestorage.app",
+        "object": "redkeep/assets/images/onboarding/binding-cloth.webp"
+      },
+      "bytes": 48248,
+      "sha256": "f0ef207579defb5022adef395c32c8509770f755bee3fd01ba522835c753f42b",
+      "media_type": "image/webp"
+    },
+    {
+      "key": "onboarding.material.paper",
+      "path": "images/onboarding/paper-edge.webp",
+      "remote": {
+        "provider": "firebase-storage",
+        "bucket": "mypple.firebasestorage.app",
+        "object": "redkeep/assets/images/onboarding/paper-edge.webp"
+      },
+      "bytes": 73934,
+      "sha256": "7dea653273db75b72fb324b8d7372b01b419c774458c6e83da1a78ecb23af62a",
+      "media_type": "image/webp"
+    }
+  ]
+}

@@ -46,6 +46,45 @@ summaries/reflections and guarded Note rewrite acceptance into recovery drafts.
 See [Grand Maester](docs/grand-maester.md) for source/selection protection and
 separate native smoke commands.
 
+UI01 restores the legacy full illustrated book, curved paper, binding, manual
+turns and original folding cover. **Let's begin** reveals name entry; **Save**
+commits the name before opening the validated router continuation. A user
+without a saved name opens onboarding, including an earlier completion-only
+installation. Schema 8 preserves all writing/settings while adding the name.
+See [the current book guide](docs/onboarding-ui-migration.md). Desktop/website
+and M12 remain separately scoped.
+
+The user-selected Grand Maester mascot, script caption, page dots and bottom Terms/Privacy links
+are restored. Navigation uses page taps/swipes, keyboard and semantics, with no
+added Previous/Next, Back button or visible counter.
+
+`presentation-ui01-v3` contains **12 images / 2,658,676 bytes**: the four retained
+PNGs and eight exact onboarding references, including the original cover.
+`grand_maestar.png` and `ink-paper.webp` ship under `assets/branding/`; the
+startup page and both onboarding layouts use these bundled images offline.
+Normal views use the full original artwork; large-text/constrained views
+also provide current live text and accessible name entry. Reference originals
+remain unchanged and outside Flutter's bundle; tests never fetch or refresh them.
+Both branding images are byte-for-byte identical to their indexed references.
+The Allura caption uses `google_fonts` runtime fetching/caching;
+no font binary is bundled. A local font reference keeps tests offline.
+The former ink-paper download is retired; old source maps safely ignore it.
+
+From `redkeep/`, prepare the ignored full per-image source list and run with
+build-time configuration:
+
+```sh
+dart run tool/prepare_asset_sources.dart onboarding-downloads.local.json env.json
+flutter run --dart-define-from-file=env.json
+```
+
+Preparation writes the string define `ASSET_SOURCE_URLS_JSON`, preserving the
+existing directory fallback and all other env values. Tokens stay in ignored
+local files. See [asset setup](docs/onboarding-assets-setup.md). **The user has supplied sources for all 12 required downloads**;
+they are prepared in ignored build configuration. Live Firebase/fresh-install
+verification remains unperformed. Local fixture
+checks work independently of hosting.
+
 Use Flutter 3.47.5 / Dart 3.13.4 (the verified local baseline). From the workspace
 root:
 
@@ -90,7 +129,8 @@ preserving settings and onboarding. M07 adds pins and tags in schema 4 and tests
 upgrades from versions 1–3. M08 adds separate Diary entries, drafts and day
 headings in schema 5, preserving versions 1–4. M09 adds Flow thoughts and recovery
 drafts in schema 6, preserving versions 1–5. M10 adds unseeded Brain assignments
-in schema 7, preserving versions 1–6. Each subsequent schema change needs a version
+in schema 7, preserving versions 1–6. UI01 adds the saved onboarding name in
+schema 8 and preserves versions 1–7; completion now requires that name. Each subsequent schema change needs a version
 bump and migration/data-preservation tests. Preserve historical snapshots after
 shipping that version. Keep generated Drift code and schema helpers with source.
 For Android packaging verification, run

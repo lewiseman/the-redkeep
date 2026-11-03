@@ -73,7 +73,7 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
               GoRoute(
                 path: 'diary',
                 pageBuilder: (context, state) =>
-                    _page(state, const DiaryCalendarPage()),
+                    _page(state, const DiaryDayPage()),
                 routes: [
                   GoRoute(
                     path: 'search',
@@ -97,7 +97,9 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
                     pageBuilder: (context, state) => _page(
                       state,
                       DiaryDayPage(
-                        key: ValueKey(state.uri.path),
+                        selection: state.extra is DiaryDaySelection
+                            ? state.extra as DiaryDaySelection
+                            : null,
                         date: CivilDate.tryParse(
                           state.pathParameters['date']!,
                         )!,

@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../app/app_shell.dart';
 import '../../../app/navigation_destination.dart';
 import 'diary_widgets.dart';
 import '../application/diary_editor_controller.dart';
@@ -51,7 +50,23 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
         }
         _leaving = false;
       },
-      child: AppShell(
+      child: DiaryWritingFrame(
+        title: value != null && value.baseRevision > 0
+            ? 'Edit entry'
+            : 'Add text',
+        actions: [
+          TextButton(
+            onPressed:
+                value == null ||
+                    value.saving ||
+                    value.text.isEmpty ||
+                    !value.changed ||
+                    (value.baseRevision > 0 && !ref.watch(syncCanEditProvider))
+                ? null
+                : controller.save,
+            child: Text(value?.saving == true ? 'Saving…' : 'Save'),
+          ),
+        ],
         child: editor.when(
           loading: () => const Text('Opening editor…'),
           error: (_, _) => Column(
@@ -81,6 +96,7 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
               _loaded = true;
             }
             return NotebookSurface(
+              variant: widget.address.date.weekday,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -90,7 +106,6 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
                   ),
                   const SizedBox(height: 12),
                   Text(widget.address.date.key),
-                  const Text('Plain text • Save to keep your changes'),
                   if (state.sourceUnavailable)
                     const Text(
                       'The original entry was deleted. Save a copy to keep this writing as a new entry.',
@@ -101,7 +116,13 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
                     style: DiaryTypography.of(context).title,
                     controller: _title,
                     enabled: !state.saving && !readOnly,
-                    decoration: const InputDecoration(labelText: 'Title'),
+                    decoration: const InputDecoration(
+                      hintText: 'Title',
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      contentPadding: EdgeInsets.zero,
+                    ),
                     maxLines: null,
                     textCapitalization: TextCapitalization.sentences,
                     onChanged: (_) => _edit(controller),
@@ -113,8 +134,11 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
                     controller: _body,
                     enabled: !state.saving && !readOnly,
                     decoration: const InputDecoration(
-                      labelText: 'Body',
-                      alignLabelWithHint: true,
+                      hintText: 'Start writing about your day…',
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      contentPadding: EdgeInsets.zero,
                     ),
                     minLines: 8,
                     maxLines: null,

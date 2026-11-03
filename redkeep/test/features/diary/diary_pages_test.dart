@@ -9,6 +9,9 @@ import 'package:redkeep/app/navigation_destination.dart';
 import 'package:redkeep/core/storage/app_database.dart';
 import 'package:redkeep/features/appearance/domain/appearance_preferences.dart';
 import 'package:redkeep/features/diary/application/diary_editor_controller.dart';
+import 'package:redkeep/features/diary/presentation/diary_scene.dart';
+import 'package:redkeep/features/diary/presentation/diary_calendar_page.dart';
+import 'package:redkeep/features/diary/presentation/diary_writing_prompt.dart';
 import 'package:redkeep/features/diary/data/drift_diary_repository.dart';
 import 'package:redkeep/features/diary/domain/civil_date.dart';
 import 'package:redkeep/features/diary/domain/diary_document.dart';
@@ -40,7 +43,40 @@ void main() {
           await tester.pumpAndSettle();
         }
       });
+  Finder liveText(String text) => find.descendant(
+    of: find.byKey(const ValueKey('diary-live-content')),
+    matching: find.text(text),
+  );
   Future<void> tap(WidgetTester tester, String label) async {
+    if (label == 'Write an entry') {
+      await tester.ensureVisible(find.byType(DiaryWritingPrompt).hitTestable());
+      await tester.tap(find.byType(DiaryWritingPrompt).hitTestable());
+      await tester.pumpAndSettle();
+      return;
+    }
+    if (label == 'Previous day' || label == 'Next day') {
+      final scene = tester.widget<DiaryScene>(find.byType(DiaryScene).last);
+      scene.onDateChanged(
+        DateTime(
+          scene.day.date.year,
+          scene.day.date.month,
+          scene.day.date.day + (label == 'Previous day' ? -1 : 1),
+        ),
+      );
+      await tester.pumpAndSettle();
+      return;
+    }
+    if (label == 'Name this day') {
+      await tester.ensureVisible(find.byTooltip(label).hitTestable());
+      await tester.tap(find.byTooltip(label).hitTestable());
+      await tester.pumpAndSettle();
+      return;
+    }
+    if (label == 'Calendar for this month') {
+      await tester.tap(find.byKey(const ValueKey('diary-date-control')).last);
+      await tester.pumpAndSettle();
+      return;
+    }
     FocusManager.instance.primaryFocus?.unfocus();
     await tester.pumpAndSettle();
     final control = find.text(label);
@@ -90,7 +126,10 @@ void main() {
         repository: appearance,
       );
       expect(
-        tester.widget<Text>(find.text('Synthetic entry')).style!.fontFamily,
+        tester
+            .widget<Text>(find.text('Synthetic entry').first)
+            .style!
+            .fontFamily,
         'Poppins',
       );
       expect(
@@ -126,12 +165,15 @@ void main() {
       router.go(diaryDayLocation(date));
       await tester.pumpAndSettle();
       expect(
-        tester.widget<Text>(find.text('Synthetic entry')).style!.fontFamily,
+        tester
+            .widget<Text>(find.text('Synthetic entry').first)
+            .style!
+            .fontFamily,
         'Poppins',
       );
       expect(
         tester
-            .widget<Text>(find.text('Exact writing stays unchanged'))
+            .widget<Text>(liveText('Exact writing stays unchanged'))
             .style!
             .fontFamily,
         'Caveat',
@@ -149,7 +191,10 @@ void main() {
         diaryId: () => id,
       );
       expect(
-        find.text('No entries for this day. Write whenever you are ready.'),
+        find.descendant(
+          of: find.byKey(const ValueKey('diary-live-content')),
+          matching: find.byType(DiaryWritingPrompt),
+        ),
         findsOneWidget,
       );
       await tap(tester, 'Write an entry');
@@ -206,8 +251,19 @@ void main() {
         initialLocation: diaryCalendarLocation(leap),
         diary: repo,
       );
-      expect(find.text('2024-02 calendar'), findsOneWidget);
-      await tap(tester, '29');
+      expect(find.text('February'), findsOneWidget);
+      await tester.ensureVisible(
+        find.byKey(
+          ValueKey('calendar-day-${DateTime(2024, 2, 29).toIso8601String()}'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(
+          ValueKey('calendar-day-${DateTime(2024, 2, 29).toIso8601String()}'),
+        ),
+      );
+      await tester.pumpAndSettle();
       expect(
         router.routeInformationProvider.value.uri.path,
         diaryDayLocation(leap),
@@ -221,16 +277,23 @@ void main() {
       await tap(tester, 'Name this day');
       await tester.enterText(find.byType(TextField), 'Leap day notebook');
       await tap(tester, 'Save heading');
-      expect(find.text('Leap day notebook'), findsOneWidget);
+      expect(liveText('Leap day notebook'), findsOneWidget);
       await tap(tester, 'Calendar for this month');
-      expect(
-        router.routeInformationProvider.value.uri.path,
-        diaryCalendarLocation(leap),
+      expect(find.byType(DiaryCalendarPage), findsOneWidget);
+      expect(find.text('February'), findsOneWidget);
+      await tap(tester, 'Today');
+      await tester.ensureVisible(
+        find.byKey(
+          ValueKey('calendar-day-${DateTime(2026, 11, 2).toIso8601String()}'),
+        ),
       );
-      expect(find.text('2024-02 calendar'), findsOneWidget);
-      await tap(tester, 'Next month');
-      expect(find.text('2024-03 calendar'), findsOneWidget);
-      await tap(tester, 'Open today');
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(
+          ValueKey('calendar-day-${DateTime(2026, 11, 2).toIso8601String()}'),
+        ),
+      );
+      await tester.pumpAndSettle();
       expect(
         router.routeInformationProvider.value.uri.path,
         diaryDayLocation(date),
@@ -249,12 +312,10 @@ void main() {
         initialLocation: diaryCalendarLocation(CivilDate(2024, 2, 29)),
         diary: repo,
       );
-      final control = find.bySemanticsLabel('2024-02-29');
-      await tester.scrollUntilVisible(
-        control,
-        160,
-        scrollable: find.byType(Scrollable).first,
+      final control = find.byKey(
+        ValueKey('calendar-day-${DateTime(2024, 2, 29).toIso8601String()}'),
       );
+      await tester.ensureVisible(control);
       final node = tester.getSemantics(control);
       expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
       tester.binding.performSemanticsAction(
@@ -299,7 +360,7 @@ void main() {
         .read(diaryEditorProvider(address).notifier)
         .save();
     await tester.pump();
-    expect(find.text('Saving…'), findsOneWidget);
+    expect(find.text('Saving…'), findsNWidgets(2));
     repo.commitGate!.complete();
     await saving;
     await tester.pumpAndSettle();
@@ -362,7 +423,7 @@ void main() {
   );
 
   diaryTest(
-    'search crosses days, opens selected entry and excludes deleted text',
+    'search crosses days, opens selected day and excludes deleted text',
     (tester) async {
       await seed(body: 'lake 工作');
       await seed(body: 'Other day lake', key: '2' * 32, day: date.shift(1));
@@ -372,20 +433,24 @@ void main() {
         diary: repo,
       );
       await tester.enterText(find.byType(TextField), 'lake 工作');
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('diary-search-submit')));
       await tester.pumpAndSettle();
-      expect(find.text(date.key), findsOneWidget);
+      expect(find.text('Nov 2, 2026'), findsOneWidget);
       expect(find.text(date.shift(1)!.key), findsNothing);
       await tap(tester, 'Synthetic entry');
       expect(
         router.routeInformationProvider.value.uri.path,
-        diaryEntryLocation(date, id),
+        diaryDayLocation(date),
       );
       await repo.deleteEntry(id, 1);
       router.go('/diary/search');
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField), '工作');
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('diary-search-submit')));
       await tester.pumpAndSettle();
-      expect(find.text('No matching entries.'), findsOneWidget);
+      expect(find.text('No moments found yet.'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );
@@ -418,13 +483,8 @@ void main() {
             diary: repo,
             repository: appearance,
           );
-          await tester.scrollUntilVisible(
-            find.byKey(ValueKey(simple ? 'notebook-simple' : 'notebook-bound')),
-            160,
-            scrollable: find.byType(Scrollable).first,
-          );
           expect(
-            find.byKey(ValueKey(simple ? 'notebook-simple' : 'notebook-bound')),
+            find.byKey(const ValueKey('diary-active-paper')),
             findsOneWidget,
           );
           expect(tester.takeException(), isNull);
@@ -433,7 +493,7 @@ void main() {
           await tap(tester, 'Name this day');
           await tester.enterText(find.byType(TextField), 'Large text heading');
           await tap(tester, 'Save heading');
-          expect(find.text('Large text heading'), findsOneWidget);
+          expect(liveText('Large text heading'), findsOneWidget);
           expect(tester.takeException(), isNull);
           router.go(diaryEntryLocation(date, id));
           await tester.pumpAndSettle();

@@ -1,235 +1,477 @@
-import '../../../core/presentation/diary_typography.dart';
-import '../../sync/application/sync_providers.dart';
+import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/physics.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/navigation_destination.dart';
+import '../../../core/presentation/diary_typography.dart';
+import '../../../core/presentation/rendering_policy.dart';
 import '../application/diary_providers.dart';
+import '../application/diary_paper_providers.dart';
 import '../domain/civil_date.dart';
-import '../domain/diary_document.dart';
-import 'diary_widgets.dart';
+import 'diary_style.dart';
+import 'diary_artwork.dart';
+import 'diary_header.dart';
+import 'diary_scene.dart';
 
-class DiaryDayPage extends ConsumerWidget {
-  const DiaryDayPage({super.key, required this.date});
-  final CivilDate date;
+/// A fresh search selection also reopens the beginning of the current day.
+class DiaryDaySelection {}
+
+class DiaryDayPage extends ConsumerStatefulWidget {
+  const DiaryDayPage({super.key, this.date, this.selection});
+  final CivilDate? date;
+  final DiaryDaySelection? selection;
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final busy = ref.watch(diaryActionsProvider);
-    final day = ref.watch(diaryDayProvider(date));
-    return DiaryFrame(
-      slivers: [
-        diaryBlock(
-          NotebookSurface(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  date.key,
-                  style: Theme.of(context).textTheme.headlineMedium,
-                ),
-                day.when(
-                  loading: () => const Text('Loading day heading…'),
-                  error: (_, _) => TextButton(
-                    onPressed: () => ref.invalidate(diaryDayProvider(date)),
-                    child: const Text('Retry day heading'),
-                  ),
-                  data: (value) => Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (value.heading.isNotEmpty)
-                        Text(
-                          value.heading,
-                          style: DiaryTypography.of(context).title,
-                        ),
-                      TextButton(
-                        onPressed: busy || !ref.watch(syncCanEditProvider)
-                            ? null
-                            : () => _rename(context, ref, value),
-                        child: const Text('Name this day'),
-                      ),
-                    ],
-                  ),
-                ),
-                const Text('Diary day • plain text • on this device'),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    FilledButton(
-                      onPressed:
-                          busy ||
-                              (!ref.watch(syncCanEditProvider) &&
-                                  date !=
-                                      CivilDate.fromComponents(
-                                        ref.read(diaryClockProvider)(),
-                                      ))
-                          ? null
-                          : () async {
-                              try {
-                                final id = await ref
-                                    .read(diaryActionsProvider.notifier)
-                                    .create(date);
-                                if (context.mounted) {
-                                  context.go(
-                                    diaryEntryLocation(date, id, edit: true),
-                                  );
-                                }
-                              } catch (_) {
-                                if (context.mounted) {
-                                  diaryMessage(
-                                    context,
-                                    'Could not open the editor. Retry.',
-                                  );
-                                }
-                              }
-                            },
-                      child: const Text('Write an entry'),
-                    ),
-                    OutlinedButton(
-                      onPressed: () => context.go(diaryCalendarLocation(date)),
-                      child: const Text('Calendar for this month'),
-                    ),
-                    OutlinedButton(
-                      onPressed: date.shift(-1) == null
-                          ? null
-                          : () => context.go(diaryDayLocation(date.shift(-1)!)),
-                      child: const Text('Previous day'),
-                    ),
-                    OutlinedButton(
-                      onPressed: date.shift(1) == null
-                          ? null
-                          : () => context.go(diaryDayLocation(date.shift(1)!)),
-                      child: const Text('Next day'),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-        ref
-            .watch(diaryEntriesProvider(date))
-            .when(
-              loading: () => diaryBlock(const Text('Loading entries…')),
-              error: (_, _) => diaryBlock(
-                TextButton(
-                  onPressed: () => ref.invalidate(diaryEntriesProvider(date)),
-                  child: const Text('Could not load entries. Retry'),
-                ),
-              ),
-              data: (entries) => entries.isEmpty
-                  ? diaryBlock(
-                      const Text(
-                        'No entries for this day. Write whenever you are ready.',
-                      ),
-                    )
-                  : SliverList.builder(
-                      itemCount: entries.length,
-                      itemBuilder: (context, index) => Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: _DayEntry(listing: entries[index]),
-                      ),
-                    ),
-            ),
-      ],
-    );
-  }
-
-  Future<void> _rename(
-    BuildContext context,
-    WidgetRef ref,
-    DiaryDay day,
-  ) async {
-    final controller = TextEditingController(text: day.heading);
-    final heading = await showDialog<String>(
-      context: context,
-      animationStyle: AnimationStyle.noAnimation,
-      builder: (context) => DiaryDialog(
-        children: [
-          Text(
-            'Name this day',
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          TextField(
-            controller: controller,
-            style: DiaryTypography.of(context).title,
-            maxLength: 160,
-            maxLines: null,
-            decoration: const InputDecoration(labelText: 'Day heading'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, controller.text),
-            child: const Text('Save heading'),
-          ),
-        ],
-      ),
-    );
-    // Dialog route disposal follows its returned future.
-    WidgetsBinding.instance.addPostFrameCallback((_) => controller.dispose());
-    if (heading == null) return;
-    try {
-      await ref
-          .read(diaryActionsProvider.notifier)
-          .run((repo) => repo.renameDay(day, heading));
-    } catch (_) {
-      if (context.mounted) {
-        diaryMessage(
-          context,
-          'Heading could not be saved. Reload the day and retry.',
-        );
-      }
-    }
-  }
+  ConsumerState<DiaryDayPage> createState() => _DiaryPageState();
 }
 
-class _DayEntry extends ConsumerWidget {
-  const _DayEntry({required this.listing});
-  final DiaryListing listing;
-  @override
-  Widget build(BuildContext context, WidgetRef ref) => NotebookSurface(
-    child: ref
-        .watch(diaryDocumentProvider(listing.id))
-        .when(
-          loading: () => const Text('Loading entry…'),
-          error: (_, _) => TextButton(
-            onPressed: () => ref.invalidate(diaryDocumentProvider(listing.id)),
-            child: const Text('Retry entry'),
-          ),
-          data: (opened) {
-            final entry = opened.entry;
-            if (!opened.available || entry!.date != listing.date) {
-              return const Text('Entry unavailable.');
-            }
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  diaryTitle(entry.text.title),
-                  style: DiaryTypography.of(context).title,
-                ),
-                const SizedBox(height: 12),
-                // Full text is available in the focused reader; day layout stays bounded.
-                Text(
-                  entry.text.body,
-                  style: DiaryTypography.of(context).body,
-                  maxLines: 12,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                TextButton(
-                  onPressed: () =>
-                      context.go(diaryEntryLocation(entry.date, entry.id)),
-                  child: const Text('Read full entry'),
-                ),
-              ],
-            );
-          },
-        ),
+class _DiaryPageState extends ConsumerState<DiaryDayPage>
+    with TickerProviderStateMixin {
+  DiaryTypography? _paperTypography;
+  static const _spring = SpringDescription(
+    mass: 1,
+    stiffness: 310,
+    damping: 29,
   );
+  final _outer = ScrollController();
+  final _nested = GlobalKey<NestedScrollViewState>();
+  late final _turn = AnimationController.unbounded(vsync: this);
+  late final _fade = AnimationController(
+    vsync: this,
+    animationBehavior: AnimationBehavior.preserve,
+    value: 1,
+    duration: const Duration(milliseconds: 150),
+  );
+  late DateTime _selectedDate = widget.date == null
+      ? _today
+      : DateTime(widget.date!.year, widget.date!.month, widget.date!.day);
+  late DiaryPaperDay _day = _dayFor(_selectedDate);
+  late DiaryPaperDay _previous = _dayFor(TimeHelper.addDays(_selectedDate, -1));
+  DiaryPaperDay? _next;
+  DiaryPaperDay? _fadingFrom;
+  double _fadingOffset = 0;
+  double _cardWidth = 320;
+  double _dragDistance = 0;
+  int _direction = 1;
+  bool _dragging = false;
+  bool _settling = false;
+  bool _readingTurn = false;
+
+  DateTime get _today => TimeHelper.dateOnly(ref.read(diaryClockProvider)());
+  DiaryPaperDay _dayFor(DateTime date) {
+    if (date.year < 1 || date.year > 9999) {
+      return DiaryPaperDay(date: CivilDate(1, 1, 1));
+    }
+    return ref.read(diaryPaperDayProvider(CivilDate.fromComponents(date)));
+  }
+
+  bool get _busy => _dragging || _settling;
+  bool get _reduced =>
+      !RenderingPolicyScope.of(context).animate ||
+      RenderingPolicyScope.of(context).simplerEffects;
+  double get _controlsHeight =>
+      (MediaQuery.textScalerOf(context).scale(13) + 26).clamp(
+        44.0,
+        double.infinity,
+      );
+  double get _collapseExtent => _controlsHeight + 36;
+  double get _outerOffset => _outer.hasClients ? _outer.offset : 0;
+  double get _innerOffset {
+    final controller = _nested.currentState?.innerController;
+    return controller != null && controller.hasClients ? controller.offset : 0;
+  }
+
+  bool get _atTop => _outerOffset.abs() < .5 && _innerOffset.abs() < .5;
+  bool get _blocked =>
+      (_direction < 0 && !_selectedDate.isBefore(_today)) ||
+      (_direction > 0 &&
+          _selectedDate.year == 1 &&
+          _selectedDate.month == 1 &&
+          _selectedDate.day == 1);
+
+  @override
+  void initState() {
+    super.initState();
+    _turn.value = 0;
+    _fade.addStatusListener((status) {
+      if (status == AnimationStatus.completed && _fadingFrom != null) {
+        setState(() => _fadingFrom = null);
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant DiaryDayPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final date = widget.date == null
+        ? _today
+        : DateTime(widget.date!.year, widget.date!.month, widget.date!.day);
+    if (date != _selectedDate ||
+        (widget.selection != null && widget.selection != oldWidget.selection)) {
+      _replaceDate(date, fade: true, navigate: false);
+    }
+  }
+
+  void _replaceDate(DateTime date, {bool fade = false, bool navigate = true}) {
+    final crossfade = fade && !_reduced;
+    final oldDay = _day;
+    final neighbors = [_day, _previous, ?_next];
+    DiaryPaperDay findDay(DateTime value) => neighbors.firstWhere(
+      (day) => day.dateString == TimeHelper.dateKey(value),
+      orElse: () => _dayFor(value),
+    );
+    final oldOffset = _innerOffset;
+    // The outer nested controller resets the inner offset while retaining
+    // exactly the current header expansion. Jumping the inner one would also
+    // collapse the header, even for a short replacement day.
+    if (_outer.hasClients) {
+      _outer.jumpTo(_outerOffset.clamp(0, _collapseExtent));
+    }
+    setState(() {
+      _selectedDate = date;
+      _day = findDay(date);
+      _previous = findDay(TimeHelper.addDays(date, -1));
+      _next = date.isBefore(_today)
+          ? findDay(TimeHelper.addDays(date, 1))
+          : null;
+      _fadingFrom = crossfade ? oldDay : null;
+      _fadingOffset = oldOffset;
+    });
+    HapticFeedback.selectionClick();
+    if (crossfade) _fade.forward(from: 0);
+    if (navigate) context.go(diaryDayLocation(CivilDate.fromComponents(date)));
+  }
+
+  void _selectDate(DateTime value) {
+    final date = TimeHelper.dateOnly(value);
+    if (_busy ||
+        date.year < 1 ||
+        date.year > 9999 ||
+        date.isAfter(_today) ||
+        date == _selectedDate) {
+      return;
+    }
+    final distance = TimeHelper.daysBetween(_selectedDate, date);
+    if (_atTop && distance.abs() == 1 && !_reduced) {
+      _direction = distance < 0 ? 1 : -1;
+      _settle(commit: true);
+    } else {
+      _replaceDate(date, fade: true);
+    }
+  }
+
+  Future<void> _pickDate() async {
+    if (_busy) return;
+    final date = await context.push<DateTime>(
+      diaryCalendarLocation(CivilDate.fromComponents(_selectedDate)),
+      extra: true,
+    );
+    if (date != null && mounted) _selectDate(date);
+  }
+
+  void _openSearch() {
+    if (!_busy) context.push('/diary/search');
+  }
+
+  void _dragStart(DragStartDetails details) {
+    if (!_atTop) return;
+    _beginDrag();
+  }
+
+  void _calendarDragStart() => _beginDrag(reading: !_atTop);
+
+  void _beginDrag({bool reading = false}) {
+    if (_busy) return;
+    _dragDistance = 0;
+    _fade.value = 1;
+    setState(() {
+      _dragging = true;
+      _readingTurn = reading;
+    });
+  }
+
+  void _dragUpdate(DragUpdateDetails details) =>
+      _updateTurn(details.delta.dx / _cardWidth);
+
+  // Both gestures use fractions of their own surface: one paper width or one
+  // calendar tab. They then drive exactly the same turn and spring simulation.
+  void _updateTurn(double delta) {
+    if (!_dragging) return;
+    _dragDistance += delta;
+    final direction = _dragDistance < 0 ? -1 : 1;
+    if (direction != _direction) setState(() => _direction = direction);
+    final progress = _dragDistance.abs();
+    _turn.value = _blocked
+        ? math.min(.12, progress * .16)
+        : progress.clamp(0, 1);
+  }
+
+  void _dragEnd(DragEndDetails details) =>
+      _endTurn((details.primaryVelocity ?? 0) / _cardWidth);
+
+  void _endTurn(double signedVelocity) {
+    if (!_dragging) return;
+    final velocity = signedVelocity * _direction;
+    final commit =
+        !_blocked && (_turn.value >= .25 || velocity >= 700 / _cardWidth);
+    _settle(commit: commit, velocity: velocity);
+  }
+
+  Future<void> _settle({required bool commit, double velocity = 0}) async {
+    if (_settling) return;
+    setState(() {
+      _dragging = false;
+      _settling = true;
+    });
+    void finishAtEdge() {
+      if (commit ? _turn.value >= 1 : _turn.value <= 0) {
+        _turn.stop(canceled: false);
+      }
+    }
+
+    _turn.addListener(finishAtEdge);
+    try {
+      if (!_reduced && _turn.value != (commit ? 1 : 0)) {
+        await _turn
+            .animateWith(
+              SpringSimulation(
+                _spring,
+                _turn.value,
+                commit ? 1 : 0,
+                velocity.clamp(-8.0, 8.0),
+                tolerance: const Tolerance(distance: .001, velocity: .001),
+              ),
+            )
+            .orCancel;
+      }
+      if (!mounted) return;
+      if (commit) {
+        _replaceDate(
+          TimeHelper.addDays(_selectedDate, -_direction),
+          fade: _readingTurn,
+        );
+      }
+      _turn.value = 0;
+      setState(() {
+        _settling = false;
+        _readingTurn = false;
+      });
+    } on TickerCanceled {
+      // Disposing the page never commits an unfinished turn.
+    } finally {
+      _turn.removeListener(finishAtEdge);
+    }
+  }
+
+  @override
+  void dispose() {
+    _turn.dispose();
+    _fade.dispose();
+    _outer.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    for (final date in [
+      _selectedDate,
+      TimeHelper.addDays(_selectedDate, -1),
+      TimeHelper.addDays(_selectedDate, 1),
+    ]) {
+      if (date.year >= 1 && date.year <= 9999) {
+        ref.watch(diaryPaperDayProvider(CivilDate.fromComponents(date)));
+      }
+    }
+    if (!_busy) {
+      _day = _dayFor(_selectedDate);
+      _previous = _dayFor(TimeHelper.addDays(_selectedDate, -1));
+      _next = _selectedDate.isBefore(_today)
+          ? _dayFor(TimeHelper.addDays(_selectedDate, 1))
+          : null;
+    }
+    final requestedTypography =
+        Theme.of(context).extension<DiaryTypography>() ??
+        const DiaryTypography();
+    if (!_busy || _paperTypography == null) {
+      _paperTypography = requestedTypography;
+    }
+    final top = MediaQuery.paddingOf(context).top;
+    final width = MediaQuery.sizeOf(context).width;
+    final artworkWidth = width.clamp(0.0, 700.0);
+    final artworkTop = 60 - artworkWidth * .41;
+    final page = Stack(
+      children: [
+        Positioned(
+          top: artworkTop,
+          left: (width - artworkWidth) / 2,
+          width: artworkWidth,
+          child: AnimatedBuilder(
+            animation: _outer,
+            child: RepaintBoundary(
+              child: ShaderMask(
+                blendMode: BlendMode.dstIn,
+                // Boost only the top edge and month controls, returning to the
+                // existing image opacity before reaching the calendar tabs.
+                shaderCallback: (_) =>
+                    LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      stops: const [0, .25, 1],
+                      colors: [
+                        Colors.white.withValues(
+                          alpha: context.isDark ? .94 : .82,
+                        ),
+                        Colors.white.withValues(
+                          alpha: context.isDark ? .94 : .82,
+                        ),
+                        Colors.white.withValues(
+                          alpha: context.isDark ? .68 : .24,
+                        ),
+                      ],
+                    ).createShader(
+                      Rect.fromLTWH(
+                        0,
+                        -artworkTop,
+                        artworkWidth,
+                        top + _controlsHeight + 20,
+                      ),
+                    ),
+                child: DiaryArtwork(
+                  key: const ValueKey('diary-header-artwork'),
+                  assetKey: 'diary.header',
+                  width: artworkWidth,
+                  color: context.colors.primary,
+                  colorBlendMode: BlendMode.color,
+                  fit: BoxFit.fitWidth,
+                ),
+              ),
+            ),
+            builder: (context, child) => Transform.translate(
+              offset: Offset(
+                0,
+                -28 *
+                    Curves.easeOutCubic.transform(
+                      (_outerOffset / 120).clamp(0, 1),
+                    ),
+              ),
+              child: child,
+            ),
+          ),
+        ),
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                stops: const [0, .13, .27, .42, 1],
+                colors: [
+                  context.colors.surface.withValues(alpha: .50),
+                  context.colors.surface.withValues(alpha: .094),
+                  context.colors.surface.withValues(alpha: .863),
+                  context.colors.surface,
+                  context.colors.surface,
+                ],
+              ),
+            ),
+          ),
+        ),
+        SafeArea(
+          top: false,
+          bottom: false,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 700),
+              child: NestedScrollView(
+                key: _nested,
+                controller: _outer,
+                physics: _busy
+                    ? const NeverScrollableScrollPhysics()
+                    : const ClampingScrollPhysics(
+                        parent: AlwaysScrollableScrollPhysics(),
+                      ),
+                headerSliverBuilder: (context, innerScrolled) => [
+                  SliverOverlapAbsorber(
+                    handle: NestedScrollView.sliverOverlapAbsorberHandleFor(
+                      context,
+                    ),
+                    sliver: SliverPersistentHeader(
+                      pinned: true,
+                      delegate: DiaryHeaderDelegate(
+                        topInset: top,
+                        selectedDate: _selectedDate,
+                        lastDate: _today,
+                        controlsHeight: _controlsHeight,
+                        onDateChanged: _selectDate,
+                        onSearch: _openSearch,
+                        onPickDate: _pickDate,
+                        enabled: !_busy,
+                        turn: _turn,
+                        turnDirection: _direction,
+                        turning: _busy,
+                        onDayDragStart: _settling ? null : _calendarDragStart,
+                        onDayDragUpdate: _settling ? null : _updateTurn,
+                        onDayDragEnd: _settling ? null : _endTurn,
+                        onDayDragCancel: _dragging
+                            ? () => _settle(commit: false)
+                            : null,
+                      ),
+                    ),
+                  ),
+                ],
+                body: Builder(
+                  builder: (context) => AnimatedBuilder(
+                    animation: Listenable.merge([_outer, _turn]),
+                    builder: (context, _) => DiaryScene(
+                      day: _day,
+                      previous: _previous,
+                      next: () => _next ??= _dayFor(
+                        TimeHelper.addDays(_selectedDate, 1),
+                      ),
+                      today: _today,
+                      collapse: (_outerOffset / _collapseExtent).clamp(0, 1),
+                      headerHeight: top + 82,
+                      collapseExtent: _collapseExtent,
+                      turn: _readingTurn ? 0 : _turn.value.clamp(0, 1),
+                      direction: _direction,
+                      busy: _busy,
+                      blocked: _blocked,
+                      reduced: _reduced,
+                      fade: _fade,
+                      fadingFrom: _fadingFrom,
+                      fadingOffset: _fadingOffset,
+                      onCardWidth: (width) => _cardWidth = width,
+                      onDateChanged: _selectDate,
+                      onDragStart: (_dragging || (!_settling && _atTop))
+                          ? _dragStart
+                          : null,
+                      onDragUpdate: (_dragging || (!_settling && _atTop))
+                          ? _dragUpdate
+                          : null,
+                      onDragEnd: (_dragging || (!_settling && _atTop))
+                          ? _dragEnd
+                          : null,
+                      onDragCancel: _dragging
+                          ? () => _settle(commit: false)
+                          : null,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+    return Listener(
+      // An accepted Flutter drag can report a pointer cancellation as an end.
+      // Catch it before the gesture recognizer so neither surface commits it.
+      onPointerCancel: (_) {
+        if (_dragging) _settle(commit: false);
+      },
+      child: DiaryTypographyScope(value: _paperTypography!, child: page),
+    );
+  }
 }

@@ -15,7 +15,11 @@ class DiaryTypography extends ThemeExtension<DiaryTypography> {
   final TextStyle title, body;
 
   static DiaryTypography of(BuildContext context) =>
-      Theme.of(context).extension<DiaryTypography>() ?? const DiaryTypography();
+      context
+          .dependOnInheritedWidgetOfExactType<DiaryTypographyScope>()
+          ?.value ??
+      Theme.of(context).extension<DiaryTypography>() ??
+      const DiaryTypography();
 
   @override
   DiaryTypography copyWith({TextStyle? title, TextStyle? body}) =>
@@ -24,4 +28,17 @@ class DiaryTypography extends ThemeExtension<DiaryTypography> {
   @override
   DiaryTypography lerp(DiaryTypography? other, double t) =>
       t < .5 || other == null ? this : other;
+}
+
+/// Holds font metrics stable while paper faces are turning.
+class DiaryTypographyScope extends InheritedWidget {
+  const DiaryTypographyScope({
+    super.key,
+    required this.value,
+    required super.child,
+  });
+  final DiaryTypography value;
+  @override
+  bool updateShouldNotify(DiaryTypographyScope oldWidget) =>
+      value != oldWidget.value;
 }

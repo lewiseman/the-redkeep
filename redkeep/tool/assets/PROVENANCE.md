@@ -286,3 +286,11 @@ are adapted from the previous app’s Flow presentation under the user’s
 explicit Flow migration request. Redkeep’s repositories, capture controller,
 and routing remain in use. The user subsequently removed the floating
 Grand Maester controls throughout the app; Flow retains its decorative mascot.
+
+## Diary paper reader
+
+`diary_top_bg.png` reuses the previous Journal app illustration unchanged.
+`diary_calendar_pin.png` reuses the existing canonical website artwork.
+Both are project-supplied artwork, installed through the verified mobile catalog.
+Paper grain, silhouettes, stationery drawings and curl geometry are ported
+from the read-only Journal Flutter reference, without external image textures.

@@ -1,51 +1,70 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/presentation/paper_surface.dart';
+import 'diary_paper_stamp.dart';
 import '../../../core/presentation/rendering_policy.dart';
 
-/// Static notebook treatment. Simpler mode removes the decorative binding.
+/// The same stamped paper used by the original writing screen.
 class NotebookSurface extends StatelessWidget {
-  const NotebookSurface({super.key, required this.child});
+  const NotebookSurface({super.key, required this.child, this.variant = 0});
   final Widget child;
+  final int variant;
   @override
-  Widget build(BuildContext context) => Container(
-    key: ValueKey(
-      RenderingPolicyScope.of(context).simplerEffects
-          ? 'notebook-simple'
-          : 'notebook-bound',
-    ),
-    decoration: RenderingPolicyScope.of(context).simplerEffects
-        ? null
-        : BoxDecoration(
-            border: Border(
-              left: BorderSide(
-                width: 4,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            ),
-          ),
-    padding: EdgeInsets.only(
-      left: RenderingPolicyScope.of(context).simplerEffects ? 0 : 8,
-    ),
-    child: PaperSurface(child: child),
-  );
+  Widget build(BuildContext context) {
+    final simple = RenderingPolicyScope.of(context).simplerEffects;
+    final colors = Theme.of(context).colorScheme;
+    return CustomPaint(
+      key: ValueKey(simple ? 'notebook-simple' : 'notebook-bound'),
+      painter: DiaryPaperStamp(
+        paper: colors.surfaceContainerLowest,
+        ink: colors.onSurface,
+        shadowColor: colors.shadow,
+        variant: variant,
+        edgeScale: simple ? 0 : .5,
+        shadow: !simple,
+      ),
+      child: Padding(padding: const EdgeInsets.all(24), child: child),
+    );
+  }
 }
 
-class DiaryFrame extends StatelessWidget {
-  const DiaryFrame({super.key, required this.slivers});
-  final List<Widget> slivers;
+class DiaryWritingFrame extends StatelessWidget {
+  const DiaryWritingFrame({
+    super.key,
+    required this.child,
+    required this.title,
+    this.actions = const [],
+  });
+  final Widget child;
+  final String title;
+  final List<Widget> actions;
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Redkeep')),
+    backgroundColor: Theme.of(context).colorScheme.surface,
+    appBar: AppBar(
+      title: Text(title),
+      actions: actions,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+    ),
     body: SafeArea(
+      top: false,
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 720),
-          child: CustomScrollView(
-            slivers: [
-              ...slivers,
-              const SliverToBoxAdapter(child: SizedBox(height: 32)),
-            ],
+          constraints: const BoxConstraints(maxWidth: 700),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+            child: LayoutBuilder(
+              builder: (context, constraints) => SingleChildScrollView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: SizedBox(width: double.infinity, child: child),
+                ),
+              ),
+            ),
           ),
         ),
       ),

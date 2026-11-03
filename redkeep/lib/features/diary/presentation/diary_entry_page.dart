@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../app/app_shell.dart';
 import '../../../app/navigation_destination.dart';
 import '../application/diary_providers.dart';
 import '../domain/diary_document.dart';
@@ -15,7 +14,8 @@ class DiaryEntryPage extends ConsumerWidget {
   const DiaryEntryPage({super.key, required this.address});
   final DiaryAddress address;
   @override
-  Widget build(BuildContext context, WidgetRef ref) => AppShell(
+  Widget build(BuildContext context, WidgetRef ref) => DiaryWritingFrame(
+    title: 'Diary entry',
     child: ref
         .watch(diaryDocumentProvider(address.id))
         .when(
@@ -28,6 +28,7 @@ class DiaryEntryPage extends ConsumerWidget {
             final entry = opened.entry;
             final available = opened.available && entry!.date == address.date;
             return NotebookSurface(
+              variant: address.date.weekday,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -39,7 +40,6 @@ class DiaryEntryPage extends ConsumerWidget {
                   ),
                   Text(address.date.key),
                   if (available) ...[
-                    Text('Revision ${entry.revision} • saved on this device'),
                     const SizedBox(height: 16),
                     SelectableText(
                       entry.text.body,

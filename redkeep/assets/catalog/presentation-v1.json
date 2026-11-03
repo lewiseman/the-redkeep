@@ -201,6 +201,26 @@
       "license": "LicenseRef-Project-Generated",
       "provenance": "tool/assets/PROVENANCE.md",
       "sourcePath": "more.png"
+    },
+    {
+      "key": "diary.header",
+      "revision": "v1",
+      "path": "diary/diary_top_bg.png",
+      "sourcePath": "diary_top_bg.png",
+      "bytes": 2369088,
+      "sha256": "6fc8018addc1accb451d0bf0d0df4391680dbfb86f10fcceaf5ea38bdfc21559",
+      "license": "LicenseRef-Project-Supplied",
+      "provenance": "tool/assets/PROVENANCE.md"
+    },
+    {
+      "key": "diary.calendar.pin",
+      "revision": "v1",
+      "path": "diary/diary_calendar_pin.png",
+      "sourcePath": "diary_calendar_pin.png",
+      "bytes": 29803,
+      "sha256": "b5390d3733b05992d7d6e2a8e0c4d56703d103a767d5d8050dd9eedc8fb67611",
+      "license": "LicenseRef-Project-Supplied",
+      "provenance": "tool/assets/PROVENANCE.md"
     }
   ]
 }

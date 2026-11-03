@@ -34,6 +34,8 @@ class FakeRequiredAssets implements RequiredAssets {
       Directory.current.uri.resolve('../website/public/art/${_filename(key)}');
 
   String _filename(String key) => switch (key) {
+    'diary.header' => 'diary_top_bg.png',
+    'diary.calendar.pin' => 'diary_calendar_pin.png',
     'notes.add' => 'notes_add.png',
     _ when key.startsWith('navigation.') && key.endsWith('.active') =>
       '${key.split('.')[1]}.png',

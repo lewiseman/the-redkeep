@@ -41,7 +41,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(router.routeInformationProvider.value.uri.toString(), '/');
-    expect(find.text('My diary'), findsOneWidget);
+    expect(find.byKey(const ValueKey('diary-active-paper')), findsOneWidget);
     expect(router.canPop(), isFalse);
     expect(tester.takeException(), isNull);
   });
@@ -57,7 +57,7 @@ void main() {
 
     await tester.tap(find.text('Return home'));
     await tester.pumpAndSettle();
-    expect(find.text('My diary'), findsOneWidget);
+    expect(find.byKey(const ValueKey('diary-active-paper')), findsOneWidget);
     expect(router.routeInformationProvider.value.uri.path, '/');
     expect(tester.takeException(), isNull);
   });
@@ -85,7 +85,7 @@ void main() {
     }
     await tester.tap(find.text('Return home'));
     await tester.pumpAndSettle();
-    expect(find.text('My diary'), findsOneWidget);
+    expect(find.byKey(const ValueKey('diary-active-paper')), findsOneWidget);
   });
 
   test('provider scopes own independent routers and navigation state', () {

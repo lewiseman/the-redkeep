@@ -10,6 +10,7 @@ import 'package:redkeep/app/navigation_destination.dart';
 import 'package:redkeep/core/storage/app_database.dart';
 import 'package:redkeep/features/appearance/domain/appearance_preferences.dart';
 import 'package:redkeep/features/flow/application/flow_editor_controller.dart';
+import 'package:redkeep/features/flow/presentation/flow_thought_card.dart';
 import 'package:redkeep/features/flow/data/drift_flow_repository.dart';
 
 import '../../support/controlled_flow_repository.dart';
@@ -76,16 +77,19 @@ void main() {
         flowId: () => (++counter).toString().padLeft(32, '1'),
       );
       await tester.scrollUntilVisible(
-        find.text('No thoughts yet. Capture a thought whenever you’re ready.'),
+        find.text(
+          'A little space for what’s on your mind.\nWrite your first thought below.',
+        ),
         120,
         scrollable: find.byType(Scrollable).first,
       );
       await tester.ensureVisible(field());
       await tester.enterText(field(), 'Quick capture 中文');
       await tester.pumpAndSettle();
-      await tap(tester, 'Capture thought');
+      await tester.tap(find.byTooltip('Add thought'));
+      await tester.pumpAndSettle();
       expect(buffer(tester), '');
-      expect(find.text('Thought captured on this device.'), findsOneWidget);
+      expect(await repo.watchThoughts().first, hasLength(1));
       final saved = (await repo.watchThoughts().first).single;
       await tap(tester, 'Quick capture 中文');
       expect(
@@ -126,7 +130,8 @@ void main() {
       await tester.enterText(field(), 'Do not lose this');
       await tester.pumpAndSettle();
       repo.failCommit = true;
-      await tap(tester, 'Capture thought');
+      await tester.tap(find.byTooltip('Add thought'));
+      await tester.pumpAndSettle();
       expect(buffer(tester), 'Do not lose this');
       expect(await repo.watchThoughts().first, isEmpty);
       repo.failCommit = false;
@@ -138,7 +143,7 @@ void main() {
       await tester.pump();
       expect(buffer(tester), 'Do not lose this');
       expect(tester.widget<TextField>(field()).enabled, isFalse);
-      expect(find.text('Saving…'), findsOneWidget);
+      expect(find.byTooltip('Saving…'), findsOneWidget);
       repo.commitGate!.complete();
       await pending;
       await tester.pumpAndSettle();
@@ -146,38 +151,36 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
-  flowTest('restart clears unsaved composer; discard keeps saved writing', (
-    tester,
-  ) async {
-    await seed();
-    await pumpApp(
-      tester,
-      initialLocation: '/flow',
-      flow: repo,
-      flowId: () => '2' * 32,
-    );
-    await tester.enterText(field(), 'Unfinished capture');
-    await tester.pumpAndSettle();
-    await tester.pumpWidget(const SizedBox());
-    await pumpApp(tester, initialLocation: '/flow', flow: repo);
-    expect(buffer(tester), '');
-    await tester.enterText(field(), 'Unfinished capture');
-    await tester.pumpAndSettle();
-    await tap(tester, 'Discard changes');
-    await tap(tester, 'Keep writing');
-    expect(buffer(tester), 'Unfinished capture');
-    await tap(tester, 'Discard changes');
-    await tap(tester, 'Discard');
-    expect(buffer(tester), '');
-    expect(await repo.watchThoughts().first, hasLength(1));
-  });
+  flowTest(
+    'restart clears unsaved composer; clearing input keeps saved writing',
+    (tester) async {
+      await seed();
+      await pumpApp(
+        tester,
+        initialLocation: '/flow',
+        flow: repo,
+        flowId: () => '2' * 32,
+      );
+      await tester.enterText(field(), 'Unfinished capture');
+      await tester.pumpAndSettle();
+      await tester.pumpWidget(const SizedBox());
+      await pumpApp(tester, initialLocation: '/flow', flow: repo);
+      expect(buffer(tester), '');
+      await tester.enterText(field(), 'Unfinished capture');
+      await tester.pumpAndSettle();
+      await tester.enterText(field(), '');
+      await tester.pumpAndSettle();
+      expect(buffer(tester), '');
+      expect(await repo.watchThoughts().first, hasLength(1));
+    },
+  );
   flowTest('list and document load failures have retry', (tester) async {
     repo.failRead = true;
     final router = await pumpApp(tester, initialLocation: '/flow', flow: repo);
     expect(field(), findsOneWidget);
-    expect(find.text('Thoughts could not be loaded.'), findsOneWidget);
+    expect(find.text('Couldn’t load your thoughts.'), findsOneWidget);
     repo.failRead = false;
-    await tap(tester, 'Retry loading');
+    await tap(tester, 'Retry');
     repo.failRead = true;
     router.go(thoughtLocation(id));
     await tester.pumpAndSettle();
@@ -218,7 +221,8 @@ void main() {
           await tester.ensureVisible(field());
           await tester.enterText(field(), 'Large capture');
           await tester.pumpAndSettle();
-          await tap(tester, 'Capture thought');
+          await tester.tap(find.byTooltip('Add thought'));
+          await tester.pumpAndSettle();
           expect(buffer(tester), '');
           router.go(thoughtLocation(id));
           await tester.pumpAndSettle();
@@ -302,7 +306,7 @@ void main() {
     router.go('/flow');
     await tester.pumpAndSettle();
     expect(await repo.watchThoughts().first, hasLength(2001));
-    expect(find.byType(ListTile).evaluate().length, lessThan(25));
+    expect(find.byType(FlowThoughtCard).evaluate().length, lessThan(25));
     expect(tester.takeException(), isNull);
   });
 }

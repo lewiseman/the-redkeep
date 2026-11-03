@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import 'diary_maester_button.dart';
 import '../../../app/app_shell.dart';
 import '../../../app/navigation_destination.dart';
 import 'diary_widgets.dart';
@@ -53,10 +52,6 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
         _leaving = false;
       },
       child: AppShell(
-        floatingActionButton: DiaryMaesterButton(
-          address: widget.address,
-          body: _body,
-        ),
         child: editor.when(
           loading: () => const Text('Opening editor…'),
           error: (_, _) => Column(

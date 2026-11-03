@@ -256,7 +256,7 @@ void main() {
       final catalog = AssetCatalog.parse(
         await File('assets/catalog/presentation-v1.json').readAsString(),
       );
-      expect(catalog.assets, hasLength(12));
+      expect(catalog.assets, hasLength(20));
       expect(
         catalog.asset('onboarding.cover').sourcePath,
         'cover-redkeep-castle-v1.jpg',
@@ -267,6 +267,7 @@ void main() {
         expect(asset.bytes, local.length);
         expect(asset.sha256, sha256.convert(local).toString());
       }
+      expect(catalog.assets.any((a) => a.key == 'flow.mascot'), isFalse);
       // Branding is always bundled, even on a fresh offline installation.
       for (final entry in {
         'ink-paper.webp': 'ink-paper.webp',

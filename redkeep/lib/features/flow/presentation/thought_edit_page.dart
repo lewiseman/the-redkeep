@@ -3,7 +3,6 @@ import '../../../core/presentation/confirm_discard_changes.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'flow_maester_button.dart';
 import '../../../app/app_shell.dart';
 import '../application/flow_editor_controller.dart';
 import 'flow_editor.dart';
@@ -24,10 +23,7 @@ class ThoughtEditPage extends ConsumerWidget {
           if (context.mounted) Navigator.of(context).pop();
         }
       },
-      child: AppShell(
-        floatingActionButton: FlowMaesterButton(id: id, editing: true),
-        child: FlowEditor(id: id),
-      ),
+      child: AppShell(child: FlowEditor(id: id)),
     );
   }
 }

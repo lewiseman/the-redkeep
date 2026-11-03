@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import 'flow_maester_button.dart';
 import '../../../app/app_shell.dart';
 import '../../../core/presentation/paper_surface.dart';
 import '../../../app/navigation_destination.dart';
@@ -16,7 +15,6 @@ class ThoughtReadPage extends ConsumerWidget {
   final String id;
   @override
   Widget build(BuildContext context, WidgetRef ref) => AppShell(
-    floatingActionButton: FlowMaesterButton(id: id),
     child: ref
         .watch(thoughtDocumentProvider(id))
         .when(

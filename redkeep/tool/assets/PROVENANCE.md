@@ -270,3 +270,19 @@ removes the gradient and glow.
 
 Font selections use the existing Google Fonts package's download/cache path,
 with the legacy 10-second request timeout and load-before-save behavior.
+
+## Flow page migration — 3 November 2026
+
+Flow uses the existing bundled `assets/branding/grand_maestar.png` directly,
+with the original 1,842,097 bytes and SHA-256
+`5e698de4f5ab0413e36094c45ee16a67e11bcbc7408a9a7fb558c391a9be10e5`.
+The user explicitly confirmed that this mascot and the existing ink-paper
+branding background are exceptions to required-artwork downloads. Neither
+belongs in the download catalog. No artwork was regenerated, copied,
+recompressed, or newly bundled.
+
+The opening geometry, cloud outline, six paper palettes, captions and composer
+are adapted from the previous app’s Flow presentation under the user’s
+explicit Flow migration request. Redkeep’s repositories, capture controller,
+and routing remain in use. The user subsequently removed the floating
+Grand Maester controls throughout the app; Flow retains its decorative mascot.

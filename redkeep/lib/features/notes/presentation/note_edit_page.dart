@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import 'note_maester_button.dart';
 import '../../../app/app_shell.dart';
 import '../../../app/navigation_destination.dart';
 import '../../../core/presentation/paper_surface.dart';
@@ -52,7 +51,6 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
         _leaving = false;
       },
       child: AppShell(
-        floatingActionButton: NoteMaesterButton(id: widget.id, body: _body),
         child: editor.when(
           loading: () => const Text('Opening editor…'),
           error: (_, _) => Column(

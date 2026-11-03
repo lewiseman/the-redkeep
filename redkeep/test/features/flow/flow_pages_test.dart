@@ -284,7 +284,7 @@ void main() {
         notes: DriftNotesRepository(db, clock: () => DateTime.utc(2026)),
       );
       for (final destination in ['Notes', 'Flow', 'More', 'Diary']) {
-        final control = find.widgetWithText(TextButton, destination);
+        final control = find.bySemanticsLabel('$destination tab');
         expect(control.hitTestable(), findsOneWidget);
         await tester.tap(control);
         await tester.pumpAndSettle();
@@ -294,7 +294,7 @@ void main() {
         );
         expect(tester.takeException(), isNull);
       }
-      await tester.tap(find.widgetWithText(TextButton, 'More'));
+      await tester.tap(find.bySemanticsLabel('More tab'));
       await tester.pumpAndSettle();
       await tap(tester, 'Appearance');
       expect(router.routeInformationProvider.value.uri.path, '/settings');

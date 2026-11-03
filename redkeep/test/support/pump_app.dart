@@ -1,3 +1,7 @@
+import 'package:redkeep/features/appearance/application/appearance_typography.dart';
+
+import 'fake_appearance_fonts.dart';
+
 import 'package:redkeep/features/sync/application/sync_providers.dart';
 import 'package:redkeep/features/flow/application/flow_providers.dart';
 import 'package:redkeep/features/flow/domain/flow_repository.dart';
@@ -27,6 +31,7 @@ import 'package:redkeep/features/brain/application/brain_providers.dart';
 Future<GoRouter> pumpApp(
   WidgetTester tester, {
   String? initialLocation,
+  AppearanceFontLoader fontLoader = fakeAppearanceFontLoader,
   FakeAppearanceRepository? repository,
   FakeOnboardingRepository? onboarding,
   FakeRequiredAssets? assets,
@@ -46,6 +51,7 @@ Future<GoRouter> pumpApp(
     ProviderScope(
       overrides: [
         syncEnabledProvider.overrideWithValue(false),
+        appearanceFontLoaderProvider.overrideWithValue(fontLoader),
         appearanceRepositoryProvider.overrideWithValue(preferences),
         onboardingRepositoryProvider.overrideWithValue(
           onboarding ?? FakeOnboardingRepository(),

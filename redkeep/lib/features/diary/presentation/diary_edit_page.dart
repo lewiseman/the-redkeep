@@ -1,3 +1,4 @@
+import '../../../core/presentation/diary_typography.dart';
 import '../../sync/application/sync_providers.dart';
 
 import 'package:flutter/material.dart';
@@ -102,6 +103,7 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
                   const SizedBox(height: 16),
                   TextField(
                     key: const ValueKey('diary-title'),
+                    style: DiaryTypography.of(context).title,
                     controller: _title,
                     enabled: !state.saving && !readOnly,
                     decoration: const InputDecoration(labelText: 'Title'),
@@ -112,6 +114,7 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
                   const SizedBox(height: 16),
                   TextField(
                     key: const ValueKey('diary-body'),
+                    style: DiaryTypography.of(context).body,
                     controller: _body,
                     enabled: !state.saving && !readOnly,
                     decoration: const InputDecoration(

@@ -1,3 +1,7 @@
+import 'package:redkeep/features/appearance/application/appearance_typography.dart';
+
+import '../support/fake_appearance_fonts.dart';
+
 import 'package:redkeep/features/sync/application/sync_providers.dart';
 import 'package:redkeep/features/diary/application/diary_providers.dart';
 
@@ -36,6 +40,9 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          appearanceFontLoaderProvider.overrideWithValue(
+            fakeAppearanceFontLoader,
+          ),
           syncEnabledProvider.overrideWithValue(false),
           diaryRepositoryProvider.overrideWithValue(EmptyDiaryRepository()),
           appearanceRepositoryProvider.overrideWithValue(appearance),

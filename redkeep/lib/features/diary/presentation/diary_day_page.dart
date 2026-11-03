@@ -1,3 +1,4 @@
+import '../../../core/presentation/diary_typography.dart';
 import '../../sync/application/sync_providers.dart';
 
 import 'package:flutter/material.dart';
@@ -40,7 +41,7 @@ class DiaryDayPage extends ConsumerWidget {
                       if (value.heading.isNotEmpty)
                         Text(
                           value.heading,
-                          style: Theme.of(context).textTheme.titleLarge,
+                          style: DiaryTypography.of(context).title,
                         ),
                       TextButton(
                         onPressed: busy || !ref.watch(syncCanEditProvider)
@@ -154,6 +155,7 @@ class DiaryDayPage extends ConsumerWidget {
           ),
           TextField(
             controller: controller,
+            style: DiaryTypography.of(context).title,
             maxLength: 160,
             maxLines: null,
             decoration: const InputDecoration(labelText: 'Day heading'),
@@ -210,12 +212,13 @@ class _DayEntry extends ConsumerWidget {
               children: [
                 Text(
                   diaryTitle(entry.text.title),
-                  style: Theme.of(context).textTheme.titleLarge,
+                  style: DiaryTypography.of(context).title,
                 ),
                 const SizedBox(height: 12),
                 // Full text is available in the focused reader; day layout stays bounded.
                 Text(
                   entry.text.body,
+                  style: DiaryTypography.of(context).body,
                   maxLines: 12,
                   overflow: TextOverflow.ellipsis,
                 ),

@@ -35,6 +35,10 @@ class FakeRequiredAssets implements RequiredAssets {
 
   String _filename(String key) => switch (key) {
     'notes.add' => 'notes_add.png',
+    _ when key.startsWith('navigation.') && key.endsWith('.active') =>
+      '${key.split('.')[1]}.png',
+    _ when key.startsWith('navigation.') =>
+      'navigation/${key.split('.')[1]}_${key.split('.')[2]}.png',
     'onboarding.cover' => 'cover-redkeep-castle-v1.jpg',
     'onboarding.material.paper' => 'paper-edge.webp',
     'onboarding.material.binding' => 'binding-cloth.webp',

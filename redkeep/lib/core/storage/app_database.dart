@@ -38,7 +38,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   // Reset changes this generation before disposing editors. Old repositories
   // cannot write after cleanup, even when an async continuation finishes late.
@@ -84,6 +84,21 @@ class AppDatabase extends _$AppDatabase {
         await migrator.createTable(syncRecords);
         await installSyncTriggers(this);
         await seedSyncRecords(this);
+      }
+      if (from < 10 && to >= 10) {
+        await migrator.addColumn(appearanceSettings, appearanceSettings.accent);
+        await migrator.addColumn(
+          appearanceSettings,
+          appearanceSettings.fontFamily,
+        );
+        await migrator.addColumn(
+          appearanceSettings,
+          appearanceSettings.diaryTitleFontFamily,
+        );
+        await migrator.addColumn(
+          appearanceSettings,
+          appearanceSettings.diaryBodyFontFamily,
+        );
       }
       // createTable above already uses the current columns for version 1.
       if (from >= 2 && from < 8 && to >= 8) {

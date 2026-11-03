@@ -4,6 +4,12 @@ import 'package:drift/drift.dart';
 class AppearanceSettings extends Table {
   IntColumn get id => integer()();
   TextColumn get theme => text().withDefault(const Constant('system'))();
+  TextColumn get accent => text().withDefault(const Constant('indigo'))();
+  TextColumn get fontFamily => text().withDefault(const Constant('Poppins'))();
+  TextColumn get diaryTitleFontFamily =>
+      text().withDefault(const Constant('Caveat'))();
+  TextColumn get diaryBodyFontFamily =>
+      text().withDefault(const Constant('Lora'))();
   BoolColumn get reduceMotion => boolean().withDefault(const Constant(false))();
   BoolColumn get simplerEffects =>
       boolean().withDefault(const Constant(false))();

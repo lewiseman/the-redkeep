@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/storage_providers.dart';
 import '../domain/appearance_preferences.dart';
+import '../domain/appearance_fonts.dart';
+import 'appearance_typography.dart';
 
 final appearanceControllerProvider =
     NotifierProvider<AppearanceController, AppearanceState>(
@@ -66,6 +68,39 @@ class AppearanceController extends Notifier<AppearanceState> {
 
   Future<void> setTheme(AppTheme theme) =>
       _save(state.preferences.copyWith(theme: theme));
+
+  Future<void> setAccent(AppAccent accent) =>
+      _save(state.preferences.copyWith(accent: accent));
+
+  Future<void> setFontFamily(String family, FontRole role) async {
+    if (!state.canEdit) throw StateError('Appearance is not ready');
+    if (!AppearanceFonts.supports(family)) {
+      throw ArgumentError.value(family, 'family');
+    }
+    state = state.copyWith(saving: true, saveFailed: false);
+    try {
+      await ref
+          .read(appearanceFontLoaderProvider)(family, role)
+          .timeout(fontLoadTimeout);
+      if (!ref.mounted) return;
+      // Apply to the latest snapshot so a repository update cannot be overwritten.
+      final preferences = switch (role) {
+        FontRole.journal => state.preferences.copyWith(fontFamily: family),
+        FontRole.diaryTitle => state.preferences.copyWith(
+          diaryTitleFontFamily: family,
+        ),
+        FontRole.diaryBody => state.preferences.copyWith(
+          diaryBodyFontFamily: family,
+        ),
+      };
+      await ref.read(appearanceRepositoryProvider).save(preferences);
+      if (!ref.mounted) return;
+      state = state.copyWith(preferences: preferences, saving: false);
+    } catch (_) {
+      if (ref.mounted) state = state.copyWith(saving: false, saveFailed: true);
+      rethrow;
+    }
+  }
 
   Future<void> setReduceMotion(bool value) =>
       _save(state.preferences.copyWith(reduceMotion: value));

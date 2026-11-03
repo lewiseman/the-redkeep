@@ -121,6 +121,86 @@
       "license": "LicenseRef-Project-Generated",
       "provenance": "tool/assets/PROVENANCE.md",
       "sourcePath": "cover-redkeep-castle-v1.jpg"
+    },
+    {
+      "key": "navigation.diary.inactive",
+      "revision": "v1",
+      "path": "navigation/diary-inactive-v1.png",
+      "bytes": 45280,
+      "sha256": "1d455d75eb047240c8030ce689c915e6a77058f45ca93ea9d75268fa0da8e945",
+      "license": "LicenseRef-Project-Generated",
+      "provenance": "tool/assets/PROVENANCE.md",
+      "sourcePath": "navigation/diary_inactive.png"
+    },
+    {
+      "key": "navigation.diary.active",
+      "revision": "v1",
+      "path": "navigation/diary-active-v1.png",
+      "bytes": 47353,
+      "sha256": "f5af6275e12208d391ab055628bd63aa42040412ded5d40ada17a9d9ef9356d5",
+      "license": "LicenseRef-Project-Generated",
+      "provenance": "tool/assets/PROVENANCE.md",
+      "sourcePath": "diary.png"
+    },
+    {
+      "key": "navigation.notes.inactive",
+      "revision": "v1",
+      "path": "navigation/notes-inactive-v1.png",
+      "bytes": 47545,
+      "sha256": "7eab74854ed7c752c5672a0849b8cf5a0a9b3831afd87b85630b05108db66e8c",
+      "license": "LicenseRef-Project-Generated",
+      "provenance": "tool/assets/PROVENANCE.md",
+      "sourcePath": "navigation/notes_inactive.png"
+    },
+    {
+      "key": "navigation.notes.active",
+      "revision": "v1",
+      "path": "navigation/notes-active-v1.png",
+      "bytes": 45592,
+      "sha256": "7b77e2309f8ff8625dbc8b1c52d098875ead1e4aa0c879664d901c700e4106a2",
+      "license": "LicenseRef-Project-Generated",
+      "provenance": "tool/assets/PROVENANCE.md",
+      "sourcePath": "notes.png"
+    },
+    {
+      "key": "navigation.flow.inactive",
+      "revision": "v1",
+      "path": "navigation/flow-inactive-v1.png",
+      "bytes": 28272,
+      "sha256": "7ac1b8a45d323b4ad5d2b1dbc25c7e1f6e587b93731960bceaeddf5aa74b28a1",
+      "license": "LicenseRef-Project-Generated",
+      "provenance": "tool/assets/PROVENANCE.md",
+      "sourcePath": "navigation/flow_inactive.png"
+    },
+    {
+      "key": "navigation.flow.active",
+      "revision": "v1",
+      "path": "navigation/flow-active-v1.png",
+      "bytes": 33484,
+      "sha256": "ff43eb8e4e9206c1fa11afcfeea190ae5bd2ab08df5d1b5ee4e193b1f60df2ac",
+      "license": "LicenseRef-Project-Generated",
+      "provenance": "tool/assets/PROVENANCE.md",
+      "sourcePath": "flow.png"
+    },
+    {
+      "key": "navigation.more.inactive",
+      "revision": "v1",
+      "path": "navigation/more-inactive-v1.png",
+      "bytes": 44254,
+      "sha256": "9567a0e534722fbcaddff5e64b0de3f46a8a647679b3581a706f47e951336b95",
+      "license": "LicenseRef-Project-Generated",
+      "provenance": "tool/assets/PROVENANCE.md",
+      "sourcePath": "navigation/more_inactive.png"
+    },
+    {
+      "key": "navigation.more.active",
+      "revision": "v1",
+      "path": "navigation/more-active-v1.png",
+      "bytes": 48880,
+      "sha256": "5003947c307285a2058c681bc4c44375951a542327d7cca81813b5577c773d01",
+      "license": "LicenseRef-Project-Generated",
+      "provenance": "tool/assets/PROVENANCE.md",
+      "sourcePath": "more.png"
     }
   ]
 }

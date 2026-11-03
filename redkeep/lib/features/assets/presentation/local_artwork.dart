@@ -18,15 +18,16 @@ final _artworkProvider = FutureProvider.autoDispose.family<Uri, String>(
 );
 
 class LocalArtwork extends ConsumerWidget {
-  const LocalArtwork({super.key, required this.assetKey});
+  const LocalArtwork({super.key, required this.assetKey, this.dimension = 40});
   final String assetKey;
+  final double dimension;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final asset = ref.watch(_artworkProvider(assetKey));
     return SizedBox(
-      width: 40,
-      height: 40,
+      width: dimension,
+      height: dimension,
       child: asset.when(
         loading: () => const SizedBox.shrink(),
         error: (_, _) => _failed(ref),

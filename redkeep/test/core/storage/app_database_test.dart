@@ -16,11 +16,41 @@ import 'generated/schema_v5.dart' as v5;
 import 'generated/schema_v6.dart' as v6;
 import 'generated/schema_v7.dart' as v7;
 import 'generated/schema_v8.dart' as v8;
+import 'generated/schema_v9.dart' as v9;
 
 import 'package:redkeep/features/notes/data/drift_notes_repository.dart';
 import 'package:redkeep/features/notes/domain/note_document.dart';
 
 void main() {
+  test('version 9 upgrade adds legacy appearance defaults without changing saved choices or writing', () async {
+    final verifier = SchemaVerifier(GeneratedHelper());
+    final schema = await verifier.schemaAt(9);
+    final old = v9.DatabaseAtV9(schema.newConnection());
+    await old.customStatement(
+      "INSERT INTO appearance_settings(id,theme,reduce_motion,simpler_effects) VALUES(1,'dark',1,1)",
+    );
+    await old.customStatement(
+      "INSERT INTO notes(id,title,body,revision,created_at,updated_at,pinned) VALUES(?, 'Saved','Keep this writing',2,1,2,1)",
+      ['a' * 32],
+    );
+    await old.close();
+    final db = AppDatabase(schema.newConnection());
+    try {
+      await verifier.migrateAndValidate(db, 10);
+      expect(
+        await DriftAppearanceRepository(db).watch().first,
+        const AppearancePreferences(
+          theme: AppTheme.dark,
+          reduceMotion: true,
+          simplerEffects: true,
+        ),
+      );
+      expect((await db.select(db.notes).getSingle()).body, 'Keep this writing');
+    } finally {
+      await db.close();
+    }
+  });
+
   test('version 8 upgrade preserves writing and name and queues only committed writing', () async {
     final verifier = SchemaVerifier(GeneratedHelper());
     final schema = await verifier.schemaAt(8);
@@ -39,7 +69,7 @@ void main() {
     await old.close();
     final db = AppDatabase(schema.newConnection());
     try {
-      await verifier.migrateAndValidate(db, 9);
+      await verifier.migrateAndValidate(db, 10);
       expect(
         (await db.select(db.onboardingCompletion).getSingle()).name,
         'Lewis',
@@ -71,7 +101,7 @@ void main() {
     await old.close();
     final db = AppDatabase(schema.newConnection());
     try {
-      await verifier.migrateAndValidate(db, 9);
+      await verifier.migrateAndValidate(db, 10);
       expect(await DriftOnboardingRepository(db).isComplete(), false);
       expect((await db.select(db.onboardingCompletion).getSingle()).id, 1);
       expect((await db.select(db.notes).getSingle()).body, 'Keep this writing');
@@ -87,10 +117,10 @@ void main() {
     }
   });
 
-  test('fresh schema matches the committed version 9 snapshot', () async {
+  test('fresh schema matches the committed version 10 snapshot', () async {
     final database = AppDatabase(NativeDatabase.memory());
     addTearDown(database.close);
-    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 9);
+    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 10);
   });
 
   test('version 1 upgrade preserves every saved appearance choice', () async {
@@ -105,7 +135,7 @@ void main() {
       await old.close();
       final database = AppDatabase(schema.newConnection());
       try {
-        await verifier.migrateAndValidate(database, 9);
+        await verifier.migrateAndValidate(database, 10);
         expect(
           await DriftAppearanceRepository(database).watch().first,
           AppearancePreferences(
@@ -139,7 +169,7 @@ void main() {
       await old.close();
       final database = AppDatabase(schema.newConnection());
       try {
-        await verifier.migrateAndValidate(database, 9);
+        await verifier.migrateAndValidate(database, 10);
         expect(
           await DriftAppearanceRepository(database).watch().first,
           const AppearancePreferences(
@@ -184,7 +214,7 @@ void main() {
       await old.close();
       final database = AppDatabase(schema.newConnection());
       try {
-        await verifier.migrateAndValidate(database, 9);
+        await verifier.migrateAndValidate(database, 10);
         expect(await DriftOnboardingRepository(database).isComplete(), isFalse);
         expect(
           (await DriftAppearanceRepository(database).watch().first).theme,
@@ -246,7 +276,7 @@ void main() {
     await old.close();
     final database = AppDatabase(schema.newConnection());
     try {
-      await verifier.migrateAndValidate(database, 9);
+      await verifier.migrateAndValidate(database, 10);
       expect(
         (await DriftAppearanceRepository(database).watch().first),
         const AppearancePreferences(
@@ -342,13 +372,19 @@ void main() {
     await old.close();
     final database = AppDatabase(schema.newConnection());
     try {
-      await verifier.migrateAndValidate(database, 9);
+      await verifier.migrateAndValidate(database, 10);
       for (final table in tables) {
         expect(
           (await database.customSelect('SELECT * FROM $table').get())
               .map(
                 (r) => table == 'onboarding_completion'
                     ? (Map<String, dynamic>.of(r.data)..remove('name'))
+                    : table == 'appearance_settings'
+                    ? (Map<String, dynamic>.of(r.data)
+                        ..remove('accent')
+                        ..remove('font_family')
+                        ..remove('diary_title_font_family')
+                        ..remove('diary_body_font_family'))
                     : r.data,
               )
               .toList(),
@@ -443,13 +479,19 @@ void main() {
       await old.close();
       final database = AppDatabase(schema.newConnection());
       try {
-        await verifier.migrateAndValidate(database, 9);
+        await verifier.migrateAndValidate(database, 10);
         for (final table in tables) {
           expect(
             (await database.customSelect('SELECT * FROM $table').get())
                 .map(
                   (r) => table == 'onboarding_completion'
                       ? (Map<String, dynamic>.of(r.data)..remove('name'))
+                      : table == 'appearance_settings'
+                      ? (Map<String, dynamic>.of(r.data)
+                          ..remove('accent')
+                          ..remove('font_family')
+                          ..remove('diary_title_font_family')
+                          ..remove('diary_body_font_family'))
                       : r.data,
                 )
                 .toList(),

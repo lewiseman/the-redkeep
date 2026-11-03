@@ -1,3 +1,4 @@
+import '../../../core/presentation/diary_typography.dart';
 import '../../sync/application/sync_providers.dart';
 
 import 'package:flutter/material.dart';
@@ -36,13 +37,16 @@ class DiaryEntryPage extends ConsumerWidget {
                     available
                         ? diaryTitle(entry.text.title)
                         : 'Entry unavailable',
-                    style: Theme.of(context).textTheme.headlineSmall,
+                    style: DiaryTypography.of(context).title,
                   ),
                   Text(address.date.key),
                   if (available) ...[
                     Text('Revision ${entry.revision} • saved on this device'),
                     const SizedBox(height: 16),
-                    SelectableText(entry.text.body),
+                    SelectableText(
+                      entry.text.body,
+                      style: DiaryTypography.of(context).body,
+                    ),
                     const SizedBox(height: 16),
                     OutlinedButton(
                       onPressed: !ref.watch(syncCanEditProvider)

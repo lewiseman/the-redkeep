@@ -1,55 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-/// All currently implemented destinations, with wrapping labels at large text.
+import 'bottom_navbar.dart';
+
 class WritingShell extends StatelessWidget {
   const WritingShell({super.key, required this.child, required this.location});
   final Widget child;
   final String location;
+
+  static const _paths = ['/diary', '/notes', '/flow', '/more'];
+
   @override
   Widget build(BuildContext context) {
     final selected = location.startsWith('/notes')
-        ? '/notes'
+        ? 1
         : location.startsWith('/flow')
-        ? '/flow'
+        ? 2
         : location == '/more' || location.startsWith('/settings')
-        ? '/more'
-        : '/diary';
+        ? 3
+        : 0;
     return Scaffold(
       resizeToAvoidBottomInset: false,
       body: child,
       bottomNavigationBar: MediaQuery.viewInsetsOf(context).bottom > 0
           ? null
-          : SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.all(4),
-                child: Wrap(
-                  alignment: WrapAlignment.spaceEvenly,
-                  children: [
-                    for (final destination in const [
-                      ('/diary', 'Diary'),
-                      ('/notes', 'Notes'),
-                      ('/flow', 'Flow'),
-                      ('/more', 'More'),
-                    ])
-                      Semantics(
-                        selected: selected == destination.$1,
-                        child: TextButton(
-                          onPressed: () => context.go(destination.$1),
-                          style: selected == destination.$1
-                              ? TextButton.styleFrom(
-                                  backgroundColor: Theme.of(context)
-                                      .colorScheme
-                                      .secondaryContainer,
-                                )
-                              : null,
-                          child: Text(destination.$2),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
+          : RedkeepBottomNavbar(
+              selectedIndex: selected,
+              onSelected: (index) => context.go(_paths[index]),
             ),
     );
   }

@@ -28,6 +28,52 @@ class $AppearanceSettingsTable extends AppearanceSettings
     requiredDuringInsert: false,
     defaultValue: const Constant('system'),
   );
+  static const VerificationMeta _accentMeta = const VerificationMeta('accent');
+  @override
+  late final GeneratedColumn<String> accent = GeneratedColumn<String>(
+    'accent',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('indigo'),
+  );
+  static const VerificationMeta _fontFamilyMeta = const VerificationMeta(
+    'fontFamily',
+  );
+  @override
+  late final GeneratedColumn<String> fontFamily = GeneratedColumn<String>(
+    'font_family',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('Poppins'),
+  );
+  static const VerificationMeta _diaryTitleFontFamilyMeta =
+      const VerificationMeta('diaryTitleFontFamily');
+  @override
+  late final GeneratedColumn<String> diaryTitleFontFamily =
+      GeneratedColumn<String>(
+        'diary_title_font_family',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('Caveat'),
+      );
+  static const VerificationMeta _diaryBodyFontFamilyMeta =
+      const VerificationMeta('diaryBodyFontFamily');
+  @override
+  late final GeneratedColumn<String> diaryBodyFontFamily =
+      GeneratedColumn<String>(
+        'diary_body_font_family',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('Lora'),
+      );
   static const VerificationMeta _reduceMotionMeta = const VerificationMeta(
     'reduceMotion',
   );
@@ -62,6 +108,10 @@ class $AppearanceSettingsTable extends AppearanceSettings
   List<GeneratedColumn> get $columns => [
     id,
     theme,
+    accent,
+    fontFamily,
+    diaryTitleFontFamily,
+    diaryBodyFontFamily,
     reduceMotion,
     simplerEffects,
   ];
@@ -84,6 +134,36 @@ class $AppearanceSettingsTable extends AppearanceSettings
       context.handle(
         _themeMeta,
         theme.isAcceptableOrUnknown(data['theme']!, _themeMeta),
+      );
+    }
+    if (data.containsKey('accent')) {
+      context.handle(
+        _accentMeta,
+        accent.isAcceptableOrUnknown(data['accent']!, _accentMeta),
+      );
+    }
+    if (data.containsKey('font_family')) {
+      context.handle(
+        _fontFamilyMeta,
+        fontFamily.isAcceptableOrUnknown(data['font_family']!, _fontFamilyMeta),
+      );
+    }
+    if (data.containsKey('diary_title_font_family')) {
+      context.handle(
+        _diaryTitleFontFamilyMeta,
+        diaryTitleFontFamily.isAcceptableOrUnknown(
+          data['diary_title_font_family']!,
+          _diaryTitleFontFamilyMeta,
+        ),
+      );
+    }
+    if (data.containsKey('diary_body_font_family')) {
+      context.handle(
+        _diaryBodyFontFamilyMeta,
+        diaryBodyFontFamily.isAcceptableOrUnknown(
+          data['diary_body_font_family']!,
+          _diaryBodyFontFamilyMeta,
+        ),
       );
     }
     if (data.containsKey('reduce_motion')) {
@@ -121,6 +201,22 @@ class $AppearanceSettingsTable extends AppearanceSettings
         DriftSqlType.string,
         data['${effectivePrefix}theme'],
       )!,
+      accent: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}accent'],
+      )!,
+      fontFamily: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}font_family'],
+      )!,
+      diaryTitleFontFamily: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}diary_title_font_family'],
+      )!,
+      diaryBodyFontFamily: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}diary_body_font_family'],
+      )!,
       reduceMotion: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}reduce_motion'],
@@ -141,11 +237,19 @@ class $AppearanceSettingsTable extends AppearanceSettings
 class AppearanceRow extends DataClass implements Insertable<AppearanceRow> {
   final int id;
   final String theme;
+  final String accent;
+  final String fontFamily;
+  final String diaryTitleFontFamily;
+  final String diaryBodyFontFamily;
   final bool reduceMotion;
   final bool simplerEffects;
   const AppearanceRow({
     required this.id,
     required this.theme,
+    required this.accent,
+    required this.fontFamily,
+    required this.diaryTitleFontFamily,
+    required this.diaryBodyFontFamily,
     required this.reduceMotion,
     required this.simplerEffects,
   });
@@ -154,6 +258,10 @@ class AppearanceRow extends DataClass implements Insertable<AppearanceRow> {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
     map['theme'] = Variable<String>(theme);
+    map['accent'] = Variable<String>(accent);
+    map['font_family'] = Variable<String>(fontFamily);
+    map['diary_title_font_family'] = Variable<String>(diaryTitleFontFamily);
+    map['diary_body_font_family'] = Variable<String>(diaryBodyFontFamily);
     map['reduce_motion'] = Variable<bool>(reduceMotion);
     map['simpler_effects'] = Variable<bool>(simplerEffects);
     return map;
@@ -163,6 +271,10 @@ class AppearanceRow extends DataClass implements Insertable<AppearanceRow> {
     return AppearanceSettingsCompanion(
       id: Value(id),
       theme: Value(theme),
+      accent: Value(accent),
+      fontFamily: Value(fontFamily),
+      diaryTitleFontFamily: Value(diaryTitleFontFamily),
+      diaryBodyFontFamily: Value(diaryBodyFontFamily),
       reduceMotion: Value(reduceMotion),
       simplerEffects: Value(simplerEffects),
     );
@@ -176,6 +288,14 @@ class AppearanceRow extends DataClass implements Insertable<AppearanceRow> {
     return AppearanceRow(
       id: serializer.fromJson<int>(json['id']),
       theme: serializer.fromJson<String>(json['theme']),
+      accent: serializer.fromJson<String>(json['accent']),
+      fontFamily: serializer.fromJson<String>(json['fontFamily']),
+      diaryTitleFontFamily: serializer.fromJson<String>(
+        json['diaryTitleFontFamily'],
+      ),
+      diaryBodyFontFamily: serializer.fromJson<String>(
+        json['diaryBodyFontFamily'],
+      ),
       reduceMotion: serializer.fromJson<bool>(json['reduceMotion']),
       simplerEffects: serializer.fromJson<bool>(json['simplerEffects']),
     );
@@ -186,6 +306,10 @@ class AppearanceRow extends DataClass implements Insertable<AppearanceRow> {
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'theme': serializer.toJson<String>(theme),
+      'accent': serializer.toJson<String>(accent),
+      'fontFamily': serializer.toJson<String>(fontFamily),
+      'diaryTitleFontFamily': serializer.toJson<String>(diaryTitleFontFamily),
+      'diaryBodyFontFamily': serializer.toJson<String>(diaryBodyFontFamily),
       'reduceMotion': serializer.toJson<bool>(reduceMotion),
       'simplerEffects': serializer.toJson<bool>(simplerEffects),
     };
@@ -194,11 +318,19 @@ class AppearanceRow extends DataClass implements Insertable<AppearanceRow> {
   AppearanceRow copyWith({
     int? id,
     String? theme,
+    String? accent,
+    String? fontFamily,
+    String? diaryTitleFontFamily,
+    String? diaryBodyFontFamily,
     bool? reduceMotion,
     bool? simplerEffects,
   }) => AppearanceRow(
     id: id ?? this.id,
     theme: theme ?? this.theme,
+    accent: accent ?? this.accent,
+    fontFamily: fontFamily ?? this.fontFamily,
+    diaryTitleFontFamily: diaryTitleFontFamily ?? this.diaryTitleFontFamily,
+    diaryBodyFontFamily: diaryBodyFontFamily ?? this.diaryBodyFontFamily,
     reduceMotion: reduceMotion ?? this.reduceMotion,
     simplerEffects: simplerEffects ?? this.simplerEffects,
   );
@@ -206,6 +338,16 @@ class AppearanceRow extends DataClass implements Insertable<AppearanceRow> {
     return AppearanceRow(
       id: data.id.present ? data.id.value : this.id,
       theme: data.theme.present ? data.theme.value : this.theme,
+      accent: data.accent.present ? data.accent.value : this.accent,
+      fontFamily: data.fontFamily.present
+          ? data.fontFamily.value
+          : this.fontFamily,
+      diaryTitleFontFamily: data.diaryTitleFontFamily.present
+          ? data.diaryTitleFontFamily.value
+          : this.diaryTitleFontFamily,
+      diaryBodyFontFamily: data.diaryBodyFontFamily.present
+          ? data.diaryBodyFontFamily.value
+          : this.diaryBodyFontFamily,
       reduceMotion: data.reduceMotion.present
           ? data.reduceMotion.value
           : this.reduceMotion,
@@ -220,6 +362,10 @@ class AppearanceRow extends DataClass implements Insertable<AppearanceRow> {
     return (StringBuffer('AppearanceRow(')
           ..write('id: $id, ')
           ..write('theme: $theme, ')
+          ..write('accent: $accent, ')
+          ..write('fontFamily: $fontFamily, ')
+          ..write('diaryTitleFontFamily: $diaryTitleFontFamily, ')
+          ..write('diaryBodyFontFamily: $diaryBodyFontFamily, ')
           ..write('reduceMotion: $reduceMotion, ')
           ..write('simplerEffects: $simplerEffects')
           ..write(')'))
@@ -227,13 +373,26 @@ class AppearanceRow extends DataClass implements Insertable<AppearanceRow> {
   }
 
   @override
-  int get hashCode => Object.hash(id, theme, reduceMotion, simplerEffects);
+  int get hashCode => Object.hash(
+    id,
+    theme,
+    accent,
+    fontFamily,
+    diaryTitleFontFamily,
+    diaryBodyFontFamily,
+    reduceMotion,
+    simplerEffects,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is AppearanceRow &&
           other.id == this.id &&
           other.theme == this.theme &&
+          other.accent == this.accent &&
+          other.fontFamily == this.fontFamily &&
+          other.diaryTitleFontFamily == this.diaryTitleFontFamily &&
+          other.diaryBodyFontFamily == this.diaryBodyFontFamily &&
           other.reduceMotion == this.reduceMotion &&
           other.simplerEffects == this.simplerEffects);
 }
@@ -241,29 +400,51 @@ class AppearanceRow extends DataClass implements Insertable<AppearanceRow> {
 class AppearanceSettingsCompanion extends UpdateCompanion<AppearanceRow> {
   final Value<int> id;
   final Value<String> theme;
+  final Value<String> accent;
+  final Value<String> fontFamily;
+  final Value<String> diaryTitleFontFamily;
+  final Value<String> diaryBodyFontFamily;
   final Value<bool> reduceMotion;
   final Value<bool> simplerEffects;
   const AppearanceSettingsCompanion({
     this.id = const Value.absent(),
     this.theme = const Value.absent(),
+    this.accent = const Value.absent(),
+    this.fontFamily = const Value.absent(),
+    this.diaryTitleFontFamily = const Value.absent(),
+    this.diaryBodyFontFamily = const Value.absent(),
     this.reduceMotion = const Value.absent(),
     this.simplerEffects = const Value.absent(),
   });
   AppearanceSettingsCompanion.insert({
     this.id = const Value.absent(),
     this.theme = const Value.absent(),
+    this.accent = const Value.absent(),
+    this.fontFamily = const Value.absent(),
+    this.diaryTitleFontFamily = const Value.absent(),
+    this.diaryBodyFontFamily = const Value.absent(),
     this.reduceMotion = const Value.absent(),
     this.simplerEffects = const Value.absent(),
   });
   static Insertable<AppearanceRow> custom({
     Expression<int>? id,
     Expression<String>? theme,
+    Expression<String>? accent,
+    Expression<String>? fontFamily,
+    Expression<String>? diaryTitleFontFamily,
+    Expression<String>? diaryBodyFontFamily,
     Expression<bool>? reduceMotion,
     Expression<bool>? simplerEffects,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (theme != null) 'theme': theme,
+      if (accent != null) 'accent': accent,
+      if (fontFamily != null) 'font_family': fontFamily,
+      if (diaryTitleFontFamily != null)
+        'diary_title_font_family': diaryTitleFontFamily,
+      if (diaryBodyFontFamily != null)
+        'diary_body_font_family': diaryBodyFontFamily,
       if (reduceMotion != null) 'reduce_motion': reduceMotion,
       if (simplerEffects != null) 'simpler_effects': simplerEffects,
     });
@@ -272,12 +453,20 @@ class AppearanceSettingsCompanion extends UpdateCompanion<AppearanceRow> {
   AppearanceSettingsCompanion copyWith({
     Value<int>? id,
     Value<String>? theme,
+    Value<String>? accent,
+    Value<String>? fontFamily,
+    Value<String>? diaryTitleFontFamily,
+    Value<String>? diaryBodyFontFamily,
     Value<bool>? reduceMotion,
     Value<bool>? simplerEffects,
   }) {
     return AppearanceSettingsCompanion(
       id: id ?? this.id,
       theme: theme ?? this.theme,
+      accent: accent ?? this.accent,
+      fontFamily: fontFamily ?? this.fontFamily,
+      diaryTitleFontFamily: diaryTitleFontFamily ?? this.diaryTitleFontFamily,
+      diaryBodyFontFamily: diaryBodyFontFamily ?? this.diaryBodyFontFamily,
       reduceMotion: reduceMotion ?? this.reduceMotion,
       simplerEffects: simplerEffects ?? this.simplerEffects,
     );
@@ -291,6 +480,22 @@ class AppearanceSettingsCompanion extends UpdateCompanion<AppearanceRow> {
     }
     if (theme.present) {
       map['theme'] = Variable<String>(theme.value);
+    }
+    if (accent.present) {
+      map['accent'] = Variable<String>(accent.value);
+    }
+    if (fontFamily.present) {
+      map['font_family'] = Variable<String>(fontFamily.value);
+    }
+    if (diaryTitleFontFamily.present) {
+      map['diary_title_font_family'] = Variable<String>(
+        diaryTitleFontFamily.value,
+      );
+    }
+    if (diaryBodyFontFamily.present) {
+      map['diary_body_font_family'] = Variable<String>(
+        diaryBodyFontFamily.value,
+      );
     }
     if (reduceMotion.present) {
       map['reduce_motion'] = Variable<bool>(reduceMotion.value);
@@ -306,6 +511,10 @@ class AppearanceSettingsCompanion extends UpdateCompanion<AppearanceRow> {
     return (StringBuffer('AppearanceSettingsCompanion(')
           ..write('id: $id, ')
           ..write('theme: $theme, ')
+          ..write('accent: $accent, ')
+          ..write('fontFamily: $fontFamily, ')
+          ..write('diaryTitleFontFamily: $diaryTitleFontFamily, ')
+          ..write('diaryBodyFontFamily: $diaryBodyFontFamily, ')
           ..write('reduceMotion: $reduceMotion, ')
           ..write('simplerEffects: $simplerEffects')
           ..write(')'))
@@ -4837,6 +5046,10 @@ typedef $$AppearanceSettingsTableCreateCompanionBuilder =
     AppearanceSettingsCompanion Function({
       Value<int> id,
       Value<String> theme,
+      Value<String> accent,
+      Value<String> fontFamily,
+      Value<String> diaryTitleFontFamily,
+      Value<String> diaryBodyFontFamily,
       Value<bool> reduceMotion,
       Value<bool> simplerEffects,
     });
@@ -4844,6 +5057,10 @@ typedef $$AppearanceSettingsTableUpdateCompanionBuilder =
     AppearanceSettingsCompanion Function({
       Value<int> id,
       Value<String> theme,
+      Value<String> accent,
+      Value<String> fontFamily,
+      Value<String> diaryTitleFontFamily,
+      Value<String> diaryBodyFontFamily,
       Value<bool> reduceMotion,
       Value<bool> simplerEffects,
     });
@@ -4864,6 +5081,26 @@ class $$AppearanceSettingsTableFilterComposer
 
   ColumnFilters<String> get theme => $composableBuilder(
     column: $table.theme,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get accent => $composableBuilder(
+    column: $table.accent,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get fontFamily => $composableBuilder(
+    column: $table.fontFamily,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get diaryTitleFontFamily => $composableBuilder(
+    column: $table.diaryTitleFontFamily,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get diaryBodyFontFamily => $composableBuilder(
+    column: $table.diaryBodyFontFamily,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4897,6 +5134,26 @@ class $$AppearanceSettingsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get accent => $composableBuilder(
+    column: $table.accent,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get fontFamily => $composableBuilder(
+    column: $table.fontFamily,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get diaryTitleFontFamily => $composableBuilder(
+    column: $table.diaryTitleFontFamily,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get diaryBodyFontFamily => $composableBuilder(
+    column: $table.diaryBodyFontFamily,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get reduceMotion => $composableBuilder(
     column: $table.reduceMotion,
     builder: (column) => ColumnOrderings(column),
@@ -4922,6 +5179,24 @@ class $$AppearanceSettingsTableAnnotationComposer
 
   GeneratedColumn<String> get theme =>
       $composableBuilder(column: $table.theme, builder: (column) => column);
+
+  GeneratedColumn<String> get accent =>
+      $composableBuilder(column: $table.accent, builder: (column) => column);
+
+  GeneratedColumn<String> get fontFamily => $composableBuilder(
+    column: $table.fontFamily,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get diaryTitleFontFamily => $composableBuilder(
+    column: $table.diaryTitleFontFamily,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get diaryBodyFontFamily => $composableBuilder(
+    column: $table.diaryBodyFontFamily,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<bool> get reduceMotion => $composableBuilder(
     column: $table.reduceMotion,
@@ -4976,11 +5251,19 @@ class $$AppearanceSettingsTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 Value<String> theme = const Value.absent(),
+                Value<String> accent = const Value.absent(),
+                Value<String> fontFamily = const Value.absent(),
+                Value<String> diaryTitleFontFamily = const Value.absent(),
+                Value<String> diaryBodyFontFamily = const Value.absent(),
                 Value<bool> reduceMotion = const Value.absent(),
                 Value<bool> simplerEffects = const Value.absent(),
               }) => AppearanceSettingsCompanion(
                 id: id,
                 theme: theme,
+                accent: accent,
+                fontFamily: fontFamily,
+                diaryTitleFontFamily: diaryTitleFontFamily,
+                diaryBodyFontFamily: diaryBodyFontFamily,
                 reduceMotion: reduceMotion,
                 simplerEffects: simplerEffects,
               ),
@@ -4988,11 +5271,19 @@ class $$AppearanceSettingsTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 Value<String> theme = const Value.absent(),
+                Value<String> accent = const Value.absent(),
+                Value<String> fontFamily = const Value.absent(),
+                Value<String> diaryTitleFontFamily = const Value.absent(),
+                Value<String> diaryBodyFontFamily = const Value.absent(),
                 Value<bool> reduceMotion = const Value.absent(),
                 Value<bool> simplerEffects = const Value.absent(),
               }) => AppearanceSettingsCompanion.insert(
                 id: id,
                 theme: theme,
+                accent: accent,
+                fontFamily: fontFamily,
+                diaryTitleFontFamily: diaryTitleFontFamily,
+                diaryBodyFontFamily: diaryBodyFontFamily,
                 reduceMotion: reduceMotion,
                 simplerEffects: simplerEffects,
               ),

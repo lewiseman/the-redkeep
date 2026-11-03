@@ -1,3 +1,5 @@
+import 'package:redkeep/features/assets/presentation/local_artwork.dart';
+
 import 'dart:async';
 
 import 'package:drift/native.dart';
@@ -569,7 +571,17 @@ void main() {
       }
     });
     await pumpApp(tester, initialLocation: '/notes', notes: repo);
-    final art = tester.widgetList<Image>(find.byType(Image)).single;
+    final art = tester
+        .widgetList<Image>(
+          find.descendant(
+            of: find.byWidgetPredicate(
+              (widget) =>
+                  widget is LocalArtwork && widget.assetKey == 'notes.add',
+            ),
+            matching: find.byType(Image),
+          ),
+        )
+        .single;
     expect(art.image, isA<ResizeImage>());
     expect((art.image as ResizeImage).width, 120);
     expect(find.byType(ListTile).evaluate().length, lessThan(20));

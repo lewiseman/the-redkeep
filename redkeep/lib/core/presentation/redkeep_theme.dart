@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import '../../features/appearance/domain/appearance_preferences.dart';
+import 'diary_typography.dart';
 
 @immutable
 class PaperColors extends ThemeExtension<PaperColors> {
@@ -24,29 +28,59 @@ abstract final class RedkeepTheme {
   static final light = _build(Brightness.light);
   static final dark = _build(Brightness.dark);
 
-  static ThemeData _build(Brightness brightness) {
+  static ThemeData forAppearance(
+    Brightness brightness,
+    AppAccent accent, {
+    TextTheme? fonts,
+    DiaryTypography diary = const DiaryTypography(),
+  }) {
+    final base = _build(brightness, accent);
+    final colors = base.colorScheme;
+    return base.copyWith(
+      textTheme: fonts?.apply(
+        bodyColor: colors.onSurface,
+        displayColor: colors.onSurface,
+      ),
+      primaryTextTheme: fonts?.apply(
+        bodyColor: colors.onPrimary,
+        displayColor: colors.onPrimary,
+      ),
+      extensions: [
+        ...base.extensions.values.where(
+          (extension) => extension is! DiaryTypography,
+        ),
+        diary.copyWith(
+          title: diary.title.copyWith(color: colors.onSurface),
+          body: diary.body.copyWith(color: colors.onSurface),
+        ),
+      ],
+    );
+  }
+
+  static ThemeData _build(
+    Brightness brightness, [
+    AppAccent accent = AppAccent.indigo,
+  ]) {
     final dark = brightness == Brightness.dark;
-    final ink = dark ? const Color(0xFFF2E7D7) : const Color(0xFF29251F);
-    final muted = dark ? const Color(0xFFC9BDAA) : const Color(0xFF5D5148);
-    final background = dark ? const Color(0xFF1B1917) : const Color(0xFFF1E9DD);
-    final paper = dark ? const Color(0xFF27231F) : const Color(0xFFFFF8EB);
-    final accent = dark ? const Color(0xFFE8AAA2) : const Color(0xFF7B302F);
-    final scheme =
-        ColorScheme.fromSeed(
-          seedColor: accent,
-          brightness: brightness,
-        ).copyWith(
-          primary: accent,
-          onPrimary: dark ? const Color(0xFF381212) : Colors.white,
-          surface: paper,
-          onSurface: ink,
-          onSurfaceVariant: muted,
-          outline: dark ? const Color(0xFF9A8C78) : const Color(0xFF7B6B58),
-        );
+    final generated = ColorScheme.fromSeed(
+      seedColor: accent.seed,
+      brightness: brightness,
+    );
+    final primary = dark ? accent.darkPrimary : accent.seed;
+    final scheme = generated.copyWith(
+      primary: primary,
+      primaryContainer: Color.alphaBlend(
+        primary.withValues(alpha: dark ? .18 : .10),
+        generated.surface,
+      ),
+      onPrimaryContainer: generated.onSurface,
+    );
+    final ink = scheme.onSurface;
+    final background = scheme.surface;
+    final paper = scheme.surface;
     final base = ThemeData(brightness: brightness, colorScheme: scheme);
     return base.copyWith(
       scaffoldBackgroundColor: background,
-      // Platform system fonts remain in use; no presentation assets are bundled.
       textTheme: base.textTheme.copyWith(
         headlineSmall: TextStyle(
           fontSize: 28,
@@ -73,8 +107,19 @@ abstract final class RedkeepTheme {
         backgroundColor: background,
         foregroundColor: ink,
         scrolledUnderElevation: 0,
+        systemOverlayStyle: SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: dark ? Brightness.light : Brightness.dark,
+          statusBarBrightness: brightness,
+          systemNavigationBarIconBrightness: dark
+              ? Brightness.light
+              : Brightness.dark,
+        ),
       ),
-      extensions: [PaperColors(sheet: paper, edge: scheme.outline)],
+      extensions: [
+        PaperColors(sheet: paper, edge: scheme.outline),
+        const DiaryTypography(),
+      ],
     );
   }
 }

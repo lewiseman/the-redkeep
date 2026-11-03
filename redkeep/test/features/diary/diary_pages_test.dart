@@ -75,6 +75,74 @@ void main() {
   }
 
   diaryTest(
+    'diary title and body fonts apply to day, reader and editor without changing writing',
+    (tester) async {
+      await seed(body: 'Exact writing stays unchanged');
+      final appearance = FakeAppearanceRepository(
+        const AppearancePreferences(
+          fontFamily: 'Lora',
+          diaryTitleFontFamily: 'Poppins',
+          diaryBodyFontFamily: 'Caveat',
+        ),
+      );
+      addTearDown(appearance.close);
+      final router = await pumpApp(
+        tester,
+        initialLocation: diaryEntryLocation(date, id),
+        diary: repo,
+        repository: appearance,
+      );
+      expect(
+        tester.widget<Text>(find.text('Synthetic entry')).style!.fontFamily,
+        'Poppins',
+      );
+      expect(
+        tester
+            .widget<SelectableText>(find.byType(SelectableText))
+            .style!
+            .fontFamily,
+        'Caveat',
+      );
+      router.go(diaryEntryLocation(date, id, edit: true));
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<TextField>(find.byKey(const ValueKey('diary-title')))
+            .style!
+            .fontFamily,
+        'Poppins',
+      );
+      expect(
+        tester
+            .widget<TextField>(find.byKey(const ValueKey('diary-body')))
+            .style!
+            .fontFamily,
+        'Caveat',
+      );
+      expect(
+        tester
+            .widget<TextField>(find.byKey(const ValueKey('diary-body')))
+            .controller!
+            .text,
+        'Exact writing stays unchanged',
+      );
+      router.go(diaryDayLocation(date));
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<Text>(find.text('Synthetic entry')).style!.fontFamily,
+        'Poppins',
+      );
+      expect(
+        tester
+            .widget<Text>(find.text('Exact writing stays unchanged'))
+            .style!
+            .fontFamily,
+        'Caveat',
+      );
+    },
+  );
+
+  diaryTest(
     'empty day → durable create → committed read/edit → confirmed delete and unavailable old route',
     (tester) async {
       final router = await pumpApp(

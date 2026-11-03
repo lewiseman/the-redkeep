@@ -5,6 +5,9 @@ import '../../../app/app_shell.dart';
 import '../../../core/presentation/paper_surface.dart';
 import '../../../core/presentation/rendering_policy.dart';
 import '../application/appearance_controller.dart';
+import '../application/appearance_typography.dart';
+import '../../../core/presentation/diary_typography.dart';
+import 'font_picker.dart';
 import '../domain/appearance_preferences.dart';
 import '../../assets/presentation/local_artwork.dart';
 
@@ -100,6 +103,115 @@ class AppearancePage extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                Text('Accent color', style: text.titleLarge),
+                const SizedBox(height: 14),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final width = constraints.maxWidth >= 336
+                        ? constraints.maxWidth / AppAccent.values.length
+                        : 64.0;
+                    return SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          for (final accent in AppAccent.values)
+                            SizedBox(
+                              width: width,
+                              child: Semantics(
+                                button: true,
+                                selected: state.preferences.accent == accent,
+                                label: '${accent.label}: ${accent.description}',
+                                child: InkWell(
+                                  onTap: state.canEdit
+                                      ? () => controller.setAccent(accent)
+                                      : null,
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 6,
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        Container(
+                                          width: 52,
+                                          height: 52,
+                                          padding: const EdgeInsets.all(3),
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            border: Border.all(
+                                              color:
+                                                  state.preferences.accent ==
+                                                      accent
+                                                  ? accent.darkPrimary
+                                                  : Colors.transparent,
+                                              width: 1.4,
+                                            ),
+                                          ),
+                                          child: DecoratedBox(
+                                            decoration: BoxDecoration(
+                                              color: accent.seed,
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child:
+                                                state.preferences.accent ==
+                                                    accent
+                                                ? const Icon(
+                                                    Icons.check_rounded,
+                                                    color: Colors.white,
+                                                    size: 24,
+                                                  )
+                                                : null,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 7),
+                                        Text(
+                                          accent.label,
+                                          textAlign: TextAlign.center,
+                                          style: text.bodySmall,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          PaperSurface(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('Typography', style: text.titleLarge),
+                const SizedBox(height: 12),
+                for (final role in FontRole.values) ...[
+                  _FontButton(role: role, state: state),
+                  const SizedBox(height: 10),
+                ],
+                const Divider(),
+                Text(
+                  'A little room to breathe.',
+                  style: DiaryTypography.of(context).title,
+                ),
+                const SizedBox(height: 9),
+                Text(
+                  'Coffee by the window, and nowhere to rush. I want to remember the small things.',
+                  style: DiaryTypography.of(context).body,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          PaperSurface(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
                 Semantics(
                   header: true,
                   child: Text('Motion and effects', style: text.titleLarge),
@@ -142,6 +254,66 @@ class AppearancePage extends ConsumerWidget {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FontButton extends ConsumerWidget {
+  const _FontButton({required this.role, required this.state});
+  final FontRole role;
+  final AppearanceState state;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = Theme.of(context).colorScheme;
+    final fontState = ref.watch(appearanceFontProvider(role));
+    final (label, family) = switch (role) {
+      FontRole.journal => ('Journal font', state.preferences.fontFamily),
+      FontRole.diaryTitle => (
+        'Diary title font',
+        state.preferences.diaryTitleFontFamily,
+      ),
+      FontRole.diaryBody => (
+        'Diary body font',
+        state.preferences.diaryBodyFontFamily,
+      ),
+    };
+    return Material(
+      color: colors.surfaceContainer,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: colors.primary.withValues(alpha: .16)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ListTile(
+            leading: MediaQuery.textScalerOf(context).scale(25) > 40
+                ? null
+                : const Text(
+                    'Aa',
+                    style: TextStyle(fontSize: 25, fontWeight: FontWeight.w600),
+                  ),
+            title: Text(label),
+            subtitle: Text(family),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            enabled: state.canEdit,
+            onTap: () => showFontPicker(
+              context,
+              selectedFont: family,
+              onSelected: (font) => ref
+                  .read(appearanceControllerProvider.notifier)
+                  .setFontFamily(font, role),
+            ),
+          ),
+          if (fontState.hasError)
+            TextButton(
+              onPressed: () => ref.invalidate(appearanceFontProvider(role)),
+              child: const Text('Font unavailable. Retry loading'),
+            ),
         ],
       ),
     );

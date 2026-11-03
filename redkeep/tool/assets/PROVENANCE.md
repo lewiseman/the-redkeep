@@ -252,3 +252,21 @@ It is a 1122×1402 project-generated Redkeep castle cover. The exact PNG master
 and JPEG export remain indexed in `assets/reference/manifest.json`.
 Its project-generated provenance does not assert a new third-party license. Public redistribution qualification
 remains separate. Website image bytes and bundled startup branding are unchanged.
+
+## Legacy bottom navigation migration — 3 November 2026
+
+The four active navigation images reuse the existing `diary.png`, `notes.png`,
+`flow.png`, and `more.png` in `website/public/art/`; their bytes match the legacy
+active images exactly. Only the four inactive 192 × 192 PNGs were copied into
+`website/public/art/navigation/` from the previous app's
+`assets/images/navigation/`. Its original generation record is retained in
+`website/public/art/navigation/ARTWORK.md`.
+They are pinned in the existing presentation catalog and resolved through the
+same verified download/cache path as the app's other artwork. No new artwork
+or fonts are bundled. Both navigation states stay mounted for the original
+crossfade; full-color artwork stays untinted while labels and the edge glow
+follow the app accent. Reduced motion stops animations, and simpler effects
+removes the gradient and glow.
+
+Font selections use the existing Google Fonts package's download/cache path,
+with the legacy 10-second request timeout and load-before-save behavior.

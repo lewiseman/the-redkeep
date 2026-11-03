@@ -1,3 +1,7 @@
+import 'package:redkeep/features/appearance/application/appearance_typography.dart';
+
+import '../../support/fake_appearance_fonts.dart';
+
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -31,6 +35,9 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
+            appearanceFontLoaderProvider.overrideWithValue(
+              fakeAppearanceFontLoader,
+            ),
             appDatabaseProvider.overrideWithValue(h.db),
             appearanceRepositoryProvider.overrideWithValue(appearance),
             onboardingRepositoryProvider.overrideWithValue(

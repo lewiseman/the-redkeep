@@ -51,6 +51,10 @@ void main() {
       for (final theme in AppTheme.values) {
         final expected = AppearancePreferences(
           theme: theme,
+          accent: AppAccent.values[theme.index + 1],
+          fontFamily: 'Lora',
+          diaryTitleFontFamily: 'Poppins',
+          diaryBodyFontFamily: 'Caveat',
           reduceMotion: theme != AppTheme.light,
           simplerEffects: theme != AppTheme.dark,
         );

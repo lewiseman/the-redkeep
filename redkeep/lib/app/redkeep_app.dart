@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/presentation/redkeep_theme.dart';
+import '../core/presentation/diary_typography.dart';
+import '../features/appearance/application/appearance_typography.dart';
 import '../core/presentation/rendering_policy.dart';
 import '../features/appearance/application/appearance_controller.dart';
 import '../features/appearance/domain/appearance_preferences.dart';
@@ -16,6 +18,22 @@ class RedkeepApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final appearance = ref.watch(appearanceControllerProvider);
     final router = ref.watch(appRouterProvider);
+    final journal = ref.watch(appearanceFontProvider(FontRole.journal)).value;
+    final diaryTitle = ref
+        .watch(appearanceFontProvider(FontRole.diaryTitle))
+        .value;
+    final diaryBody = ref
+        .watch(appearanceFontProvider(FontRole.diaryBody))
+        .value;
+    ThemeData theme(Brightness brightness) => RedkeepTheme.forAppearance(
+      brightness,
+      appearance.preferences.accent,
+      fonts: journal?.textTheme,
+      diary: DiaryTypography(
+        title: diaryTitle?.style ?? const DiaryTypography().title,
+        body: diaryBody?.style ?? const DiaryTypography().body,
+      ),
+    );
     return MaterialApp.router(
       title: 'Redkeep',
       debugShowCheckedModeBanner: false,
@@ -23,8 +41,8 @@ class RedkeepApp extends ConsumerWidget {
       routeInformationParser: router.routeInformationParser,
       routerDelegate: router.routerDelegate,
       backButtonDispatcher: router.backButtonDispatcher,
-      theme: RedkeepTheme.light,
-      darkTheme: RedkeepTheme.dark,
+      theme: theme(Brightness.light),
+      darkTheme: theme(Brightness.dark),
       themeMode: switch (appearance.preferences.theme) {
         AppTheme.system => ThemeMode.system,
         AppTheme.light => ThemeMode.light,

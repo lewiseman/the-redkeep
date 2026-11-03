@@ -1,0 +1,67 @@
+{
+  "phase": "W01 mascot and Download status follow-up",
+  "date": "2026-11-03",
+  "mascot": {
+    "source": "redkeep/assets/branding/grand_maestar.png",
+    "destination": "website/public/art/j.png",
+    "reference_key": "onboarding.brand.mascot",
+    "bytes": 1842097,
+    "sha256": "5e698de4f5ab0413e36094c45ee16a67e11bcbc7408a9a7fb558c391a9be10e5",
+    "unchanged_copy": true,
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "consumers": [
+      "hero",
+      "book faces",
+      "feature icon",
+      "footer",
+      "social metadata"
+    ]
+  },
+  "download": {
+    "header_status_removed": true,
+    "button_disabled": true,
+    "destination": null,
+    "unused_wrapper_description_and_compact_prop_removed": true
+  },
+  "checks": {
+    "typecheck": "passed",
+    "lint": "passed zero warnings",
+    "production_build": "passed",
+    "browser_tests": {
+      "passed": 15,
+      "failed": 0,
+      "stats": {
+        "startTime": "2026-11-03T14:11:45.928Z",
+        "duration": 22697.914,
+        "expected": 15,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    "all_reference_hashes_valid": 34,
+    "original_screenshot_hashes": "unchanged",
+    "reviewed_static_budget_bytes": 7000000,
+    "static_output_bytes": 6956942,
+    "first_page_encoded_resource_bytes": 6641176
+  },
+  "budget_change": "6.5 MB to 7 MB deliberately reviewed for the exact user-selected 1,842,097-byte original, replacing 64,238 bytes without recompression.",
+  "evidence": [
+    "desktop-hero.png",
+    "touch-390.png",
+    "touch-320.png",
+    "touch-844.png"
+  ],
+  "preview": "http://127.0.0.1:5173/ user-owned dev server retained",
+  "boundary": {
+    "mobile_source": "unchanged",
+    "reference_library": "all existing rows and bytes unchanged",
+    "cover_and_name_editing": "unchanged",
+    "dependencies": "unchanged",
+    "published": false
+  },
+  "next_work": "Stop at this W01 follow-up."
+}

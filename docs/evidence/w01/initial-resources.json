@@ -1,0 +1,117 @@
+{
+  "resources": [
+    {
+      "path": "/assets/main-DVuewk8H.js",
+      "encodedBytes": 123657
+    },
+    {
+      "path": "/art/diary_calendar_pin.png",
+      "encodedBytes": 29803
+    },
+    {
+      "path": "/assets/main-DKAaiK-H.css",
+      "encodedBytes": 10797
+    },
+    {
+      "path": "/art/night.jpg",
+      "encodedBytes": 407781
+    },
+    {
+      "path": "/art/notes.png",
+      "encodedBytes": 45592
+    },
+    {
+      "path": "/art/flow.png",
+      "encodedBytes": 33484
+    },
+    {
+      "path": "/art/diary.png",
+      "encodedBytes": 47353
+    },
+    {
+      "path": "/art/more.png",
+      "encodedBytes": 48880
+    },
+    {
+      "path": "/art/theme_light.png",
+      "encodedBytes": 146694
+    },
+    {
+      "path": "/art/theme_dark.png",
+      "encodedBytes": 127553
+    },
+    {
+      "path": "/art/j.png",
+      "encodedBytes": 1842097
+    },
+    {
+      "path": "/fonts/Nunito.ttf",
+      "encodedBytes": 275644
+    },
+    {
+      "path": "/art/ai.webp",
+      "encodedBytes": 238092
+    },
+    {
+      "path": "/art/diary.webp",
+      "encodedBytes": 222646
+    },
+    {
+      "path": "/art/notes.webp",
+      "encodedBytes": 189794
+    },
+    {
+      "path": "/fonts/Caveat-Medium.ttf",
+      "encodedBytes": 251728
+    },
+    {
+      "path": "/fonts/Lora-Regular.ttf",
+      "encodedBytes": 132164
+    },
+    {
+      "path": "/art/ink-paper.webp",
+      "encodedBytes": 341878
+    },
+    {
+      "path": "/art/cover-redkeep-castle-v1.jpg",
+      "encodedBytes": 477330
+    },
+    {
+      "path": "/art/flow.jpg",
+      "encodedBytes": 544939
+    },
+    {
+      "path": "/art/appearance.jpg",
+      "encodedBytes": 526093
+    },
+    {
+      "path": "/shots/diary.jpg",
+      "encodedBytes": 101396
+    },
+    {
+      "path": "/shots/photo-story.jpg",
+      "encodedBytes": 93651
+    },
+    {
+      "path": "/shots/flow.jpg",
+      "encodedBytes": 114120
+    },
+    {
+      "path": "/shots/note-tools.jpg",
+      "encodedBytes": 86902
+    },
+    {
+      "path": "/shots/talk.jpg",
+      "encodedBytes": 61633
+    },
+    {
+      "path": "/shots/ask.jpg",
+      "encodedBytes": 121563
+    },
+    {
+      "path": "/favicon.svg",
+      "encodedBytes": 227
+    }
+  ],
+  "encodedBytes": 6643491
+}

@@ -75,16 +75,7 @@ class StartupPage extends ConsumerWidget {
                                 excludeFromSemantics: true,
                               ),
                               const SizedBox(height: 20),
-                              const Text(
-                                'REDKEEP',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: mutedInk,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 4,
-                                ),
-                              ),
+                         
                               const SizedBox(height: 32),
                               Text(
                                 checking

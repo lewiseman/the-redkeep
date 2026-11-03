@@ -4,9 +4,9 @@ Agreed on 2 November 2026. Workspace: `/Users/lewis/Dev/Projects/The Redkeep`.
 
 ## 1. Purpose and how to use this guide
 
-Focus on the mobile writing app and selected legacy page UI migrations. As agreed on 3 November 2026, retain the existing desktop app and marketing website; their rebuild tracks are parked. Preserve the journal, paper, artwork, and book identity while improving architecture, accessibility, performance, and testability.
+Focus on the mobile writing app and selected legacy page UI migrations. As agreed on 3 November 2026, retain the existing desktop app; its rebuild track is parked. Later that day the user explicitly reopened W01 as a local-only website copy/rename, preserving the legacy UI and screenshots. The hosted website stays unchanged until separately authorized publication. Preserve the journal, paper, artwork, and book identity while improving architecture, accessibility, performance, and testability.
 
-**Current direction:** UI01 retains the legacy book/folding name cover, primary action, dots/hint and bottom Terms/Privacy links. The latest user choice replaces the old mascot with the supplied `grand_maestar.png` and uses `google_fonts` for Allura, with no bundled font binary. Added Previous/Next, numeric counter and Back controls remain removed. Missing name means onboarding; schema 8 preserves writing/settings and older completion rows without inventing names. The user confirmed onboarding and name only. `presentation-ui01-v3` contains 12 downloads / 2,658,676 bytes. The selected mascot and ink-paper background ship unchanged for startup and both onboarding layouts; retired ink-paper URL overrides are ignored. The startup screen now uses this branding and an accessible progress bar; exact local references keep tests offline. Formatting/analysis, all 361 offline tests, local pack validation and Android debug packaging pass; see [the current guide](docs/onboarding-ui-migration.md) and [current startup evidence](docs/evidence/ui01/startup/verification.json). Live font/Firebase/native-device qualification remains unverified. M12 and any other feature/UI need separate selection; desktop/website stay parked.
+**Current direction:** UI01 retains the legacy book/folding name cover, primary action, dots/hint and bottom Terms/Privacy links. The latest user choice replaces the old mascot with the supplied `grand_maestar.png` and uses `google_fonts` for Allura, with no bundled font binary. Added Previous/Next, numeric counter and Back controls remain removed. Missing name means onboarding; schema 8 preserves writing/settings and older completion rows without inventing names. The user confirmed onboarding and name only. `presentation-ui01-v3` contains 12 downloads / 2,658,676 bytes. The selected mascot and ink-paper background ship unchanged for startup and both onboarding layouts; retired ink-paper URL overrides are ignored. The startup screen now uses this branding and an accessible progress bar; exact local references keep tests offline. Formatting/analysis, all 361 offline tests, local pack validation and Android debug packaging pass; see [the current guide](docs/onboarding-ui-migration.md) and [current startup evidence](docs/evidence/ui01/startup/verification.json). Live font/Firebase/native-device qualification remains unverified. M12 and any other feature/UI need separate selection; desktop stays parked. W01 is separately reopened below; its website-only scope changes do not alter mobile.
 
 The documentation task creates this file only. It does not initialize Git, create `AGENTS.md`, install packages, migrate assets, or change application code. Those actions belong to the selected implementation phases below.
 
@@ -52,7 +52,7 @@ Use `Not started`, `In progress`, `Complete`, `Partial`, or `Deferred`. A partia
 | D01 — Flutter desktop foundation | Deferred | Existing desktop app retained by user decision on 3 November 2026. | Parked; not a gate for mobile acceptance and never automatic. Requires explicit user rescoping. |
 | D02 — Companion connection | Deferred | No new mobile-to-old-desktop compatibility work selected. | Parked with D01; retaining the old app does not establish protocol compatibility. |
 | D03 — Desktop release preparation | Deferred | — | Parked with the desktop rebuild. |
-| W01 — Marketing website | Deferred | Existing website retained by user decision on 3 November 2026. | Parked; not a gate for mobile or later feature planning. |
+| W01 — Marketing website | Complete | Explicitly reopened local React/TypeScript/Vite copy/rename with selected Grand Maester branding with original carousel/card animations and no added book controls or mascot mouse-follow movement, restored browser-local cover-name typing and all six screenshot bytes preserved; follow-up replaces the cover-title patch with generated lavender castle art and clear name space. TypeScript, lint, prerender/build integrity, 17 browser/axe checks and local preview pass; see docs/website.md and docs/evidence/w01/verification.json. | User requested disabled destination-free Download buttons without the header status line, no release section and no website simpler/reduced-motion mode. No publication; rights/host/metadata/browser qualification prerequisites remain in the guide. Desktop stays deferred; no next phase automatically authorized. |
 
 For each executed phase, append a record under **Phase records** with: date, phase ID, changed behavior and contracts, exact commands and results, device/build/model identifiers where relevant, remaining limitations, and the next eligible prompt. Never include API keys, pairing credentials, or private writing in evidence.
 
@@ -77,9 +77,9 @@ For each executed phase, append a record under **Phase records** with: date, pha
 
 The first mobile release contains Notes, Diary, Flow, appearance/accessibility settings, required-asset startup handling, and basic on-device Grand Maester assistance. Start with a fresh database and retain the new app identity, currently `com.lewiseman.redkeep`. No legacy data importer, in-place upgrade, or old cloud-account migration is included.
 
-The existing desktop app and marketing website will continue to be used unchanged. New desktop/website applications and their packaging, publishing, shared-package extraction, and connection work are outside the active mobile migration scope. Compatibility between Redkeep mobile and the old desktop protocol has not been established or selected by this UI planning step.
+The existing desktop app and hosted marketing website continue unchanged. The user later reopened W01 for a local-only website sibling, retaining the legacy UI and screenshots; publication remains excluded. Desktop applications, shared-package extraction and connection work remain outside the active scope. Compatibility between Redkeep mobile and the old desktop protocol has not been established or selected by this UI planning step.
 
-The historical D01–D03/W01 prompts are retained below as parked reference material. If the user explicitly reopens them, revisit their assumptions against the then-current apps before execution. They are not prerequisites for mobile completion or deferred mobile feature planning.
+The historical D01–D03 prompts remain parked reference material. W01 was explicitly reopened and its release/product assumptions revalidated on 3 November 2026; the later phase record documents the user-selected exceptions. If the user explicitly reopens desktop work, revisit its assumptions against the then-current apps before execution. They are not prerequisites for mobile completion or deferred mobile feature planning.
 
 Defer third-party API backends, tasks/alarms/notifications, People and P2P note sharing, collaborative text editing, semantic search/embeddings, advanced attachments/media, voice, and cloud sync. Their planning prompts appear later in this guide. The desktop AI transport does not constitute P2P note sharing or journal synchronization.
 
@@ -89,7 +89,7 @@ The new product uses **Grand Maester**, with no QVAC branding, QVAC runtime, Ele
 
 ### 3.1 Workspace and code organization
 
-Use one repository rooted at `/Users/lewis/Dev/Projects/The Redkeep`. Keep the current mobile location. Creating sibling `desktop` and `website` apps is parked; no shared Dart package extraction is justified by those future consumers now. If that scope is explicitly reopened later, extract shared code only for a real second consumer. Preserve `raw_assets` as source material outside application asset bundles and do not access it.
+Use one repository rooted at `/Users/lewis/Dev/Projects/The Redkeep`. Keep the current mobile location. Creating a sibling `desktop` app is parked. W01 now creates only the explicitly reopened `website/` React sibling; no shared Dart package extraction is justified. If that scope is explicitly reopened later, extract shared code only for a real second consumer. Preserve `raw_assets` as source material outside application asset bundles and do not access it.
 
 Within mobile, use feature-first organization with MVVM-style presentation:
 
@@ -181,6 +181,8 @@ Routine startup with complete local assets needs no internet and must not fetch 
 AI model downloads are separate and optional. Future videos and notification sounds use the media delivery boundary only after their own feature is authorized. Validate platform sound-location, format, and scheduling rules then; do not assume every downloaded sound can directly serve as a system notification sound.
 
 ### 3.5 Motion, visual effects, and performance
+
+This remains the mobile contract. For W01 only, the user explicitly removed the website Simpler view control and all reduced-motion handling; see the W01 record and website guide.
 
 Create one reactive rendering policy combining platform accessibility with saved app preferences. Effective reduced motion is true when the OS requests it or the user enables additional reduction. An app preference cannot override an OS reduction request. Effective simpler effects is true under reduced motion or when explicitly selected by the user. Changes apply while the app is running and persist across restart.
 
@@ -2389,3 +2391,215 @@ build was performed. Existing native configuration, writing/settings, user
 artwork bytes and unrelated staged work are preserved; `raw_assets/` and legacy
 projects were not accessed. M03/M10 hardware and M04 hosting gaps remain. Stop
 at this selected startup/onboarding follow-up; further UI or M12 requires selection.
+
+
+### 3 November 2026 — W01: local website copy and Redkeep rename
+
+**Reopening and current scope.** The user explicitly reopened the parked website
+rebuild, asked to mostly copy/rename Journal to Redkeep with the same UI, and
+then directed: keep screenshots unchanged; leave out releases and use an empty
+Download button; remove Simpler view; remove all website reduced-motion handling.
+These instructions supersede the historical W01 prompt's motion/download UI
+requirements for this website only. Desktop rebuilds, mobile paths and production
+publication remain excluded. No routine approval was requested after reopening.
+
+**Assumptions revalidated.** Read the plan, AGENTS, architecture guide, reference
+manifest and applicable Sites local-only/design/preview workflow. Inspected only
+the selected legacy website files, asset provenance/fonts and desktop release
+guidance read-only. Public release APIs returned HTTP 200: Redkeep has no listed
+release; the existing Journal Android APK is a separate product. The desktop
+README documents an unsigned local preview, not a Redkeep download. No old
+release URL is repurposed, no store/account/private release is claimed verified,
+and no binary was downloaded. Official React/TypeScript, Vite, GSAP, Tailwind,
+Playwright and typescript-eslint APIs/compatibility were checked before selecting
+dependencies; a new reproducible npm lockfile belongs only to `website/`.
+
+**Delivered.** Local sibling React 19 / strict TypeScript / Vite 8 website, with
+the legacy night hero, pinned note, mascot/stationery, sun-to-book handoff,
+page-turning book, chapter rail, phone carousel, ruled index and paper legal
+pages. Live Redkeep wordmarks and CSS labels preserve the original image bytes.
+Current copy covers only implemented Notes, Diary, Flow, Appearance and optional
+Grand Maester behavior, with qualification limits. All six screenshot JPEGs
+remain byte-for-byte, visibly identified as legacy references with accurate
+capability captions. Download buttons are disabled with no href/handler; there
+is no release section. No simpler/reduced-motion code, browser writing, owner
+storage, analytics, accounts, remote fonts, retired-brand asset or future route
+was added. Static prerendering keeps product/legal text readable without JS.
+Native scroll and manual keyboard/touch controls work independently of scroll
+decoration. The hero spacer no longer intercepts underlying book input.
+
+**Assets.** Read existing canonical local copies first. Original 11 manifest rows
+and hashes remain unchanged; the manifest now indexes 32 exact references, with
+21 selected website/font/license entries. All six old screenshot files match
+read-only sources. Existing book references have separate website runtime copies;
+the reference library is outside bundles. OFL notices and selected-asset public
+redistribution review gaps are preserved. No Firebase refresh, token-bearing URL,
+raw-work directory access, mobile bundle change or bulk legacy import occurred.
+
+**Validation.** Commands from `website/` unless stated otherwise:
+
+- `npm run typecheck` — passed strict TypeScript, including browser tests/config.
+- `npm run lint` — passed with zero warnings.
+- `npm run build` — passed Vite production build, static prerender and local
+  content/metadata/reference/asset-budget/screenshot/download integrity checks.
+- `npm test` — all **12 checks passed** in isolated Google Chrome 156.0.8078.80
+  (Playwright 1.64.1), including keyboard skip/rail/arrows, manual gallery,
+  touch emulation at 390×844, 320×568 and 844×390, 320px with 300% root text,
+  zero axe WCAG A/AA findings on landing/privacy/terms, local resources and
+  metadata, disabled downloads and production content without JavaScript.
+  The first test requests OS reduction and verifies the user's chosen animated
+  presentation still has both pins and no Simpler view control.
+- `npm audit --omit=dev` — zero findings. Full audit reports 11 moderate
+  ESLint/minimatch development findings; no blind downgrade/force fix applied.
+- Root reference/hash/source comparison — all 32 hashes valid, original rows
+  unchanged, all six screenshot bytes unchanged. Scoped whitespace checks pass.
+  Whole-repo `git diff --check` reports the user's pre-existing mobile trailing
+  whitespace; that unrelated edit was preserved.
+
+Production/browser screenshots and measured first-page resource bytes are in
+[`docs/evidence/w01/`](docs/evidence/w01/), with machine-readable verification.
+Local production preview served successfully at `http://127.0.0.1:4173/` and was
+inspected in-app. The full static output is about 5.08 MB; the observed first-page
+encoded resource payload is 4,768,724 bytes, dominated by retained art/fonts.
+No physical-device or universal speed/accessibility claim follows from those
+checks. See [the website guide](docs/website.md) for exact reproduction commands.
+
+**Limitations and next work.** No physical touch/screen reader, Safari/Firefox,
+slow-network/low-end frame/energy qualification or production-host check was
+performed. Reduced-motion accommodation is intentionally absent by user choice;
+axe checks do not establish universal WCAG conformance. Before any separately
+authorized publishing, resolve selected art public redistribution provenance,
+review publisher/contact/privacy/terms, choose the real hostname and absolute
+canonical/social metadata, configure hosting, review dev dependency advisories
+and qualify intended browsers/devices. Downloads remain disconnected until the
+user supplies/selects real verified destinations. No Site registration, remote
+Git, source synchronization or publication was performed. Stop at W01. No next
+phase is automatically authorized; M12/further mobile UI requires selection and
+D01–D03 remain Deferred.
+
+
+### 3 November 2026 — W01 follow-up: castle cover in the original palette
+
+**User scope.** Replace the website's cover-title patch with a real image: “The”
+and “Redkeep” on two centered lines, castle themed. The user corrected the first
+generated concept because it changed the original palette and left no writing
+space. The selected replacement retains lavender linen, muted-plum lettering,
+gold border/botanical details, sage ribbon and the blank name region. Only W01
+cover art is changed; prior download/motion choices remain in force.
+
+**Delivered.** Used the built-in imagegen tool to edit the already inspected
+canonical cover reference. The two-line title and small gold castle are in the
+image itself. The original “A JOURNAL BY”, name line and bottom inscription stay;
+the live “you” overlay has clear space. Removed the CSS title patch. Both book
+and hero handoff use the shared new cover. The rejected burgundy concept was not
+imported. Saved the exact 1122×1402 PNG master under the reference library and
+exported a 477,330-byte JPEG with macOS sips at quality 88, without crop/recolor/
+compositing. Prompt/export provenance is in
+`assets/reference/website/cover-castle-prompt.md`. The runtime JPEG is indexed
+byte-for-byte, outside the mobile path; the master stays outside bundles.
+
+**Checks.** TypeScript, lint, production build/integrity and the existing 12
+browser/accessibility checks pass. In-app inspection and new desktop/mobile
+cover captures verify the two title lines, original palette, castle motif and
+clear name area at the existing geometry. All 34 local references have valid
+hashes; the previous rows and all six screenshot hashes are unchanged. No new
+dependency/lockfile change was needed. The full static output remains under the
+6.5 MB budget (about 5.18 MB). See
+`docs/evidence/w01/cover-verification.json`.
+
+**Boundary.** No mobile/legacy/raw-asset file, screenshot, release destination,
+motion policy, account, hosting or publication changed. Physical-device and
+production/browser qualification gaps remain as previously recorded. W01 stays
+Complete within the user's revised scope; stop at this cover follow-up. No next
+phase or publication is authorized.
+
+
+### 3 November 2026 — W01 correction: restore typing on the book cover
+
+**User request.** Restore the original editable name line, which the website
+rebuild had replaced with a static “you”. Inspected only the legacy name store
+and relevant book faces read-only; no legacy file or mobile path was changed.
+
+**Delivered.** Restored the original placeholder, controlled text input and
+24-character limit. Shared site-scoped React state mirrors edits on the inside
+cover, hero transition and personalized final page. Arrow keys inside the field
+move the caret rather than turn pages. The current lavender castle image and
+its writing area remain unchanged. Browser-only persistence uses the namespaced
+`redkeep-cover-name` key, with read-only fallback to the original `journal-owner`
+on the same origin. Clearing the field persists an empty value; unavailable
+storage keeps the name usable in memory until reload. Static prerendering never
+reads or contains a visitor's saved name. No mutable global visitor store,
+external account, network transmission, journal composer or new dependency
+was introduced. Updated the privacy description and bounded input build check.
+
+**Checks.** `npm run typecheck`, `npm run lint`, production/prerender/integrity
+build and all **15 browser/accessibility checks** pass. The three new checks
+cover typing/caret/length/personalization/reload, preservation and deliberate
+clearing of legacy stored names, and blocked reads/writes. Existing 390px touch
+coverage now enters a synthetic name in an isolated profile. The name evidence
+and screenshot are under `docs/evidence/w01/name-verification.json` and
+`editable-name.png`; all reference/screenshot integrity checks still pass.
+
+**Boundary.** Existing browser names were not overwritten during manual work.
+Direct in-app attachment was unavailable during this follow-up; isolated
+production Chrome checks passed. The user-owned dev preview at port 5173 remains
+running. No physical keyboard/IME, device, remote Git or publication claim is
+made. Prior download and motion choices stay intact. W01 remains Complete; stop
+at this restoration. No later phase is authorized.
+
+
+### 3 November 2026 — W01 follow-up: Grand Maester mascot and Download label
+
+**User scope and change.** Replace `website/public/art/j.png` with the selected
+`redkeep/assets/branding/grand_maestar.png`, and remove the “Not available yet”
+status below header Download while leaving the button disabled. Read the indexed
+local mascot reference first and verified it matches the supplied mobile source.
+Copied all 1,842,097 bytes unchanged to the existing website filename, so hero,
+book faces, feature/footer images and social metadata now share Grand Maester.
+Corrected the hero image's intrinsic size to 1254×1254. Removed the status text,
+its wrapper/description IDs and obsolete compact prop/styles; no download URL
+or handler was added. The original cover, name editing, screenshots and motion
+behavior remain unchanged.
+
+**Validation.** Strict TypeScript, zero-warning lint, production/prerender/asset
+checks and all **15 browser/accessibility checks** pass. Existing initial-page
+coverage verifies the disabled control and absence of the removed header status.
+The build explicitly verifies the mascot against its canonical bytes. All
+34 reference hashes and all six original screenshot hashes remain valid; no
+reference row or mobile file was changed. Updated hero/touch captures and
+`docs/evidence/w01/mascot-verification.json` record the selected presentation.
+
+**Weight and boundary.** The selected unchanged PNG replaces a 64,238-byte image,
+adding 1,777,859 asset bytes. Deliberately revised the whole-site build budget
+from 6.5 MB to 7 MB for this user-selected original; the result is about 6.96 MB.
+No recompression, new dependency, source mutation, native/device performance
+qualification, remote Git or publication occurred. Existing publishing/device
+limitations remain. The user-owned preview at port 5173 stays running. Stop at
+this W01 follow-up; no later phase is authorized.
+
+### 3 November 2026 — W01: remove mascot mouse-follow
+
+Removed only the hero mascot's three pointer-driven GSAP setters and calls
+(six lines). Intro, tap and scroll behavior is preserved. `npm run typecheck`,
+`npm run lint` and `npm run build` pass. No new tests/dependencies, browser/device
+qualification, staging changes or publication. W01 remains Complete; stop here.
+
+### 3 November 2026 — W01: restore legacy carousel/card animations
+
+At the user's request, removed the added book arrows/counter and their styles.
+Copied back the selected legacy carousel fan entrance and 4800ms autoplay until
+interaction, and feature-card prints/scan/typewriter/drift/wave/theme demos with
+the original scroll-reveal timing. Kept current truthful product descriptions,
+existing local artwork, working name entry, disabled Download and the previous
+removal of mascot mouse-follow. No new asset, library, motion preference mode or
+future feature was introduced. Legacy files stayed read-only.
+
+`npm run typecheck`, zero-warning lint, production/prerender/artifact build and
+all **17 browser/accessibility checks** pass. Two new checks verify timed carousel
+rotation/interaction stop and restored demo animations/theme controls; existing
+checks now use retained keyboard navigation and assert no added book controls.
+New captures and `docs/evidence/w01/animation-verification.json` record the
+result. Static output is about 6.97 MB, within the existing 7 MB limit. All 34
+reference hashes and original screenshot bytes remain unchanged. Existing
+physical-device/browser/publication limitations persist. W01 stays Complete;
+stop here without publishing or changing the user's staged work.

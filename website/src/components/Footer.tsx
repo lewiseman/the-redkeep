@@ -1,0 +1,2 @@
+import { art } from '../site';
+export default function Footer() { return <footer className="footer"><div className="wrap"><a href="#hero" onClick={e => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'instant' }); }} className="nav__brand wordmark"><img src={art('j.png')} alt="" width="32" height="32" />Redkeep</a><nav aria-label="Footer"><a href="/privacy.html">Privacy policy</a><a href="/terms.html">Terms of use</a></nav><p className="hand text-xl text-gold">a place for you · 2026</p></div></footer>; }

@@ -51,8 +51,8 @@ turns and original folding cover. **Let's begin** reveals name entry; **Save**
 commits the name before opening the validated router continuation. A user
 without a saved name opens onboarding, including an earlier completion-only
 installation. Schema 8 preserves all writing/settings while adding the name.
-See [the current book guide](docs/onboarding-ui-migration.md). Desktop/website
-and M12 remain separately scoped.
+See [the current book guide](docs/onboarding-ui-migration.md). Desktop and M12 remain separately scoped.
+W01 was explicitly reopened for the local `website/` copy/rename; the hosted site is unchanged.
 
 The user-selected Grand Maester mascot, script caption, page dots and bottom Terms/Privacy links
 are restored. Navigation uses page taps/swipes, keyboard and semantics, with no
@@ -143,3 +143,24 @@ desktop app. `raw_assets/` remains untouched local source material, ignored by
 Git and excluded from application assets. Build caches, local configuration, and
 signing credentials are ignored; generated Flutter/native files retain the
 starter's platform-specific ignore rules.
+
+## Website (W01, local only)
+
+The sibling `website/` retains the selected Journal UI and unchanged screenshots,
+with Redkeep naming and current product copy. Download buttons have no
+destination. The user removed Simpler view and website reduced-motion handling.
+See [the website guide](docs/website.md) for contracts, evidence and publishing
+prerequisites. From `website/` with Node 22.12+ or 24+:
+
+```sh
+npm ci
+npm run typecheck
+npm run lint
+npm run build
+npm test
+npm run dev
+```
+
+Tests use installed Google Chrome in isolated profiles and local assets only.
+`npm run preview -- --port 4173` serves the production output. No website
+registration, remote source operation or publication is part of W01.

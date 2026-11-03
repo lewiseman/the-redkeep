@@ -133,3 +133,36 @@ The mascot/font references are separate from the 12-image download pack and
 Firebase refresh input; the unchanged ink-paper remote reference remains indexed
 for deliberate refresh, with an exact separate bundled app copy. The
 refresh tool retains these additional rows without fetching or replacing them.
+
+## W01 website references
+
+W01 was explicitly reopened on 3 November 2026. The website uses the existing
+exact onboarding originals and selected local legacy presentation files. The
+additional `website/` references index the six unchanged screenshot JPEGs,
+selected hero/stationery art, three locally served fonts and OFL notices. Prior
+rows and bytes remain unchanged. The old J mascot remains as a historical website reference. The user later
+selected the canonical Grand Maester original for the website too; both mobile
+and website use exact copies of that original.
+
+This library remains outside both app bundles. Website runtime copies live in
+`website/public/`; build/browser checks consume local files and block remote
+requests. Selected-project provenance and outstanding public-redistribution
+review are recorded in `website/public/licenses/ASSET-NOTICE.md` and
+[the website guide](../../docs/website.md). No Firebase reference was refreshed.
+
+### W01 generated castle cover
+
+The user replaced the website-only CSS title patch with a generated cover,
+then required the original lavender palette and clear name area. Two added rows
+index the exact selected PNG (`website.cover.castle.master`, source-only) and
+477,330-byte JPEG (`website.cover.castle.runtime`, website delivery). The
+reference library now has 34 entries; all previous rows/bytes remain unchanged.
+See [the exact prompt and export](website/cover-castle-prompt.md). The master
+never enters a runtime bundle. Mobile retains its original onboarding cover;
+only the website book/hero use the new derivative.
+
+The website mascot replacement reuses the existing
+`onboarding.brand.mascot` reference at `branding/grand_maestar.png` without a
+refresh or new manifest row. `website/public/art/j.png` now matches that
+1,842,097-byte SHA-256; the previous website J reference remains unchanged as
+history outside bundles.

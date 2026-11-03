@@ -133,6 +133,297 @@
       "bytes": 73934,
       "sha256": "7dea653273db75b72fb324b8d7372b01b419c774458c6e83da1a78ecb23af62a",
       "media_type": "image/webp"
+    },
+    {
+      "key": "website.art.diary.png",
+      "path": "website/art/diary.png",
+      "source": {
+        "provider": "user-authorized-legacy-local",
+        "path": "/Users/lewis/Dev/Projects/Journal/bookflip/public/art/diary.png"
+      },
+      "bytes": 47353,
+      "sha256": "f5af6275e12208d391ab055628bd63aa42040412ded5d40ada17a9d9ef9356d5",
+      "media_type": "image/png",
+      "delivery": "website-local-preview"
+    },
+    {
+      "key": "website.art.diary_calendar_pin.png",
+      "path": "website/art/diary_calendar_pin.png",
+      "source": {
+        "provider": "user-authorized-legacy-local",
+        "path": "/Users/lewis/Dev/Projects/Journal/bookflip/public/art/diary_calendar_pin.png"
+      },
+      "bytes": 29803,
+      "sha256": "b5390d3733b05992d7d6e2a8e0c4d56703d103a767d5d8050dd9eedc8fb67611",
+      "media_type": "image/png",
+      "delivery": "website-local-preview"
+    },
+    {
+      "key": "website.art.flow.png",
+      "path": "website/art/flow.png",
+      "source": {
+        "provider": "user-authorized-legacy-local",
+        "path": "/Users/lewis/Dev/Projects/Journal/bookflip/public/art/flow.png"
+      },
+      "bytes": 33484,
+      "sha256": "ff43eb8e4e9206c1fa11afcfeea190ae5bd2ab08df5d1b5ee4e193b1f60df2ac",
+      "media_type": "image/png",
+      "delivery": "website-local-preview"
+    },
+    {
+      "key": "website.art.j.png",
+      "path": "website/art/j.png",
+      "source": {
+        "provider": "user-authorized-legacy-local",
+        "path": "/Users/lewis/Dev/Projects/Journal/bookflip/public/art/j.png"
+      },
+      "bytes": 64238,
+      "sha256": "acca16b0754653de5140fc4bb16eaeace75a8b62900c007fec9a0f0df02e0f1a",
+      "media_type": "image/png",
+      "delivery": "website-local-preview"
+    },
+    {
+      "key": "website.art.more.png",
+      "path": "website/art/more.png",
+      "source": {
+        "provider": "user-authorized-legacy-local",
+        "path": "/Users/lewis/Dev/Projects/Journal/bookflip/public/art/more.png"
+      },
+      "bytes": 48880,
+      "sha256": "5003947c307285a2058c681bc4c44375951a542327d7cca81813b5577c773d01",
+      "media_type": "image/png",
+      "delivery": "website-local-preview"
+    },
+    {
+      "key": "website.art.night.jpg",
+      "path": "website/art/night.jpg",
+      "source": {
+        "provider": "user-authorized-legacy-local",
+        "path": "/Users/lewis/Dev/Projects/Journal/bookflip/public/art/night.jpg"
+      },
+      "bytes": 407781,
+      "sha256": "c8c93d8756172c9aad8b6934f56e2b558a7c545a80701119d38b44ea5c6a678a",
+      "media_type": "image/jpeg",
+      "delivery": "website-local-preview"
+    },
+    {
+      "key": "website.art.notes.png",
+      "path": "website/art/notes.png",
+      "source": {
+        "provider": "user-authorized-legacy-local",
+        "path": "/Users/lewis/Dev/Projects/Journal/bookflip/public/art/notes.png"
+      },
+      "bytes": 45592,
+      "sha256": "7b77e2309f8ff8625dbc8b1c52d098875ead1e4aa0c879664d901c700e4106a2",
+      "media_type": "image/png",
+      "delivery": "website-local-preview"
+    },
+    {
+      "key": "website.art.theme_dark.png",
+      "path": "website/art/theme_dark.png",
+      "source": {
+        "provider": "user-authorized-legacy-local",
+        "path": "/Users/lewis/Dev/Projects/Journal/bookflip/public/art/theme_dark.png"
+      },
+      "bytes": 127553,
+      "sha256": "dd744501d2cfb75cb83948f0f83568c6dd31fd52e03bbcf538e91f9a6eb87e32",
+      "media_type": "image/png",
+      "delivery": "website-local-preview"
+    },
+    {
+      "key": "website.art.theme_light.png",
+      "path": "website/art/theme_light.png",
+      "source": {
+        "provider": "user-authorized-legacy-local",
+        "path": "/Users/lewis/Dev/Projects/Journal/bookflip/public/art/theme_light.png"
+      },
+      "bytes": 146694,
+      "sha256": "2e08abe549f65713bcccfba9d19035c68946f3fbfef3e88b9e24a0c0f66649fc",
+      "media_type": "image/png",
+      "delivery": "website-local-preview"
+    },
+    {
+      "key": "website.fonts.Caveat-Medium.ttf",
+      "path": "website/fonts/Caveat-Medium.ttf",
+      "source": {
+        "provider": "user-authorized-legacy-local",
+        "path": "/Users/lewis/Dev/Projects/Journal/bookflip/public/fonts/Caveat-Medium.ttf"
+      },
+      "bytes": 251728,
+      "sha256": "bd52370c5ab257b65b726d86455ffe555369e12894f9e36e988542ed070b3a6c",
+      "media_type": "font/ttf",
+      "delivery": "website-local-preview"
+    },
+    {
+      "key": "website.fonts.Lora-Regular.ttf",
+      "path": "website/fonts/Lora-Regular.ttf",
+      "source": {
+        "provider": "user-authorized-legacy-local",
+        "path": "/Users/lewis/Dev/Projects/Journal/bookflip/public/fonts/Lora-Regular.ttf"
+      },
+      "bytes": 132164,
+      "sha256": "e9b4141f57f365b3de9be91123b343311c4c292f063635d38b4bce7f6b19c052",
+      "media_type": "font/ttf",
+      "delivery": "website-local-preview"
+    },
+    {
+      "key": "website.fonts.Nunito.ttf",
+      "path": "website/fonts/Nunito.ttf",
+      "source": {
+        "provider": "user-authorized-legacy-local",
+        "path": "/Users/lewis/Dev/Projects/Journal/bookflip/src/assets/fonts/Nunito.ttf"
+      },
+      "bytes": 275644,
+      "sha256": "f2a6ab02dcefcf4c7481e92ffb49ad0c7bc7a19ccd18eb5d7d9f4e21211998c6",
+      "media_type": "font/ttf",
+      "delivery": "website-local-preview"
+    },
+    {
+      "key": "website.licenses.caveat-OFL.txt",
+      "path": "website/licenses/caveat-OFL.txt",
+      "source": {
+        "provider": "font-license",
+        "license": "SIL OFL 1.1",
+        "url": "https://github.com/google/fonts/blob/main/ofl/caveat/OFL.txt"
+      },
+      "bytes": 4385,
+      "sha256": "1f9d81d094273d82f3898a1ee8b598a717d050ecbf5ff7bede105b704880157b",
+      "media_type": "text/plain",
+      "delivery": "website-local-preview"
+    },
+    {
+      "key": "website.licenses.lora-OFL.txt",
+      "path": "website/licenses/lora-OFL.txt",
+      "source": {
+        "provider": "font-license",
+        "license": "SIL OFL 1.1",
+        "url": "https://github.com/google/fonts/blob/main/ofl/lora/OFL.txt"
+      },
+      "bytes": 4423,
+      "sha256": "1d9a970809ac804b582a6ce7f0ebc4e7fefcbfd7ff6299cad35ee656a21be716",
+      "media_type": "text/plain",
+      "delivery": "website-local-preview"
+    },
+    {
+      "key": "website.licenses.nunito-OFL.txt",
+      "path": "website/licenses/nunito-OFL.txt",
+      "source": {
+        "provider": "font-license",
+        "license": "SIL OFL 1.1",
+        "url": "https://github.com/google/fonts/blob/main/ofl/nunito/OFL.txt"
+      },
+      "bytes": 4385,
+      "sha256": "580df76c95a1ec5ab878ceb25bb3d85c6a076804e9c970c8c6972aea775fdf65",
+      "media_type": "text/plain",
+      "delivery": "website-local-preview"
+    },
+    {
+      "key": "website.shots.ask.jpg",
+      "path": "website/shots/ask.jpg",
+      "source": {
+        "provider": "user-authorized-legacy-local",
+        "path": "/Users/lewis/Dev/Projects/Journal/bookflip/public/shots/ask.jpg"
+      },
+      "bytes": 121563,
+      "sha256": "ace3521748c92539363bfbc39efa64b0f5f46df8ba07bf59061f3aa3e6eee7b1",
+      "media_type": "image/jpeg",
+      "delivery": "website-local-preview"
+    },
+    {
+      "key": "website.shots.diary.jpg",
+      "path": "website/shots/diary.jpg",
+      "source": {
+        "provider": "user-authorized-legacy-local",
+        "path": "/Users/lewis/Dev/Projects/Journal/bookflip/public/shots/diary.jpg"
+      },
+      "bytes": 101396,
+      "sha256": "323c7290c4f74bf35f6d6619b62f6b253c730a25e71b57c154524fccac2c629c",
+      "media_type": "image/jpeg",
+      "delivery": "website-local-preview"
+    },
+    {
+      "key": "website.shots.flow.jpg",
+      "path": "website/shots/flow.jpg",
+      "source": {
+        "provider": "user-authorized-legacy-local",
+        "path": "/Users/lewis/Dev/Projects/Journal/bookflip/public/shots/flow.jpg"
+      },
+      "bytes": 114120,
+      "sha256": "419390b329164e9b706fa0d1100d79122464903f1d04df6b8a1b8b21b4a80d0e",
+      "media_type": "image/jpeg",
+      "delivery": "website-local-preview"
+    },
+    {
+      "key": "website.shots.note-tools.jpg",
+      "path": "website/shots/note-tools.jpg",
+      "source": {
+        "provider": "user-authorized-legacy-local",
+        "path": "/Users/lewis/Dev/Projects/Journal/bookflip/public/shots/note-tools.jpg"
+      },
+      "bytes": 86902,
+      "sha256": "920bd6539e4dcc7ef8fbf538172a3f1e1ba186f71f05ec767b81f08bf6ebbf56",
+      "media_type": "image/jpeg",
+      "delivery": "website-local-preview"
+    },
+    {
+      "key": "website.shots.photo-story.jpg",
+      "path": "website/shots/photo-story.jpg",
+      "source": {
+        "provider": "user-authorized-legacy-local",
+        "path": "/Users/lewis/Dev/Projects/Journal/bookflip/public/shots/photo-story.jpg"
+      },
+      "bytes": 93651,
+      "sha256": "355178cabae23a3e104e1248555abe3814c0f1d83212c7a9da5eaadf6453c1c9",
+      "media_type": "image/jpeg",
+      "delivery": "website-local-preview"
+    },
+    {
+      "key": "website.shots.talk.jpg",
+      "path": "website/shots/talk.jpg",
+      "source": {
+        "provider": "user-authorized-legacy-local",
+        "path": "/Users/lewis/Dev/Projects/Journal/bookflip/public/shots/talk.jpg"
+      },
+      "bytes": 61633,
+      "sha256": "23634c5bca50117325970ad3083c05bdd1e32cb9a66499d0e5a35e393d0dfdb2",
+      "media_type": "image/jpeg",
+      "delivery": "website-local-preview"
+    },
+    {
+      "key": "website.cover.castle.master",
+      "path": "website/generated/cover-redkeep-castle-v1.png",
+      "source": {
+        "provider": "openai-imagegen",
+        "mode": "built-in edit",
+        "generated_path": "/Users/lewis/.codex/generated_images/01a1a176-e853-7731-a73f-072459f0b205/exec-58437d30-6cda-449a-91be-03ff76af10ad.png",
+        "reference_key": "onboarding.cover",
+        "prompt_path": "website/cover-castle-prompt.md",
+        "export": "original PNG"
+      },
+      "bytes": 2471229,
+      "sha256": "112318009aa0dc32e73c7dc37173382a3852ed77c6dfd77b207e1bdac4626ba6",
+      "media_type": "image/png",
+      "width": 1122,
+      "height": 1402,
+      "delivery": "source-only"
+    },
+    {
+      "key": "website.cover.castle.runtime",
+      "path": "website/art/cover-redkeep-castle-v1.jpg",
+      "source": {
+        "provider": "openai-imagegen",
+        "mode": "built-in edit",
+        "generated_path": "/Users/lewis/.codex/generated_images/01a1a176-e853-7731-a73f-072459f0b205/exec-58437d30-6cda-449a-91be-03ff76af10ad.png",
+        "reference_key": "onboarding.cover",
+        "prompt_path": "website/cover-castle-prompt.md",
+        "export": "macOS sips JPEG quality 88; no crop, recolor or compositing"
+      },
+      "bytes": 477330,
+      "sha256": "b4c92633c2bc035b51bc57c90eaa9f455afe673c0f55ff17659cf4432928d5e8",
+      "media_type": "image/jpeg",
+      "width": 1122,
+      "height": 1402,
+      "delivery": "website-local-preview"
     }
   ]
 }

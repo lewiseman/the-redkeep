@@ -1,3 +1,5 @@
+import '../../sync/data/drift_sync_store.dart';
+
 import 'package:drift/drift.dart';
 
 import '../../../core/storage/app_database.dart';
@@ -6,8 +8,10 @@ import '../domain/notes_repository.dart';
 import '../domain/notes_query.dart';
 
 class DriftNotesRepository implements NotesRepository {
-  DriftNotesRepository(this._db, {required this._clock});
+  DriftNotesRepository(this._db, {required this._clock})
+    : _generation = _db.writingGeneration;
   final AppDatabase _db;
+  final int _generation;
   final DateTime Function() _clock;
 
   void _validate(String id) {
@@ -133,8 +137,10 @@ class DriftNotesRepository implements NotesRepository {
     required int baseRevision,
     required int? expectedDraftRevision,
   }) async {
-    _validate(id);
     return _db.transaction(() async {
+      await checkWritingAccess(_db, _generation, recoveryOnly: true);
+      _validate(id);
+
       final old = await (_db.select(
         _db.noteDrafts,
       )..where((r) => r.id.equals(id))).getSingleOrNull();
@@ -167,8 +173,18 @@ class DriftNotesRepository implements NotesRepository {
 
   @override
   Future<NoteDocument> commitDraft(String id, int expectedDraftRevision) async {
-    _validate(id);
     return _db.transaction(() async {
+      await checkWritingAccess(
+        _db,
+        _generation,
+        creating:
+            (await (_db.select(
+              _db.notes,
+            )..where((r) => r.id.equals(id))).getSingleOrNull()) ==
+            null,
+      );
+      _validate(id);
+
       final snapshot = await openDocument(id);
       final draft = snapshot.draft;
       if (draft == null || draft.draftRevision != expectedDraftRevision) {
@@ -227,23 +243,26 @@ class DriftNotesRepository implements NotesRepository {
 
   @override
   Future<void> deleteNote(String id, int expectedRevision) async {
-    _validate(id);
-    final now = _clock().toUtc().millisecondsSinceEpoch;
-    final count =
-        await (_db.update(_db.notes)..where(
-              (r) =>
-                  r.id.equals(id) &
-                  r.revision.equals(expectedRevision) &
-                  r.deletedAt.isNull(),
-            ))
-            .write(
-              NotesCompanion(
-                deletedAt: Value(now),
-                updatedAt: Value(now),
-                revision: Value(expectedRevision + 1),
-              ),
-            );
-    if (count != 1) throw const NoteException(NoteFailure.staleRevision);
+    return _db.transaction(() async {
+      await checkWritingAccess(_db, _generation);
+      _validate(id);
+      final now = _clock().toUtc().millisecondsSinceEpoch;
+      final count =
+          await (_db.update(_db.notes)..where(
+                (r) =>
+                    r.id.equals(id) &
+                    r.revision.equals(expectedRevision) &
+                    r.deletedAt.isNull(),
+              ))
+              .write(
+                NotesCompanion(
+                  deletedAt: Value(now),
+                  updatedAt: Value(now),
+                  revision: Value(expectedRevision + 1),
+                ),
+              );
+      if (count != 1) throw const NoteException(NoteFailure.staleRevision);
+    });
   }
 
   @override
@@ -253,19 +272,23 @@ class DriftNotesRepository implements NotesRepository {
     required bool pinned,
     required List<String> tags,
   }) async {
-    _validate(id);
-    final normalized =
-        tags
-            .map((t) => t.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase())
-            .where((t) => t.isNotEmpty)
-            .toSet()
-            .toList()
-          ..sort();
-    if (normalized.length > 24 ||
-        normalized.any((t) => t.length > 40 || t.contains(','))) {
-      throw const NoteException(NoteFailure.invalidTags);
-    }
-    await _db.transaction(() async {
+    return _db.transaction(() async {
+      await checkWritingAccess(_db, _generation);
+      _validate(id);
+      final normalized =
+          tags
+              .map(
+                (t) => t.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase(),
+              )
+              .where((t) => t.isNotEmpty)
+              .toSet()
+              .toList()
+            ..sort();
+      if (normalized.length > 24 ||
+          normalized.any((t) => t.length > 40 || t.contains(','))) {
+        throw const NoteException(NoteFailure.invalidTags);
+      }
+
       final count =
           await (_db.update(_db.notes)..where(
                 (r) =>
@@ -292,22 +315,25 @@ class DriftNotesRepository implements NotesRepository {
 
   @override
   Future<void> restoreNote(String id, int expectedRevision) async {
-    _validate(id);
-    final count =
-        await (_db.update(_db.notes)..where(
-              (r) =>
-                  r.id.equals(id) &
-                  r.revision.equals(expectedRevision) &
-                  r.deletedAt.isNotNull(),
-            ))
-            .write(
-              NotesCompanion(
-                deletedAt: const Value(null),
-                revision: Value(expectedRevision + 1),
-                updatedAt: Value(_clock().toUtc().millisecondsSinceEpoch),
-              ),
-            );
-    if (count != 1) throw const NoteException(NoteFailure.staleRevision);
+    return _db.transaction(() async {
+      await checkWritingAccess(_db, _generation);
+      _validate(id);
+      final count =
+          await (_db.update(_db.notes)..where(
+                (r) =>
+                    r.id.equals(id) &
+                    r.revision.equals(expectedRevision) &
+                    r.deletedAt.isNotNull(),
+              ))
+              .write(
+                NotesCompanion(
+                  deletedAt: const Value(null),
+                  revision: Value(expectedRevision + 1),
+                  updatedAt: Value(_clock().toUtc().millisecondsSinceEpoch),
+                ),
+              );
+      if (count != 1) throw const NoteException(NoteFailure.staleRevision);
+    });
   }
 
   @override
@@ -316,8 +342,10 @@ class DriftNotesRepository implements NotesRepository {
     int expectedRevision, {
     required int? expectedDraftRevision,
   }) async {
-    _validate(id);
-    await _db.transaction(() async {
+    return _db.transaction(() async {
+      await checkWritingAccess(_db, _generation);
+      _validate(id);
+
       final snapshot = await openDocument(id);
       if (snapshot.note?.deletedAt == null ||
           snapshot.note!.revision != expectedRevision) {
@@ -336,15 +364,20 @@ class DriftNotesRepository implements NotesRepository {
 
   @override
   Future<void> discardDraft(String id, int expectedDraftRevision) async {
-    _validate(id);
-    final count =
-        await (_db.delete(_db.noteDrafts)..where(
-              (r) =>
-                  r.id.equals(id) &
-                  r.draftRevision.equals(expectedDraftRevision),
-            ))
-            .go();
-    if (count != 1) throw const NoteException(NoteFailure.draftChanged);
+    return _db.transaction(() async {
+      if (_db.writingBlocked || _db.writingGeneration != _generation) {
+        throw StateError('Account reset changed this writing session.');
+      }
+      _validate(id);
+      final count =
+          await (_db.delete(_db.noteDrafts)..where(
+                (r) =>
+                    r.id.equals(id) &
+                    r.draftRevision.equals(expectedDraftRevision),
+              ))
+              .go();
+      if (count != 1) throw const NoteException(NoteFailure.draftChanged);
+    });
   }
 
   NoteDocument _note(Note r, List<String> tags) => NoteDocument(

@@ -1,3 +1,5 @@
+import '../../sync/application/sync_providers.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -70,6 +72,8 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
             ],
           ),
           data: (state) {
+            final readOnly =
+                state.baseRevision > 0 && !ref.watch(syncCanEditProvider);
             if (!_loaded) {
               _title.text = state.text.title;
               _body.text = state.text.body;
@@ -83,6 +87,10 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
                     'Write a note',
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
+                  if (readOnly)
+                    const Text(
+                      'This device is add-only. Reclaim primary in Sync & devices to edit. Your draft is kept.',
+                    ),
                   const SizedBox(height: 12),
                   const Text('Plain text • saved on this device'),
                   if (state.sourceUnavailable)
@@ -93,7 +101,7 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
                   TextField(
                     key: const ValueKey('note-title'),
                     controller: _title,
-                    enabled: !state.saving,
+                    enabled: !state.saving && !readOnly,
                     decoration: const InputDecoration(labelText: 'Title'),
                     maxLines: null,
                     textCapitalization: TextCapitalization.sentences,
@@ -103,7 +111,7 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
                   TextField(
                     key: const ValueKey('note-body'),
                     controller: _body,
-                    enabled: !state.saving,
+                    enabled: !state.saving && !readOnly,
                     decoration: const InputDecoration(
                       labelText: 'Body',
                       alignLabelWithHint: true,
@@ -135,7 +143,8 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
                     children: [
                       FilledButton(
                         onPressed:
-                            state.saving ||
+                            readOnly ||
+                                state.saving ||
                                 (state.draftRevision == null &&
                                     !state.recovering &&
                                     !state.recoveryFailed)

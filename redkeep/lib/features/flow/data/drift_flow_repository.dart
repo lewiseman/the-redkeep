@@ -1,3 +1,5 @@
+import '../../sync/data/drift_sync_store.dart';
+
 import 'package:drift/drift.dart';
 
 import '../../../core/storage/app_database.dart';
@@ -5,8 +7,10 @@ import '../domain/thought.dart';
 import '../domain/flow_repository.dart';
 
 class DriftFlowRepository implements FlowRepository {
-  DriftFlowRepository(this._db, {required this._clock});
+  DriftFlowRepository(this._db, {required this._clock})
+    : _generation = _db.writingGeneration;
   final AppDatabase _db;
+  final int _generation;
   final DateTime Function() _clock;
 
   void _validate(String id) {
@@ -88,8 +92,10 @@ class DriftFlowRepository implements FlowRepository {
     required int baseRevision,
     required int? expectedDraftRevision,
   }) async {
-    _validate(id);
     return _db.transaction(() async {
+      await checkWritingAccess(_db, _generation, recoveryOnly: true);
+      _validate(id);
+
       final old = await (_db.select(
         _db.flowDrafts,
       )..where((r) => r.id.equals(id))).getSingleOrNull();
@@ -128,8 +134,18 @@ class DriftFlowRepository implements FlowRepository {
 
   @override
   Future<Thought> commitDraft(String id, int expectedDraftRevision) async {
-    _validate(id);
     return _db.transaction(() async {
+      await checkWritingAccess(
+        _db,
+        _generation,
+        creating:
+            (await (_db.select(
+              _db.flowThoughts,
+            )..where((r) => r.id.equals(id))).getSingleOrNull()) ==
+            null,
+      );
+      _validate(id);
+
       final snapshot = await openDocument(id);
       final draft = snapshot.draft;
       if (draft == null || draft.draftRevision != expectedDraftRevision) {
@@ -187,37 +203,45 @@ class DriftFlowRepository implements FlowRepository {
 
   @override
   Future<void> deleteThought(String id, int expectedRevision) async {
-    _validate(id);
-    final now = _clock().toUtc().millisecondsSinceEpoch;
-    final count =
-        await (_db.update(_db.flowThoughts)..where(
-              (r) =>
-                  r.id.equals(id) &
-                  r.revision.equals(expectedRevision) &
-                  r.deletedAt.isNull(),
-            ))
-            .write(
-              FlowThoughtsCompanion(
-                deletedAt: Value(now),
-                body: const Value(''),
-                updatedAt: Value(now),
-                revision: Value(expectedRevision + 1),
-              ),
-            );
-    if (count != 1) throw const FlowException(FlowFailure.staleRevision);
+    return _db.transaction(() async {
+      await checkWritingAccess(_db, _generation);
+      _validate(id);
+      final now = _clock().toUtc().millisecondsSinceEpoch;
+      final count =
+          await (_db.update(_db.flowThoughts)..where(
+                (r) =>
+                    r.id.equals(id) &
+                    r.revision.equals(expectedRevision) &
+                    r.deletedAt.isNull(),
+              ))
+              .write(
+                FlowThoughtsCompanion(
+                  deletedAt: Value(now),
+                  body: const Value(''),
+                  updatedAt: Value(now),
+                  revision: Value(expectedRevision + 1),
+                ),
+              );
+      if (count != 1) throw const FlowException(FlowFailure.staleRevision);
+    });
   }
 
   @override
   Future<void> discardDraft(String id, int expectedDraftRevision) async {
-    _validate(id);
-    final count =
-        await (_db.delete(_db.flowDrafts)..where(
-              (r) =>
-                  r.id.equals(id) &
-                  r.draftRevision.equals(expectedDraftRevision),
-            ))
-            .go();
-    if (count != 1) throw const FlowException(FlowFailure.draftChanged);
+    return _db.transaction(() async {
+      if (_db.writingBlocked || _db.writingGeneration != _generation) {
+        throw StateError('Account reset changed this writing session.');
+      }
+      _validate(id);
+      final count =
+          await (_db.delete(_db.flowDrafts)..where(
+                (r) =>
+                    r.id.equals(id) &
+                    r.draftRevision.equals(expectedDraftRevision),
+              ))
+              .go();
+      if (count != 1) throw const FlowException(FlowFailure.draftChanged);
+    });
   }
 
   Thought _entry(ThoughtRow r) => Thought(

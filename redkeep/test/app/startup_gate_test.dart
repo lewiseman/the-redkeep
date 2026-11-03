@@ -1,3 +1,4 @@
+import 'package:redkeep/features/sync/application/sync_providers.dart';
 import 'package:redkeep/features/diary/application/diary_providers.dart';
 
 import '../support/empty_diary_repository.dart';
@@ -35,6 +36,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          syncEnabledProvider.overrideWithValue(false),
           diaryRepositoryProvider.overrideWithValue(EmptyDiaryRepository()),
           appearanceRepositoryProvider.overrideWithValue(appearance),
           onboardingRepositoryProvider.overrideWithValue(

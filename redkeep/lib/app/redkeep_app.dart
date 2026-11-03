@@ -1,3 +1,5 @@
+import '../features/sync/presentation/sync_host.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -34,7 +36,7 @@ class RedkeepApp extends ConsumerWidget {
         preferences: appearance.loaded
             ? appearance.preferences
             : const AppearancePreferences(reduceMotion: true),
-        child: child!,
+        child: SyncHost(child: child!),
       ),
     );
   }

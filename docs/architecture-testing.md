@@ -222,3 +222,16 @@ source/selection, lifecycle, recovery and separate native smoke contracts.
 - [Appearance API references](appearance-persistence.md#verification-and-api-references)
 
 Resolved versions, exact checks, and evidence gaps are in the migration plan.
+
+## GS01 — Google sync and reset
+
+The selected `packages/sync_wise` extraction and account UI are now active.
+`features/sync` composes awaitable Drift adapters, scoped device identity,
+account binding, root coordination and the original card/sheet/reset UI.
+Schema 9 adds a transactional outbox and permanent-delete markers; private drafts
+and configuration are excluded from sync. A root reset gate expires the router,
+Brain executor and repository writing generations. See [Google sync](google-sync.md)
+for roles, wire data, cloud ownership, recovery and Android OAuth prerequisites.
+Run `flutter test test/features/sync` in the app, and analysis/tests in the package.
+The selected Android implementation is separate from live account/two-device
+qualification and deferred iOS OAuth setup.

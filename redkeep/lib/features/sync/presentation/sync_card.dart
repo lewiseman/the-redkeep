@@ -1,0 +1,433 @@
+import '../../../core/presentation/rendering_policy.dart';
+
+import 'dart:math' as math;
+import 'dart:ui' show lerpDouble;
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../application/sync_providers.dart';
+import 'sync_account_sheet.dart';
+import 'sync_material.dart';
+import '../../onboarding/application/onboarding_controller.dart';
+
+import 'package:sync_wise/sync_wise.dart';
+
+/// An ownership bookplate which folds down to a pinned account strip.
+class SyncAccountCard extends ConsumerWidget {
+  const new({
+    super.key,
+    required this.collapseProgress,
+    required this.onExpand,
+  });
+
+  final double collapseProgress;
+  final VoidCallback onExpand;
+
+  Future<void> _connect(BuildContext context, WidgetRef ref) async {
+    try {
+      final account = await ref.read(syncAuthProvider).signIn();
+      if (account == null || !context.mounted) return;
+      await ref.read(syncEngineProvider.notifier).syncNow(manual: true);
+      if (!context.mounted) return;
+      final error = ref.read(syncEngineProvider).lastError;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error ?? 'Connected as ${account.email}.')),
+      );
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    }
+  }
+
+  static const _expandedAvatarSize = 84.0;
+  static const _avatarNameGap = 16.0;
+
+  static double _identityHeight(BuildContext context, {bool compact = false}) {
+    final scaler = MediaQuery.textScalerOf(context);
+    final textHeight =
+        (scaler.scale(compact ? 16 : 24) * 1.2).ceilToDouble() +
+        4 +
+        (scaler.scale(compact ? 11 : 12) * 1.4).ceilToDouble() +
+        2;
+    return compact
+        ? math.max(34, textHeight)
+        : _expandedAvatarSize + _avatarNameGap + textHeight;
+  }
+
+  static double compactHeight(BuildContext context) =>
+      28 + _identityHeight(context, compact: true);
+
+  static const _identityTop = 24.0;
+
+  static double expandedHeight(
+    BuildContext context, {
+    required bool isSignedIn,
+  }) {
+    final scaler = MediaQuery.textScalerOf(context);
+    return _identityTop +
+        _identityHeight(context) +
+        16 +
+        25 +
+        scaler.scale(13) * 1.35 +
+        scaler.scale(12) * 1.45 +
+        (isSignedIn ? 0 : 14 + math.max(48, 24 + scaler.scale(13) * 1.35)) +
+        18;
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final name = ref.watch(onboardingControllerProvider).name?.trim();
+    final title = name == null || name.isEmpty ? 'Your journal' : name;
+    final syncAccount = ref.watch(syncAccountProvider);
+    final engineState = ref.watch(syncEngineProvider);
+    final syncBackend = ref.watch(syncBackendProvider);
+    final isSignedIn = syncAccount != null;
+    final syncState = isSignedIn
+        ? engineState
+        : const SyncEngineState(status: EngineSyncState.unauthenticated);
+    final palette = MorePalette.of(context);
+    final t = collapseProgress.clamp(0.0, 1.0);
+    final compact = t >= .6;
+    final fade = (1 - t * 3).clamp(0.0, 1.0);
+    final statusColor = syncState.status == EngineSyncState.error
+        ? Theme.of(context).colorScheme.error
+        : palette.accent;
+    final identityHeight = _identityHeight(context);
+    final compactIdentityHeight = _identityHeight(context, compact: true);
+    // Move the name beside the avatar before lifting it into the compact row.
+    final horizontal = Curves.easeInOut.transform((t / .35).clamp(0.0, 1.0));
+    final vertical = ((t - .35) / .65).clamp(0.0, 1.0);
+    final avatarSize = lerpDouble(_expandedAvatarSize, 32, t)!;
+    final textAlignment = AlignmentDirectional.lerp(
+      AlignmentDirectional.center,
+      AlignmentDirectional.centerStart,
+      horizontal,
+    )!;
+    final initials = title
+        .split(RegExp(r'\s+'))
+        .take(2)
+        .map((part) => part.characters.first)
+        .join()
+        .toUpperCase();
+    const radius = BorderRadius.all(Radius.circular(3));
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: palette.paper,
+        borderRadius: radius,
+        boxShadow: [
+          BoxShadow(
+            color: palette.ink.withValues(alpha: .06),
+            offset: const Offset(0, 3),
+            blurRadius: 4,
+          ),
+        ],
+      ),
+      child: Material(
+        key: const ValueKey('sync-account-card'),
+        color: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: radius,
+          side: BorderSide(color: palette.rule),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          children: [
+            const Positioned.fill(child: MoreBookcloth()),
+            Positioned(
+              top: lerpDouble(_identityTop, 14, t),
+              left: 20,
+              right: 20,
+              child: Semantics(
+                button: compact,
+                onTap: compact ? onExpand : null,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: compact ? onExpand : null,
+                  child: SizedBox(
+                    height: lerpDouble(
+                      identityHeight,
+                      compactIdentityHeight,
+                      vertical,
+                    ),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) => Stack(
+                        children: [
+                          PositionedDirectional(
+                            top: lerpDouble(
+                              0,
+                              (compactIdentityHeight - 32) / 2,
+                              vertical,
+                            ),
+                            start: lerpDouble(
+                              (constraints.maxWidth - avatarSize) / 2,
+                              0,
+                              horizontal,
+                            ),
+                            child: Container(
+                              key: const ValueKey('sync-avatar'),
+                              width: avatarSize,
+                              height: avatarSize,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: palette.cloth,
+                                border: Border.all(color: palette.rule),
+                                borderRadius: BorderRadius.circular(
+                                  lerpDouble(6, 2, t)!,
+                                ),
+                              ),
+                              child: Text(
+                                initials,
+                                textScaler: TextScaler.noScaling,
+                                style: TextStyle(
+                                  color: palette.accent,
+                                  fontSize: lerpDouble(32, 13, t),
+                                  fontWeight: FontWeight.w500,
+                                  letterSpacing: 1,
+                                ),
+                              ),
+                            ),
+                          ),
+                          PositionedDirectional(
+                            top: lerpDouble(
+                              _expandedAvatarSize + _avatarNameGap,
+                              0,
+                              vertical,
+                            ),
+                            bottom: 0,
+                            start: lerpDouble(0, avatarSize + 14, horizontal),
+                            end: lerpDouble(0, 28, horizontal),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Align(
+                                  alignment: textAlignment,
+                                  child: Text(
+                                    title,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: palette.ink,
+                                      fontSize: lerpDouble(24, 16, t),
+                                      height: 1.2,
+                                      fontWeight: FontWeight.w500,
+                                      letterSpacing: -.5,
+                                    ),
+                                  ),
+                                ),
+                                if (isSignedIn || compact) ...[
+                                  const SizedBox(height: 4),
+                                  Align(
+                                    alignment: textAlignment,
+                                    child: Text(
+                                      compact
+                                          ? syncState.status.statusLabel
+                                          : syncAccount!.email,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: compact
+                                            ? statusColor
+                                            : palette.muted,
+                                        fontSize: lerpDouble(12, 11, t),
+                                        height: 1.4,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          if (compact)
+                            PositionedDirectional(
+                              top: 0,
+                              bottom: 0,
+                              end: 0,
+                              child: Icon(
+                                Icons.expand_more_rounded,
+                                color: palette.accent,
+                                size: 20,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: _identityTop + identityHeight + 16,
+              left: 20,
+              right: 20,
+              child: IgnorePointer(
+                ignoring: t > .15,
+                child: ExcludeSemantics(
+                  excluding: t > .15,
+                  child: Opacity(
+                    opacity: fade,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        InkWell(
+                          key: const ValueKey('sync-card-status'),
+                          onTap: isSignedIn
+                              ? () => showModalBottomSheet<void>(
+                                  context: context,
+                                  isScrollControlled: true,
+                                  sheetAnimationStyle:
+                                      RenderingPolicyScope.of(context)
+                                          .reducedMotion
+                                      ? AnimationStyle.noAnimation
+                                      : null,
+                                  showDragHandle: true,
+                                  builder: (_) => const SyncAccountSheet(),
+                                )
+                              : null,
+                          child: Ink(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            decoration: BoxDecoration(
+                              border: Border(
+                                top: BorderSide(color: palette.rule),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                if (syncState.isSyncing)
+                                  SizedBox.square(
+                                    dimension: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 1.5,
+                                      color: statusColor,
+                                      value:
+                                          MediaQuery.disableAnimationsOf(
+                                            context,
+                                          )
+                                          ? .7
+                                          : null,
+                                    ),
+                                  )
+                                else
+                                  Icon(
+                                    syncState.status.icon,
+                                    color: statusColor,
+                                    size: 20,
+                                  ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Semantics(
+                                        liveRegion: true,
+                                        child: Text(
+                                          syncState.statusLabel,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            color: statusColor,
+                                            fontSize: 13,
+                                            height: 1.35,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 5),
+                                      Tooltip(
+                                        message: syncState.descriptionFor(
+                                          syncBackend,
+                                        ),
+                                        child: Text(
+                                          syncState.descriptionFor(syncBackend),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            color: palette.muted,
+                                            fontSize: 12,
+                                            height: 1.45,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (isSignedIn) ...[
+                                  const SizedBox(width: 8),
+                                  Icon(
+                                    Icons.arrow_forward_rounded,
+                                    color: palette.accent,
+                                    size: 17,
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                        if (!isSignedIn) ...[
+                          const SizedBox(height: 14),
+                          FilledButton(
+                            key: const ValueKey('sync-card-action'),
+                            onPressed: engineState.isSyncing
+                                ? null
+                                : () => _connect(context, ref),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: palette.accent,
+                              minimumSize: const Size.fromHeight(48),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                const Text(
+                                  'G',
+                                  textScaler: TextScaler.noScaling,
+                                  style: TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                const Expanded(
+                                  child: Text(
+                                    'Connect Account',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      height: 1.35,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                const Icon(
+                                  Icons.arrow_forward_rounded,
+                                  size: 17,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

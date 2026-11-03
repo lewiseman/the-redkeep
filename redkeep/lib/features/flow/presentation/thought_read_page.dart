@@ -1,3 +1,5 @@
+import '../../sync/application/sync_providers.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -40,12 +42,15 @@ class ThoughtReadPage extends ConsumerWidget {
                     SelectableText(entry.body),
                     const SizedBox(height: 16),
                     OutlinedButton(
-                      onPressed: () =>
-                          context.go(thoughtLocation(id, edit: true)),
+                      onPressed: !ref.watch(syncCanEditProvider)
+                          ? null
+                          : () => context.go(thoughtLocation(id, edit: true)),
                       child: const Text('Edit thought'),
                     ),
                     OutlinedButton(
-                      onPressed: () => _delete(context, ref, entry),
+                      onPressed: !ref.watch(syncCanEditProvider)
+                          ? null
+                          : () => _delete(context, ref, entry),
                       child: const Text('Delete thought'),
                     ),
                   ],

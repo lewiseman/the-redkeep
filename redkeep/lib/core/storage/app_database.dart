@@ -11,6 +11,9 @@ import '../../features/diary/data/diary_tables.dart';
 import '../../features/flow/data/flow_tables.dart';
 import '../../features/brain/data/brain_tables.dart';
 
+import '../../features/sync/data/sync_tables.dart';
+import '../../features/sync/data/sync_schema.dart';
+
 part 'app_database.g.dart';
 
 @DriftDatabase(
@@ -26,16 +29,28 @@ part 'app_database.g.dart';
     FlowThoughts,
     FlowDrafts,
     BrainAssignmentsTable,
+    SyncOperations,
+    SyncValues,
+    SyncRecords,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
+
+  // Reset changes this generation before disposing editors. Old repositories
+  // cannot write after cleanup, even when an async continuation finishes late.
+  int writingGeneration = 0;
+  bool writingBlocked = false;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
+    onCreate: (migrator) async {
+      await migrator.createAll();
+      await installSyncTriggers(this);
+    },
     onUpgrade: (migrator, from, to) async {
       if (from < 2 && to >= 2) {
         await migrator.createTable(onboardingCompletion);
@@ -62,6 +77,13 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 7 && to >= 7) {
         await migrator.createTable(brainAssignmentsTable);
+      }
+      if (from < 9 && to >= 9) {
+        await migrator.createTable(syncOperations);
+        await migrator.createTable(syncValues);
+        await migrator.createTable(syncRecords);
+        await installSyncTriggers(this);
+        await seedSyncRecords(this);
       }
       // createTable above already uses the current columns for version 1.
       if (from >= 2 && from < 8 && to >= 8) {

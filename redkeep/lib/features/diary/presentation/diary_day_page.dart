@@ -1,3 +1,5 @@
+import '../../sync/application/sync_providers.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -41,7 +43,7 @@ class DiaryDayPage extends ConsumerWidget {
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
                       TextButton(
-                        onPressed: busy
+                        onPressed: busy || !ref.watch(syncCanEditProvider)
                             ? null
                             : () => _rename(context, ref, value),
                         child: const Text('Name this day'),
@@ -56,7 +58,13 @@ class DiaryDayPage extends ConsumerWidget {
                   runSpacing: 8,
                   children: [
                     FilledButton(
-                      onPressed: busy
+                      onPressed:
+                          busy ||
+                              (!ref.watch(syncCanEditProvider) &&
+                                  date !=
+                                      CivilDate.fromComponents(
+                                        ref.read(diaryClockProvider)(),
+                                      ))
                           ? null
                           : () async {
                               try {

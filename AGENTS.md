@@ -17,14 +17,17 @@
   never download them. Preserve existing `assets/reference/` material as historical
   evidence or references not yet available in the website; do not refresh Firebase
   copies for website-hosted images. Pass only `ASSET_BASE_URL` through ignored
-  `redkeep/env.json` at build/run time; keep `env.example.json` tracked. Do not
+  `redkeep/env.json` for artwork at build/run time; GS01 also permits
+  `GOOGLE_SERVER_CLIENT_ID` for sync. Keep `env.example.json` tracked. Do not
   restore per-image URL maps or HTTP fixture flags. App catalogs need reviewed paths,
   revisions, sizes and hashes; local website files do not enter Flutter bundles
   automatically. Keep any remaining token-bearing configuration ignored.
 - Redkeep is a new app. Do not copy, port or import legacy application code,
   manifests, services or native configuration. Older migration prompts and UI
   parity records do not authorize further legacy code reuse. Existing provenance
-  records must stay honest about earlier onboarding/website reuse. Use approved
+  records must stay honest about earlier onboarding/website reuse. The user-selected
+  GS01 exception authorizes the existing sync_wise package and selected account
+  UI only; its Drift host adapters are new. Use approved
   artwork from the website as the image source. Projects under
   `/Users/lewis/Dev/Projects/Journal/` remain read-only; inspect them only when the
   user explicitly requests reference work.

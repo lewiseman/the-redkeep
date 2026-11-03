@@ -1,3 +1,4 @@
+import 'package:redkeep/features/sync/application/sync_providers.dart';
 import 'package:redkeep/features/flow/application/flow_providers.dart';
 import 'package:redkeep/features/flow/domain/flow_repository.dart';
 import 'package:redkeep/features/diary/application/diary_providers.dart';
@@ -44,6 +45,7 @@ Future<GoRouter> pumpApp(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        syncEnabledProvider.overrideWithValue(false),
         appearanceRepositoryProvider.overrideWithValue(preferences),
         onboardingRepositoryProvider.overrideWithValue(
           onboarding ?? FakeOnboardingRepository(),

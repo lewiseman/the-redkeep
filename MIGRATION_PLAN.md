@@ -4,6 +4,15 @@ Agreed on 2 November 2026. Workspace: `/Users/lewis/Dev/Projects/The Redkeep`.
 
 ## 1. Purpose and how to use this guide
 
+**Selected GS01 exception — 3 November 2026:** The user explicitly authorized
+migrating the existing `sync_wise` package and original sync card/account UI,
+including account reset, into Redkeep. This narrow selection supersedes the
+no-additional-legacy-code rule for those components only. Host Drift adapters are
+new. Keep primary/add-only-secondary behavior and isolate Redkeep cloud data.
+The user subsequently confirmed Android focus; iOS OAuth setup is deferred.
+See [Google sync](docs/google-sync.md) and its evidence record. Other deferred
+features and M12 remain outside scope.
+
 **Latest engineering instruction — 3 November 2026:** Redkeep is a new app. Do
 not copy, port or import additional legacy code, manifests, services or native
 configuration. Older phase prompts do not grant current permission to do so.
@@ -76,6 +85,7 @@ Use `Not started`, `In progress`, `Complete`, `Partial`, or `Deferred`. A partia
 | UI01 local asset references | Complete | Current image consumers/tests use website/public/art directly without a duplicate pack. Existing reference archives remain intact; the separate Allura font reference still serves offline font tests. | No routine test downloads; bundled mascot/ink paper remain required startup resources. |
 | UI01 — Onboarding book UI | Complete | Restored book/folding name cover, Grand Maester, Allura, primary action, dots/hint and bottom links; manual/keyboard/semantic navigation with no added controls. Schema 8 preserves writing/settings and requires a committed name. Shared website sources now supply the Redkeep castle cover and twelve required downloads; bundled startup branding remains unchanged. Current 361 offline tests and Android debug packaging pass; see docs/evidence/assets-website/verification.json. | Prior visual-parity screenshots describe earlier cover/branding variants. Live font/native fresh-install, physical performance/accessibility and M12 qualification remain separate. |
 | Asset simplification — Website delivery | Complete | Canonical website artwork and integrity-pinned installs/offline tests. Only ASSET_BASE_URL is passed through ignored env.json; one-key example and Debug/Profile/Release wiring restored. Old URL lists, HTTP fixture flags, duplicate pack and website checker remain removed. See docs/evidence/assets-website/env-base-url.json. | Single-setting follow-up only; no additional legacy code imports. Native fresh-install qualification and M12 remain separate. |
+| GS01 — Google sync and account UI | Complete | Existing sync_wise structure and original card/sheet/reset UI; new awaitable Drift adapters, schema-9 transactional outbox, Redkeep-only Drive ownership and reset generations. 390 app cases across the full suite plus root smoke, 29 package tests, six original-UI golden comparisons, analysis/formatting, asset validation and final Android debug packaging pass. See docs/google-sync.md and docs/evidence/gs01/verification.json. | Live Android OAuth/Drive/two-device and physical/release qualification remain unverified. iOS simulator packaging passed; Google sign-in deferred at user request pending its own client/URL scheme. Stop at GS01; M12 remains separately scoped. |
 | M12 — Mobile release preparation | Not started | — | Requires M01–M11 plus UI01 and any further individually selected mobile UI phases; production media hosting and recorded device qualification remain prerequisites. |
 | D01 — Flutter desktop foundation | Deferred | Existing desktop app retained by user decision on 3 November 2026. | Parked; not a gate for mobile acceptance and never automatic. Requires explicit user rescoping. |
 | D02 — Companion connection | Deferred | No new mobile-to-old-desktop compatibility work selected. | Parked with D01; retaining the old app does not establish protocol compatibility. |
@@ -2791,3 +2801,56 @@ remain absent. See `docs/evidence/assets-website/env-base-url.json`.
 writing storage/schema or native source change. No manual IDE/device launch,
 deployment or remote Git operation. Existing native host/device qualification
 limits remain; the selected one-setting configuration follow-up is complete.
+
+
+### 3 November 2026 — GS01: Google sync and original account UI
+
+**Selection and boundary.** The user selected the existing sync package structure,
+original sync card and its related account/reset screens, primary/add-only
+secondary roles, and separate Redkeep cloud data. This explicit exception permits
+only the selected package/UI reuse. The source Journal project stayed read-only;
+new host adapters use Redkeep's existing background Drift database. The user
+confirmed Android focus because an iOS OAuth client is not available.
+
+**Delivered.** `packages/sync_wise` retains the engine/provider/auth/reset structure
+and its tests, with awaited persistence for Drift and scoped device identity.
+Schema 9 adds transactional trigger-backed sync records, creation operations,
+account/role/baseline metadata and permanent-deletion tombstones. V1–8 upgrades
+preserve existing writing/settings/name; v8 committed writing is queued while
+drafts remain private. Source revisions change on remote merge, exact-snapshot
+acknowledgement preserves concurrent edits, and pending Diary days retain unseen
+secondary additions. Repository transactions guard secondary committed writes;
+private drafts still persist after a role change to avoid losing in-flight text.
+
+The original card/materials, collapsing/pinned header, account sheet, primary
+reclaim, disconnect and typed-reset/progress UI are retained. More keeps its
+current Appearance/Brain destinations. Only host wiring, necessary accessibility
+handling and unsupported-feature reset copy change. Original card/sheet renders
+with the same host theme/fonts produced six pixel baselines; the migrated widgets
+match all six. PNGs and source hashes are retained under `docs/evidence/gs01/`.
+
+Every Drive listing/direct read/update/reset checks `redkeepNamespace=redkeep-v1`;
+foreign results are ignored before content access, and ownership is rechecked
+before deletion. No Journal cloud import exists. Reset persists provider/account
+intent and a remote-deleted checkpoint, clears only writing/drafts/sync metadata,
+then signs out and clears binding. Root gating expires the Navigator, any Brain
+executor and repository generations so delayed callbacks cannot recreate cleared
+writing. Names/settings/artwork/models/device identity remain local and retained.
+
+**Checks.** App analysis and package analysis: zero issues. Both lockfiles enforce.
+Formatting and the unchanged 12-image / 2,800,992-byte local asset catalog pass.
+The full app run passes **389 tests**; the subsequently added real-root isolated
+smoke passes **1** (390 app cases total). Package suite: **29 passing tests**.
+The final Android ARM64 debug APK builds with the existing ignored env file;
+the earlier iOS simulator packaging check also passes. Exact commands, artifact
+hashes and limits are recorded in `docs/evidence/gs01/verification.json`.
+
+**Unavailable evidence.** No live account, private journal, cloud provisioning,
+real Drive upload/reset, physical device or two-device verification was used.
+Android package/signing-certificate registration, consent and real conditional
+Drive requests remain live qualification. iOS Google sign-in deliberately stays
+unavailable with a setup message until its separate OAuth client/URL scheme is
+provided; the user requested Android focus. Package resolution added only the
+required generated plugin/SPM records, without copying legacy native files.
+No workspace Git remote command, publication, raw-assets change or later phase
+was performed. GS01 stops here; M12 and other deferred work are not authorized.

@@ -1,3 +1,5 @@
+import '../../sync/application/sync_providers.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -25,7 +27,8 @@ class _NoteReadPageState extends ConsumerState<NoteReadPage> {
   @override
   Widget build(BuildContext context) {
     final opened = ref.watch(noteDocumentProvider(widget.id));
-    final busy = ref.watch(notesActionsProvider);
+    final canEdit = ref.watch(syncCanEditProvider);
+    final busy = ref.watch(notesActionsProvider) || !canEdit;
     return AppShell(
       floatingActionButton: NoteMaesterButton(id: widget.id),
       child: opened.when(
@@ -76,8 +79,10 @@ class _NoteReadPageState extends ConsumerState<NoteReadPage> {
                   if (_error != null) _failure(),
                   if (value.draft != null)
                     OutlinedButton(
-                      onPressed: () =>
-                          context.go(noteLocation(widget.id, edit: true)),
+                      onPressed: !canEdit
+                          ? null
+                          : () =>
+                                context.go(noteLocation(widget.id, edit: true)),
                       child: const Text('Open recovery draft'),
                     ),
                   FilledButton(
@@ -104,8 +109,10 @@ class _NoteReadPageState extends ConsumerState<NoteReadPage> {
                   runSpacing: 8,
                   children: [
                     FilledButton(
-                      onPressed: () =>
-                          context.go(noteLocation(widget.id, edit: true)),
+                      onPressed: !canEdit
+                          ? null
+                          : () =>
+                                context.go(noteLocation(widget.id, edit: true)),
                       child: Text(
                         value.draft == null ? 'Edit note' : 'Resume draft',
                       ),

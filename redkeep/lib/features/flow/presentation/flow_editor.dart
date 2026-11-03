@@ -1,3 +1,5 @@
+import '../../sync/application/sync_providers.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -49,6 +51,8 @@ class _FlowEditorState extends ConsumerState<FlowEditor> {
         ],
       ),
       data: (state) {
+        final readOnly =
+            state.baseRevision > 0 && !ref.watch(syncCanEditProvider);
         if (_body.text != state.body) {
           _body.value = TextEditingValue(
             text: state.body,
@@ -63,11 +67,15 @@ class _FlowEditorState extends ConsumerState<FlowEditor> {
                 widget.id == null ? 'Catch a thought' : 'Edit thought',
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
+              if (readOnly)
+                const Text(
+                  'This device is add-only. Reclaim primary in Sync & devices to edit. Your draft is kept.',
+                ),
               const SizedBox(height: 12),
               TextField(
                 key: const ValueKey('flow-body'),
                 controller: _body,
-                enabled: !state.saving,
+                enabled: !state.saving && !readOnly,
                 decoration: const InputDecoration(
                   labelText: 'Your thought',
                   alignLabelWithHint: true,
@@ -102,7 +110,8 @@ class _FlowEditorState extends ConsumerState<FlowEditor> {
                 runSpacing: 8,
                 children: [
                   FilledButton(
-                    onPressed: state.saving || state.body.trim().isEmpty
+                    onPressed:
+                        readOnly || state.saving || state.body.trim().isEmpty
                         ? null
                         : controller.save,
                     child: Text(

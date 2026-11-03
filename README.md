@@ -46,6 +46,13 @@ summaries/reflections and guarded Note rewrite acceptance into recovery drafts.
 See [Grand Maester](docs/grand-maester.md) for source/selection protection and
 separate native smoke commands.
 
+GS01 adds Google Drive sync through the selected local `sync_wise` package,
+with the original collapsing account card, device/account sheet and resumable
+account reset. Schema 9 preserves writing/settings and adds a transactional sync
+outbox. Notes, Diary and Flow sync; recovery drafts remain private. Android is
+the selected auth target; iOS Google OAuth setup is deferred. See
+[Google sync and reset](docs/google-sync.md) for roles, ownership, setup and checks.
+
 UI01 restores the legacy full illustrated book, curved paper, binding, manual
 turns and original folding cover. **Let's begin** reveals name entry; **Save**
 commits the name before opening the validated router continuation. A user
@@ -61,7 +68,7 @@ added Previous/Next, Back button or visible counter.
 `presentation-website-v1` contains **12 images / 2,800,992 bytes**, including the
 website's Redkeep castle cover. `website/public/art/` is the canonical local image
 source for both apps and offline tests. The mobile app receives one HTTPS image
-base through `env.json`. Per-image URL maps, tokens, HTTP fixture flags and
+base through `env.json`; GS01 also reads `GOOGLE_SERVER_CLIENT_ID` for Google sync. Per-image URL maps, tokens, HTTP fixture flags and
 preparation commands remain removed. The eleven unchanged installed images are reused during upgrades.
 
 `grand_maestar.png` and `ink-paper.webp` remain bundled for immediate startup and
@@ -90,6 +97,7 @@ flutter pub get --enforce-lockfile
 dart format --output=none --set-exit-if-changed lib test tool
 flutter analyze
 flutter test
+# Also run flutter analyze / flutter test in packages/sync_wise/.
 dart run tool/validate_assets.dart assets/catalog/presentation-v1.json ../website/public/art
 ```
 
@@ -126,7 +134,8 @@ upgrades from versions 1–3. M08 adds separate Diary entries, drafts and day
 headings in schema 5, preserving versions 1–4. M09 adds Flow thoughts and recovery
 drafts in schema 6, preserving versions 1–5. M10 adds unseeded Brain assignments
 in schema 7, preserving versions 1–6. UI01 adds the saved onboarding name in
-schema 8 and preserves versions 1–7; completion now requires that name. Each subsequent schema change needs a version
+schema 8 and preserves versions 1–7; GS01 adds schema 9 sync state/outbox with
+transactional writing triggers and preserves versions 1–8; completion now requires that name. Each subsequent schema change needs a version
 bump and migration/data-preservation tests. Preserve historical snapshots after
 shipping that version. Keep generated Drift code and schema helpers with source.
 For Android packaging verification, run

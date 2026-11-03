@@ -1,0 +1,129 @@
+{
+  "phase": "GS01",
+  "date": "2026-11-03",
+  "selected_scope": "Android Google sync with existing sync_wise package structure and original account UI; separate Redkeep cloud data; original device roles",
+  "status": "Complete for selected implementation and available checks; live qualification outstanding",
+  "checks": {
+    "app_dependency_lock": {
+      "command": "flutter pub get --enforce-lockfile",
+      "result": "pass"
+    },
+    "package_dependency_lock": {
+      "command": "flutter pub get --enforce-lockfile (packages/sync_wise)",
+      "result": "pass"
+    },
+    "format": {
+      "command": "dart format --output=none --set-exit-if-changed lib test tool packages/sync_wise/lib packages/sync_wise/test",
+      "result": "pass",
+      "files": 213,
+      "changed": 0
+    },
+    "app_analysis": {
+      "command": "flutter analyze",
+      "result": "pass",
+      "issues": 0,
+      "qualification": "Final analysis includes the subsequently added root-composition smoke test."
+    },
+    "package_analysis": {
+      "command": "flutter analyze (packages/sync_wise)",
+      "result": "pass",
+      "issues": 0
+    },
+    "app_suite": {
+      "command": "flutter test --dart-define=RECORD_SYNC_SCREENSHOTS=true",
+      "result": "pass",
+      "tests": 389
+    },
+    "additional_root_smoke": {
+      "command": "flutter test test/features/sync/sync_host_test.dart",
+      "result": "pass",
+      "tests": 1,
+      "reason": "Added after the full suite to verify the real RedkeepApp router/reset/sync coordinator composition with isolated SQLite and fake accounts."
+    },
+    "package_suite": {
+      "command": "flutter test (packages/sync_wise)",
+      "result": "pass",
+      "tests": 29
+    },
+    "asset_validation": {
+      "command": "dart run tool/validate_assets.dart assets/catalog/presentation-v1.json ../website/public/art",
+      "result": "pass",
+      "catalog": "presentation-website-v1",
+      "images": 12,
+      "bytes": 2800992
+    },
+    "android_packaging": {
+      "command": "flutter build apk --debug --target-platform android-arm64 --dart-define-from-file=env.json",
+      "result": "pass",
+      "final_dart_implementation": true,
+      "artifact": "redkeep/build/app/outputs/flutter-apk/app-debug.apk",
+      "sha256": "50dce7a252cd732f5294e06742216c9ed5e3a5f481207a0e9d7e3e41df2cd54f"
+    },
+    "ios_simulator_packaging": {
+      "command": "flutter build ios --simulator --debug --dart-define-from-file=env.json",
+      "result": "pass",
+      "qualification": "Packaging check before final Dart-only refinements; iOS Google sign-in deferred by user because no iOS OAuth client is available."
+    },
+    "visual_parity": {
+      "result": "pass",
+      "baseline_source": "Selected original sync card and account sheet, rendered with explicit Redkeep host adapters and Flutter SDK fonts",
+      "goldens": 6,
+      "themes": [
+        "light",
+        "dark"
+      ],
+      "states": [
+        "expanded card",
+        "collapsed card",
+        "account sheet"
+      ],
+      "narrow_large_text": "320px / 3x for expanded signed-out card, collapsed card, account sheet and typed-reset screen in both themes",
+      "interaction": "Actual More header pins on scroll and expands on tap in both themes",
+      "inspection": "Viewed light expanded card and dark sheet PNGs after local font loading."
+    },
+    "reproducibility": {
+      "redkeep/pubspec.lock": "04ef9e69fcae8f2f291d3c94235b9445baf18864e1a9d0b80586c37d3fa83359",
+      "redkeep/packages/sync_wise/pubspec.lock": "2a303988563ff139b6049551cfaa1b05fe28c0b36869eedecc9a4e8ea6f71b09",
+      "redkeep/drift_schemas/drift_schema_v9.json": "e7f2bcb7f183837a927c9ae6e135fedd7296f83bf4a3f89d8239007fa804633f"
+    }
+  },
+  "total_test_cases_executed": 419,
+  "configuration": {
+    "ignored_env_preserved": true,
+    "server_client_id_present": true,
+    "values_recorded": false
+  },
+  "verified_behaviors": [
+    "atomic committed-writing outbox and rollback",
+    "schema 1\u20138 upgrades including v8 name/draft preservation",
+    "offline background SQLite close/reopen",
+    "exact-snapshot upload acknowledgement",
+    "tags/pin/trash and permanent-delete tombstones",
+    "stale editor revisions and private draft preservation",
+    "primary role reclaim and add-only repository/control enforcement",
+    "dirty-primary Diary union with unseen secondary entries",
+    "secondary Diary append preserving heading/tombstones",
+    "account switch blocks upload",
+    "resumable reset and late repository callback rejection",
+    "namespace-filtered listing/read/update/reset",
+    "root sync/router/reset composition without native accounts",
+    "UI parity and pinned-header interaction"
+  ],
+  "unverified": [
+    "Live Android Google sign-in and Drive consent with the configured OAuth project/certificate",
+    "Real Google Drive conditional ETags, fresh install/reinstall and two-device sync/reset",
+    "Physical-device accessibility, performance, release signing and background behavior"
+  ],
+  "deferred": [
+    "iOS Google sign-in: user does not yet have an iOS OAuth client and requested Android focus",
+    "M12 and all later phases"
+  ],
+  "preservation": {
+    "legacy_source": "read-only; only selected package/account UI copied",
+    "raw_assets": "untouched",
+    "unrelated_preexisting_changes": "preserved",
+    "native_configuration": "No legacy native configuration copied; generated plugin registration / Swift package resolution retained for added dependencies",
+    "cloud_resources": "No provisioning, account access, private writing upload or destructive live reset",
+    "git": "No workspace Git remote command, commit or publication"
+  }
+}

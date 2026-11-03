@@ -1,3 +1,5 @@
+import '../../sync/application/sync_providers.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -75,6 +77,8 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
             ],
           ),
           data: (state) {
+            final readOnly =
+                state.baseRevision > 0 && !ref.watch(syncCanEditProvider);
             if (!_loaded) {
               _title.text = state.text.title;
               _body.text = state.text.body;
@@ -99,7 +103,7 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
                   TextField(
                     key: const ValueKey('diary-title'),
                     controller: _title,
-                    enabled: !state.saving,
+                    enabled: !state.saving && !readOnly,
                     decoration: const InputDecoration(labelText: 'Title'),
                     maxLines: null,
                     textCapitalization: TextCapitalization.sentences,
@@ -109,7 +113,7 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
                   TextField(
                     key: const ValueKey('diary-body'),
                     controller: _body,
-                    enabled: !state.saving,
+                    enabled: !state.saving && !readOnly,
                     decoration: const InputDecoration(
                       labelText: 'Body',
                       alignLabelWithHint: true,
@@ -141,7 +145,8 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
                     children: [
                       FilledButton(
                         onPressed:
-                            state.saving ||
+                            readOnly ||
+                                state.saving ||
                                 (state.draftRevision == null &&
                                     !state.recovering &&
                                     !state.recoveryFailed)

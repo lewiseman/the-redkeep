@@ -1,3 +1,5 @@
+import '../../sync/application/sync_providers.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -43,17 +45,21 @@ class DiaryEntryPage extends ConsumerWidget {
                     SelectableText(entry.text.body),
                     const SizedBox(height: 16),
                     OutlinedButton(
-                      onPressed: () => context.go(
-                        diaryEntryLocation(
-                          address.date,
-                          address.id,
-                          edit: true,
-                        ),
-                      ),
+                      onPressed: !ref.watch(syncCanEditProvider)
+                          ? null
+                          : () => context.go(
+                              diaryEntryLocation(
+                                address.date,
+                                address.id,
+                                edit: true,
+                              ),
+                            ),
                       child: const Text('Edit entry'),
                     ),
                     OutlinedButton(
-                      onPressed: ref.watch(diaryActionsProvider)
+                      onPressed:
+                          !ref.watch(syncCanEditProvider) ||
+                              ref.watch(diaryActionsProvider)
                           ? null
                           : () => _delete(context, ref, entry),
                       child: const Text('Delete entry'),

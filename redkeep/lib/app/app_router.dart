@@ -1,3 +1,4 @@
+import '../features/sync/application/sync_providers.dart';
 import 'writing_shell.dart';
 import 'more_page.dart';
 import '../features/brain/presentation/brain_page.dart';
@@ -41,6 +42,7 @@ final navigationRouteInformationProvider = Provider<NavigationRouteInformation>(
 
 /// One router per scope. Refreshes change redirects without rebuilding history.
 GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
+  ref.watch(writingSessionEpochProvider);
   final refresh = ValueNotifier(0);
   ref.listen(bootstrapControllerProvider, (_, _) => refresh.value++);
   ref.listen(onboardingControllerProvider, (_, _) => refresh.value++);

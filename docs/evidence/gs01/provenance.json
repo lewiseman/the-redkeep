@@ -1,0 +1,16 @@
+{
+  "source": "/Users/lewis/Dev/Projects/Journal/journal",
+  "selected_phase": "GS01",
+  "read_only_source": true,
+  "authorized_reuse": "sync_wise package and selected account UI only; host Drift adapters are new",
+  "files": {
+    "packages/sync_wise/LICENSE": "422e0de8e3275febf5c41a5ccf891f68f16bc40e1b5dca26e50913b307ef794e",
+    "lib/modules/account/views/widgets/sync_card.dart": "6879bfd3aa71e55c24e1fbe9ce84a642ea9c2f503a9c33131e0f7d38724ef36a",
+    "lib/modules/account/views/widgets/sync_account_sheet.dart": "7ea09c24546df0112241f9e489fae096b9784f941c0bb77a70c1d079ec82c043",
+    "lib/modules/account/views/pages/reset_account_page.dart": "f5974fb14cb8dde116156af13316d618f88e1567a86894910854006267c0cc3f",
+    "lib/modules/account/views/widgets/reset_account_progress.dart": "9f207328630d3ae975370d5b6f3c637dc13972024384578748bc61bc520d4323",
+    "lib/modules/more/views/widgets/more_material.dart": "ef3da05345b5263cf44f12c63201d1dc676dc34fccb360b40a2cb257775bf6f3",
+    "lib/modules/more/views/pages/more_page.dart": "8fd440b856bef3e0e42fb054a49fe7261038bd2e2b94a87c231334c3120728b3"
+  },
+  "golden_method": "Original card and account sheet rendered with import/provider/name/navigation adapters only, using Redkeep themes and Flutter SDK Roboto/MaterialIcons; production widgets compared with the resulting PNG baselines. No original application, database, or native configuration was used."
+}

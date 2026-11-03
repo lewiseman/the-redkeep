@@ -18,15 +18,10 @@ class DriftFlowRepository implements FlowRepository {
   }
 
   @override
-  Stream<List<ThoughtListing>> watchThoughts() => _list(false);
-  @override
-  Stream<List<ThoughtListing>> watchDrafts() => _list(true);
-  Stream<List<ThoughtListing>> _list(bool drafts) => _db
+  Stream<List<ThoughtListing>> watchThoughts() => _db
       .customSelect(
-        drafts
-            ? 'SELECT id, substr(body, 1, 160) AS preview, updated_at AS created_at FROM flow_drafts WHERE capture = 0 ORDER BY updated_at DESC, id DESC'
-            : 'SELECT id, substr(body, 1, 160) AS preview, created_at FROM flow_thoughts WHERE deleted_at IS NULL ORDER BY created_at DESC, id DESC',
-        readsFrom: {if (drafts) _db.flowDrafts else _db.flowThoughts},
+        'SELECT id, substr(body, 1, 160) AS preview, created_at FROM flow_thoughts WHERE deleted_at IS NULL ORDER BY created_at DESC, id DESC',
+        readsFrom: {_db.flowThoughts},
       )
       .watch()
       .map(
@@ -45,23 +40,14 @@ class DriftFlowRepository implements FlowRepository {
       );
 
   @override
-  Future<ThoughtDraft?> openCapture() async {
-    final row = await (_db.select(
-      _db.flowDrafts,
-    )..where((r) => r.capture.equals(true))).getSingleOrNull();
-    return row == null ? null : _draft(row);
-  }
-
-  @override
   Stream<OpenThought> watchDocument(String id) {
     _validate(id);
     // Observe tokens before loading one transactional document snapshot.
     return _db
         .customSelect(
-          'SELECT (SELECT revision FROM flow_thoughts WHERE id = ?) AS source_revision, '
-          '(SELECT draft_revision FROM flow_drafts WHERE id = ?) AS draft_revision',
-          variables: [Variable.withString(id), Variable.withString(id)],
-          readsFrom: {_db.flowThoughts, _db.flowDrafts},
+          'SELECT (SELECT revision FROM flow_thoughts WHERE id = ?) AS source_revision',
+          variables: [Variable.withString(id)],
+          readsFrom: {_db.flowThoughts},
         )
         .watch()
         .asyncMap((_) => openDocument(id));
@@ -74,66 +60,16 @@ class DriftFlowRepository implements FlowRepository {
       final entry = await (_db.select(
         _db.flowThoughts,
       )..where((r) => r.id.equals(id))).getSingleOrNull();
-      final draft = await (_db.select(
-        _db.flowDrafts,
-      )..where((r) => r.id.equals(id))).getSingleOrNull();
-      return OpenThought(
-        thought: entry == null ? null : _entry(entry),
-        draft: draft == null ? null : _draft(draft),
-      );
+      return OpenThought(thought: entry == null ? null : _entry(entry));
     });
   }
 
   @override
-  Future<ThoughtDraft> putDraft({
+  Future<Thought> save({
     required String id,
     required String body,
-    required bool capture,
-    required int baseRevision,
-    required int? expectedDraftRevision,
+    required int expectedRevision,
   }) async {
-    return _db.transaction(() async {
-      await checkWritingAccess(_db, _generation, recoveryOnly: true);
-      _validate(id);
-
-      final old = await (_db.select(
-        _db.flowDrafts,
-      )..where((r) => r.id.equals(id))).getSingleOrNull();
-      if (old?.draftRevision != expectedDraftRevision ||
-          (old != null &&
-              (old.baseRevision != baseRevision || old.capture != capture))) {
-        throw const FlowException(FlowFailure.draftChanged);
-      }
-      final source = await openDocument(id);
-      if (capture && (baseRevision != 0 || source.thought != null)) {
-        throw const FlowException(FlowFailure.staleRevision);
-      }
-      final now = _clock().toUtc().millisecondsSinceEpoch;
-      if (old != null) await discardDraft(id, old.draftRevision);
-      final version = await _db
-          .into(_db.flowDrafts)
-          .insert(
-            FlowDraftsCompanion.insert(
-              id: id,
-              body: body,
-              capture: capture,
-              baseRevision: baseRevision,
-              updatedAt: now,
-            ),
-          );
-      return ThoughtDraft(
-        id: id,
-        body: body,
-        capture: capture,
-        baseRevision: baseRevision,
-        draftRevision: version,
-        updatedAt: DateTime.fromMillisecondsSinceEpoch(now, isUtc: true),
-      );
-    });
-  }
-
-  @override
-  Future<Thought> commitDraft(String id, int expectedDraftRevision) async {
     return _db.transaction(() async {
       await checkWritingAccess(
         _db,
@@ -147,27 +83,20 @@ class DriftFlowRepository implements FlowRepository {
       _validate(id);
 
       final snapshot = await openDocument(id);
-      final draft = snapshot.draft;
-      if (draft == null || draft.draftRevision != expectedDraftRevision) {
-        throw const FlowException(FlowFailure.draftChanged);
-      }
-      if (draft.body.trim().isEmpty) {
-        throw const FlowException(FlowFailure.empty);
-      }
+      if (body.trim().isEmpty) throw const FlowException(FlowFailure.empty);
       final old = snapshot.thought;
-      if (old?.deletedAt != null ||
-          (old?.revision ?? 0) != draft.baseRevision) {
+      if (old?.deletedAt != null || (old?.revision ?? 0) != expectedRevision) {
         throw const FlowException(FlowFailure.staleRevision);
       }
       final now = _clock().toUtc();
-      final revision = draft.baseRevision + 1;
+      final revision = expectedRevision + 1;
       if (old == null) {
         await _db
             .into(_db.flowThoughts)
             .insert(
               FlowThoughtsCompanion.insert(
                 id: id,
-                body: draft.body,
+                body: body,
                 revision: revision,
                 createdAt: now.millisecondsSinceEpoch,
                 updatedAt: now.millisecondsSinceEpoch,
@@ -178,22 +107,21 @@ class DriftFlowRepository implements FlowRepository {
             await (_db.update(_db.flowThoughts)..where(
                   (r) =>
                       r.id.equals(id) &
-                      r.revision.equals(draft.baseRevision) &
+                      r.revision.equals(expectedRevision) &
                       r.deletedAt.isNull(),
                 ))
                 .write(
                   FlowThoughtsCompanion(
-                    body: Value(draft.body),
+                    body: Value(body),
                     revision: Value(revision),
                     updatedAt: Value(now.millisecondsSinceEpoch),
                   ),
                 );
         if (count != 1) throw const FlowException(FlowFailure.staleRevision);
       }
-      await discardDraft(id, expectedDraftRevision);
       return Thought(
         id: id,
-        body: draft.body,
+        body: body,
         revision: revision,
         createdAt: old?.createdAt ?? now,
         updatedAt: now,
@@ -226,24 +154,6 @@ class DriftFlowRepository implements FlowRepository {
     });
   }
 
-  @override
-  Future<void> discardDraft(String id, int expectedDraftRevision) async {
-    return _db.transaction(() async {
-      if (_db.writingBlocked || _db.writingGeneration != _generation) {
-        throw StateError('Account reset changed this writing session.');
-      }
-      _validate(id);
-      final count =
-          await (_db.delete(_db.flowDrafts)..where(
-                (r) =>
-                    r.id.equals(id) &
-                    r.draftRevision.equals(expectedDraftRevision),
-              ))
-              .go();
-      if (count != 1) throw const FlowException(FlowFailure.draftChanged);
-    });
-  }
-
   Thought _entry(ThoughtRow r) => Thought(
     id: r.id,
     body: r.body,
@@ -253,13 +163,5 @@ class DriftFlowRepository implements FlowRepository {
     deletedAt: r.deletedAt == null
         ? null
         : DateTime.fromMillisecondsSinceEpoch(r.deletedAt!, isUtc: true),
-  );
-  ThoughtDraft _draft(ThoughtDraftRow r) => ThoughtDraft(
-    id: r.id,
-    body: r.body,
-    capture: r.capture,
-    baseRevision: r.baseRevision,
-    draftRevision: r.draftRevision,
-    updatedAt: DateTime.fromMillisecondsSinceEpoch(r.updatedAt, isUtc: true),
   );
 }

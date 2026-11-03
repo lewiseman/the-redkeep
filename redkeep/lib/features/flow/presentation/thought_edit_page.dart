@@ -1,3 +1,5 @@
+import '../../../core/presentation/confirm_discard_changes.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -13,12 +15,11 @@ class ThoughtEditPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(flowEditorProvider(id)).value;
     return PopScope(
-      canPop:
-          state == null ||
-          !state.saving && !state.recovering && !state.recoveryFailed,
+      canPop: state == null || !state.saving && !state.changed,
       onPopInvokedWithResult: (popped, _) async {
         if (popped || state == null || state.saving) return;
-        if (await ref.read(flowEditorProvider(id).notifier).flushRecovery()) {
+        if (await confirmDiscardChanges(context)) {
+          await ref.read(flowEditorProvider(id).notifier).discard();
           await WidgetsBinding.instance.endOfFrame;
           if (context.mounted) Navigator.of(context).pop();
         }

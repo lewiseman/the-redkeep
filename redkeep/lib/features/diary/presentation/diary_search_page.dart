@@ -32,9 +32,7 @@ class _DiarySearchPageState extends ConsumerState<DiarySearchPage> {
               inputFormatters: [LengthLimitingTextInputFormatter(256)],
               onChanged: (value) => setState(() => search = value.trim()),
             ),
-            const Text(
-              'Every keyword must match the saved title or text. Recovery drafts are listed in the calendar.',
-            ),
+            const Text('Every keyword must match the saved title or text.'),
           ],
         ),
       ),

@@ -56,11 +56,14 @@ class NoteEditorController extends AsyncNotifier<NoteEditorState> {
   Future<NoteEditorState> build() async {
     _repository = ref.watch(notesRepositoryProvider);
     final opened = await _repository.openDocument(id);
-    if (!opened.available && opened.draft == null) {
+    if (!opened.available &&
+        opened.draft == null &&
+        (opened.note != null || !ref.read(noteNewIdsProvider).contains(id))) {
       throw const NoteException(NoteFailure.unavailable);
     }
-    _text = opened.draft?.text ?? opened.note!.text;
-    _baseRevision = opened.draft?.baseRevision ?? opened.note!.revision;
+    _text =
+        opened.draft?.text ?? opened.note?.text ?? const PlainTextDocument();
+    _baseRevision = opened.draft?.baseRevision ?? opened.note?.revision ?? 0;
     _draftRevision = opened.draft?.draftRevision;
     _unavailable = !opened.available && _baseRevision != 0;
     return _snapshot(
@@ -171,13 +174,20 @@ class NoteEditorController extends AsyncNotifier<NoteEditorState> {
       final sequence = _sequence;
       final text = _text;
       try {
-        final draft = await _repository.putDraft(
-          id: id,
-          text: text,
-          baseRevision: _baseRevision,
-          expectedDraftRevision: _draftRevision,
-        );
-        _draftRevision = draft.draftRevision;
+        if (text.isEmpty) {
+          if (_draftRevision != null) {
+            await _repository.discardDraft(id, _draftRevision!);
+            _draftRevision = null;
+          }
+        } else {
+          final draft = await _repository.putDraft(
+            id: id,
+            text: text,
+            baseRevision: _baseRevision,
+            expectedDraftRevision: _draftRevision,
+          );
+          _draftRevision = draft.draftRevision;
+        }
         _persistedSequence = sequence;
         _recoveryFailed = false;
       } catch (_) {
@@ -193,7 +203,7 @@ class NoteEditorController extends AsyncNotifier<NoteEditorState> {
   }
 
   Future<bool> save() async {
-    if (_saving || !state.hasValue) return false;
+    if (_saving || !state.hasValue || _text.isEmpty) return false;
     _saving = true;
     _publish();
     final keep = ref.keepAlive();
@@ -203,6 +213,7 @@ class NoteEditorController extends AsyncNotifier<NoteEditorState> {
       final saved = await _repository.commitDraft(id, _draftRevision!);
       _draftRevision = null;
       _baseRevision = saved.revision;
+      ref.read(noteNewIdsProvider.notifier).remove(id);
       _unavailable = false;
       _saving = false;
       _publish(message: 'Saved revision ${saved.revision} on this device.');
@@ -236,7 +247,7 @@ class NoteEditorController extends AsyncNotifier<NoteEditorState> {
 
   /// Explicit conflict recovery; the source and its recovery draft are retained.
   Future<String?> saveCopy() async {
-    if (_saving || !state.hasValue) return null;
+    if (_saving || !state.hasValue || _text.isEmpty) return null;
     final newId = ref.read(noteIdProvider)();
     _saving = true;
     _publish();
@@ -273,7 +284,9 @@ class NoteEditorController extends AsyncNotifier<NoteEditorState> {
       if (!await flushRecovery()) return false;
       if (_draftRevision != null) {
         await _repository.discardDraft(id, _draftRevision!);
+        _draftRevision = null;
       }
+      ref.read(noteNewIdsProvider.notifier).remove(id);
       return true;
     } catch (_) {
       _publish(message: 'Draft could not be discarded. It has been kept.');

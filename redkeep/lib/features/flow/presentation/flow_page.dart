@@ -26,18 +26,11 @@ class FlowPage extends ConsumerWidget {
               ),
               _block(
                 Text(
-                  'Unfinished edits',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-              ),
-              _section(context, ref, ref.watch(thoughtDraftsProvider), true),
-              _block(
-                Text(
                   'Newest thoughts',
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
               ),
-              _section(context, ref, ref.watch(thoughtsProvider), false),
+              _section(context, ref, ref.watch(thoughtsProvider)),
               const SliverToBoxAdapter(child: SizedBox(height: 96)),
             ],
           ),
@@ -53,22 +46,15 @@ class FlowPage extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     AsyncValue<List<ThoughtListing>> items,
-    bool drafts,
   ) => items.when(
     loading: () => _block(const Text('Loading…')),
     error: (_, _) => _block(
       Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            drafts
-                ? 'Unfinished edits could not be loaded.'
-                : 'Thoughts could not be loaded.',
-          ),
+          const Text('Thoughts could not be loaded.'),
           OutlinedButton(
-            onPressed: () => drafts
-                ? ref.invalidate(thoughtDraftsProvider)
-                : ref.invalidate(thoughtsProvider),
+            onPressed: () => ref.invalidate(thoughtsProvider),
             child: const Text('Retry loading'),
           ),
         ],
@@ -76,10 +62,8 @@ class FlowPage extends ConsumerWidget {
     ),
     data: (rows) => rows.isEmpty
         ? _block(
-            Text(
-              drafts
-                  ? 'No unfinished edits.'
-                  : 'No thoughts yet. Capture a thought whenever you’re ready.',
+            const Text(
+              'No thoughts yet. Capture a thought whenever you’re ready.',
             ),
           )
         : SliverList.builder(
@@ -98,12 +82,8 @@ class FlowPage extends ConsumerWidget {
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                 ),
-                subtitle: Text(
-                  drafts
-                      ? 'Recovery draft'
-                      : row.createdAt.toLocal().toString(),
-                ),
-                onTap: () => context.go(thoughtLocation(row.id, edit: drafts)),
+                subtitle: Text(row.createdAt.toLocal().toString()),
+                onTap: () => context.go(thoughtLocation(row.id)),
               );
             },
           ),

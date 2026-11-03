@@ -156,48 +156,6 @@ class _DiaryCalendarPageState extends ConsumerState<DiaryCalendarPage> {
             ),
           ),
         ],
-        diaryBlock(
-          Text(
-            'Recovery drafts',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-        ),
-        ref
-            .watch(diaryDraftsProvider)
-            .when(
-              loading: () => diaryBlock(const Text('Loading recovery drafts…')),
-              error: (_, _) => diaryBlock(
-                TextButton(
-                  onPressed: () => ref.invalidate(diaryDraftsProvider),
-                  child: const Text('Could not load drafts. Retry'),
-                ),
-              ),
-              data: (drafts) => drafts.isEmpty
-                  ? diaryBlock(const Text('No recovery drafts.'))
-                  : SliverList.builder(
-                      itemCount: drafts.length,
-                      itemBuilder: (context, index) {
-                        final draft = drafts[index];
-                        return ListTile(
-                          title: Text(
-                            draft.title.trim().isEmpty
-                                ? 'Untitled draft'
-                                : draft.title,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          subtitle: Text(draft.date.key),
-                          onTap: () => context.go(
-                            diaryEntryLocation(
-                              draft.date,
-                              draft.id,
-                              edit: true,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-            ),
       ],
     );
   }

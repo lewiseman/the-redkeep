@@ -34,10 +34,7 @@ final diarySearchProvider = StreamProvider.autoDispose
           ref.watch(diaryRepositoryProvider).watchEntries(search: search),
       retry: (_, _) => null,
     );
-final diaryDraftsProvider = StreamProvider.autoDispose<List<DiaryListing>>(
-  (ref) => ref.watch(diaryRepositoryProvider).watchDrafts(),
-  retry: (_, _) => null,
-);
+
 final diaryDayProvider = StreamProvider.autoDispose.family<DiaryDay, CivilDate>(
   (ref, date) => ref.watch(diaryRepositoryProvider).watchDay(date),
   retry: (_, _) => null,
@@ -69,13 +66,19 @@ class DiaryActions extends Notifier<bool> {
 
   Future<String> create(CivilDate date) => run((repository) async {
     final id = ref.read(diaryIdProvider)();
-    await repository.putDraft(
-      id: id,
-      date: date,
-      text: const DiaryText(),
-      baseRevision: 0,
-      expectedDraftRevision: null,
-    );
+    ref.read(diaryNewIdsProvider.notifier).add(id);
     return id;
   });
+}
+
+/// Allocated new editors have no database row until there is writing to save.
+final diaryNewIdsProvider = NotifierProvider<NewDiaryIds, Set<String>>(
+  NewDiaryIds.new,
+);
+
+class NewDiaryIds extends Notifier<Set<String>> {
+  @override
+  Set<String> build() => const {};
+  void add(String id) => state = {...state, id};
+  void remove(String id) => state = {...state}..remove(id);
 }

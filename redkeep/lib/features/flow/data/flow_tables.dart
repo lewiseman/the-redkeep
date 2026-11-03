@@ -15,17 +15,3 @@ class FlowThoughts extends Table {
   @override
   Set<Column> get primaryKey => {id};
 }
-
-@DataClassName('ThoughtDraftRow')
-@TableIndex.sql(
-  'CREATE UNIQUE INDEX flow_single_capture ON flow_drafts (capture) WHERE capture = 1',
-)
-class FlowDrafts extends Table {
-  TextColumn get id => text().unique()();
-  TextColumn get body => text()();
-  IntColumn get baseRevision =>
-      integer().customConstraint('NOT NULL CHECK (base_revision >= 0)')();
-  IntColumn get draftRevision => integer().autoIncrement()();
-  BoolColumn get capture => boolean()();
-  IntColumn get updatedAt => integer()();
-}

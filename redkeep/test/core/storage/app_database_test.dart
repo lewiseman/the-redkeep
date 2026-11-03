@@ -236,7 +236,7 @@ void main() {
         }
         final draft = await repo.putDraft(
           id: 'c' * 32,
-          text: const PlainTextDocument(),
+          text: const PlainTextDocument(body: 'New writing'),
           baseRevision: 0,
           expectedDraftRevision: null,
         );
@@ -302,13 +302,12 @@ void main() {
       }
       final draft = await repo.putDraft(
         id: 'f' * 32,
-        text: const PlainTextDocument(),
+        text: const PlainTextDocument(body: 'New writing'),
         baseRevision: 0,
         expectedDraftRevision: null,
       );
       expect(draft.draftRevision, greaterThan(31));
       expect(await database.select(database.diaryEntries).get(), isEmpty);
-      expect(await database.select(database.diaryDrafts).get(), isEmpty);
       expect(await database.select(database.diaryDays).get(), isEmpty);
     } finally {
       await database.close();
@@ -393,7 +392,6 @@ void main() {
         );
       }
       expect(await database.select(database.flowThoughts).get(), isEmpty);
-      expect(await database.select(database.flowDrafts).get(), isEmpty);
       await database.customStatement(
         "INSERT INTO diary_drafts (id, date_key, title, body, base_revision, updated_at) VALUES ('new', '2024-02-29', '', '', 0, 5)",
       );

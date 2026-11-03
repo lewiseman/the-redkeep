@@ -68,16 +68,12 @@ class DiaryMaesterButton extends ConsumerWidget {
                 editing: body != null,
               ),
         validate: (source) async {
-          if (body != null &&
-              !await ref
-                  .read(diaryEditorProvider(address).notifier)
-                  .flushRecovery()) {
-            return false;
-          }
           final current = await ref
               .read(diaryRepositoryProvider)
               .openDocument(address.id);
-          if (current.date != address.date) return false;
+          if (current.entry != null && current.date != address.date) {
+            return false;
+          }
           if (source.revision == 0
               ? current.entry != null
               : !current.available ||
@@ -88,10 +84,8 @@ class DiaryMaesterButton extends ConsumerWidget {
           final state = ref.read(diaryEditorProvider(address)).value;
           return state != null &&
               !state.saving &&
-              !state.recoveryFailed &&
               state.baseRevision == source.revision &&
-              state.text.body == source.body &&
-              current.draft?.draftRevision == state.draftRevision;
+              state.text.body == source.body;
         },
         openEditor: body == null && available
             ? () => context.go(

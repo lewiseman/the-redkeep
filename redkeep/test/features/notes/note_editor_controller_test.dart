@@ -47,6 +47,51 @@ void main() {
   NoteEditorController editor() => scope.read(provider.notifier);
   NoteEditorState state() => scope.read(provider).requireValue;
 
+  test('opening a new note and whitespace edits create no draft', () async {
+    final newId = await scope.read(notesActionsProvider.notifier).create();
+    expect(newId, copyId);
+    final fresh = noteEditorProvider(copyId);
+    scope.listen(fresh, (_, _) {});
+    expect((await scope.read(fresh.future)).text.isEmpty, isTrue);
+    final controller = scope.read(fresh.notifier);
+    controller.edit(const PlainTextDocument(title: ' \n', body: '\t\u00a0'));
+    expect(await controller.flushRecovery(), isTrue);
+    expect(await controller.save(), isFalse);
+    expect(await controller.saveCopy(), isNull);
+    expect((await inner.openDocument(copyId)).draft, isNull);
+    expect((await inner.openDocument(copyId)).note, isNull);
+  });
+
+  test(
+    'title-only drafts survive; clearing all text removes only the draft',
+    () async {
+      expect(await editor().save(), isTrue);
+      editor().edit(const PlainTextDocument(title: 'Title only'));
+      expect(await editor().flushRecovery(), isTrue);
+      expect((await inner.openDocument(id)).draft!.text.title, 'Title only');
+      editor().edit(const PlainTextDocument(title: ' ', body: '\n\t'));
+      expect(await editor().flushRecovery(), isTrue);
+      final opened = await inner.openDocument(id);
+      expect(opened.draft, isNull);
+      expect(opened.note!.text.body, 'Initial');
+      expect(await inner.watchDrafts().first, isEmpty);
+      expect(state().draftRevision, isNull);
+    },
+  );
+
+  test(
+    'clearing while a draft write is pending leaves no empty draft',
+    () async {
+      repo.draftGate = Completer<void>();
+      editor().edit(const PlainTextDocument(body: 'Pending writing'));
+      editor().edit(const PlainTextDocument());
+      repo.draftGate!.complete();
+      expect(await editor().flushRecovery(), isTrue);
+      expect((await inner.openDocument(id)).draft, isNull);
+      expect(await inner.watchDrafts().first, isEmpty);
+    },
+  );
+
   test(
     'coalesced recovery preserves the latest buffer; success waits for commit',
     () async {

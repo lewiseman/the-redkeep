@@ -69,21 +69,6 @@ class DiaryEntryPage extends ConsumerWidget {
                       child: const Text('Delete entry'),
                     ),
                   ],
-                  if (opened.draft != null && opened.date == address.date) ...[
-                    const Text(
-                      'Separate unfinished writing is kept as a recovery draft.',
-                    ),
-                    OutlinedButton(
-                      onPressed: () => context.go(
-                        diaryEntryLocation(
-                          address.date,
-                          address.id,
-                          edit: true,
-                        ),
-                      ),
-                      child: const Text('Recover draft'),
-                    ),
-                  ],
                   OutlinedButton(
                     onPressed: () => context.go(diaryDayLocation(address.date)),
                     child: const Text('Return to day'),
@@ -109,9 +94,7 @@ class DiaryEntryPage extends ConsumerWidget {
             'Delete this entry?',
             style: Theme.of(context).textTheme.headlineSmall,
           ),
-          const Text(
-            'The committed text will be removed. This cannot be undone. Any separate recovery draft is kept.',
-          ),
+          const Text('The saved text will be removed. This cannot be undone.'),
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: const Text('Keep entry'),

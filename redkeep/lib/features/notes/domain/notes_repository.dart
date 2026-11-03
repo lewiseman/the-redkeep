@@ -9,6 +9,7 @@ abstract interface class NotesRepository {
   Future<OpenNote> openDocument(String id);
 
   /// Compare-and-swap protects recovery writing from another open editor.
+  /// Title and body cannot both be empty or whitespace-only.
   Future<RecoveryDraft> putDraft({
     required String id,
     required PlainTextDocument text,

@@ -1,3 +1,4 @@
+import '../../../core/presentation/confirm_discard_changes.dart';
 import '../../sync/application/sync_providers.dart';
 
 import 'package:flutter/material.dart';
@@ -36,7 +37,7 @@ class _FlowEditorState extends ConsumerState<FlowEditor> {
         children: [
           Text(
             widget.id == null
-                ? 'Capture draft could not be loaded. Retry before writing.'
+                ? 'Composer could not be opened. Retry.'
                 : 'Editor unavailable. The thought may be missing or deleted.',
           ),
           OutlinedButton(
@@ -69,7 +70,7 @@ class _FlowEditorState extends ConsumerState<FlowEditor> {
               ),
               if (readOnly)
                 const Text(
-                  'This device is add-only. Reclaim primary in Sync & devices to edit. Your draft is kept.',
+                  'This device is add-only. Reclaim primary in Sync & devices to edit. Save from your primary device.',
                 ),
               const SizedBox(height: 12),
               TextField(
@@ -91,18 +92,14 @@ class _FlowEditorState extends ConsumerState<FlowEditor> {
                 liveRegion: true,
                 child: Text(
                   state.message ??
-                      (state.recovering
-                          ? 'Keeping recovery draft…'
-                          : state.recoveryFailed
-                          ? 'Recovery is not saved. Keep this writing open and retry.'
-                          : state.draftRevision != null
-                          ? 'Recovery draft kept on this device. Save to commit.'
+                      (state.changed
+                          ? 'Unsaved changes.'
                           : 'Plain text • on this device'),
                 ),
               ),
               if (state.sourceUnavailable)
                 const Text(
-                  'The original thought was deleted. Save a copy to keep this draft.',
+                  'The original thought was deleted. Save a copy to keep this writing.',
                 ),
               const SizedBox(height: 12),
               Wrap(
@@ -122,14 +119,7 @@ class _FlowEditorState extends ConsumerState<FlowEditor> {
                           : 'Save thought',
                     ),
                   ),
-                  if (state.recoveryFailed)
-                    OutlinedButton(
-                      onPressed: state.saving ? null : controller.flushRecovery,
-                      child: const Text('Retry recovery'),
-                    ),
-                  if (state.sourceUnavailable ||
-                      state.message != null ||
-                      state.recoveryFailed)
+                  if (state.sourceUnavailable || state.message != null)
                     OutlinedButton(
                       onPressed: state.saving || state.body.trim().isEmpty
                           ? null
@@ -141,60 +131,37 @@ class _FlowEditorState extends ConsumerState<FlowEditor> {
                             },
                       child: const Text('Save a copy'),
                     ),
-                  if (state.draftRevision != null ||
-                      state.recoveryFailed ||
-                      state.recovering)
+                  if (state.changed)
                     OutlinedButton(
                       onPressed: state.saving
                           ? null
                           : () async {
-                              final discard = await showDialog<bool>(
-                                context: context,
-                                animationStyle: AnimationStyle.noAnimation,
-                                builder: (context) => Dialog(
-                                  child: SingleChildScrollView(
-                                    padding: const EdgeInsets.all(24),
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.stretch,
-                                      children: [
-                                        const Text('Discard recovery draft?'),
-                                        const Text(
-                                          'Uncommitted writing will be removed. Any committed thought is kept.',
-                                        ),
-                                        TextButton(
-                                          onPressed: () =>
-                                              Navigator.pop(context, false),
-                                          child: const Text('Keep writing'),
-                                        ),
-                                        FilledButton(
-                                          onPressed: () =>
-                                              Navigator.pop(context, true),
-                                          child: const Text('Discard'),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
+                              final discard = await confirmDiscardChanges(
+                                context,
                               );
                               if (discard == true &&
                                   await controller.discard() &&
                                   context.mounted &&
                                   widget.id != null) {
-                                context.go(thoughtLocation(widget.id!));
+                                if (context.mounted) {
+                                  context.go(thoughtLocation(widget.id!));
+                                }
                               }
                             },
-                      child: const Text('Discard draft'),
+                      child: const Text('Discard changes'),
                     ),
                   if (widget.id != null)
                     OutlinedButton(
                       onPressed: state.saving
                           ? null
                           : () async {
-                              if (await controller.flushRecovery() &&
+                              if ((!state.changed ||
+                                      await confirmDiscardChanges(context)) &&
                                   context.mounted) {
-                                context.go(thoughtLocation(widget.id!));
+                                await controller.discard();
+                                if (context.mounted) {
+                                  context.go(thoughtLocation(widget.id!));
+                                }
                               }
                             },
                       child: const Text('Read committed thought'),

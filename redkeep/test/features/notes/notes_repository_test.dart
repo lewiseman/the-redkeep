@@ -30,6 +30,38 @@ void main() {
   );
 
   test(
+    'empty and whitespace-only drafts are rejected without replacing writing',
+    () async {
+      for (final text in [
+        const PlainTextDocument(),
+        const PlainTextDocument(title: ' \n', body: '\t\u00a0'),
+      ]) {
+        await expectLater(
+          repo.putDraft(
+            id: id,
+            text: text,
+            baseRevision: 0,
+            expectedDraftRevision: null,
+          ),
+          throwsA(isA<NoteException>()),
+        );
+        expect(await repo.watchDrafts().first, isEmpty);
+      }
+      final existing = await draft(body: 'Keep this');
+      await expectLater(
+        repo.putDraft(
+          id: id,
+          text: const PlainTextDocument(),
+          baseRevision: 0,
+          expectedDraftRevision: existing.draftRevision,
+        ),
+        throwsA(isA<NoteException>()),
+      );
+      expect((await repo.openDocument(id)).draft!.text.body, 'Keep this');
+    },
+  );
+
+  test(
     'empty reads seed nothing; create/edit/delete retain a full tombstone',
     () async {
       expect(await repo.watchNotes().first, isEmpty);

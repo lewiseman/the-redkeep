@@ -513,109 +513,6 @@
       "references": [],
       "type": "table",
       "data": {
-        "name": "diary_drafts",
-        "was_declared_in_moor": false,
-        "columns": [
-          {
-            "name": "id",
-            "getter_name": "id",
-            "moor_type": "string",
-            "nullable": false,
-            "customConstraints": null,
-            "defaultConstraints": "UNIQUE",
-            "dialectAwareDefaultConstraints": {
-              "sqlite": "UNIQUE"
-            },
-            "default_dart": null,
-            "default_client_dart": null,
-            "dsl_features": [
-              "unique"
-            ]
-          },
-          {
-            "name": "date_key",
-            "getter_name": "dateKey",
-            "moor_type": "string",
-            "nullable": false,
-            "customConstraints": null,
-            "default_dart": null,
-            "default_client_dart": null,
-            "dsl_features": [
-              {
-                "allowed-lengths": {
-                  "min": 10,
-                  "max": 10
-                }
-              }
-            ]
-          },
-          {
-            "name": "title",
-            "getter_name": "title",
-            "moor_type": "string",
-            "nullable": false,
-            "customConstraints": null,
-            "default_dart": null,
-            "default_client_dart": null,
-            "dsl_features": []
-          },
-          {
-            "name": "body",
-            "getter_name": "body",
-            "moor_type": "string",
-            "nullable": false,
-            "customConstraints": null,
-            "default_dart": null,
-            "default_client_dart": null,
-            "dsl_features": []
-          },
-          {
-            "name": "base_revision",
-            "getter_name": "baseRevision",
-            "moor_type": "int",
-            "nullable": false,
-            "customConstraints": "NOT NULL CHECK (base_revision >= 0)",
-            "default_dart": null,
-            "default_client_dart": null,
-            "dsl_features": []
-          },
-          {
-            "name": "draft_revision",
-            "getter_name": "draftRevision",
-            "moor_type": "int",
-            "nullable": false,
-            "customConstraints": null,
-            "defaultConstraints": "PRIMARY KEY AUTOINCREMENT",
-            "dialectAwareDefaultConstraints": {
-              "sqlite": "PRIMARY KEY AUTOINCREMENT"
-            },
-            "default_dart": null,
-            "default_client_dart": null,
-            "dsl_features": [
-              "auto-increment"
-            ]
-          },
-          {
-            "name": "updated_at",
-            "getter_name": "updatedAt",
-            "moor_type": "int",
-            "nullable": false,
-            "customConstraints": null,
-            "default_dart": null,
-            "default_client_dart": null,
-            "dsl_features": []
-          }
-        ],
-        "is_virtual": false,
-        "without_rowid": false,
-        "constraints": []
-      }
-    },
-    {
-      "id": 7,
-      "references": [],
-      "type": "table",
-      "data": {
         "name": "diary_days",
         "was_declared_in_moor": false,
         "columns": [
@@ -673,7 +570,7 @@
       }
     },
     {
-      "id": 8,
+      "id": 7,
       "references": [],
       "type": "table",
       "data": {
@@ -750,97 +647,7 @@
       }
     },
     {
-      "id": 9,
-      "references": [],
-      "type": "table",
-      "data": {
-        "name": "flow_drafts",
-        "was_declared_in_moor": false,
-        "columns": [
-          {
-            "name": "id",
-            "getter_name": "id",
-            "moor_type": "string",
-            "nullable": false,
-            "customConstraints": null,
-            "defaultConstraints": "UNIQUE",
-            "dialectAwareDefaultConstraints": {
-              "sqlite": "UNIQUE"
-            },
-            "default_dart": null,
-            "default_client_dart": null,
-            "dsl_features": [
-              "unique"
-            ]
-          },
-          {
-            "name": "body",
-            "getter_name": "body",
-            "moor_type": "string",
-            "nullable": false,
-            "customConstraints": null,
-            "default_dart": null,
-            "default_client_dart": null,
-            "dsl_features": []
-          },
-          {
-            "name": "base_revision",
-            "getter_name": "baseRevision",
-            "moor_type": "int",
-            "nullable": false,
-            "customConstraints": "NOT NULL CHECK (base_revision >= 0)",
-            "default_dart": null,
-            "default_client_dart": null,
-            "dsl_features": []
-          },
-          {
-            "name": "draft_revision",
-            "getter_name": "draftRevision",
-            "moor_type": "int",
-            "nullable": false,
-            "customConstraints": null,
-            "defaultConstraints": "PRIMARY KEY AUTOINCREMENT",
-            "dialectAwareDefaultConstraints": {
-              "sqlite": "PRIMARY KEY AUTOINCREMENT"
-            },
-            "default_dart": null,
-            "default_client_dart": null,
-            "dsl_features": [
-              "auto-increment"
-            ]
-          },
-          {
-            "name": "capture",
-            "getter_name": "capture",
-            "moor_type": "bool",
-            "nullable": false,
-            "customConstraints": null,
-            "defaultConstraints": "CHECK (\"capture\" IN (0, 1))",
-            "dialectAwareDefaultConstraints": {
-              "sqlite": "CHECK (\"capture\" IN (0, 1))"
-            },
-            "default_dart": null,
-            "default_client_dart": null,
-            "dsl_features": []
-          },
-          {
-            "name": "updated_at",
-            "getter_name": "updatedAt",
-            "moor_type": "int",
-            "nullable": false,
-            "customConstraints": null,
-            "default_dart": null,
-            "default_client_dart": null,
-            "dsl_features": []
-          }
-        ],
-        "is_virtual": false,
-        "without_rowid": false,
-        "constraints": []
-      }
-    },
-    {
-      "id": 10,
+      "id": 8,
       "references": [],
       "type": "table",
       "data": {
@@ -891,7 +698,7 @@
       }
     },
     {
-      "id": 11,
+      "id": 9,
       "references": [],
       "type": "table",
       "data": {
@@ -939,7 +746,7 @@
       }
     },
     {
-      "id": 12,
+      "id": 10,
       "references": [],
       "type": "table",
       "data": {
@@ -976,7 +783,7 @@
       }
     },
     {
-      "id": 13,
+      "id": 11,
       "references": [],
       "type": "table",
       "data": {
@@ -1038,7 +845,7 @@
       }
     },
     {
-      "id": 14,
+      "id": 12,
       "references": [
         5
       ],
@@ -1052,30 +859,16 @@
       }
     },
     {
-      "id": 15,
+      "id": 13,
       "references": [
-        8
+        7
       ],
       "type": "index",
       "data": {
-        "on": 8,
+        "on": 7,
         "name": "flow_thoughts_order",
         "sql": "CREATE INDEX flow_thoughts_order ON flow_thoughts (created_at DESC, id DESC)",
         "unique": false,
-        "columns": []
-      }
-    },
-    {
-      "id": 16,
-      "references": [
-        9
-      ],
-      "type": "index",
-      "data": {
-        "on": 9,
-        "name": "flow_single_capture",
-        "sql": "CREATE UNIQUE INDEX flow_single_capture ON flow_drafts (capture) WHERE capture = 1",
-        "unique": true,
         "columns": []
       }
     }
@@ -1136,15 +929,6 @@
       ]
     },
     {
-      "name": "diary_drafts",
-      "sql": [
-        {
-          "dialect": "sqlite",
-          "sql": "CREATE TABLE IF NOT EXISTS \"diary_drafts\" (\"id\" TEXT NOT NULL UNIQUE, \"date_key\" TEXT NOT NULL, \"title\" TEXT NOT NULL, \"body\" TEXT NOT NULL, \"base_revision\" INTEGER NOT NULL CHECK (base_revision >= 0), \"draft_revision\" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, \"updated_at\" INTEGER NOT NULL);"
-        }
-      ]
-    },
-    {
       "name": "diary_days",
       "sql": [
         {
@@ -1159,15 +943,6 @@
         {
           "dialect": "sqlite",
           "sql": "CREATE TABLE IF NOT EXISTS \"flow_thoughts\" (\"id\" TEXT NOT NULL, \"body\" TEXT NOT NULL, \"revision\" INTEGER NOT NULL CHECK (revision > 0), \"created_at\" INTEGER NOT NULL, \"updated_at\" INTEGER NOT NULL, \"deleted_at\" INTEGER NULL, PRIMARY KEY (\"id\"));"
-        }
-      ]
-    },
-    {
-      "name": "flow_drafts",
-      "sql": [
-        {
-          "dialect": "sqlite",
-          "sql": "CREATE TABLE IF NOT EXISTS \"flow_drafts\" (\"id\" TEXT NOT NULL UNIQUE, \"body\" TEXT NOT NULL, \"base_revision\" INTEGER NOT NULL CHECK (base_revision >= 0), \"draft_revision\" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, \"capture\" INTEGER NOT NULL CHECK (\"capture\" IN (0, 1)), \"updated_at\" INTEGER NOT NULL);"
         }
       ]
     },
@@ -1222,15 +997,6 @@
         {
           "dialect": "sqlite",
           "sql": "CREATE INDEX flow_thoughts_order ON flow_thoughts (created_at DESC, id DESC)"
-        }
-      ]
-    },
-    {
-      "name": "flow_single_capture",
-      "sql": [
-        {
-          "dialect": "sqlite",
-          "sql": "CREATE UNIQUE INDEX flow_single_capture ON flow_drafts (capture) WHERE capture = 1"
         }
       ]
     }

@@ -1,3 +1,4 @@
+import '../../../core/presentation/confirm_discard_changes.dart';
 import '../../../core/presentation/diary_typography.dart';
 import '../../sync/application/sync_providers.dart';
 
@@ -38,15 +39,14 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
     final value = editor.value;
     final controller = ref.read(diaryEditorProvider(widget.address).notifier);
     return PopScope(
-      canPop:
-          value == null ||
-          (!value.saving && !value.recovering && !value.recoveryFailed),
+      canPop: value == null || (!value.saving && !value.changed),
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop || _leaving || value == null || value.saving) return;
         _leaving = true;
-        final recovered = await controller.flushRecovery();
-        if (mounted && recovered) {
-          // Wait for PopScope to receive the now-durable state.
+        final discarded = await confirmDiscardChanges(context);
+        if (discarded) await controller.discard();
+        if (mounted && discarded) {
+          // Let PopScope receive the cleared buffer state.
           await WidgetsBinding.instance.endOfFrame;
           if (context.mounted) Navigator.of(context).pop();
         }
@@ -95,10 +95,10 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
                   ),
                   const SizedBox(height: 12),
                   Text(widget.address.date.key),
-                  const Text('Plain text • saved on this device'),
+                  const Text('Plain text • Save to keep your changes'),
                   if (state.sourceUnavailable)
                     const Text(
-                      'The original entry was deleted. Save a copy to keep this draft as a new entry.',
+                      'The original entry was deleted. Save a copy to keep this writing as a new entry.',
                     ),
                   const SizedBox(height: 16),
                   TextField(
@@ -132,12 +132,8 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
                     liveRegion: true,
                     child: Text(
                       state.message ??
-                          (state.recovering
-                              ? 'Keeping recovery draft…'
-                              : state.recoveryFailed
-                              ? 'Recovery is not saved. Keep this editor open and retry.'
-                              : state.draftRevision != null
-                              ? 'Recovery draft kept on this device. Save to commit.'
+                          (state.changed
+                              ? 'Unsaved changes.'
                               : 'No unsaved changes.'),
                     ),
                   ),
@@ -150,9 +146,8 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
                         onPressed:
                             readOnly ||
                                 state.saving ||
-                                (state.draftRevision == null &&
-                                    !state.recovering &&
-                                    !state.recoveryFailed)
+                                state.text.isEmpty ||
+                                !state.changed
                             ? null
                             : controller.save,
                         child: Text(state.saving ? 'Saving…' : 'Save entry'),
@@ -162,8 +157,13 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
                           onPressed: state.saving
                               ? null
                               : () async {
-                                  if (await controller.flushRecovery() &&
+                                  if ((!state.changed ||
+                                          await confirmDiscardChanges(
+                                            context,
+                                          )) &&
                                       context.mounted) {
+                                    await controller.discard();
+                                    if (!context.mounted) return;
                                     context.go(
                                       diaryEntryLocation(
                                         widget.address.date,
@@ -174,18 +174,9 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
                                 },
                           child: const Text('Read committed entry'),
                         ),
-                      if (state.recoveryFailed)
+                      if (state.message != null || state.sourceUnavailable)
                         OutlinedButton(
-                          onPressed: state.saving
-                              ? null
-                              : controller.flushRecovery,
-                          child: const Text('Retry recovery'),
-                        ),
-                      if (state.message != null ||
-                          state.recoveryFailed ||
-                          state.sourceUnavailable)
-                        OutlinedButton(
-                          onPressed: state.saving
+                          onPressed: state.saving || state.text.isEmpty
                               ? null
                               : () async {
                                   final id = await controller.saveCopy();
@@ -204,7 +195,7 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
                         onPressed: state.saving
                             ? null
                             : () => _discard(controller),
-                        child: const Text('Discard draft'),
+                        child: const Text('Discard changes'),
                       ),
                     ],
                   ),
@@ -221,27 +212,7 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
       controller.edit(DiaryText(title: _title.text, body: _body.text));
 
   Future<void> _discard(DiaryEditorController controller) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      animationStyle: AnimationStyle.noAnimation,
-      builder: (context) => DiaryDialog(
-        children: [
-          const Text('Discard recovery draft?'),
-          const Text(
-            'Uncommitted writing in this editor will be removed. Any committed entry is kept.',
-          ),
-
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Keep writing'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Discard'),
-          ),
-        ],
-      ),
-    );
+    final confirmed = await confirmDiscardChanges(context);
     if (confirmed == true && await controller.discard() && mounted) {
       context.go(diaryDayLocation(widget.address.date));
     }

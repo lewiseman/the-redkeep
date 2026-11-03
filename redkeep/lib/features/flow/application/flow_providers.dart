@@ -25,10 +25,7 @@ final thoughtsProvider = StreamProvider.autoDispose<List<ThoughtListing>>(
   (ref) => ref.watch(flowRepositoryProvider).watchThoughts(),
   retry: (_, _) => null,
 );
-final thoughtDraftsProvider = StreamProvider.autoDispose<List<ThoughtListing>>(
-  (ref) => ref.watch(flowRepositoryProvider).watchDrafts(),
-  retry: (_, _) => null,
-);
+
 final thoughtDocumentProvider = StreamProvider.autoDispose
     .family<OpenThought, String>(
       (ref, id) => ref.watch(flowRepositoryProvider).watchDocument(id),

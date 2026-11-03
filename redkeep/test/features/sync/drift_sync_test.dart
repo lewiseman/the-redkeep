@@ -205,15 +205,13 @@ void main() {
         h.drive.documents['note/${'b' * 32}']!.payload['body'],
         'new secondary note',
       );
-      final past = await h.diary.putDraft(
-        id: 'c' * 32,
-        date: CivilDate(2026, 11, 2),
-        text: const DiaryText(body: 'yesterday recovery'),
-        baseRevision: 0,
-        expectedDraftRevision: null,
-      );
       await expectLater(
-        h.diary.commitDraft(past.id, past.draftRevision),
+        h.diary.save(
+          id: 'c' * 32,
+          date: CivilDate(2026, 11, 2),
+          text: const DiaryText(body: 'yesterday'),
+          expectedRevision: 0,
+        ),
         throwsStateError,
       );
       await h.engine.reclaimPrimary();
@@ -227,14 +225,12 @@ void main() {
   test('dirty primary diary merges unseen secondary additions without losing headings or tombstones', () async {
     final id = 'd' * 32;
     final date = CivilDate(2026, 11, 3);
-    final draft = await h.diary.putDraft(
+    await h.diary.save(
       id: id,
       date: date,
       text: const DiaryText(body: 'mine'),
-      baseRevision: 0,
-      expectedDraftRevision: null,
+      expectedRevision: 0,
     );
-    await h.diary.commitDraft(id, draft.draftRevision);
     await h.engine.syncNow(manual: true);
     await h.diary.renameDay(await h.diary.watchDay(date).first, 'My heading');
     final old = h.drive.documents['diary/${date.key}']!.payload;
@@ -260,14 +256,12 @@ void main() {
   test('secondary Diary append preserves remote headings, tombstones and existing IDs', () async {
     final date = CivilDate(2026, 11, 3);
     final oldId = 'd' * 32;
-    final draft = await h.diary.putDraft(
+    final old = await h.diary.save(
       id: oldId,
       date: date,
       text: const DiaryText(body: 'old'),
-      baseRevision: 0,
-      expectedDraftRevision: null,
+      expectedRevision: 0,
     );
-    final old = await h.diary.commitDraft(oldId, draft.draftRevision);
     await h.diary.deleteEntry(oldId, old.revision);
     await h.diary.renameDay(await h.diary.watchDay(date).first, 'Keep heading');
     await h.engine.syncNow(manual: true);
@@ -279,14 +273,12 @@ void main() {
     try {
       await secondary.engine.syncNow(manual: true);
       final newId = 'f' * 32;
-      final draft = await secondary.diary.putDraft(
+      await secondary.diary.save(
         id: newId,
         date: date,
         text: const DiaryText(body: 'new item'),
-        baseRevision: 0,
-        expectedDraftRevision: null,
+        expectedRevision: 0,
       );
-      await secondary.diary.commitDraft(newId, draft.draftRevision);
       await secondary.engine.syncNow(manual: true);
       final payload = h.drive.documents['diary/${date.key}']!.payload;
       expect(payload['heading'], 'Keep heading');

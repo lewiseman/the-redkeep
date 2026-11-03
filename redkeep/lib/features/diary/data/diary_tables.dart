@@ -18,18 +18,6 @@ class DiaryEntries extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-@DataClassName('DiaryDraftRow')
-class DiaryDrafts extends Table {
-  TextColumn get id => text().unique()();
-  TextColumn get dateKey => text().withLength(min: 10, max: 10)();
-  TextColumn get title => text()();
-  TextColumn get body => text()();
-  IntColumn get baseRevision =>
-      integer().customConstraint('NOT NULL CHECK (base_revision >= 0)')();
-  IntColumn get draftRevision => integer().autoIncrement()();
-  IntColumn get updatedAt => integer()();
-}
-
 @DataClassName('DiaryDayRow')
 class DiaryDays extends Table {
   TextColumn get dateKey => text().withLength(min: 10, max: 10)();

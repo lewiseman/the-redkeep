@@ -58,14 +58,7 @@ void main() {
     String body = 'Synthetic thought 👩🏽‍💻',
     String key = id,
   }) async {
-    final d = await repo.putDraft(
-      id: key,
-      body: body,
-      capture: false,
-      baseRevision: 0,
-      expectedDraftRevision: null,
-    );
-    await repo.commitDraft(key, d.draftRevision);
+    await repo.save(id: key, body: body, expectedRevision: 0);
   }
 
   Finder field() => find.byKey(const ValueKey('flow-body'));
@@ -122,30 +115,20 @@ void main() {
     },
   );
   flowTest(
-    'composer retains failures across navigation and clears only after delayed commit',
+    'composer retains save failures and clears only after delayed save',
     (tester) async {
-      final router = await pumpApp(
+      await pumpApp(
         tester,
         initialLocation: '/flow',
         flow: repo,
         flowId: () => id,
       );
-      repo.failDraft = true;
       await tester.enterText(field(), 'Do not lose this');
       await tester.pumpAndSettle();
-      await tap(tester, 'Capture thought');
-      expect(buffer(tester), 'Do not lose this');
-      router.go('/more');
-      await tester.pumpAndSettle();
-      router.go('/flow');
-      await tester.pumpAndSettle();
-      expect(buffer(tester), 'Do not lose this');
-      repo.failDraft = false;
-      await tap(tester, 'Retry recovery');
       repo.failCommit = true;
       await tap(tester, 'Capture thought');
       expect(buffer(tester), 'Do not lose this');
-      expect((await repo.openCapture())!.body, 'Do not lose this');
+      expect(await repo.watchThoughts().first, isEmpty);
       repo.failCommit = false;
       repo.commitGate = Completer<void>();
       final pending = tester
@@ -163,59 +146,46 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
-  flowTest(
-    'restart restores composer; explicit discard keeps committed writing',
-    (tester) async {
-      await seed();
-      await pumpApp(
-        tester,
-        initialLocation: '/flow',
-        flow: repo,
-        flowId: () => '2' * 32,
-      );
-      await tester.enterText(field(), 'Unfinished capture');
-      await tester.pumpAndSettle();
-      await tester.pumpWidget(const SizedBox());
-      await pumpApp(tester, initialLocation: '/flow', flow: repo);
-      expect(buffer(tester), 'Unfinished capture');
-      await tap(tester, 'Discard draft');
-      await tap(tester, 'Keep writing');
-      expect(buffer(tester), 'Unfinished capture');
-      await tap(tester, 'Discard draft');
-      await tap(tester, 'Discard');
-      expect(buffer(tester), '');
-      expect(await repo.watchThoughts().first, hasLength(1));
-    },
-  );
-  flowTest(
-    'load failures have retry; no empty composer can overwrite an unread draft',
-    (tester) async {
-      repo.failRead = true;
-      final router = await pumpApp(
-        tester,
-        initialLocation: '/flow',
-        flow: repo,
-      );
-      expect(
-        find.textContaining('Capture draft could not be loaded.'),
-        findsOneWidget,
-      );
-      expect(field(), findsNothing);
-      expect(find.text('Thoughts could not be loaded.'), findsOneWidget);
-      repo.failRead = false;
-      await tap(tester, 'Retry opening');
-      await tester.tap(find.text('Retry loading').first);
-      await tester.pumpAndSettle();
-      expect(field(), findsOneWidget);
-      repo.failRead = true;
-      router.go(thoughtLocation(id));
-      await tester.pumpAndSettle();
-      expect(find.text('Could not load thought. Retry'), findsOneWidget);
-      repo.failRead = false;
-      await tap(tester, 'Could not load thought. Retry');
-      expect(find.text('Thought unavailable'), findsOneWidget);
-    },
-  );
+  flowTest('restart clears unsaved composer; discard keeps saved writing', (
+    tester,
+  ) async {
+    await seed();
+    await pumpApp(
+      tester,
+      initialLocation: '/flow',
+      flow: repo,
+      flowId: () => '2' * 32,
+    );
+    await tester.enterText(field(), 'Unfinished capture');
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(const SizedBox());
+    await pumpApp(tester, initialLocation: '/flow', flow: repo);
+    expect(buffer(tester), '');
+    await tester.enterText(field(), 'Unfinished capture');
+    await tester.pumpAndSettle();
+    await tap(tester, 'Discard changes');
+    await tap(tester, 'Keep writing');
+    expect(buffer(tester), 'Unfinished capture');
+    await tap(tester, 'Discard changes');
+    await tap(tester, 'Discard');
+    expect(buffer(tester), '');
+    expect(await repo.watchThoughts().first, hasLength(1));
+  });
+  flowTest('list and document load failures have retry', (tester) async {
+    repo.failRead = true;
+    final router = await pumpApp(tester, initialLocation: '/flow', flow: repo);
+    expect(field(), findsOneWidget);
+    expect(find.text('Thoughts could not be loaded.'), findsOneWidget);
+    repo.failRead = false;
+    await tap(tester, 'Retry loading');
+    repo.failRead = true;
+    router.go(thoughtLocation(id));
+    await tester.pumpAndSettle();
+    expect(find.text('Could not load thought. Retry'), findsOneWidget);
+    repo.failRead = false;
+    await tap(tester, 'Could not load thought. Retry');
+    expect(find.text('Thought unavailable'), findsOneWidget);
+  });
   for (final theme in [AppTheme.light, AppTheme.dark]) {
     for (final simple in [false, true]) {
       flowTest(
@@ -262,7 +232,7 @@ void main() {
           expect(find.text('Saved revision 2 on this device.'), findsOneWidget);
           await tester.enterText(field(), 'Draft');
           await tester.pumpAndSettle();
-          await tap(tester, 'Discard draft');
+          await tap(tester, 'Discard changes');
           await tap(tester, 'Keep writing');
           expect(tester.takeException(), isNull);
         },

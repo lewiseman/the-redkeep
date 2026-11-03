@@ -24,10 +24,8 @@ part 'app_database.g.dart';
     NoteDrafts,
     NoteTags,
     DiaryEntries,
-    DiaryDrafts,
     DiaryDays,
     FlowThoughts,
-    FlowDrafts,
     BrainAssignmentsTable,
     SyncOperations,
     SyncValues,
@@ -65,15 +63,12 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 5 && to >= 5) {
         await migrator.createTable(diaryEntries);
-        await migrator.createTable(diaryDrafts);
         await migrator.createTable(diaryDays);
         await migrator.createIndex(diaryEntriesDayOrder);
       }
       if (from < 6 && to >= 6) {
         await migrator.createTable(flowThoughts);
-        await migrator.createTable(flowDrafts);
         await migrator.createIndex(flowThoughtsOrder);
-        await migrator.createIndex(flowSingleCapture);
       }
       if (from < 7 && to >= 7) {
         await migrator.createTable(brainAssignmentsTable);

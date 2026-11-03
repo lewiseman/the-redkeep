@@ -148,6 +148,7 @@ class DriftNotesRepository implements NotesRepository {
           (old != null && old.baseRevision != baseRevision)) {
         throw const NoteException(NoteFailure.draftChanged);
       }
+      if (text.isEmpty) throw const NoteException(NoteFailure.empty);
       final now = _clock().toUtc().millisecondsSinceEpoch;
       if (old != null) await discardDraft(id, old.draftRevision);
       final version = await _db

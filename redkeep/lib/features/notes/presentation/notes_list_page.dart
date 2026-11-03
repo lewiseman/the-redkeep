@@ -319,7 +319,7 @@ class _NotesListPageState extends ConsumerState<NotesListPage> {
     } catch (_) {
       if (mounted) {
         setState(
-          () => _error = 'A draft could not be created. Check device storage and try again.',
+          () => _error = 'The note editor could not be opened. Try again.',
         );
       }
     }

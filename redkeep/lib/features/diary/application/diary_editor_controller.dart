@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/diary_document.dart';
@@ -16,70 +14,56 @@ class DiaryEditorState {
   const DiaryEditorState({
     required this.text,
     required this.baseRevision,
-    this.draftRevision,
     this.editVersion = 0,
     this.saving = false,
-    this.recovering = false,
-    this.recoveryFailed = false,
+    this.changed = false,
     this.message,
     this.sourceUnavailable = false,
   });
   final DiaryText text;
   final int baseRevision;
-  final int? draftRevision;
   final int editVersion;
   final bool saving;
-  final bool recovering;
-  final bool recoveryFailed;
+  final bool changed;
   final bool sourceUnavailable;
   final String? message;
 }
 
-/// The editing boundary owns the working buffer and serializes recovery writes.
-/// Navigation never owns a live model and never discards the buffer implicitly.
+/// Unsaved edits stay in memory. Only an explicit save writes to storage.
 class DiaryEditorController extends AsyncNotifier<DiaryEditorState> {
   DiaryEditorController(this.address);
   final DiaryAddress address;
   String get id => address.id;
   late DiaryRepository _repository;
   late DiaryText _text;
-  late int _baseRevision;
-  int? _draftRevision;
-  bool _unavailable = false;
-  bool _saving = false;
-  bool _recoveryFailed = false;
+  late DiaryText _saved;
+  int _baseRevision = 0;
   int _sequence = 0;
-  int _persistedSequence = 0;
-  Future<bool>? _pending;
-  void Function()? _releaseFailedBuffer;
+  bool _saving = false;
+  bool _unavailable = false;
 
   @override
   Future<DiaryEditorState> build() async {
     _repository = ref.watch(diaryRepositoryProvider);
     final opened = await _repository.openDocument(id);
-    if (opened.date != address.date ||
-        (!opened.available && opened.draft == null)) {
+    if (opened.entry == null
+        ? !ref.read(diaryNewIdsProvider).contains(id)
+        : !opened.available || opened.date != address.date) {
       throw const DiaryException(DiaryFailure.unavailable);
     }
-    _text = opened.draft?.text ?? opened.entry!.text;
-    _baseRevision = opened.draft?.baseRevision ?? opened.entry!.revision;
-    _draftRevision = opened.draft?.draftRevision;
-    _unavailable = !opened.available && _baseRevision != 0;
-    return _snapshot(
-      message: opened.draft == null
-          ? null
-          : 'Recovery draft reopened. Save to commit this writing.',
-    );
+    _text = _saved = opened.entry?.text ?? const DiaryText();
+    _baseRevision = opened.entry?.revision ?? 0;
+    return _snapshot();
   }
+
+  bool get _changed => _text.title != _saved.title || _text.body != _saved.body;
 
   DiaryEditorState _snapshot({String? message}) => DiaryEditorState(
     text: _text,
     baseRevision: _baseRevision,
-    draftRevision: _draftRevision,
     editVersion: _sequence,
     saving: _saving,
-    recovering: _sequence != _persistedSequence && !_recoveryFailed,
-    recoveryFailed: _recoveryFailed,
+    changed: _changed,
     sourceUnavailable: _unavailable,
     message: message,
   );
@@ -92,127 +76,61 @@ class DiaryEditorController extends AsyncNotifier<DiaryEditorState> {
     if (_saving || !state.hasValue) return;
     _text = text;
     _sequence++;
-    _recoveryFailed = false;
     _publish();
-    unawaited(flushRecovery());
-  }
-
-  /// Coalesces changes during a write and retains this provider until settled.
-  Future<bool> flushRecovery() {
-    if (_pending != null) return _pending!;
-    final keep = ref.keepAlive();
-    final future = _flush();
-    _pending = future;
-    unawaited(
-      future.then((recovered) {
-        _pending = null;
-        if (recovered) {
-          _releaseFailedBuffer?.call();
-          _releaseFailedBuffer = null;
-          keep.close();
-        } else if (_releaseFailedBuffer == null) {
-          // A platform destination can bypass a page's back guard. Retain the
-          // failed working buffer in this scope for a subsequent editor visit.
-          _releaseFailedBuffer = keep.close;
-        } else {
-          keep.close();
-        }
-      }),
-    );
-    return future;
-  }
-
-  Future<bool> _flush() async {
-    while (_persistedSequence != _sequence) {
-      final sequence = _sequence;
-      final text = _text;
-      try {
-        final draft = await _repository.putDraft(
-          id: id,
-          date: address.date,
-          text: text,
-          baseRevision: _baseRevision,
-          expectedDraftRevision: _draftRevision,
-        );
-        _draftRevision = draft.draftRevision;
-        _persistedSequence = sequence;
-        _recoveryFailed = false;
-      } catch (_) {
-        _recoveryFailed = true;
-        _publish(
-          message: 'Recovery could not be saved. Keep this editor open and retry, or save a copy.',
-        );
-        return false;
-      }
-    }
-    _publish();
-    return true;
   }
 
   Future<bool> save() async {
-    if (_saving || !state.hasValue) return false;
+    if (_saving || !state.hasValue || _text.isEmpty) return false;
+    if (!_changed && _baseRevision > 0) return true;
     _saving = true;
     _publish();
     final keep = ref.keepAlive();
     try {
-      if (!await flushRecovery()) return false;
-      if (_draftRevision == null) return true;
-      final saved = await _repository.commitDraft(id, _draftRevision!);
-      _draftRevision = null;
+      final saved = await _repository.save(
+        id: id,
+        date: address.date,
+        text: _text,
+        expectedRevision: _baseRevision,
+      );
       _baseRevision = saved.revision;
+      ref.read(diaryNewIdsProvider.notifier).remove(id);
+      _saved = _text;
       _unavailable = false;
-      _saving = false;
       _publish(message: 'Saved revision ${saved.revision} on this device.');
       return true;
-    } on DiaryException catch (error) {
-      _saving = false;
-      if (error.failure == DiaryFailure.draftChanged) {
-        _recoveryFailed = true;
-        _persistedSequence = -1;
-        if (ref.mounted) _releaseFailedBuffer ??= ref.keepAlive().close;
-      }
+    } on DiaryException catch (_) {
+      _unavailable = true;
       _publish(
-        message: error.failure == DiaryFailure.draftChanged
-            ? 'The recovery draft changed elsewhere. Keep this editor open and save a copy.'
-            : 'This entry changed or was deleted. Your recovery draft is kept. Save a copy to keep both versions.',
+        message: 'This entry changed or was deleted. Keep this editor open and save a copy.',
       );
       return false;
     } catch (_) {
-      _saving = false;
-      _publish(
-        message: 'Save failed. Your recovery draft is kept. Check device storage and retry.',
-      );
+      _publish(message: 'Save failed. Keep this editor open and retry.');
       return false;
     } finally {
       _saving = false;
-      // Preserve the specific result message, including recovery failure.
       if (ref.mounted) _publish(message: state.value?.message);
       keep.close();
     }
   }
 
-  /// Explicit conflict recovery; the source and its recovery draft are retained.
   Future<String?> saveCopy() async {
-    if (_saving || !state.hasValue) return null;
+    if (_saving || !state.hasValue || _text.isEmpty) return null;
     final newId = ref.read(diaryIdProvider)();
     _saving = true;
     _publish();
     final keep = ref.keepAlive();
     try {
-      final draft = await _repository.putDraft(
+      await _repository.save(
         id: newId,
         date: address.date,
         text: _text,
-        baseRevision: 0,
-        expectedDraftRevision: null,
+        expectedRevision: 0,
       );
-      await _repository.commitDraft(newId, draft.draftRevision);
-      _releaseFailedBuffer?.call();
-      _releaseFailedBuffer = null;
       return newId;
     } catch (_) {
       _publish(
-        message: 'Copy could not be committed. Your writing is kept; check Recovery drafts and retry.',
+        message: 'Copy could not be saved. Keep this editor open and retry.',
       );
       return null;
     } finally {
@@ -223,23 +141,11 @@ class DiaryEditorController extends AsyncNotifier<DiaryEditorState> {
   }
 
   Future<bool> discard() async {
-    if (_saving) return false;
-    _saving = true;
+    if (_saving || !state.hasValue) return false;
+    _text = _saved;
+    ref.read(diaryNewIdsProvider.notifier).remove(id);
+    _sequence++;
     _publish();
-    final keep = ref.keepAlive();
-    try {
-      if (!await flushRecovery()) return false;
-      if (_draftRevision != null) {
-        await _repository.discardDraft(id, _draftRevision!);
-      }
-      return true;
-    } catch (_) {
-      _publish(message: 'Draft could not be discarded. It has been kept.');
-      return false;
-    } finally {
-      _saving = false;
-      if (ref.mounted) _publish(message: state.value?.message);
-      keep.close();
-    }
+    return true;
   }
 }

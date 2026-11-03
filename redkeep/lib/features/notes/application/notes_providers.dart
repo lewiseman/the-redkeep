@@ -54,14 +54,7 @@ class NotesActions extends Notifier<bool> {
     final keep = ref.keepAlive();
     try {
       final id = ref.read(noteIdProvider)();
-      await ref
-          .read(notesRepositoryProvider)
-          .putDraft(
-            id: id,
-            text: const PlainTextDocument(),
-            baseRevision: 0,
-            expectedDraftRevision: null,
-          );
+      ref.read(noteNewIdsProvider.notifier).add(id);
       return id;
     } finally {
       if (ref.mounted) state = false;
@@ -127,3 +120,15 @@ final noteTagsProvider = StreamProvider.autoDispose<List<String>>(
 final noteLinkLauncherProvider = Provider<NoteLinkLauncher>(
   (ref) => const PlatformNoteLinkLauncher(),
 );
+
+/// Allocated new editors have no database row until there is writing to save.
+final noteNewIdsProvider = NotifierProvider<NewNoteIds, Set<String>>(
+  NewNoteIds.new,
+);
+
+class NewNoteIds extends Notifier<Set<String>> {
+  @override
+  Set<String> build() => const {};
+  void add(String id) => state = {...state, id};
+  void remove(String id) => state = {...state}..remove(id);
+}

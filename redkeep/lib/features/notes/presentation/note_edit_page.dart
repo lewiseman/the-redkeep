@@ -145,6 +145,7 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
                         onPressed:
                             readOnly ||
                                 state.saving ||
+                                state.text.isEmpty ||
                                 (state.draftRevision == null &&
                                     !state.recovering &&
                                     !state.recoveryFailed)
@@ -175,7 +176,7 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
                           state.recoveryFailed ||
                           state.sourceUnavailable)
                         OutlinedButton(
-                          onPressed: state.saving
+                          onPressed: state.saving || state.text.isEmpty
                               ? null
                               : () async {
                                   final id = await controller.saveCopy();

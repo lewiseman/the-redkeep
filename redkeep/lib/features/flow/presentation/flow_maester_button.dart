@@ -48,10 +48,6 @@ class FlowMaesterButton extends ConsumerWidget {
               editing: editing,
             ),
       validate: (source) async {
-        if (editing &&
-            !await ref.read(flowEditorProvider(id).notifier).flushRecovery()) {
-          return false;
-        }
         final current = await ref
             .read(flowRepositoryProvider)
             .openDocument(source.id);
@@ -65,10 +61,8 @@ class FlowMaesterButton extends ConsumerWidget {
         final state = ref.read(flowEditorProvider(id)).value;
         return state != null &&
             !state.saving &&
-            !state.recoveryFailed &&
             state.baseRevision == source.revision &&
-            state.body == source.body &&
-            current.draft?.draftRevision == state.draftRevision;
+            state.body == source.body;
       },
     );
   }

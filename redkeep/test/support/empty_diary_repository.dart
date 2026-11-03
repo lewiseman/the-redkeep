@@ -6,8 +6,6 @@ import 'package:redkeep/features/diary/domain/diary_repository.dart';
 /// explicitly inject a disposable real repository instead.
 class EmptyDiaryRepository implements DiaryRepository {
   @override
-  Stream<List<DiaryListing>> watchDrafts() => Stream.value(const []);
-  @override
   Stream<List<DiaryListing>> watchEntries({
     CivilDate? date,
     String search = '',
@@ -25,20 +23,13 @@ class EmptyDiaryRepository implements DiaryRepository {
   Future<void> renameDay(DiaryDay day, String heading) async =>
       throw StateError('Inject writing repository');
   @override
-  Future<DiaryDraft> putDraft({
+  Future<DiaryEntry> save({
     required String id,
     required CivilDate date,
     required DiaryText text,
-    required int baseRevision,
-    required int? expectedDraftRevision,
+    required int expectedRevision,
   }) async => throw StateError('Inject writing repository');
   @override
-  Future<DiaryEntry> commitDraft(String id, int expectedDraftRevision) async =>
-      throw StateError('Inject writing repository');
-  @override
   Future<void> deleteEntry(String id, int expectedRevision) async =>
-      throw StateError('Inject writing repository');
-  @override
-  Future<void> discardDraft(String id, int expectedDraftRevision) async =>
       throw StateError('Inject writing repository');
 }

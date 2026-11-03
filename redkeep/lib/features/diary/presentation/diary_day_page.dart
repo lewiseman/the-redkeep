@@ -81,7 +81,7 @@ class DiaryDayPage extends ConsumerWidget {
                                 if (context.mounted) {
                                   diaryMessage(
                                     context,
-                                    'Could not create a draft. Check device storage and retry.',
+                                    'Could not open the editor. Retry.',
                                   );
                                 }
                               }

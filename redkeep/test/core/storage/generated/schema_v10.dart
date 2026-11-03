@@ -507,99 +507,6 @@ class DiaryEntries extends Table with TableInfo {
   bool get dontWriteConstraints => true;
 }
 
-class DiaryDrafts extends Table with TableInfo {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  DiaryDrafts(this.attachedDatabase, [this._alias]);
-  late final GeneratedColumn<String> id = GeneratedColumn<String>(
-    'id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-    $customConstraints: 'NOT NULL UNIQUE',
-  );
-  late final GeneratedColumn<String> dateKey = GeneratedColumn<String>(
-    'date_key',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-    $customConstraints: 'NOT NULL',
-  );
-  late final GeneratedColumn<String> title = GeneratedColumn<String>(
-    'title',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-    $customConstraints: 'NOT NULL',
-  );
-  late final GeneratedColumn<String> body = GeneratedColumn<String>(
-    'body',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-    $customConstraints: 'NOT NULL',
-  );
-  late final GeneratedColumn<int> baseRevision = GeneratedColumn<int>(
-    'base_revision',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-    $customConstraints: 'NOT NULL CHECK (base_revision >= 0)',
-  );
-  late final GeneratedColumn<int> draftRevision = GeneratedColumn<int>(
-    'draft_revision',
-    aliasedName,
-    false,
-    hasAutoIncrement: true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    $customConstraints: 'NOT NULL PRIMARY KEY AUTOINCREMENT',
-  );
-  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
-    'updated_at',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-    $customConstraints: 'NOT NULL',
-  );
-  @override
-  List<GeneratedColumn> get $columns => [
-    id,
-    dateKey,
-    title,
-    body,
-    baseRevision,
-    draftRevision,
-    updatedAt,
-  ];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'diary_drafts';
-  @override
-  Set<GeneratedColumn> get $primaryKey => {draftRevision};
-  @override
-  Never map(Map<String, dynamic> data, {String? tablePrefix}) {
-    throw UnsupportedError('TableInfo.map in schema verification code');
-  }
-
-  @override
-  DiaryDrafts createAlias(String alias) {
-    return DiaryDrafts(attachedDatabase, alias);
-  }
-
-  @override
-  bool get dontWriteConstraints => true;
-}
-
 class DiaryDays extends Table with TableInfo {
   @override
   final GeneratedDatabase attachedDatabase;
@@ -735,90 +642,6 @@ class FlowThoughts extends Table with TableInfo {
 
   @override
   List<String> get customConstraints => const ['PRIMARY KEY(id)'];
-  @override
-  bool get dontWriteConstraints => true;
-}
-
-class FlowDrafts extends Table with TableInfo {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  FlowDrafts(this.attachedDatabase, [this._alias]);
-  late final GeneratedColumn<String> id = GeneratedColumn<String>(
-    'id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-    $customConstraints: 'NOT NULL UNIQUE',
-  );
-  late final GeneratedColumn<String> body = GeneratedColumn<String>(
-    'body',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-    $customConstraints: 'NOT NULL',
-  );
-  late final GeneratedColumn<int> baseRevision = GeneratedColumn<int>(
-    'base_revision',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-    $customConstraints: 'NOT NULL CHECK (base_revision >= 0)',
-  );
-  late final GeneratedColumn<int> draftRevision = GeneratedColumn<int>(
-    'draft_revision',
-    aliasedName,
-    false,
-    hasAutoIncrement: true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    $customConstraints: 'NOT NULL PRIMARY KEY AUTOINCREMENT',
-  );
-  late final GeneratedColumn<int> capture = GeneratedColumn<int>(
-    'capture',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-    $customConstraints: 'NOT NULL CHECK (capture IN (0, 1))',
-  );
-  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
-    'updated_at',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-    $customConstraints: 'NOT NULL',
-  );
-  @override
-  List<GeneratedColumn> get $columns => [
-    id,
-    body,
-    baseRevision,
-    draftRevision,
-    capture,
-    updatedAt,
-  ];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'flow_drafts';
-  @override
-  Set<GeneratedColumn> get $primaryKey => {draftRevision};
-  @override
-  Never map(Map<String, dynamic> data, {String? tablePrefix}) {
-    throw UnsupportedError('TableInfo.map in schema verification code');
-  }
-
-  @override
-  FlowDrafts createAlias(String alias) {
-    return FlowDrafts(attachedDatabase, alias);
-  }
-
   @override
   bool get dontWriteConstraints => true;
 }
@@ -1059,10 +882,8 @@ class DatabaseAtV10 extends GeneratedDatabase {
   late final NoteDrafts noteDrafts = NoteDrafts(this);
   late final NoteTags noteTags = NoteTags(this);
   late final DiaryEntries diaryEntries = DiaryEntries(this);
-  late final DiaryDrafts diaryDrafts = DiaryDrafts(this);
   late final DiaryDays diaryDays = DiaryDays(this);
   late final FlowThoughts flowThoughts = FlowThoughts(this);
-  late final FlowDrafts flowDrafts = FlowDrafts(this);
   late final BrainAssignments brainAssignments = BrainAssignments(this);
   late final SyncOperations syncOperations = SyncOperations(this);
   late final SyncValues syncValues = SyncValues(this);
@@ -1075,10 +896,6 @@ class DatabaseAtV10 extends GeneratedDatabase {
     'flow_thoughts_order',
     'CREATE INDEX flow_thoughts_order ON flow_thoughts (created_at DESC, id DESC)',
   );
-  late final Index flowSingleCapture = Index(
-    'flow_single_capture',
-    'CREATE UNIQUE INDEX flow_single_capture ON flow_drafts (capture) WHERE capture = 1',
-  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -1090,17 +907,14 @@ class DatabaseAtV10 extends GeneratedDatabase {
     noteDrafts,
     noteTags,
     diaryEntries,
-    diaryDrafts,
     diaryDays,
     flowThoughts,
-    flowDrafts,
     brainAssignments,
     syncOperations,
     syncValues,
     syncRecords,
     diaryEntriesDayOrder,
     flowThoughtsOrder,
-    flowSingleCapture,
   ];
   @override
   int get schemaVersion => 10;

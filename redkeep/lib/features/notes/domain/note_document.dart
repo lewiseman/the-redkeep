@@ -3,6 +3,7 @@ class PlainTextDocument {
   const PlainTextDocument({this.title = '', this.body = ''});
   final String title;
   final String body;
+  bool get isEmpty => title.trim().isEmpty && body.trim().isEmpty;
 }
 
 class NoteDocument {
@@ -69,7 +70,13 @@ String noteTitle(String title) =>
 
 bool isNoteId(String value) => RegExp(r'^[0-9a-f]{32}$').hasMatch(value);
 
-enum NoteFailure { unavailable, staleRevision, draftChanged, invalidTags }
+enum NoteFailure {
+  unavailable,
+  staleRevision,
+  draftChanged,
+  empty,
+  invalidTags,
+}
 
 class NoteException implements Exception {
   const NoteException(this.failure);

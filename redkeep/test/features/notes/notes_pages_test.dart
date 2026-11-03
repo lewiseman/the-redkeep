@@ -222,7 +222,7 @@ void main() {
   );
 
   noteTest(
-    'missing IDs, draft-only IDs, list/read errors and creation failures recover',
+    'opening an empty note creates no draft; list/read failures recover',
     (tester) async {
       final router = await pumpApp(
         tester,
@@ -232,17 +232,11 @@ void main() {
       );
       expect(find.text('Note unavailable'), findsOneWidget);
       await tap(tester, 'Return to Notes');
-      repo.failDraft = true;
       await tap(tester, 'Create note');
-      expect(
-        find.textContaining('A draft could not be created'),
-        findsOneWidget,
-      );
-      repo.failDraft = false;
-      await tap(tester, 'Create note');
+      expect((await repo.openDocument(id)).draft, isNull);
       await tester.pageBack();
       await tester.pumpAndSettle();
-      expect(find.text('Open recovery draft'), findsOneWidget);
+      expect(find.text('Open recovery draft'), findsNothing);
       repo.failRead = true;
       await tester.pumpWidget(const SizedBox());
       await pumpApp(tester, initialLocation: '/notes', notes: repo);

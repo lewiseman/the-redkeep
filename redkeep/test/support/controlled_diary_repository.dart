@@ -9,38 +9,27 @@ import 'package:redkeep/features/diary/domain/diary_repository.dart';
 class ControlledDiaryRepository implements DiaryRepository {
   ControlledDiaryRepository(this.inner);
   final DiaryRepository inner;
-  bool failDraft = false;
   bool failCommit = false;
   bool failRead = false;
-  Completer<void>? draftGate;
   Completer<void>? commitGate;
   int commits = 0;
 
   @override
-  Future<DiaryDraft> putDraft({
+  Future<DiaryEntry> save({
     required String id,
     required CivilDate date,
     required DiaryText text,
-    required int baseRevision,
-    required int? expectedDraftRevision,
+    required int expectedRevision,
   }) async {
-    await draftGate?.future;
-    if (failDraft) throw StateError('synthetic recovery failure');
-    return inner.putDraft(
+    commits++;
+    await commitGate?.future;
+    if (failCommit) throw StateError('synthetic save failure');
+    return inner.save(
       id: id,
       date: date,
       text: text,
-      baseRevision: baseRevision,
-      expectedDraftRevision: expectedDraftRevision,
+      expectedRevision: expectedRevision,
     );
-  }
-
-  @override
-  Future<DiaryEntry> commitDraft(String id, int expectedDraftRevision) async {
-    commits++;
-    await commitGate?.future;
-    if (failCommit) throw StateError('synthetic commit failure');
-    return inner.commitDraft(id, expectedDraftRevision);
   }
 
   @override
@@ -61,10 +50,6 @@ class ControlledDiaryRepository implements DiaryRepository {
       ? Stream.error(StateError('synthetic read failure'))
       : inner.watchEntries(date: date, search: search);
   @override
-  Stream<List<DiaryListing>> watchDrafts() => failRead
-      ? Stream.error(StateError('synthetic read failure'))
-      : inner.watchDrafts();
-  @override
   Future<void> deleteEntry(String id, int expectedRevision) =>
       inner.deleteEntry(id, expectedRevision);
   @override
@@ -74,7 +59,4 @@ class ControlledDiaryRepository implements DiaryRepository {
   @override
   Future<void> renameDay(DiaryDay day, String heading) =>
       inner.renameDay(day, heading);
-  @override
-  Future<void> discardDraft(String id, int expectedDraftRevision) =>
-      inner.discardDraft(id, expectedDraftRevision);
 }

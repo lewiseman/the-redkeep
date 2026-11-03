@@ -188,29 +188,16 @@ void main() {
           await seed();
           location = '/notes/$id';
         } else if (feature.contains('diary')) {
-          final draft = await diary.putDraft(
+          await diary.save(
             id: id,
             date: CivilDate(2026, 11, 3),
             text: const DiaryText(title: 'Synthetic diary', body: original),
-            baseRevision: 0,
-            expectedDraftRevision: null,
+            expectedRevision: 0,
           );
-          if (!feature.startsWith('current')) {
-            await diary.commitDraft(id, draft.draftRevision);
-          }
           location =
               '/diary/2026-11-03/entries/$id${feature.startsWith('current') ? '/edit' : ''}';
         } else {
-          final draft = await flow.putDraft(
-            id: id,
-            body: original,
-            capture: false,
-            baseRevision: 0,
-            expectedDraftRevision: null,
-          );
-          if (!feature.startsWith('current')) {
-            await flow.commitDraft(id, draft.draftRevision);
-          }
+          await flow.save(id: id, body: original, expectedRevision: 0);
           location = '/flow/$id${feature.startsWith('current') ? '/edit' : ''}';
         }
         String? copied;
@@ -245,21 +232,32 @@ void main() {
           expect((await notes.openDocument(id)).draft, isNull);
         } else if (feature.contains('diary')) {
           final current = await diary.openDocument(id);
-          expect(
-            current.entry?.text.body ?? current.draft!.text.body,
-            original,
-          );
-          expect(
-            current.entry?.revision ?? current.draft!.baseRevision,
-            feature.startsWith('current') ? 0 : 1,
-          );
+          expect(current.entry!.text.body, original);
+          expect(current.entry!.revision, 1);
         } else {
           final current = await flow.openDocument(id);
-          expect(current.thought?.body ?? current.draft!.body, original);
+          expect(current.thought!.body, original);
         }
       },
     );
   }
+
+  check('summarizing a new diary entry leaves its writing unsaved', (
+    tester,
+  ) async {
+    await start(tester, '/diary/2026-11-03');
+    await tap(tester, 'Write an entry');
+    final field = find.byKey(const ValueKey('diary-body'));
+    await tester.enterText(field, original);
+    await tester.pumpAndSettle();
+    await open(tester);
+    await tap(tester, 'Summarize text');
+    expect(find.text('one two'), findsOneWidget);
+    await tap(tester, 'Close helper');
+    expect(tester.widget<TextField>(field).controller!.text, original);
+    expect(await diary.watchEntries().first, isEmpty);
+    expect(await db.select(db.noteDrafts).get(), isEmpty);
+  });
 
   check(
     'empty Flow offers no action; explicit current reflection preserves capture text',
@@ -274,7 +272,13 @@ void main() {
       await open(tester);
       await tap(tester, 'Reflect on thought');
       await tap(tester, 'Close helper');
-      expect((await flow.openCapture())!.body, original);
+      expect(
+        tester
+            .widget<TextField>(find.byKey(const ValueKey('flow-body')))
+            .controller!
+            .text,
+        original,
+      );
       expect((await db.select(db.flowThoughts).get()), isEmpty);
     },
   );

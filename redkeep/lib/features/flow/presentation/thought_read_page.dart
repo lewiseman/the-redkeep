@@ -54,16 +54,6 @@ class ThoughtReadPage extends ConsumerWidget {
                       child: const Text('Delete thought'),
                     ),
                   ],
-                  if (opened.draft != null && !opened.draft!.capture) ...[
-                    const Text(
-                      'Separate unfinished writing is kept as a recovery draft.',
-                    ),
-                    OutlinedButton(
-                      onPressed: () =>
-                          context.go(thoughtLocation(id, edit: true)),
-                      child: const Text('Recover draft'),
-                    ),
-                  ],
                   OutlinedButton(
                     onPressed: () => context.go('/flow'),
                     child: const Text('Return to Flow'),
@@ -95,7 +85,7 @@ class ThoughtReadPage extends ConsumerWidget {
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
               const Text(
-                'The committed text will be removed. This cannot be undone. Any separate recovery draft is kept.',
+                'The saved text will be removed. This cannot be undone.',
               ),
               TextButton(
                 onPressed: () => Navigator.pop(context, false),

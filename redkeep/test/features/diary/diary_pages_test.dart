@@ -59,19 +59,16 @@ void main() {
   }
 
   Future<void> seed({
-    bool commit = true,
     String body = 'Exact writing 👩🏽‍💻 中文 e\u0301',
     String key = id,
     CivilDate? day,
   }) async {
-    final draft = await repo.putDraft(
+    await repo.save(
       id: key,
       date: day ?? date,
       text: DiaryText(title: 'Synthetic entry', body: body),
-      baseRevision: 0,
-      expectedDraftRevision: null,
+      expectedRevision: 0,
     );
-    if (commit) await repo.commitDraft(key, draft.draftRevision);
   }
 
   diaryTest(
@@ -276,66 +273,45 @@ void main() {
     },
   );
 
-  diaryTest(
-    'failed recovery blocks back, warm navigation retains buffer, commit waits and retry succeeds',
-    (tester) async {
-      await seed(commit: false);
-      final router = await pumpApp(
-        tester,
-        initialLocation: diaryEntryLocation(date, id, edit: true),
-        diary: repo,
-      );
-      repo.failDraft = true;
-      await tester.enterText(
-        find.byKey(const ValueKey('diary-body')),
-        'Retain this buffer',
-      );
-      await tester.pumpAndSettle();
-      await tester.pageBack();
-      await tester.pumpAndSettle();
-      expect(
-        router.routeInformationProvider.value.uri.path,
-        diaryEntryLocation(date, id, edit: true),
-      );
-      router.go('/diary');
-      await tester.pumpAndSettle();
-      router.go(diaryEntryLocation(date, id, edit: true));
-      await tester.pumpAndSettle();
-      expect(
-        tester
-            .widget<TextField>(find.byKey(const ValueKey('diary-body')))
-            .controller!
-            .text,
-        'Retain this buffer',
-      );
-      repo.failDraft = false;
-      await tap(tester, 'Retry recovery');
-      repo.failCommit = true;
-      await tap(tester, 'Save entry');
-      expect(find.textContaining('Save failed.'), findsOneWidget);
-      expect(
-        (await repo.openDocument(id)).draft!.text.body,
-        'Retain this buffer',
-      );
-      repo.failCommit = false;
-      repo.commitGate = Completer<void>();
-      final saving = tester
-          .container()
-          .read(diaryEditorProvider(address).notifier)
-          .save();
-      await tester.pump();
-      expect(find.text('Saving…'), findsOneWidget);
-      expect(find.text('Saved revision 1 on this device.'), findsNothing);
-      repo.commitGate!.complete();
-      await saving;
-      await tester.pumpAndSettle();
-      expect(find.text('Saved revision 1 on this device.'), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    },
-  );
+  diaryTest('save failure retains buffer; retry waits for storage', (
+    tester,
+  ) async {
+    await pumpApp(
+      tester,
+      initialLocation: diaryDayLocation(date),
+      diary: repo,
+      diaryId: () => id,
+    );
+    await tap(tester, 'Write an entry');
+    await tester.enterText(
+      find.byKey(const ValueKey('diary-body')),
+      'Retain this buffer',
+    );
+    await tester.pumpAndSettle();
+    repo.failCommit = true;
+    await tap(tester, 'Save entry');
+    expect(find.textContaining('Save failed.'), findsOneWidget);
+    expect((await repo.openDocument(id)).entry, isNull);
+    repo.failCommit = false;
+    repo.commitGate = Completer<void>();
+    final saving = tester
+        .container()
+        .read(diaryEditorProvider(address).notifier)
+        .save();
+    await tester.pump();
+    expect(find.text('Saving…'), findsOneWidget);
+    repo.commitGate!.complete();
+    await saving;
+    await tester.pumpAndSettle();
+    expect(find.text('Saved revision 1 on this device.'), findsOneWidget);
+    expect(
+      (await repo.openDocument(id)).entry!.text.body,
+      'Retain this buffer',
+    );
+  });
 
   diaryTest(
-    'draft reopened after a fresh scope; discard keeps committed entry; wrong dates hide source and draft',
+    'unsaved edits are discarded explicitly and absent after restart; wrong dates hide source',
     (tester) async {
       await seed();
       final router = await pumpApp(
@@ -350,7 +326,8 @@ void main() {
       await tester.pumpAndSettle();
       await tester.pageBack();
       await tester.pumpAndSettle();
-      expect(find.text('Recover draft'), findsOneWidget);
+      expect(find.text('Discard changes?'), findsOneWidget);
+      await tap(tester, 'Keep writing');
       await tester.pumpWidget(const SizedBox());
       await pumpApp(
         tester,
@@ -362,11 +339,10 @@ void main() {
             .widget<TextField>(find.byKey(const ValueKey('diary-body')))
             .controller!
             .text,
-        'Recovered writing',
+        'Exact writing 👩🏽‍💻 中文 e\u0301',
       );
-      await tap(tester, 'Discard draft');
+      await tap(tester, 'Discard changes');
       await tap(tester, 'Discard');
-      expect((await repo.openDocument(id)).draft, isNull);
       expect((await repo.openDocument(id)).entry!.revision, 1);
       // Use the new scope's router, never the disposed one.
       expect(router, isNotNull);
@@ -472,7 +448,7 @@ void main() {
           await tester.pumpAndSettle();
           await tap(tester, 'Save entry');
           expect(find.text('Saved revision 2 on this device.'), findsOneWidget);
-          await tap(tester, 'Discard draft');
+          await tap(tester, 'Discard changes');
           await tap(tester, 'Keep writing');
           router.go('/diary/search');
           await tester.pumpAndSettle();

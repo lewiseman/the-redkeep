@@ -86,15 +86,6 @@ class DriftDiaryRepository implements DiaryRepository {
     });
   }
 
-  @override
-  Stream<List<DiaryListing>> watchDrafts() => _db
-      .customSelect(
-        'SELECT id, date_key, title FROM diary_drafts ORDER BY updated_at DESC, id',
-        readsFrom: {_db.diaryDrafts},
-      )
-      .watch()
-      .map((rows) => rows.map((r) => _listing(r)).toList());
-
   DiaryListing _listing(QueryRow row) => DiaryListing(
     id: row.read<String>('id'),
     date: CivilDate.tryParse(row.read<String>('date_key'))!,
@@ -107,10 +98,9 @@ class DriftDiaryRepository implements DiaryRepository {
     // Observe tokens before loading one transactional document snapshot.
     return _db
         .customSelect(
-          'SELECT (SELECT revision FROM diary_entries WHERE id = ?) AS source_revision, '
-          '(SELECT draft_revision FROM diary_drafts WHERE id = ?) AS draft_revision',
-          variables: [Variable.withString(id), Variable.withString(id)],
-          readsFrom: {_db.diaryEntries, _db.diaryDrafts},
+          'SELECT (SELECT revision FROM diary_entries WHERE id = ?) AS source_revision',
+          variables: [Variable.withString(id)],
+          readsFrom: {_db.diaryEntries},
         )
         .watch()
         .asyncMap((_) => openDocument(id));
@@ -123,66 +113,17 @@ class DriftDiaryRepository implements DiaryRepository {
       final entry = await (_db.select(
         _db.diaryEntries,
       )..where((r) => r.id.equals(id))).getSingleOrNull();
-      final draft = await (_db.select(
-        _db.diaryDrafts,
-      )..where((r) => r.id.equals(id))).getSingleOrNull();
-      return OpenDiaryEntry(
-        entry: entry == null ? null : _entry(entry),
-        draft: draft == null ? null : _draft(draft),
-      );
+      return OpenDiaryEntry(entry: entry == null ? null : _entry(entry));
     });
   }
 
   @override
-  Future<DiaryDraft> putDraft({
+  Future<DiaryEntry> save({
     required String id,
     required CivilDate date,
     required DiaryText text,
-    required int baseRevision,
-    required int? expectedDraftRevision,
+    required int expectedRevision,
   }) async {
-    return _db.transaction(() async {
-      await checkWritingAccess(_db, _generation, recoveryOnly: true);
-      _validate(id);
-
-      final old = await (_db.select(
-        _db.diaryDrafts,
-      )..where((r) => r.id.equals(id))).getSingleOrNull();
-      if (old?.draftRevision != expectedDraftRevision ||
-          (old != null && old.baseRevision != baseRevision)) {
-        throw const DiaryException(DiaryFailure.draftChanged);
-      }
-      final source = await openDocument(id);
-      if (source.date != null && source.date != date) {
-        throw const DiaryException(DiaryFailure.unavailable);
-      }
-      final now = _clock().toUtc().millisecondsSinceEpoch;
-      if (old != null) await discardDraft(id, old.draftRevision);
-      final version = await _db
-          .into(_db.diaryDrafts)
-          .insert(
-            DiaryDraftsCompanion.insert(
-              id: id,
-              dateKey: date.key,
-              title: text.title,
-              body: text.body,
-              baseRevision: baseRevision,
-              updatedAt: now,
-            ),
-          );
-      return DiaryDraft(
-        id: id,
-        date: date,
-        text: text,
-        baseRevision: baseRevision,
-        draftRevision: version,
-        updatedAt: DateTime.fromMillisecondsSinceEpoch(now, isUtc: true),
-      );
-    });
-  }
-
-  @override
-  Future<DiaryEntry> commitDraft(String id, int expectedDraftRevision) async {
     return _db.transaction(() async {
       await checkWritingAccess(
         _db,
@@ -192,32 +133,31 @@ class DriftDiaryRepository implements DiaryRepository {
               _db.diaryEntries,
             )..where((r) => r.id.equals(id))).getSingleOrNull()) ==
             null,
-        diaryDate: (await openDocument(id)).draft?.date.key,
+        diaryDate: date.key,
         now: _clock(),
       );
       _validate(id);
 
       final snapshot = await openDocument(id);
-      final draft = snapshot.draft;
-      if (draft == null || draft.draftRevision != expectedDraftRevision) {
-        throw const DiaryException(DiaryFailure.draftChanged);
-      }
+      if (text.isEmpty) throw const DiaryException(DiaryFailure.empty);
       final old = snapshot.entry;
-      if (old?.deletedAt != null ||
-          (old?.revision ?? 0) != draft.baseRevision) {
+      if (old != null && old.date != date) {
+        throw const DiaryException(DiaryFailure.unavailable);
+      }
+      if (old?.deletedAt != null || (old?.revision ?? 0) != expectedRevision) {
         throw const DiaryException(DiaryFailure.staleRevision);
       }
       final now = _clock().toUtc();
-      final revision = draft.baseRevision + 1;
+      final revision = expectedRevision + 1;
       if (old == null) {
         await _db
             .into(_db.diaryEntries)
             .insert(
               DiaryEntriesCompanion.insert(
                 id: id,
-                dateKey: draft.date.key,
-                title: draft.text.title,
-                body: draft.text.body,
+                dateKey: date.key,
+                title: text.title,
+                body: text.body,
                 revision: revision,
                 createdAt: now.millisecondsSinceEpoch,
                 updatedAt: now.millisecondsSinceEpoch,
@@ -228,13 +168,13 @@ class DriftDiaryRepository implements DiaryRepository {
             await (_db.update(_db.diaryEntries)..where(
                   (r) =>
                       r.id.equals(id) &
-                      r.revision.equals(draft.baseRevision) &
+                      r.revision.equals(expectedRevision) &
                       r.deletedAt.isNull(),
                 ))
                 .write(
                   DiaryEntriesCompanion(
-                    title: Value(draft.text.title),
-                    body: Value(draft.text.body),
+                    title: Value(text.title),
+                    body: Value(text.body),
                     revision: Value(revision),
                     updatedAt: Value(now.millisecondsSinceEpoch),
                   ),
@@ -243,11 +183,10 @@ class DriftDiaryRepository implements DiaryRepository {
           throw const DiaryException(DiaryFailure.staleRevision);
         }
       }
-      await discardDraft(id, expectedDraftRevision);
       return DiaryEntry(
         id: id,
-        date: draft.date,
-        text: draft.text,
+        date: date,
+        text: text,
         revision: revision,
         createdAt: old?.createdAt ?? now,
         updatedAt: now,
@@ -281,24 +220,6 @@ class DriftDiaryRepository implements DiaryRepository {
     });
   }
 
-  @override
-  Future<void> discardDraft(String id, int expectedDraftRevision) async {
-    return _db.transaction(() async {
-      if (_db.writingBlocked || _db.writingGeneration != _generation) {
-        throw StateError('Account reset changed this writing session.');
-      }
-      _validate(id);
-      final count =
-          await (_db.delete(_db.diaryDrafts)..where(
-                (r) =>
-                    r.id.equals(id) &
-                    r.draftRevision.equals(expectedDraftRevision),
-              ))
-              .go();
-      if (count != 1) throw const DiaryException(DiaryFailure.draftChanged);
-    });
-  }
-
   DiaryEntry _entry(DiaryEntryRow r) => DiaryEntry(
     id: r.id,
     date: CivilDate.tryParse(r.dateKey)!,
@@ -309,13 +230,5 @@ class DriftDiaryRepository implements DiaryRepository {
     deletedAt: r.deletedAt == null
         ? null
         : DateTime.fromMillisecondsSinceEpoch(r.deletedAt!, isUtc: true),
-  );
-  DiaryDraft _draft(DiaryDraftRow r) => DiaryDraft(
-    id: r.id,
-    date: CivilDate.tryParse(r.dateKey)!,
-    text: DiaryText(title: r.title, body: r.body),
-    baseRevision: r.baseRevision,
-    draftRevision: r.draftRevision,
-    updatedAt: DateTime.fromMillisecondsSinceEpoch(r.updatedAt, isUtc: true),
   );
 }

@@ -15,27 +15,9 @@ class Thought {
   final DateTime? deletedAt;
 }
 
-class ThoughtDraft {
-  const ThoughtDraft({
-    required this.id,
-    required this.body,
-    required this.baseRevision,
-    required this.draftRevision,
-    required this.capture,
-    required this.updatedAt,
-  });
-  final String id;
-  final String body;
-  final int baseRevision;
-  final int draftRevision;
-  final bool capture;
-  final DateTime updatedAt;
-}
-
 class OpenThought {
-  const OpenThought({this.thought, this.draft});
+  const OpenThought({this.thought});
   final Thought? thought;
-  final ThoughtDraft? draft;
   bool get available => thought != null && thought!.deletedAt == null;
 }
 
@@ -53,7 +35,7 @@ class ThoughtListing {
 
 bool isThoughtId(String value) => RegExp(r'^[0-9a-f]{32}$').hasMatch(value);
 
-enum FlowFailure { unavailable, staleRevision, draftChanged, empty }
+enum FlowFailure { unavailable, staleRevision, empty }
 
 class FlowException implements Exception {
   const FlowException(this.failure);

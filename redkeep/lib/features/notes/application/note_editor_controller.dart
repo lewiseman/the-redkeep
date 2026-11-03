@@ -17,6 +17,7 @@ class NoteEditorState {
     required this.text,
     required this.baseRevision,
     this.draftRevision,
+    this.editVersion = 0,
     this.saving = false,
     this.recovering = false,
     this.recoveryFailed = false,
@@ -26,6 +27,7 @@ class NoteEditorState {
   final PlainTextDocument text;
   final int baseRevision;
   final int? draftRevision;
+  final int editVersion;
   final bool saving;
   final bool recovering;
   final bool recoveryFailed;
@@ -72,6 +74,7 @@ class NoteEditorController extends AsyncNotifier<NoteEditorState> {
     text: _text,
     baseRevision: _baseRevision,
     draftRevision: _draftRevision,
+    editVersion: _sequence,
     saving: _saving,
     recovering: _sequence != _persistedSequence && !_recoveryFailed,
     recoveryFailed: _recoveryFailed,
@@ -90,6 +93,52 @@ class NoteEditorController extends AsyncNotifier<NoteEditorState> {
     _recoveryFailed = false;
     _publish();
     unawaited(flushRecovery());
+  }
+
+  /// Explicit proposal acceptance changes only this working buffer. Recheck
+  /// authoritative source/draft tokens after recovery and again synchronously
+  /// against editor/selection guards before touching text. Manual commit still
+  /// uses the repository's atomic source revision check.
+  Future<bool> acceptReplacement({
+    required NoteEditorState expected,
+    required int start,
+    required int end,
+    required String replacement,
+    required bool Function() stillCurrent,
+  }) async {
+    bool valid() =>
+        ref.mounted &&
+        !_saving &&
+        state.hasValue &&
+        stillCurrent() &&
+        _sequence == expected.editVersion &&
+        _baseRevision == expected.baseRevision &&
+        _text.title == expected.text.title &&
+        _text.body == expected.text.body;
+    if (!valid() ||
+        start < 0 ||
+        end <= start ||
+        end > _text.body.length ||
+        replacement.trim().isEmpty) {
+      return false;
+    }
+    if (!await flushRecovery() || !valid()) return false;
+    final opened = await _repository.openDocument(id);
+    if (!valid() ||
+        (expected.baseRevision == 0
+            ? opened.note != null
+            : !opened.available ||
+                  opened.note!.revision != expected.baseRevision) ||
+        opened.draft?.draftRevision != _draftRevision) {
+      return false;
+    }
+    edit(
+      PlainTextDocument(
+        title: _text.title,
+        body: _text.body.replaceRange(start, end, replacement),
+      ),
+    );
+    return true;
   }
 
   /// Coalesces changes during a write and retains this provider until settled.

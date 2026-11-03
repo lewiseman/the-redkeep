@@ -79,6 +79,7 @@ flutter test test/features/flow
 flutter test test/core
 flutter test test/features/ai
 flutter test test/features/brain
+flutter test test/features/maester
 flutter test test/features/assets
 dart run tool/validate_assets.dart assets/catalog/presentation-v1.json tool/assets/pack
 ```
@@ -171,7 +172,10 @@ the complete implemented shell, with native/offline evidence in its record.
 M10 adds the lazy Brain controller and device executor. Schema 7 stores only
 capability/model/source assignments; optional model files live outside required
 media. No model loads at startup. See [Brain](brain.md) for installation,
-readiness, cancellation and resource ownership. M11 remains unstarted.
+readiness, cancellation and resource ownership. M11 adds feature-owned contextual
+adapters and an ephemeral Grand Maester controller/dialog, guarded editor
+acceptance and copy-only results. See [Grand Maester](grand-maester.md) for its
+source/selection, lifecycle, recovery and separate native smoke contracts.
 
 ## References
 

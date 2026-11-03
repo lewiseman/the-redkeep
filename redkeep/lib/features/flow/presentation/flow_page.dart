@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'flow_maester_button.dart';
 import '../../../app/navigation_destination.dart';
 import '../application/flow_providers.dart';
 import '../domain/thought.dart';
@@ -11,6 +12,7 @@ class FlowPage extends ConsumerWidget {
   const FlowPage({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) => Scaffold(
+    floatingActionButton: const FlowMaesterButton(editing: true),
     appBar: AppBar(title: const Text('Flow')),
     body: SafeArea(
       child: Center(
@@ -36,7 +38,7 @@ class FlowPage extends ConsumerWidget {
                 ),
               ),
               _section(context, ref, ref.watch(thoughtsProvider), false),
-              const SliverToBoxAdapter(child: SizedBox(height: 24)),
+              const SliverToBoxAdapter(child: SizedBox(height: 96)),
             ],
           ),
         ),

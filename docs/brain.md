@@ -76,11 +76,11 @@ OS/runtime compatibility, useful quality or low-end performance.
 
 `BrainExecutor` is a lazy scope-owned device executor using the M03
 `LocalInferenceAdapter` and `openFlutterEdgeModel`. It is the current execution
-boundary for future writing actions. Its caller provides a compatible descriptor,
+boundary for contextual Grand Maester actions. Its caller provides a compatible descriptor,
 capability, bounded text and delta callback. The Brain controller resolves the
 persisted assignment; the settings page's **Test** buttons use only the visible
-synthetic tree paragraph. M10 does not read writing, propose replacements or
-add the floating helper.
+synthetic tree paragraph. M10 itself does not read writing or propose replacements. M11 now provides
+[the contextual helper](grand-maester.md), using this same executor.
 
 Each explicit request revalidates files, loads CPU weights with fallback disabled,
 checks the actual backend, opens a fresh session and closes the session and
@@ -91,9 +91,13 @@ are not a tokenizer guarantee; oversized token sequences can still fail safely.
 Sampling remains temperature 0, top-k 1, top-p 1, seed 42, thinking off. Rewrite
 preserves meaning, summary asks for source facts, reflection asks for a brief
 gentle response. Output can be cut off or invent details; these instructions do
-not establish quality/safety. No output modifies or persists writing.
+not establish quality/safety. Brain itself never modifies writing. M11 accepts reviewed rewrites through the
+Note editor buffer; committing a Note remains an explicit manual save.
 
-Only one request runs at a time. Cancel, leaving Brain and inactive/hidden/paused
+Only one request runs at a time. M11 adds caller identity to requests: helper
+and settings cancellation stops only the same owner, including after another
+request acquires a released executor. Explicit model removal and executor
+disposal retain global stop authority. Cancel, leaving Brain and inactive/hidden/paused
 lifecycle states suppress late deltas, request native stop and wait for cleanup.
 Returning to the foreground never restarts work. Cancellation/disposal while a
 load is pending waits for the late model, then closes it without sending text.
@@ -106,10 +110,10 @@ may retain process memory even after successful close.
 
 ## Future sources
 
-M11 may consume assignments and the executor, but must add source revision/
-selection validation, contextual lifecycle cancellation and explicit proposal
-review before edits. Those behaviors are not implemented in M10. Brain's
-synthetic test output is ephemeral and separate from writing.
+M11 consumes assignments and the executor with source revision/selection
+validation, contextual lifecycle cancellation and explicit proposal review. Its
+contracts are in [Grand Maester](grand-maester.md). Brain's synthetic test output
+remains ephemeral and separate from writing.
 
 D02 can add a versioned companion assignment source and a real authenticated
 transport executor. P02 can add a provider/profile identity, supported capability
@@ -161,5 +165,5 @@ Physical iOS/Metal, Android 11/iOS 15 phones, low-end hardware, sustained therma
 energy/peak-memory, OS memory-kill recovery and native storage-failure evidence
 remain unverified. These block corresponding AI release claims. Simulator,
 widget and high-end Galaxy checks cannot substitute for them. M04's production
-required-artwork host prerequisite is unchanged. M11 is the next phase and
-remains unstarted.
+required-artwork host prerequisite is unchanged. M11 carries these limits forward; helper integration evidence is recorded
+separately in its phase record.

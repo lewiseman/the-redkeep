@@ -40,8 +40,8 @@ Use `Not started`, `In progress`, `Complete`, or `Partial`. A partial result mus
 | M07 — Notes organization | Complete | Schema 4 with local keyword/tag/pin filters, Trash/restore, typed permanent deletion, safe bounded Markdown preview and resolver-backed Notes artwork. All 155 tests, formatting/analysis, asset validation and Android/iOS simulator debug builds pass; Android offline reopen/filter/restore/delete and external browser launch verified. See docs/notes-writing.md and docs/evidence/m07/verification.json. | Native iOS writing/browser, physical accessibility/IME, minimum-OS/low-end/release and native storage-failure evidence unverified. Preview/search bounds documented; M04 host and M03 AI gaps unchanged. Next eligible phase is M08. |
 | M08 — Diary | Complete | Schema 5 separates civil-date Diary entries, recovery drafts and day headings; calendar/day/entry routes, CRUD, local keyword search and static/simpler notebook presentation. All 185 tests, formatting/analysis, four timezone suites, asset validation and Android/iOS simulator debug builds pass; Android offline draft recovery, committed reopen/search and deletion verified. See docs/diary-writing.md and docs/evidence/m08/verification.json. | Physical accessibility/IME, native iOS Diary writing, minimum-OS/low-end/release and native storage-failure evidence unverified. No expensive visual effect introduced or physical performance claim. M04 host and M03 AI gaps unchanged. Next eligible phase is M09. |
 | M09 — Flow | Complete | Schema 6 with quick capture committed before composer clearing, durable capture/edit drafts, newest-first thoughts, ID CRUD and complete Diary/Notes/Flow/More shell. All 213 tests, analysis/formatting, asset validation and Android/iOS simulator debug builds pass; Android offline capture/recovery/edit/delete/restart verified. See docs/flow-writing.md and docs/evidence/m09/verification.json. | Physical accessibility/IME, native iOS Flow writing, minimum-OS/low-end/release and native storage-failure evidence unverified. M04 host and M03 AI gaps unchanged. Next eligible phase is M10. |
-| M10 — Brain | Partial | Brain settings, schema-7 device assignments, optional verified model install/remove/progress/readiness, bounded session/resource ownership and cancellation; 266 tests, analysis/formatting and Android/iOS simulator builds pass. Physical Galaxy CPU/GPU debug, Galaxy CPU release and iOS simulator CPU checks pass with the pinned artifact; see docs/brain.md and docs/evidence/m10/verification.json. | Implementation and available checks finished. Physical iOS/Metal, minimum-OS/low-end, sustained resource/thermal/energy and native storage-failure qualification remain gaps blocking corresponding AI release claims. M11 is next; no helper implemented. |
-| M11 — Grand Maester | Not started | — | Requires M10. |
+| M10 — Brain | Partial | Brain settings, schema-7 device assignments, optional verified model install/remove/progress/readiness, bounded session/resource ownership and cancellation; 266 tests, analysis/formatting and Android/iOS simulator builds pass. Physical Galaxy CPU/GPU debug, Galaxy CPU release and iOS simulator CPU checks pass with the pinned artifact; see docs/brain.md and docs/evidence/m10/verification.json. | Implementation and available checks finished. Physical iOS/Metal, minimum-OS/low-end, sustained resource/thermal/energy and native storage-failure qualification remain gaps blocking corresponding AI release claims. Helper integration is recorded in M11; these AI qualification gaps remain. |
+| M11 — Grand Maester | Complete | Contextual floating helper, Brain setup/readiness, streamed review/copy-only results and revision/selection-guarded Note rewrite acceptance into recovery drafts. 322 tests, analysis/formatting and native builds pass; separate 10-check Galaxy CPU and iOS simulator CPU smoke reports. See docs/grand-maester.md and docs/evidence/m11/verification.json. | Physical iOS/low-end/minimum-OS, sustained resources, native helper touch acceptance/OS-background inference and physical accessibility remain unverified; M03/M10 limits and M04 production-host prerequisite remain. Next eligible phase: M12 audit; not started. |
 | M12 — Mobile release preparation | Not started | — | Requires M01–M11; production media hosting is a release prerequisite. |
 | D01 — Flutter desktop foundation | Not started | — | Starts after mobile acceptance in M12. |
 | D02 — Companion connection | Not started | — | Requires D01. |
@@ -1583,3 +1583,95 @@ missing evidence as verified.
 **M10 implementation and available checks are finished. Next eligible phase:
 M11 — Grand Maester, with these limits carried forward. M11 and every later
 phase remain unstarted. Stop here.**
+
+
+### M11 — Grand Maester — 3 November 2026
+
+**Status: Complete within the selected contextual helper scope, with inherited
+hardware qualification limits carried forward.** M10's implementation and
+available evidence were finished; its Partial label continues to describe the
+recorded hardware gaps. Initial Git status was clean. Read root AGENTS.md, the
+migration plan and architecture/Brain/writing/recovery guidance. No legacy code
+or artwork was used. `raw_assets/`, native configuration, dependency manifests,
+lockfile, schema 7 and historical schema/generated helpers remain unchanged.
+
+**Behavior and contracts.**
+
+- Added the floating **Grand Maester** on Notes/Diary readers and editors and
+  saved/current Flow, including quick capture. Saved Notes offer summary and
+  **Rewrite in editor**; the editor opens current/recovered text without running
+  inference. Note editors offer rewrite/summary; Diary offers summary; Flow has
+  an explicit optional short reflection. Empty/missing/deleted/wrong-date/stale
+  contexts cannot execute. Longer Notes/Diary bodies use a selected passage;
+  input is bounded to 1–2,000 UTF-16 code units without silently truncating writing.
+- Opening the helper checks Brain assignments/files; ordinary writing never
+  creates its controller or initializes AI. Every action/retry is explicit,
+  device-only and re-resolves committed assignments. Missing/incompatible models
+  lead to **Open Brain**. The existing pinned CPU executor supplies streaming,
+  input/output/time bounds and per-request session/model release.
+- Streaming is incomplete until successful cleanup and source validation.
+  Completed summaries/reflections can be read/copied and cannot edit writing.
+  Copy failure retains output. Closing/rejecting discards temporary results.
+  A rewrite shows the original captured passage with the generated replacement
+  in its scrollable review. **Accept replacement** changes only the Note editor's
+  working/recovery buffer; a separate **Save note** commits it.
+- Captured provenance includes feature, stable ID, source revision, current body,
+  title/editor version and exact selection. Change counters and live guards catch
+  edits or selection changes undone before the next frame. Feature adapters
+  validate authoritative source and recovery tokens before generation, after
+  cleanup and before acceptance. Acceptance checks again after async recovery/
+  source reads before replacing the captured range; title/surrounding text remain.
+  A later concurrent source change is still rejected by the repository's atomic
+  manual-commit check, leaving independent recovery instead of overwriting it.
+- Cancel, helper close/reject, route/ID changes, source edits/deletes, selection
+  changes, scope disposal and inactive/hidden/paused lifecycle invalidate the
+  generation. Late output/load completions cannot publish a proposal or affect
+  current writing. No automatic resume. Added executor request-owner checks so
+  stale helper/settings cancellation cannot stop a newer caller; explicit model
+  removal and executor disposal retain resource-owner global stop authority.
+- The source route owns the dialog and subscription, including parent readers
+  beneath editors. Immediate dialogs and a tooltip-labelled, non-hero floating
+  control work with scrollable actions, safe areas and keyboard insets. Notes/
+  Diary preserve keyboard/selection and scroll content reserves bottom space.
+  No new animation, artwork, database table, dependency or later-phase route.
+  Added [Grand Maester guide](docs/grand-maester.md) and updated Brain, writing,
+  architecture and README contracts.
+
+**Exact verification.** Commands ran in `redkeep/` unless root/native paths are
+shown. Flutter **3.47.5** (`6a19cca564`), engine `af7e796e16`, Dart **3.13.4**;
+Xcode **27.2 / 27B52**. Reports, synthetic text/actions and artifact SHA-256s are
+in [verification.json](docs/evidence/m11/verification.json).
+
+| Command / check | Result |
+| --- | --- |
+| `flutter pub get --enforce-lockfile` | Passed; manifests/lockfile unchanged. No dependency added. |
+| `dart format --output=none --set-exit-if-changed lib test tool`; `flutter analyze` | **155 files, 0 changed**; **No issues found**. |
+| `flutter test test/features/maester`; `flutter test` | **56 contextual/proposal tests**, **322 total**, all passing. Fresh scopes/disposable SQLite and injected files/models; no accounts/network/models/user databases in fast tests. |
+| Source/editor/proposal checks | Context restrictions, unassigned/missing/corrupt/interrupted readiness, streaming/cancel/failure/retry/cleanup, new and saved text, source edits/deletes, draft-token replacement, changed/undone selections, same-frame acceptance, source/ID switching, backgrounding and disposal pass. Rejection/generation never write; accepted selected rewrites retain surrounding Unicode/title and require manual commit. A source change after acceptance blocks Save. Copy-only summaries/reflections and copy failure pass. |
+| Shared executor ownership checks | A helper encountering a busy executor cannot cancel its owner. Completion while authoritative validation waits, a subsequent request, stale owner cancellation and disposal/backgrounding of previously used Brain settings cannot interrupt the newer caller. |
+| Widget/layout checks | **320×480, 3× text, safe padding, 180px keyboard**, both themes and standard/reduced/simpler modes. All review/copy/reject/accept actions remain hittable by scrolling. Long complete Unicode writing is retained; a bounded passage can be accepted without truncating the rest. Existing shell/back/routing/writing suites pass. Initial readiness subscription and disposal-notification failures were corrected before final checks. |
+| `dart run tool/validate_assets.dart assets/catalog/presentation-v1.json tool/assets/pack` | Unchanged **4 PNGs, 479,916 bytes**; no publication. |
+| `flutter build apk --debug --target-platform android-arm64 -t tool/verify_maester.dart`; install/stage/relaunch | Physical **Galaxy S24 Ultra / SM-S928B**, ARM64, Android 17/API 37: **10/10** separate synthetic CPU checks. Setup/readiness, rewrite review/reject, accept → independent recovery → manual save, view-only summary/reflection, cancel/source/selection/controller-lifecycle interruption after a delta. [Report](docs/evidence/m11/android-s24-ultra-cpu.json). Only isolated in-memory writing; exact M03/M10 Qwen3 artifact and fallback-off CPU settings retained. |
+| `flutter build ios --simulator --debug -t tool/verify_maester.dart`; `xcrun simctl install/launch`; stage exact pin | **iPhone 17 Pro ARM64 / iOS 26.5 (23F77)** simulator: **10/10** same CPU integration checks. [Report](docs/evidence/m11/ios-simulator-cpu.json). Not physical iOS/Metal or native helper touch/OS-lifecycle evidence. |
+| Ordinary Android emulator UI: `adb ... install -r`, `input`, `uiautomator`, `exec-out screencap -p`, `am force-stop/start` | **sdk_gphone16k_arm64 / Android 17/API 37**: manually created only `M11 synthetic. Mira planted a tree.` in a new draft. [Helper with actual keyboard open](docs/evidence/m11/android-current-no-model-keyboard.png) showed disabled contextual actions and enabled setup. [Open Brain](docs/evidence/m11/android-open-brain.png) showed retained rewrite assignment/missing weights. Force-stop → Notes → recovery [retained exact writing](docs/evidence/m11/android-recovered-after-setup.png). Explicitly discarded only this synthetic draft afterwards; observed **No unfinished drafts**. No network setting changed or model downloaded for this UI run. |
+| `flutter build apk --debug --target-platform android-arm64`; `flutter build ios --simulator --debug`; native `install -r` / `simctl install/launch` | Final ordinary builds passed and were restored on Galaxy, emulator and simulator without clearing app data. Only staged harness weights/precisely pinned runtime caches were removed. Simulator [ordinary welcome](docs/evidence/m11/ios-ordinary-restored.png) restored; no native iOS writing journey claimed. |
+| `git diff --check`; `git diff --exit-code -- redkeep/android redkeep/ios redkeep/macos redkeep/pubspec.yaml redkeep/pubspec.lock redkeep/drift_schemas redkeep/lib/core/storage redkeep/test/core/storage/generated` | Passed; no native/configuration/schema/dependency changes, remote Git operation or publication. |
+
+**Evidence limits and phase boundary.** Native harness Diary/Flow cases exercise
+capabilities over synthetic text; actual feature UI adapters use isolated widget
+checks. Harness lifecycle interruption calls the production controller method,
+not the OS background API. Native helper proposal acceptance by touch, actual
+OS-background inference, physical accessibility/IME, native iOS writing journeys,
+physical iOS/Metal, minimum-OS/low-end phones, sustained release latency/thermal/
+energy/peak-memory and native OOM/storage/power-loss/fsync qualification remain
+unverified. The small model still invents emotions absent from the source and
+can truncate; no broad quality/safety claim follows from functional checks.
+Hung native calls cannot be forcibly killed. Accepted bytes can remain only in
+memory when recovery storage fails; the existing recovery/copy path applies.
+M03/M10 qualification limits and M04's production HTTPS artwork-host prerequisite
+remain release concerns and are not relabelled as verified by widget/simulator
+checks.
+
+**M11 is complete within its selected scope. Next eligible phase: M12 — Mobile
+release preparation, including its explicit completion/evidence audit. M12 and
+all later implementation phases remain unstarted. Stop here.**

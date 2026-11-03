@@ -22,6 +22,7 @@ class BrainExecutor {
   final Duration requestTimeout;
   Future<void>? _active;
   BrainCancellation? _cancellation;
+  Object? _owner;
   LocalInferenceAdapter? _adapter;
   bool _disposed = false;
   bool _poisoned = false;
@@ -33,6 +34,7 @@ class BrainExecutor {
     required BrainCapability capability,
     required String text,
     required void Function(String) onChunk,
+    Object? owner,
   }) {
     if (_disposed) throw const BrainException(BrainFailure.disposed);
     if (_poisoned) throw const BrainException(BrainFailure.cleanup);
@@ -43,11 +45,13 @@ class BrainExecutor {
     final prompt = capability.prompt(text);
     final cancellation = BrainCancellation();
     _cancellation = cancellation;
+    _owner = owner;
     final done = Completer<void>();
     _active = done.future;
     return _execute(model, prompt, cancellation, onChunk).whenComplete(() {
       _active = null;
       _cancellation = null;
+      _owner = null;
       done.complete();
     });
   }
@@ -133,7 +137,10 @@ class BrainExecutor {
     }
   }
 
-  Future<void> cancel() async {
+  /// A supplied owner can stop only its own active request. Omitting it is the
+  /// resource owner's explicit global stop (model removal/scope disposal).
+  Future<void> cancel({Object? owner}) async {
+    if (owner != null && !identical(owner, _owner)) return;
     _cancellation?.cancel();
     _stopAdapter();
     await _active;

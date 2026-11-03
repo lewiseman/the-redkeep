@@ -175,3 +175,11 @@ are not physical-device evidence. Native iOS writing/external-browser interactio
 physical accessibility/IME, minimum-OS, low-end/release performance and native
 storage/power-loss drills remain unverified. M04 production HTTPS hosting and
 M03 AI qualification gaps remain unchanged. Next eligible phase: **M08 — Diary**.
+
+## Contextual assistance (M11)
+
+See [Grand Maester](grand-maester.md) for explicit device actions, Brain setup,
+streaming/cancellation and captured-source validation. Summaries/reflections
+remain view/copy results. Accepted Note rewrites change only the guarded working/
+recovery buffer; committing still requires **Save note**. No inference runs during
+ordinary writing or automatically on return to a screen.

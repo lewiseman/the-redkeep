@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'note_maester_button.dart';
 import '../../../app/app_shell.dart';
 import '../../../app/navigation_destination.dart';
 import '../../../core/presentation/paper_surface.dart';
@@ -26,6 +27,7 @@ class _NoteReadPageState extends ConsumerState<NoteReadPage> {
     final opened = ref.watch(noteDocumentProvider(widget.id));
     final busy = ref.watch(notesActionsProvider);
     return AppShell(
+      floatingActionButton: NoteMaesterButton(id: widget.id),
       child: opened.when(
         loading: () => const Text('Loading note…'),
         error: (_, _) => Column(

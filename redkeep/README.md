@@ -35,3 +35,7 @@ harness. The regular app entry point neither loads models nor initializes AI.
 M10 adds optional device Brain settings at `/settings/brain`, assignments in schema 7,
 verified model downloads/removal and explicitly requested synthetic tests. See
 [Brain](../docs/brain.md). No model loads during ordinary writing startup.
+
+M11 adds contextual Grand Maester assistance. See
+[the feature guide](../docs/grand-maester.md) for explicit actions, proposal review,
+source/selection guards and the opt-in synthetic native harness.

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'diary_maester_button.dart';
 import '../../../app/app_shell.dart';
 import '../../../app/navigation_destination.dart';
 import '../application/diary_providers.dart';
@@ -13,6 +14,7 @@ class DiaryEntryPage extends ConsumerWidget {
   final DiaryAddress address;
   @override
   Widget build(BuildContext context, WidgetRef ref) => AppShell(
+    floatingActionButton: DiaryMaesterButton(address: address),
     child: ref
         .watch(diaryDocumentProvider(address.id))
         .when(

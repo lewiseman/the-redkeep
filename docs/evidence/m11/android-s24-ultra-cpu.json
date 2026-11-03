@@ -1,0 +1,101 @@
+{
+  "phase": "M11",
+  "platform": "android",
+  "os": "CP2A.260605.016.S928BXXS6EZJ1",
+  "mode": "debug",
+  "writing": "synthetic, in-memory SQLite only",
+  "core": "2.5.5",
+  "engine": "1.19.1",
+  "backend": "cpu; fallback disabled",
+  "model": "qwen3-06b-int8-722a0a54",
+  "bytes": 613722264,
+  "sha256": "c5f39b4191926786c3e6668b62af4d6eb15248dfc7a5348252a9b406f33f2108",
+  "cases": [
+    {
+      "name": "no_model_setup",
+      "ready": false,
+      "writingUnchanged": true,
+      "passed": true,
+      "elapsedMs": 4
+    },
+    {
+      "name": "verified_readiness",
+      "capabilities": [
+        "rewrite",
+        "summarize",
+        "reflect"
+      ],
+      "passed": true,
+      "elapsedMs": 4504
+    },
+    {
+      "name": "rewrite_review_reject",
+      "output": "Mira planted a tree. She watered it each morning, and new leaves grew.",
+      "writingUnchanged": true,
+      "passed": true,
+      "elapsedMs": 14307
+    },
+    {
+      "name": "rewrite_accept_then_manual_save",
+      "output": "Mira planted a tree. She watered it each morning, and new leaves grew.",
+      "committedRevision": 2,
+      "explicitSave": true,
+      "passed": true,
+      "elapsedMs": 12046
+    },
+    {
+      "name": "view_only_summarize",
+      "output": "Mira planted a tree and watered it each morning, resulting in new leaves.",
+      "writingUnchanged": true,
+      "context": "diary capability over synthetic text; UI adapters covered separately",
+      "passed": true,
+      "elapsedMs": 11894
+    },
+    {
+      "name": "view_only_reflect",
+      "output": "Mira's care for the tree brought her joy and reminded her of the simple beauty of life.",
+      "writingUnchanged": true,
+      "context": "flow capability over synthetic text; UI adapters covered separately",
+      "passed": true,
+      "elapsedMs": 12410
+    },
+    {
+      "name": "cancel",
+      "cancelledAfterDelta": true,
+      "failure": "cancelled",
+      "expired": false,
+      "noProposal": true,
+      "passed": true,
+      "elapsedMs": 11340
+    },
+    {
+      "name": "source_edit",
+      "cancelledAfterDelta": true,
+      "failure": null,
+      "expired": true,
+      "noProposal": true,
+      "passed": true,
+      "elapsedMs": 10855
+    },
+    {
+      "name": "selection_change",
+      "cancelledAfterDelta": true,
+      "failure": null,
+      "expired": true,
+      "noProposal": true,
+      "passed": true,
+      "elapsedMs": 11259
+    },
+    {
+      "name": "background_controller",
+      "cancelledAfterDelta": true,
+      "failure": "cancelled",
+      "expired": false,
+      "noProposal": true,
+      "passed": true,
+      "elapsedMs": 12382
+    }
+  ],
+  "limits": "Controller and native runtime integration; not physical accessibility, OS lifecycle, sustained performance or response quality qualification.",
+  "passed": true
+}

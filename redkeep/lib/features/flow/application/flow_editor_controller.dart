@@ -17,6 +17,7 @@ class FlowEditorState {
     required this.body,
     required this.baseRevision,
     this.draftRevision,
+    this.editVersion = 0,
     this.saving = false,
     this.recovering = false,
     this.recoveryFailed = false,
@@ -26,6 +27,7 @@ class FlowEditorState {
   final String body;
   final int baseRevision;
   final int? draftRevision;
+  final int editVersion;
   final bool saving;
   final bool recovering;
   final bool recoveryFailed;
@@ -79,6 +81,7 @@ class FlowEditorController extends AsyncNotifier<FlowEditorState> {
     body: _body,
     baseRevision: _baseRevision,
     draftRevision: _draftRevision,
+    editVersion: _sequence,
     saving: _saving,
     recovering: _sequence != _persistedSequence && !_recoveryFailed,
     recoveryFailed: _recoveryFailed,

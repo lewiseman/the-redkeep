@@ -58,6 +58,7 @@ class BrainState {
 class BrainController extends Notifier<BrainState> {
   BrainCancellation? _download;
   BrainExecutor? _executor;
+  final _requestOwner = Object();
   bool _foreground = true;
   bool _stopRequested = false;
   Future<void>? _work;
@@ -66,7 +67,7 @@ class BrainController extends Notifier<BrainState> {
   BrainState build() {
     ref.onDispose(() {
       _download?.cancel();
-      unawaited(_executor?.cancel());
+      unawaited(_executor?.cancel(owner: _requestOwner));
     });
     unawaited(Future<void>.microtask(refresh));
     return const BrainState();
@@ -192,6 +193,7 @@ class BrainController extends Notifier<BrainState> {
         if (_stopRequested) throw const BrainException(BrainFailure.cancelled);
         try {
           await executor.execute(
+            owner: _requestOwner,
             model: model,
             capability: capability,
             text: 'Mira planted a tree. She watered it each morning. New leaves appeared.',
@@ -225,7 +227,7 @@ class BrainController extends Notifier<BrainState> {
   Future<void> cancel() async {
     _stopRequested = true;
     _download?.cancel();
-    await _executor?.cancel();
+    await _executor?.cancel(owner: _requestOwner);
     await _work;
   }
 

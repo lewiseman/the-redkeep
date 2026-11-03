@@ -17,6 +17,7 @@ class DiaryEditorState {
     required this.text,
     required this.baseRevision,
     this.draftRevision,
+    this.editVersion = 0,
     this.saving = false,
     this.recovering = false,
     this.recoveryFailed = false,
@@ -26,6 +27,7 @@ class DiaryEditorState {
   final DiaryText text;
   final int baseRevision;
   final int? draftRevision;
+  final int editVersion;
   final bool saving;
   final bool recovering;
   final bool recoveryFailed;
@@ -74,6 +76,7 @@ class DiaryEditorController extends AsyncNotifier<DiaryEditorState> {
     text: _text,
     baseRevision: _baseRevision,
     draftRevision: _draftRevision,
+    editVersion: _sequence,
     saving: _saving,
     recovering: _sequence != _persistedSequence && !_recoveryFailed,
     recoveryFailed: _recoveryFailed,

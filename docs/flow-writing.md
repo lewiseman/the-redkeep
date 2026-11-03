@@ -109,3 +109,11 @@ IME, native iOS Flow writing, minimum-OS/low-end hardware, release performance
 and native storage-failure qualification remain unverified. M04's production
 asset-host prerequisite and M03's AI gaps remain unchanged. Next eligible phase:
 **M10 — Brain**; it is not implemented here.
+
+## Contextual assistance (M11)
+
+See [Grand Maester](grand-maester.md) for explicit device actions, Brain setup,
+streaming/cancellation and captured-source validation. Summaries/reflections
+remain view/copy results. Accepted Note rewrites change only the guarded working/
+recovery buffer; committing still requires **Save note**. No inference runs during
+ordinary writing or automatically on return to a screen.

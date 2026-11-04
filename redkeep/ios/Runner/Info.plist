@@ -66,5 +66,11 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Scan a pairing code from your companion computer.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Connect directly to your trusted computer for AI and search by meaning.</string>
+	<key>NSBonjourServices</key>
+	<array><string>_journal-ai._tcp</string></array>
 </dict>
 </plist>

@@ -1,3 +1,10 @@
+import '../features/flow/presentation/flow_search_page.dart';
+import '../features/companion/presentation/companion_page.dart';
+import '../features/companion/presentation/companion_pairing.dart';
+import '../features/companion/presentation/companion_detail_pages.dart';
+import '../features/companion/presentation/companion_preferences_page.dart';
+import '../features/voice/presentation/reply_voice_page.dart';
+import '../features/ai/application/ai_lifecycle.dart';
 import '../features/sync/application/sync_providers.dart';
 import 'writing_shell.dart';
 import 'more_page.dart';
@@ -64,8 +71,9 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
     ),
     routes: [
       ShellRoute(
-        builder: (context, state, child) =>
-            WritingShell(location: state.uri.path, child: child),
+        builder: (context, state, child) => AiLifecycleHost(
+          child: WritingShell(location: state.uri.path, child: child),
+        ),
         routes: [
           GoRoute(
             path: '/',
@@ -193,6 +201,11 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
                 pageBuilder: (context, state) => _page(state, const FlowPage()),
                 routes: [
                   GoRoute(
+                    path: 'search',
+                    pageBuilder: (context, state) =>
+                        _page(state, const FlowSearchPage()),
+                  ),
+                  GoRoute(
                     path: ':id',
                     pageBuilder: (context, state) => _page(
                       state,
@@ -224,7 +237,44 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
                   GoRoute(
                     path: 'brain',
                     pageBuilder: (context, state) =>
-                        _page(state, const BrainPage()),
+                        _page(state, const CompanionPage()),
+                    routes: [
+                      GoRoute(
+                        path: 'phone',
+                        pageBuilder: (context, state) =>
+                            _page(state, const BrainPage()),
+                      ),
+                      GoRoute(
+                        path: 'scan',
+                        pageBuilder: (context, state) =>
+                            _page(state, const CompanionScannerPage()),
+                      ),
+                      GoRoute(
+                        path: 'computers',
+                        pageBuilder: (context, state) =>
+                            _page(state, const CompanionComputersPage()),
+                      ),
+                      GoRoute(
+                        path: 'preferences',
+                        pageBuilder: (context, state) =>
+                            _page(state, const CompanionPreferencesPage()),
+                      ),
+                      GoRoute(
+                        path: 'voices',
+                        pageBuilder: (context, state) =>
+                            _page(state, const ReplyVoicePage()),
+                      ),
+                      GoRoute(
+                        path: 'help',
+                        pageBuilder: (context, state) =>
+                            _page(state, const CompanionHelpPage()),
+                      ),
+                      GoRoute(
+                        path: 'details',
+                        pageBuilder: (context, state) =>
+                            _page(state, const CompanionPrivacyPage()),
+                      ),
+                    ],
                   ),
                 ],
               ),

@@ -1,3 +1,14 @@
+import 'package:drift/native.dart';
+import 'package:redkeep/core/storage/app_database.dart';
+import 'package:redkeep/features/companion/application/companion_controller.dart';
+import 'package:redkeep/features/ai/application/ai_jobs.dart';
+import 'package:redkeep/features/recall/application/recall_controller.dart';
+
+import 'fake_ai.dart';
+
+import 'package:redkeep/features/voice/application/phone_voice.dart';
+
+import 'package:redkeep/features/ai/application/ai_lifecycle.dart';
 import 'package:redkeep/features/appearance/application/appearance_typography.dart';
 
 import 'fake_appearance_fonts.dart';
@@ -46,14 +57,33 @@ Future<GoRouter> pumpApp(
   BrainAssignments? brainAssignments,
   BrainModelFiles? brainFiles,
   BrainModelLoader? brainLoader,
+  bool aiEnabled = false,
+  AppDatabase? database,
+  CompanionState? companion,
+  MemoryAiTasks? tasks,
+  GuideVoice? guideVoice,
 }) async {
+  final db = database ?? AppDatabase(NativeDatabase.memory());
+  if (database == null) addTearDown(db.close);
   final preferences = repository ?? FakeAppearanceRepository();
   if (repository == null) addTearDown(preferences.close);
   addTearDown(() => tester.pumpWidget(const SizedBox()));
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        appDatabaseProvider.overrideWithValue(db),
+        companionControllerProvider.overrideWith(
+          () => TestConnection(
+            companion ?? const CompanionState(phase: CompanionPhase.idle),
+          ),
+        ),
+        protectedAiTasksProvider.overrideWithValue(tasks ?? MemoryAiTasks()),
+        recallVectorsProvider.overrideWith((ref) async => MemoryVectors()),
+        recallEmbedderProvider.overrideWithValue(FakeEmbedder()),
+        if (guideVoice != null)
+          guideVoiceProvider.overrideWithValue(guideVoice),
         syncEnabledProvider.overrideWithValue(false),
+        aiEnabledProvider.overrideWithValue(aiEnabled),
         appearanceFontLoaderProvider.overrideWithValue(fontLoader),
         appearanceRepositoryProvider.overrideWithValue(preferences),
         onboardingRepositoryProvider.overrideWithValue(

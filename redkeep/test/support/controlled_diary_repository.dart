@@ -60,5 +60,6 @@ class ControlledDiaryRepository implements DiaryRepository {
   Future<void> renameDay(DiaryDay day, String heading) =>
       inner.renameDay(day, heading);
   @override
-  Future<void> saveDay(DiaryDay day) => inner.saveDay(day);
+  Future<void> saveDay(DiaryDay day, {String? expectedEntries}) =>
+      inner.saveDay(day, expectedEntries: expectedEntries);
 }

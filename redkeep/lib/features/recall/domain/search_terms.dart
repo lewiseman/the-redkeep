@@ -1,0 +1,128 @@
+const _stopWords = {
+  'like',
+  'would',
+  'one',
+  'out',
+  'a',
+  'about',
+  'after',
+  'again',
+  'all',
+  'an',
+  'and',
+  'any',
+  'are',
+  'around',
+  'as',
+  'at',
+  'be',
+  'been',
+  'before',
+  'can',
+  'could',
+  'day',
+  'days',
+  'did',
+  'diary',
+  'do',
+  'does',
+  'doing',
+  'during',
+  'entry',
+  'entries',
+  'ever',
+  'first',
+  'for',
+  'from',
+  'get',
+  'go',
+  'going',
+  'got',
+  'had',
+  'has',
+  'have',
+  'how',
+  'i',
+  'if',
+  'in',
+  'into',
+  'is',
+  'it',
+  'journal',
+  'just',
+  'last',
+  'me',
+  'mention',
+  'mentioned',
+  'my',
+  'of',
+  'on',
+  'or',
+  'remember',
+  'said',
+  'say',
+  'since',
+  'so',
+  'some',
+  'start',
+  'started',
+  'tell',
+  'that',
+  'the',
+  'then',
+  'there',
+  'this',
+  'time',
+  'to',
+  'up',
+  'was',
+  'were',
+  'what',
+  'when',
+  'where',
+  'which',
+  'who',
+  'why',
+  'with',
+  'write',
+  'wrote',
+  'written',
+  'you',
+  'your',
+  'ago',
+  'week',
+  'weeks',
+  'month',
+  'months',
+  'year',
+  'years',
+  'yesterday',
+  'today',
+  'lately',
+  'recently',
+};
+
+// Crude English stemming so "noticed", "notice" and "notices" compare equal.
+String _stem(String word) {
+  for (final suffix in ['ing', 'ed', 'es', 's', 'e']) {
+    // "class" keeps its "s" so it matches "classes" → "class".
+    if (suffix == 's' && word.endsWith('ss')) continue;
+    if (word.length > suffix.length + 3 && word.endsWith(suffix)) {
+      return word.substring(0, word.length - suffix.length);
+    }
+  }
+  return word;
+}
+
+/// Unicode words, lowercased, without English stop words, contractions
+/// ("what's" → "what") or short words, lightly stemmed. Non-English text
+/// matches exact word forms only.
+Set<String> searchTerms(String value) => {
+  for (final m in RegExp(
+    r"[\p{L}\p{N}]+(?:['’][\p{L}]+)?",
+    unicode: true,
+  ).allMatches(value.toLowerCase()))
+    if (m[0]!.replaceAll(RegExp(r"['’](s|re|ll|ve|d|t|m)$"), '') case final w
+        when w.runes.length >= 2 && !_stopWords.contains(w))
+      _stem(w),
+};

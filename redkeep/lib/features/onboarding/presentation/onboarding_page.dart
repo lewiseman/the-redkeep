@@ -35,6 +35,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
   );
   final _name = TextEditingController();
   final _nameFocus = FocusNode();
+  final _tourFocus = FocusNode();
   final _scroll = ScrollController();
   Timer? _autoplay;
   _Stage _stage = _Stage.touring;
@@ -205,8 +206,11 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
     }
     if (!mounted) return;
     setState(() => _stage = _Stage.naming);
-    // Explicitly focus the name only after the cover has settled.
-    if (_motion) _nameFocus.requestFocus();
+    // Wait for naming to enable or mount the field before requesting focus,
+    // including when reduced motion skips the fold.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _stage == _Stage.naming) _nameFocus.requestFocus();
+    });
   }
 
   Future<void> _back() async {
@@ -228,7 +232,10 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
     } on TickerCanceled {
       /* Settle back to the selected chapter. */
     }
-    if (mounted) setState(() => _stage = _Stage.touring);
+    if (mounted) {
+      setState(() => _stage = _Stage.touring);
+      _tourFocus.requestFocus();
+    }
   }
 
   void _save() {
@@ -245,6 +252,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
     _close.dispose();
     _name.dispose();
     _nameFocus.dispose();
+    _tourFocus.dispose();
     _scroll.dispose();
     super.dispose();
   }
@@ -460,7 +468,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
           if (naming && enabled)
             const SingleActivator(LogicalKeyboardKey.escape): () => _back(),
         },
-        child: Focus(autofocus: true, child: child),
+        child: Focus(focusNode: _tourFocus, autofocus: true, child: child),
       ),
     );
     final media = MediaQuery.of(context);

@@ -1,3 +1,6 @@
+import '../../recall/application/recall_search.dart';
+import '../../ai/application/ai_lifecycle.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
@@ -59,12 +62,21 @@ class _NotesListPageState extends ConsumerState<NotesListPage> {
 
   @override
   Widget build(BuildContext context) {
-    final entries = ref.watch(notesCollectionProvider);
+    final entries = ref.watch(notesHybridCollectionProvider);
     final filter = ref.watch(notesFilterProvider);
     final drafts = ref.watch(notesDraftsOnlyProvider);
     final tags = ref.watch(noteTagsProvider);
     final busy = ref.watch(notesActionsProvider);
     final policy = RenderingPolicyScope.of(context);
+    final meaning =
+        ref.watch(aiEnabledProvider) &&
+            filter.search.isNotEmpty &&
+            !filter.trash &&
+            !drafts
+        ? ref
+              .watch(recallSearchProvider((query: filter.search, kind: 'note')))
+              .value
+        : null;
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -120,6 +132,16 @@ class _NotesListPageState extends ConsumerState<NotesListPage> {
                               suffixIcon: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
+                                  if (meaning?.message case final message?)
+                                    Padding(
+                                      padding: const EdgeInsets.only(bottom: 8),
+                                      child: Text(
+                                        message,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall,
+                                      ),
+                                    ),
                                   if (filter.search.isNotEmpty)
                                     IconButton(
                                       tooltip: 'Clear search',

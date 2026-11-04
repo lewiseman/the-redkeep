@@ -42,6 +42,18 @@ void main() {
     expect(model.closed, 0);
   });
 
+  test('diary diagnostic tests reject unstructured output instead of claiming readiness', () async {
+    for (final capability in [
+      BrainCapability.diaryDetails,
+      BrainCapability.dailyQuestion,
+    ]) {
+      await controller.assign(capability, qualifiedBrainModel.id);
+      await controller.testAssignment(capability);
+      expect(state().testPassed, false);
+      expect(state().failure, BrainFailure.generation);
+    }
+  });
+
   test('save feedback waits for commit, rejects overlap and failure keeps selection', () async {
     assignments.saving = Completer<void>();
     final saving = controller.assign(

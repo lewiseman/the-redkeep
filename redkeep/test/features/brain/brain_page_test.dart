@@ -32,7 +32,7 @@ void main() {
       final model = FakeModel();
       final router = await pumpApp(
         tester,
-        initialLocation: '/settings/brain',
+        initialLocation: '/settings/brain/phone',
         onboarding: FakeOnboardingRepository(completed: false),
         brainAssignments: assignments,
         brainFiles: files,
@@ -69,6 +69,8 @@ void main() {
       router.go('/more');
       await tester.pumpAndSettle();
       await tap(tester, find.text('Grand Maestar'));
+      router.push('/settings/brain/phone');
+      await tester.pumpAndSettle();
       expect(find.byType(BrainPage), findsOneWidget);
       await tester.pumpWidget(const SizedBox());
       await tester.pumpAndSettle();
@@ -101,7 +103,7 @@ void main() {
           final model = FakeModel();
           await pumpApp(
             tester,
-            initialLocation: '/settings/brain',
+            initialLocation: '/settings/brain/phone',
             repository: appearance,
             brainAssignments: assignments,
             brainFiles: files,
@@ -139,7 +141,7 @@ void main() {
       ..values[BrainCapability.rewrite] = qualifiedBrainModel.id;
     final router = await pumpApp(
       tester,
-      initialLocation: '/settings/brain',
+      initialLocation: '/settings/brain/phone',
       brainAssignments: assignments,
       brainFiles: FakeBrainFiles(),
       brainLoader: (_, _) async => model,

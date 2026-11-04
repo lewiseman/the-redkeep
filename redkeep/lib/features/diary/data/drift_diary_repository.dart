@@ -1,3 +1,5 @@
+import '../domain/diary_ai_contract.dart';
+
 import 'dart:convert';
 
 import '../../sync/data/drift_sync_store.dart';
@@ -79,13 +81,27 @@ class DriftDiaryRepository implements DiaryRepository {
   );
 
   @override
-  Future<void> saveDay(DiaryDay day) async {
+  Future<void> saveDay(DiaryDay day, {String? expectedEntries}) async {
     return _db.transaction(() async {
       await checkWritingAccess(_db, _generation);
       if (day.heading.length > 160) {
         throw const DiaryException(DiaryFailure.invalidHeading);
       }
       final themes = normalizeDiaryThemes(day.themes);
+      if (expectedEntries != null) {
+        final rows =
+            await (_db.select(_db.diaryEntries)..where(
+                  (e) => e.dateKey.equals(day.date.key) & e.deletedAt.isNull(),
+                ))
+                .get();
+        final actual = DiarySuggestionSource.fromEntries(
+          day.date,
+          rows.map(_entry),
+        ).encode();
+        if (actual != expectedEntries) {
+          throw const DiaryException(DiaryFailure.staleRevision);
+        }
+      }
 
       final old = await (_db.select(
         _db.diaryDays,

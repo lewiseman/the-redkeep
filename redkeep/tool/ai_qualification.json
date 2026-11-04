@@ -1,0 +1,65 @@
+{
+  "date": "2026-11-04",
+  "data": "Synthetic diary writing only; separate Android application ID; installed Redkeep data unchanged.",
+  "phone": {
+    "device": "Samsung SM-S928B",
+    "os": "Android 17 / API 37, ARM64",
+    "backend": "LiteRT-LM CPU",
+    "model": "Qwen3 0.6B INT8",
+    "artifactSha256": "c5f39b4191926786c3e6668b62af4d6eb15248dfc7a5348252a9b406f33f2108",
+    "contextTokens": 2048,
+    "operations": [
+      {
+        "operation": "suggest-diary-day",
+        "passed": true,
+        "milliseconds": 15234,
+        "output": "{\n  \"title\": \"calm\",\n  \"mood\": {\n    \"value\": \"calm\",\n    \"evidence\": \"I felt calm while planting the garden. I watered the seedlings and enjoyed the quiet morning.\"\n  },\n  \"themes\": []\n}"
+      },
+      {
+        "operation": "ask-diary-question",
+        "passed": true,
+        "milliseconds": 15799,
+        "output": "{\"question\": \"What do you feel today while working on the garden?\", \"source\": \"t0\", \"evidence\": \"I felt calm while planting the garden.\"}"
+      }
+    ]
+  },
+  "companion": {
+    "existingDesktopProtocol": true,
+    "pairing": true,
+    "pinnedTls": true,
+    "desktopApproval": true,
+    "signedStatus": true,
+    "unloadedReadiness": true,
+    "revocation": true,
+    "environment": "macOS loopback against existing desktop synthetic peer; no user trust or writing touched"
+  },
+  "vectorStore": {
+    "host": "macOS",
+    "test": "Separate worker isolate with real SQLite vec0, vector-only APIs, similarity threshold 0.42 and profile isolation"
+  },
+  "unverified": [
+    "Physical phone QR scanning and LAN discovery against a user-approved desktop session",
+    "iOS runtime and native permissions",
+    "Android voice engine playback on hardware"
+  ],
+  "automated": {
+    "offlineFocusedTests": 228,
+    "coverage": [
+      "Trust, routing, capability readiness, destination pinning, job recovery, cancellation and acknowledgement",
+      "Atomic indexing queue, sync imports, full Unicode chunks, profile isolation, similarity conversion, stale sources, opt-out and corrupt/missing indexes",
+      "Field review, manual edits, transactional save provenance and conflicts",
+      "Daily caching, repetition, skip/regeneration, source changes and civil dates",
+      "Interrupted reset cleanup, accessibility and voice cleanup"
+    ],
+    "analyzer": "No issues found"
+  },
+  "nativeAudit": {
+    "reviewed": [
+      "Old Android MainActivity.kt",
+      "Old Android LocalAiStorage.kt",
+      "Old Android QvacWorklet.kt"
+    ],
+    "retained": "Camera/network declarations, TTS visibility and protected-storage backup exclusions. Existing Dart model storage and inference remain in use.",
+    "deferred": "Old microphone capture and QVAC worklet are outside this migration."
+  }
+}

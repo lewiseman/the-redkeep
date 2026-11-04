@@ -4,6 +4,9 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../../features/ai/data/ai_tables.dart';
+import '../../features/ai/data/recall_schema.dart';
+
 import '../../features/appearance/data/appearance_table.dart';
 import '../../features/onboarding/data/onboarding_table.dart';
 import '../../features/notes/data/notes_tables.dart';
@@ -18,6 +21,11 @@ part 'app_database.g.dart';
 
 @DriftDatabase(
   tables: [
+    AiPreferencesTable,
+    AiJobReceipts,
+    RecallQueue,
+    RecallManifests,
+    DailyQuestions,
     AppearanceSettings,
     OnboardingCompletion,
     Notes,
@@ -36,7 +44,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   // Reset changes this generation before disposing editors. Old repositories
   // cannot write after cleanup, even when an async continuation finishes late.
@@ -48,8 +56,16 @@ class AppDatabase extends _$AppDatabase {
     onCreate: (migrator) async {
       await migrator.createAll();
       await installSyncTriggers(this);
+      await installRecallTriggers(this);
     },
     onUpgrade: (migrator, from, to) async {
+      if (from < 12 && to >= 12) {
+        await migrator.createTable(aiPreferencesTable);
+        await migrator.createTable(aiJobReceipts);
+        await migrator.createTable(recallQueue);
+        await migrator.createTable(recallManifests);
+        await migrator.createTable(dailyQuestions);
+      }
       if (from < 2 && to >= 2) {
         await migrator.createTable(onboardingCompletion);
       }
@@ -99,6 +115,20 @@ class AppDatabase extends _$AppDatabase {
       if (from >= 5 && from < 11 && to >= 11) {
         await migrator.addColumn(diaryDays, diaryDays.mood);
         await migrator.addColumn(diaryDays, diaryDays.themes);
+      }
+      if (from < 12 && to >= 12) {
+        if (from >= 7) {
+          await customStatement(
+            'ALTER TABLE brain_assignments RENAME TO brain_assignments_old',
+          );
+          await migrator.createTable(brainAssignmentsTable);
+          await customStatement(
+            'INSERT INTO brain_assignments SELECT * FROM brain_assignments_old',
+          );
+          await customStatement('DROP TABLE brain_assignments_old');
+        }
+        await installRecallTriggers(this);
+        await seedRecallQueue(this);
       }
       // createTable above already uses the current columns for version 1.
       if (from >= 2 && from < 8 && to >= 8) {

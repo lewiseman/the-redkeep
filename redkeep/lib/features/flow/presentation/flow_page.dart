@@ -158,6 +158,16 @@ class _FlowPageState extends ConsumerState<FlowPage> {
                     clipBehavior: Clip.hardEdge,
                     children: [
                       _history(layout, reduced, saved, thoughts),
+                      Positioned(
+                        top: 8,
+                        right: 12,
+                        child: IconButton(
+                          key: const ValueKey('flow-search'),
+                          tooltip: 'Search Flow',
+                          icon: const Icon(Icons.search),
+                          onPressed: () => context.push('/flow/search'),
+                        ),
+                      ),
                       AnimatedBuilder(
                         animation: _scroll,
                         builder: (context, _) => _floatingScene(

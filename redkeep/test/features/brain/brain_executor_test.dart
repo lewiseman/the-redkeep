@@ -54,7 +54,7 @@ void main() {
       expect(models.last.closed, 1);
       expect(executor.busy, isFalse);
     }
-    expect(files.checks, 3);
+    expect(files.checks, BrainCapability.values.length);
   });
 
   test(

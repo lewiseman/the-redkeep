@@ -35,6 +35,8 @@ class BrainExecutor {
     required String text,
     required void Function(String) onChunk,
     Object? owner,
+    String? preparedPrompt,
+    InferenceSettings settings = const InferenceSettings(),
   }) {
     if (_disposed) throw const BrainException(BrainFailure.disposed);
     if (_poisoned) throw const BrainException(BrainFailure.cleanup);
@@ -42,13 +44,19 @@ class BrainExecutor {
     if (!model.capabilities.contains(capability)) {
       throw const BrainException(BrainFailure.incompatible);
     }
-    final prompt = capability.prompt(text);
+    final prompt = preparedPrompt ?? capability.prompt(text);
     final cancellation = BrainCancellation();
     _cancellation = cancellation;
     _owner = owner;
     final done = Completer<void>();
     _active = done.future;
-    return _execute(model, prompt, cancellation, onChunk).whenComplete(() {
+    return _execute(
+      model,
+      prompt,
+      settings,
+      cancellation,
+      onChunk,
+    ).whenComplete(() {
       _active = null;
       _cancellation = null;
       _owner = null;
@@ -59,6 +67,7 @@ class BrainExecutor {
   Future<void> _execute(
     BrainModel model,
     String prompt,
+    InferenceSettings settings,
     BrainCancellation cancellation,
     void Function(String) onChunk,
   ) async {
@@ -71,7 +80,7 @@ class BrainExecutor {
     try {
       final path = await files.verifiedPath(model);
       cancellation.check();
-      final loaded = await loadModel(path, const InferenceSettings());
+      final loaded = await loadModel(path, settings);
       final adapter = LocalInferenceAdapter(loaded);
       _adapter = adapter;
       cancellation.check();
@@ -98,6 +107,9 @@ class BrainExecutor {
       if (timedOut) throw const BrainException(BrainFailure.timeout);
       rethrow;
     } on InferenceException catch (error) {
+      if (error.failure == InferenceFailure.input) {
+        throw const BrainException(BrainFailure.context);
+      }
       if (error.failure == InferenceFailure.cleanup ||
           error.failure == InferenceFailure.cancellation) {
         _poisoned = true;

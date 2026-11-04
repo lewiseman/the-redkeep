@@ -1,3 +1,5 @@
+import 'package:redkeep/features/companion/presentation/companion_page.dart';
+
 import 'dart:async';
 import 'dart:io';
 
@@ -9,7 +11,6 @@ import 'package:redkeep/features/appearance/presentation/appearance_page.dart';
 import 'package:redkeep/features/assets/presentation/local_artwork.dart';
 import 'package:redkeep/features/brain/application/brain_controller.dart';
 import 'package:redkeep/features/brain/domain/brain.dart';
-import 'package:redkeep/features/brain/presentation/brain_page.dart';
 import 'package:redkeep/features/more/presentation/more_index_entry.dart';
 import 'package:redkeep/features/sync/presentation/sync_card.dart';
 
@@ -61,7 +62,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Grand Maestar'));
     await tester.pumpAndSettle();
-    expect(find.byType(BrainPage), findsOneWidget);
+    expect(find.byType(CompanionPage), findsOneWidget);
     expect(files.installs, 0);
     expect(modelLoads, 0);
     router.pop();
@@ -69,10 +70,14 @@ void main() {
     expect(find.text('Grand Maestar'), findsOneWidget);
     await tester.tap(find.text('Grand Maestar'));
     await tester.pumpAndSettle();
+    router.push('/settings/brain/phone');
+    await tester.pumpAndSettle();
     final assign = find.text('Assign ${qualifiedBrainModel.label}').first;
     await tester.ensureVisible(assign);
     await tester.pumpAndSettle();
     await tester.tap(assign);
+    await tester.pumpAndSettle();
+    router.pop();
     await tester.pumpAndSettle();
     router.pop();
     await tester.pumpAndSettle();
@@ -228,7 +233,7 @@ void main() {
           expect(
             label == 'Appearance'
                 ? find.byType(AppearancePage)
-                : find.byType(BrainPage),
+                : find.byType(CompanionPage),
             findsOneWidget,
           );
           router.pop();

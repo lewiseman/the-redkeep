@@ -41,6 +41,8 @@ void main() {
       {
         BrainCapability.rewrite: 'retired-model',
         BrainCapability.summarize: qualifiedBrainModel.id,
+        BrainCapability.diaryDetails: qualifiedBrainModel.id,
+        BrainCapability.dailyQuestion: qualifiedBrainModel.id,
       },
     );
   });

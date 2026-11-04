@@ -1,3 +1,4 @@
+import 'package:redkeep/features/ai/application/ai_lifecycle.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:redkeep/features/brain/application/brain_controller.dart';
@@ -77,6 +78,7 @@ void main() {
     test('model readiness: ${scenario.label} ${scenario.state.files}', () {
       final container = ProviderContainer.test(
         overrides: [
+          aiEnabledProvider.overrideWithValue(false),
           brainControllerProvider.overrideWith(
             () => _SnapshotBrain(scenario.state),
           ),
@@ -92,6 +94,7 @@ void main() {
   test('a verified assignment must support the assigned capability', () {
     final container = ProviderContainer.test(
       overrides: [
+        aiEnabledProvider.overrideWithValue(false),
         brainCatalogProvider.overrideWithValue([
           BrainModel(
             id: qualifiedBrainModel.id,

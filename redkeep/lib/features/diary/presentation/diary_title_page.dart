@@ -1,3 +1,6 @@
+import 'diary_ai_sheet.dart';
+import '../../ai/application/ai_lifecycle.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -30,6 +33,52 @@ class _DiaryTitlePageState extends ConsumerState<DiaryTitlePage> {
   bool _saving = false;
   bool _leaving = false;
   bool _discarded = false;
+  int _formVersion = 0;
+  final _aiSources = <String, String>{};
+  void _manual(String field) {
+    _formVersion++;
+    _aiSources.remove(field);
+  }
+
+  Future<void> _ai() async {
+    final version = _formVersion;
+    final base = _base;
+    final accepted = await showModalBottomSheet<AcceptedDaySuggestions>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * .9,
+        maxWidth: 640,
+      ),
+      builder: (_) => DiaryAiSheet(
+        date: widget.date,
+        stillCurrent: () =>
+            mounted &&
+            _formVersion == version &&
+            _base == base &&
+            ref.read(syncCanEditProvider),
+      ),
+    );
+    if (!mounted || accepted == null || version != _formVersion) return;
+    setState(() {
+      if (accepted.fields.contains('title')) {
+        _title.text = accepted.suggestions.title!;
+      }
+      if (accepted.fields.contains('mood')) {
+        _mood = accepted.suggestions.mood.mood;
+      }
+      if (accepted.fields.contains('themes')) {
+        _themes.text = accepted.suggestions.themes
+            .map((t) => t.label)
+            .join(', ');
+      }
+      for (final field in accepted.fields) {
+        _aiSources[field] = accepted.source.encode();
+      }
+      _formVersion++;
+    });
+  }
 
   bool get _changed =>
       _base != null &&
@@ -53,6 +102,14 @@ class _DiaryTitlePageState extends ConsumerState<DiaryTitlePage> {
       setState(() => _themesError = error.message);
       return;
     }
+    final sources = _aiSources.values.toSet();
+    if (sources.length > 1) {
+      diaryMessage(
+        context,
+        'Some accepted AI fields are out of date. Edit those fields yourself or generate fresh suggestions.',
+      );
+      return;
+    }
     setState(() => _saving = true);
     try {
       await ref
@@ -66,6 +123,7 @@ class _DiaryTitlePageState extends ConsumerState<DiaryTitlePage> {
                 themes: themes,
                 revision: _base!.revision,
               ),
+              expectedEntries: sources.firstOrNull,
             ),
           );
       if (mounted) context.go(diaryDayLocation(widget.date));
@@ -101,6 +159,17 @@ class _DiaryTitlePageState extends ConsumerState<DiaryTitlePage> {
       },
       child: DiaryWritingFrame(
         title: 'Edit day',
+        actions: [
+          if (ref.watch(aiEnabledProvider))
+            IconButton(
+              key: const ValueKey('diary-day-ai'),
+              tooltip: 'Generate day details with AI',
+              icon: const Icon(Icons.auto_awesome_outlined),
+              onPressed: !day.hasValue || !canEdit || _saving || busy
+                  ? null
+                  : _ai,
+            ),
+        ],
         child: day.when(
           loading: () => const Text('Opening day details…'),
           error: (_, _) => Column(
@@ -134,7 +203,7 @@ class _DiaryTitlePageState extends ConsumerState<DiaryTitlePage> {
                     maxLines: null,
                     textCapitalization: TextCapitalization.sentences,
                     decoration: const InputDecoration(labelText: 'Title'),
-                    onChanged: (_) => setState(() {}),
+                    onChanged: (_) => setState(() => _manual('title')),
                   ),
                   const SizedBox(height: 24),
                   const Text('Mood'),
@@ -148,7 +217,10 @@ class _DiaryTitlePageState extends ConsumerState<DiaryTitlePage> {
                         label: const Text('None'),
                         selected: _mood == null,
                         onSelected: canEdit && !_saving
-                            ? (_) => setState(() => _mood = null)
+                            ? (_) => setState(() {
+                                _manual('mood');
+                                _mood = null;
+                              })
                             : null,
                       ),
                       for (final mood in DiaryMood.values)
@@ -157,7 +229,10 @@ class _DiaryTitlePageState extends ConsumerState<DiaryTitlePage> {
                           label: Text('${mood.emoji} ${mood.label}'),
                           selected: _mood == mood,
                           onSelected: canEdit && !_saving
-                              ? (_) => setState(() => _mood = mood)
+                              ? (_) => setState(() {
+                                  _manual('mood');
+                                  _mood = mood;
+                                })
                               : null,
                         ),
                     ],
@@ -176,7 +251,10 @@ class _DiaryTitlePageState extends ConsumerState<DiaryTitlePage> {
                       errorText: _themesError,
                       errorMaxLines: 4,
                     ),
-                    onChanged: (_) => setState(() => _themesError = null),
+                    onChanged: (_) => setState(() {
+                      _manual('themes');
+                      _themesError = null;
+                    }),
                   ),
                   const SizedBox(height: 24),
                   FilledButton(

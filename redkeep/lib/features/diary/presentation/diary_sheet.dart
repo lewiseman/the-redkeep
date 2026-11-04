@@ -1,3 +1,5 @@
+import 'daily_diary_prompt.dart';
+
 import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -157,7 +159,11 @@ class DiaryDayContent extends ConsumerWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: AbsorbPointer(
                     absorbing: busy || !interactive,
-                    child: DiaryWritingPrompt(onTap: write),
+                    child: DailyDiaryPrompt(
+                      date: day.date,
+                      onWrite: write,
+                      active: interactive && day.calendarDate == today,
+                    ),
                   ),
                 ),
               ),

@@ -1,3 +1,5 @@
+import 'generated/schema_v11.dart' as v11;
+
 import 'package:drift/native.dart';
 import 'package:drift_dev/api/migrations_native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -23,6 +25,36 @@ import 'package:redkeep/features/notes/data/drift_notes_repository.dart';
 import 'package:redkeep/features/notes/domain/note_document.dart';
 
 void main() {
+  test('version 11 migration keeps writing and assignments and seeds a rebuildable outbox', () async {
+    final verifier = SchemaVerifier(GeneratedHelper());
+    final schema = await verifier.schemaAt(11);
+    final old = v11.DatabaseAtV11(schema.newConnection());
+    await old.customStatement(
+      "INSERT INTO notes(id,title,body,revision,created_at,updated_at,pinned) VALUES(?, 'Saved garden','Exact 👩🏽‍💻 中文',7,1,2,1)",
+      ['a' * 32],
+    );
+    await old.customStatement(
+      "INSERT INTO brain_assignments(capability,model_id,source) VALUES('rewrite','keep-model','device')",
+    );
+    await old.close();
+    final db = AppDatabase(schema.newConnection());
+    try {
+      await verifier.migrateAndValidate(db, 12);
+      expect((await db.select(db.notes).getSingle()).body, 'Exact 👩🏽‍💻 中文');
+      expect(
+        (await db.select(db.brainAssignmentsTable).getSingle()).modelId,
+        'keep-model',
+      );
+      expect((await db.select(db.recallQueue).getSingle()).sourceId, 'a' * 32);
+      expect(await db.select(db.recallManifests).get(), isEmpty);
+      await db.customStatement(
+        "INSERT INTO brain_assignments(capability,model_id,source) VALUES('diaryDetails','new-model','device')",
+      );
+    } finally {
+      await db.close();
+    }
+  });
+
   test('version 10 upgrade adds empty day details and preserves titles, writing and sync state', () async {
     final verifier = SchemaVerifier(GeneratedHelper());
     final schema = await verifier.schemaAt(10);
@@ -40,7 +72,7 @@ void main() {
     await old.close();
     final db = AppDatabase(schema.newConnection());
     try {
-      await verifier.migrateAndValidate(db, 11);
+      await verifier.migrateAndValidate(db, 12);
       final day = await db.select(db.diaryDays).getSingle();
       expect(day.heading, 'Keep my title');
       expect(day.revision, 7);
@@ -70,7 +102,7 @@ void main() {
     await old.close();
     final db = AppDatabase(schema.newConnection());
     try {
-      await verifier.migrateAndValidate(db, 11);
+      await verifier.migrateAndValidate(db, 12);
       expect(
         await DriftAppearanceRepository(db).watch().first,
         const AppearancePreferences(
@@ -103,7 +135,7 @@ void main() {
     await old.close();
     final db = AppDatabase(schema.newConnection());
     try {
-      await verifier.migrateAndValidate(db, 11);
+      await verifier.migrateAndValidate(db, 12);
       expect(
         (await db.select(db.onboardingCompletion).getSingle()).name,
         'Lewis',
@@ -135,7 +167,7 @@ void main() {
     await old.close();
     final db = AppDatabase(schema.newConnection());
     try {
-      await verifier.migrateAndValidate(db, 11);
+      await verifier.migrateAndValidate(db, 12);
       expect(await DriftOnboardingRepository(db).isComplete(), false);
       expect((await db.select(db.onboardingCompletion).getSingle()).id, 1);
       expect((await db.select(db.notes).getSingle()).body, 'Keep this writing');
@@ -151,10 +183,10 @@ void main() {
     }
   });
 
-  test('fresh schema matches the committed version 11 snapshot', () async {
+  test('fresh schema matches the committed version 12 snapshot', () async {
     final database = AppDatabase(NativeDatabase.memory());
     addTearDown(database.close);
-    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 11);
+    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 12);
   });
 
   test('version 1 upgrade preserves every saved appearance choice', () async {
@@ -169,7 +201,7 @@ void main() {
       await old.close();
       final database = AppDatabase(schema.newConnection());
       try {
-        await verifier.migrateAndValidate(database, 11);
+        await verifier.migrateAndValidate(database, 12);
         expect(
           await DriftAppearanceRepository(database).watch().first,
           AppearancePreferences(
@@ -203,7 +235,7 @@ void main() {
       await old.close();
       final database = AppDatabase(schema.newConnection());
       try {
-        await verifier.migrateAndValidate(database, 11);
+        await verifier.migrateAndValidate(database, 12);
         expect(
           await DriftAppearanceRepository(database).watch().first,
           const AppearancePreferences(
@@ -248,7 +280,7 @@ void main() {
       await old.close();
       final database = AppDatabase(schema.newConnection());
       try {
-        await verifier.migrateAndValidate(database, 11);
+        await verifier.migrateAndValidate(database, 12);
         expect(await DriftOnboardingRepository(database).isComplete(), isFalse);
         expect(
           (await DriftAppearanceRepository(database).watch().first).theme,
@@ -310,7 +342,7 @@ void main() {
     await old.close();
     final database = AppDatabase(schema.newConnection());
     try {
-      await verifier.migrateAndValidate(database, 11);
+      await verifier.migrateAndValidate(database, 12);
       expect(
         (await DriftAppearanceRepository(database).watch().first),
         const AppearancePreferences(
@@ -405,7 +437,7 @@ void main() {
     await old.close();
     final database = AppDatabase(schema.newConnection());
     try {
-      await verifier.migrateAndValidate(database, 11);
+      await verifier.migrateAndValidate(database, 12);
       for (final table in tables) {
         expect(
           (await database.customSelect('SELECT * FROM $table').get())
@@ -515,7 +547,7 @@ void main() {
       await old.close();
       final database = AppDatabase(schema.newConnection());
       try {
-        await verifier.migrateAndValidate(database, 11);
+        await verifier.migrateAndValidate(database, 12);
         for (final table in tables) {
           expect(
             (await database.customSelect('SELECT * FROM $table').get())

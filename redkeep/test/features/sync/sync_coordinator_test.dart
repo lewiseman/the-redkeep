@@ -1,5 +1,11 @@
 import 'dart:io';
 
+import 'package:redkeep/features/ai/application/ai_jobs.dart';
+import 'package:redkeep/features/recall/application/recall_controller.dart';
+import 'package:redkeep/features/companion/application/companion_controller.dart';
+
+import '../../support/fake_ai.dart';
+
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -25,13 +31,21 @@ class QuietNetwork extends Fake implements NetworkService {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   test('root coordinator blocks interrupted resets, keeps account binding, and renews repository generations', () async {
     final directory = await Directory.systemTemp.createTemp('redkeep-reset-');
     final h = Harness(AppDatabase(NativeDatabase.memory()), MemoryDrive());
     final resetStorage = AccountResetStorage(directory: () async => directory);
     await h.saveNote('a' * 32, 'erase');
+    final vectors = MemoryVectors();
+    final tasks = MemoryAiTasks()..value = 'protected synthetic snapshot';
     final container = ProviderContainer(
       overrides: [
+        recallVectorsProvider.overrideWith((ref) async => vectors),
+        protectedAiTasksProvider.overrideWithValue(tasks),
+        companionControllerProvider.overrideWith(
+          () => TestConnection(readyComputer()),
+        ),
         appDatabaseProvider.overrideWithValue(h.db),
         syncBackendProvider.overrideWithValue(h.backend),
         networkServiceProvider.overrideWithValue(QuietNetwork()),
@@ -77,8 +91,19 @@ void main() {
       await container.read(accountResetProvider.notifier).ready;
       expect(container.read(accountResetProvider).blocksDataAccess, true);
       h.drive.failDelete = false;
+      vectors.failReset = true;
+      await container.read(accountResetProvider.notifier).reset();
+      expect(container.read(accountResetProvider).completed, false);
+      expect(await resetStorage.canSync(), false);
+      vectors.failReset = false;
       await container.read(accountResetProvider.notifier).reset();
       expect(container.read(accountResetProvider).completed, true);
+      expect(tasks.value, isNull);
+      expect(vectors.resets, greaterThanOrEqualTo(2));
+      expect(
+        container.read(companionControllerProvider).computers,
+        hasLength(1),
+      );
       expect(h.backend.auth.isSignedIn, false);
       expect(h.db.writingBlocked, false);
       expect(await resetStorage.canSync(), true);

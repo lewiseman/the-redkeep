@@ -6,6 +6,11 @@ enum BrainCapability {
   reflect(
     'Short reflection',
     'Offer one short, gentle reflection on the text.',
+  ),
+  diaryDetails('Day details', 'Suggest diary title, mood and themes as JSON.'),
+  dailyQuestion(
+    'Daily diary question',
+    'Ask one grounded diary question as JSON.',
   );
 
   const BrainCapability(this.label, this.instruction);
@@ -53,6 +58,8 @@ const qualifiedBrainModel = BrainModel(
   sha256: 'c5f39b4191926786c3e6668b62af4d6eb15248dfc7a5348252a9b406f33f2108',
   url: 'https://huggingface.co/litert-community/Qwen3-0.6B/resolve/722a0a54c1301a4b07a9856a9590d56362f0969b/Qwen3-0.6B.litertlm',
   capabilities: {
+    BrainCapability.diaryDetails,
+    BrainCapability.dailyQuestion,
     BrainCapability.rewrite,
     BrainCapability.summarize,
     BrainCapability.reflect,
@@ -76,6 +83,7 @@ enum BrainFailure {
   disposed,
   input,
   timeout,
+  context,
 }
 
 class BrainException implements Exception {
@@ -101,6 +109,7 @@ class BrainException implements Exception {
     BrainFailure.disposed => 'This Brain session has closed. Open Brain again.',
     BrainFailure.input =>
       'Use between 1 and 2,000 characters for this operation.',
+    BrainFailure.context => 'This text exceeds the phone model’s context budget. Nothing was shortened. Use the companion for this request.',
     BrainFailure.timeout =>
       'The device took too long. Try shorter text after cleanup finishes.',
   };

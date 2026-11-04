@@ -61,7 +61,19 @@ String _destination(String location) {
   if (AppDestination.parse(location) != AppDestination.unavailable) {
     return location;
   }
-  if (location == '/diary/search') return location;
+  if (const {
+    '/diary/search',
+    '/flow/search',
+    '/settings/brain/phone',
+    '/settings/brain/scan',
+    '/settings/brain/computers',
+    '/settings/brain/preferences',
+    '/settings/brain/voices',
+    '/settings/brain/help',
+    '/settings/brain/details',
+  }.contains(location)) {
+    return location;
+  }
   final diaryTitle = RegExp(r'^/diary/(\d{4}-\d{2}-\d{2})/title$')
       .firstMatch(location);
   if (diaryTitle != null && CivilDate.tryParse(diaryTitle[1]!) != null) {

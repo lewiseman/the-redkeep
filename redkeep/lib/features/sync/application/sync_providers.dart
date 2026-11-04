@@ -1,3 +1,5 @@
+import '../../ai/application/ai_lifecycle.dart';
+
 import 'package:drift/drift.dart' show TableUpdateQuery;
 
 import 'dart:async';
@@ -100,7 +102,10 @@ final accountResetProvider =
           engine: ref.watch(syncEngineProvider.notifier),
           backend: ref.watch(syncBackendProvider),
           network: ref.watch(networkServiceProvider),
-          localData: DriftAccountResetData(ref.watch(appDatabaseProvider)),
+          localData: DriftAccountResetData(
+            ref.watch(appDatabaseProvider),
+            beforeClear: () => ref.read(aiResetProvider)(),
+          ),
         ),
       ),
       retry: (_, _) => null,
@@ -125,6 +130,7 @@ final syncCoordinatorProvider = FutureProvider<void>((ref) async {
       ref.invalidate(notesRepositoryProvider);
       ref.invalidate(diaryRepositoryProvider);
       ref.invalidate(flowRepositoryProvider);
+      ref.read(aiResumeAfterResetProvider)();
     }
   }, fireImmediately: true);
   bool canSchedule() =>

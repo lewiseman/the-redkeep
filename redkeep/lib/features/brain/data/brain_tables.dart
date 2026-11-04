@@ -11,7 +11,7 @@ class BrainAssignmentsTable extends Table {
   Set<Column<Object>> get primaryKey => {capability};
   @override
   List<String> get customConstraints => [
-    "CHECK (capability IN ('rewrite', 'summarize', 'reflect'))",
+    "CHECK (capability IN ('rewrite', 'summarize', 'reflect', 'diaryDetails', 'dailyQuestion'))",
     "CHECK (source = 'device')",
     'CHECK (length(model_id) BETWEEN 1 AND 100)',
   ];

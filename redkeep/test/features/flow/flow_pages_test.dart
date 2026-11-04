@@ -1,4 +1,5 @@
 import 'package:redkeep/features/notes/data/drift_notes_repository.dart';
+import 'package:redkeep/features/appearance/presentation/appearance_page.dart';
 
 import 'dart:async';
 
@@ -65,6 +66,28 @@ void main() {
   Finder field() => find.byKey(const ValueKey('flow-body'));
   String buffer(WidgetTester tester) =>
       tester.widget<TextField>(field()).controller!.text;
+
+  flowTest(
+    'Flow search opens from the scene and keyword results open the saved thought',
+    (tester) async {
+      await seed(body: 'Synthetic garden planting');
+      await pumpApp(tester, initialLocation: '/flow', flow: repo, database: db);
+      await tester.tap(find.byKey(const ValueKey('flow-search')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('flow-search-field')), findsOneWidget);
+      await tester.enterText(
+        find.byKey(const ValueKey('flow-search-field')),
+        'garden',
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Synthetic garden planting'), findsOneWidget);
+      await tester.tap(find.text('Synthetic garden planting'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('flow-search-field')), findsNothing);
+      expect(find.text('Synthetic garden planting'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   flowTest(
     'empty → capture after commit → ID read/edit → confirm/cancel delete → deleted routes',
@@ -271,7 +294,7 @@ void main() {
       await tester.tap(find.bySemanticsLabel('More tab'));
       await tester.pumpAndSettle();
       await tap(tester, 'Appearance');
-      expect(router.routeInformationProvider.value.uri.path, '/settings');
+      expect(find.byType(AppearancePage), findsOneWidget);
       expect(find.text('Theme'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },

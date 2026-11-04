@@ -1,8 +1,14 @@
 import 'dart:async';
+import 'dart:convert';
+
+import '../../ai/domain/local_inference.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/brain.dart';
+import '../../ai/domain/ai_operation.dart';
+import '../../diary/domain/diary_ai_contract.dart';
+import '../../diary/domain/daily_question_contract.dart';
 import 'brain_executor.dart';
 import 'brain_providers.dart';
 
@@ -191,13 +197,44 @@ class BrainController extends Notifier<BrainState> {
         _executor = executor;
         if (!ref.mounted || !_foreground) return;
         if (_stopRequested) throw const BrainException(BrainFailure.cancelled);
+        final operation = AiOperation.values
+            .where((o) => o.capability == capability)
+            .firstOrNull;
+        const source = DiarySuggestionSource('2026-11-04', [
+          {
+            'id': 'synthetic',
+            'revision': 1,
+            'content': 'I felt calm while planting the garden.',
+          },
+        ]);
+        const questionSource = DailyQuestionSource(
+          '2026-11-04',
+          [
+            DailyQuestionEntry(
+              date: '2026-11-04',
+              uuid: 'synthetic',
+              text: 'I felt calm while planting the garden.',
+            ),
+          ],
+          [],
+          [],
+        );
+        final prompt = operation == AiOperation.diaryDetails
+            ? source.request()
+            : operation == AiOperation.dailyQuestion
+            ? questionSource.request()
+            : null;
+        final output = StringBuffer();
         try {
           await executor.execute(
             owner: _requestOwner,
             model: model,
             capability: capability,
             text: 'Mira planted a tree. She watered it each morning. New leaves appeared.',
+            preparedPrompt: prompt,
+            settings: operation?.phoneSettings() ?? const InferenceSettings(),
             onChunk: (chunk) {
+              output.write(chunk);
               if (ref.mounted && _foreground) {
                 state = state.copyWith(
                   output: state.output + chunk,
@@ -220,6 +257,22 @@ class BrainController extends Notifier<BrainState> {
             );
           }
           rethrow;
+        }
+        if (operation != null) {
+          try {
+            final text = output.toString();
+            if (utf8.encode(text).length > operation.outputBytes) {
+              throw const FormatException();
+            }
+            switch (operation) {
+              case AiOperation.diaryDetails:
+                DiarySuggestions.parse(text, source);
+              case AiOperation.dailyQuestion:
+                DailyQuestion.parse(text, questionSource);
+            }
+          } catch (_) {
+            throw const BrainException(BrainFailure.generation);
+          }
         }
         if (ref.mounted) state = state.copyWith(testPassed: true);
       });

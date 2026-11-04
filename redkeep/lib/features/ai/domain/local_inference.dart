@@ -2,6 +2,7 @@ enum InferenceBackend { cpu, gpu }
 
 enum InferenceFailure {
   load,
+  input,
   generation,
   cancellation,
   cleanup,
@@ -20,14 +21,20 @@ class InferenceException implements Exception {
 
 /// A deliberately bounded text-only qualification configuration.
 class InferenceSettings {
-  const InferenceSettings({this.backend = InferenceBackend.cpu});
+  const InferenceSettings({
+    this.backend = InferenceBackend.cpu,
+    this.contextTokens = 2048,
+    this.outputTokens = 96,
+    this.temperature = 0,
+    this.topK = 1,
+    this.topP = 1,
+    this.seed = 42,
+    this.systemInstruction = 'Follow the instruction. Answer briefly.',
+  });
   final InferenceBackend backend;
-  int get contextTokens => 2048;
-  int get outputTokens => 96;
-  double get temperature => 0;
-  int get topK => 1;
-  double get topP => 1;
-  int get seed => 42;
+  final int contextTokens, outputTokens, topK, seed;
+  final double temperature, topP;
+  final String systemInstruction;
 }
 
 /// Injected native boundary. Neither callers nor tests need plugin types.

@@ -52,9 +52,10 @@ class _FlutterEdgeModel implements LocalModel {
       topK: _settings.topK,
       topP: _settings.topP,
       enableThinking: false,
-      systemInstruction: 'Follow the instruction. Answer briefly.',
+      systemInstruction: _settings.systemInstruction,
       maxOutputTokens: _settings.outputTokens,
     ),
+    _settings,
   );
 
   @override
@@ -62,12 +63,21 @@ class _FlutterEdgeModel implements LocalModel {
 }
 
 class _FlutterEdgeSession implements LocalSession {
-  _FlutterEdgeSession(this._session);
+  _FlutterEdgeSession(this._session, this.settings);
+  final InferenceSettings settings;
   final edge.InferenceModelSession _session;
 
   @override
-  Future<void> addPrompt(String text) =>
-      _session.addQueryChunk(edge.Message(text: text, isUser: true));
+  Future<void> addPrompt(String text) async {
+    final count = await _session.sizeInTokens(
+      '${settings.systemInstruction}\n$text',
+    );
+    if (count + settings.outputTokens + 128 > settings.contextTokens) {
+      throw const InferenceException(InferenceFailure.input);
+    }
+    await _session.addQueryChunk(edge.Message(text: text, isUser: true));
+  }
+
   @override
   Stream<String> stream() => _session.getResponseAsync();
   @override

@@ -377,6 +377,63 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+  for (final mode in ['normal', 'reduced', 'simple']) {
+    for (final accessible in [false, true]) {
+      testWidgets(
+        '$mode ${accessible ? 'large text' : 'cover'} name input receives focus after closing',
+        (tester) async {
+          addTearDown(tester.view.reset);
+          addTearDown(tester.platformDispatcher.clearAllTestValues);
+          tester.view.devicePixelRatio = 1;
+          tester.view.physicalSize = accessible
+              ? const Size(320, 480)
+              : const Size(390, 844);
+          if (accessible) {
+            tester.platformDispatcher.textScaleFactorTestValue = 3;
+          }
+          final preferences = FakeAppearanceRepository(
+            AppearancePreferences(
+              reduceMotion: mode == 'reduced',
+              simplerEffects: mode == 'simple',
+            ),
+          );
+          addTearDown(preferences.close);
+          await pumpApp(
+            tester,
+            repository: preferences,
+            onboarding: FakeOnboardingRepository(completed: false),
+          );
+          final focus = tester
+              .widget<OnboardingBook>(find.byType(OnboardingBook))
+              .nameFocus;
+          expect(focus.hasFocus, false);
+          await tester.ensureVisible(find.text("Let's begin"));
+          await tester.tap(find.text("Let's begin"));
+          await tester.pump();
+          if (mode == 'normal') {
+            await tester.pump(const Duration(milliseconds: 500));
+            expect(focus.hasFocus, false);
+            expect(tester.testTextInput.isVisible, false);
+          }
+          await tester.pumpAndSettle();
+          expect(
+            tester.widget<TextField>(find.byType(TextField)).enabled,
+            true,
+          );
+          expect(focus.hasFocus, true);
+          expect(tester.testTextInput.isVisible, true);
+
+          await reopenOnboardingBook(tester);
+          expect(focus.hasFocus, false);
+          await _tap(tester, "Let's begin");
+          expect(focus.hasFocus, true);
+          expect(tester.testTextInput.isVisible, true);
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+  }
+
   testWidgets(
     'system back dismisses name focus, reopens the book, then permits root exit',
     (tester) async {

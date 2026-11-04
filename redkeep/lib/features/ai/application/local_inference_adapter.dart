@@ -47,10 +47,12 @@ class LocalInferenceAdapter {
           }
         }
       }
-    } catch (_) {
+    } catch (error) {
       // A native cancellation may terminate its stream with an error.
       if (!run._cancelled) {
-        run._failure = InferenceFailure.generation;
+        run._failure = error is InferenceException
+            ? error.failure
+            : InferenceFailure.generation;
       }
     } finally {
       run._finishing = true;

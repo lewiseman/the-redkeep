@@ -1,3 +1,6 @@
+import 'package:redkeep/features/voice/application/voice_coordination.dart';
+import 'package:redkeep/features/diary/domain/diary_ai_conversation.dart';
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -171,6 +174,77 @@ void main() {
           source.encode(),
         );
   }
+
+  test('computer conversation uses the larger contract and persists typed original turns', () async {
+    final connection =
+        scope.read(companionControllerProvider.notifier) as TestConnection;
+    final ready = readyComputer();
+    final caps = ready.status!['capabilities'] as List;
+    (caps.first as Map)['operations'] = ['diary.conversation'];
+    connection.set(ready);
+    final turns = [
+      {'speaker': 'user', 'text': 'I walked by the river. ' * 140},
+    ];
+    final entry = await diary.saveConversation(
+      id: 'c' * 32,
+      date: date,
+      conversation: DiaryAiConversation(
+        turns: turns,
+        createdAt: DateTime(2026, 11, 4),
+      ),
+      expectedRevision: 0,
+    );
+    remote.output = 'I walked by the river.';
+    final prompt = jsonEncode({'action': 'draft', 'turns': turns});
+    expect(utf8.encode(prompt).length, greaterThan(2000));
+    final owner = Object();
+    final lease = scope.read(voiceActiveProvider.notifier);
+    lease.acquire(owner, () async {});
+    await scope
+        .read(aiJobsProvider.notifier)
+        .start(
+          AiOperation.conversation,
+          entry.id,
+          prompt,
+          jsonEncode({
+            'id': entry.id,
+            'revision': entry.revision,
+            'turns': turns,
+          }),
+          voiceOwner: owner,
+        );
+    expect(scope.read(voiceActiveProvider), isTrue);
+    expect(remote.submissions, 1);
+    expect(scope.read(aiJobsProvider).job!.phase, 'completed');
+    expect(scope.read(aiJobsProvider).job!.operation, AiOperation.conversation);
+    expect((await diary.openDocument(entry.id)).entry!.text.body, isEmpty);
+    await scope.read(aiJobsProvider.notifier).clear();
+    await scope
+        .read(aiJobsProvider.notifier)
+        .start(AiOperation.history, 'history:blocked', '{}', '{}');
+    expect(remote.submissions, 1);
+    expect(
+      scope.read(aiJobsProvider).message,
+      contains('Finish the voice session'),
+    );
+    lease.release(owner);
+  });
+  test(
+    'computer-only operations never choose a phone model when disconnected',
+    () async {
+      scope.dispose();
+      scope = container(connected: false);
+      await scope
+          .read(aiJobsProvider.notifier)
+          .start(AiOperation.history, 'history:test', '{}', '{}');
+      expect(scope.read(aiJobsProvider).job, isNull);
+      expect(remote.submissions, 0);
+      expect(
+        scope.read(aiJobsProvider).message,
+        contains('needs your computer'),
+      );
+    },
+  );
 
   test(
     'Auto chooses once; explicit unavailable destinations do not fall back',

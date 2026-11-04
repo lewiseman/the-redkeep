@@ -66,6 +66,8 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Choose photos for your diary stories.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Scan a pairing code from your companion computer.</string>
 	<key>NSLocalNetworkUsageDescription</key>

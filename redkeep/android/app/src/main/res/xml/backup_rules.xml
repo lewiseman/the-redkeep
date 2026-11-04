@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <full-backup-content>
+    <exclude domain="file" path="voice_sessions/" />
+    <exclude domain="file" path="diary_photo_uploads/" />
     <exclude domain="sharedpref" path="redkeep_companion.xml" />
     <exclude domain="sharedpref" path="FlutterSecureStorageConfiguration:redkeep_companion.xml" />
     <exclude domain="sharedpref" path="FlutterSecureKeyStorage:redkeep_companion.xml" />

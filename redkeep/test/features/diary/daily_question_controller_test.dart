@@ -1,3 +1,4 @@
+import 'package:redkeep/features/voice/application/voice_coordination.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -50,6 +51,21 @@ void main() {
     scope.dispose();
     await db.close();
   });
+  test(
+    'automatic daily questions wait for the voice session and resume afterward',
+    () async {
+      final lease = scope.read(voiceActiveProvider.notifier), owner = Object();
+      lease.acquire(owner, () async {});
+      scope.read(dailyQuestionProvider(date).notifier).activate(true);
+      await pumpEventQueue();
+      expect(transport.submissions, 0);
+      lease.release(owner);
+      await until(
+        () => scope.read(dailyQuestionProvider(date)).question != null,
+      );
+      expect(transport.submissions, 1);
+    },
+  );
   test('only the active diary generates, then cached questions and skip avoid duplicate automatic requests', () async {
     final controller = scope.read(dailyQuestionProvider(date).notifier);
     await Future<void>.delayed(const Duration(milliseconds: 20));

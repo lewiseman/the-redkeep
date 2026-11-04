@@ -19,7 +19,7 @@ class HttpAssetDownloadClient implements AssetDownloadClient {
     try {
       final request = await client
           .getUrl(uri)
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 30));
       request.followRedirects = false;
       request.headers.set(HttpHeaders.acceptEncodingHeader, 'identity');
       final response = await request.close().timeout(

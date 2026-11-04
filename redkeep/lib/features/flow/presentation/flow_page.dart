@@ -1,3 +1,5 @@
+import '../../voice/presentation/voice_capture_page.dart';
+
 import 'dart:math' as math;
 
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
@@ -29,6 +31,7 @@ class _FlowPageState extends ConsumerState<FlowPage> {
   final _composerKey = GlobalKey();
   double _composerHeight = 56;
   bool _measurementScheduled = false;
+  bool _capturingVoice = false;
 
   @override
   void initState() {
@@ -358,6 +361,24 @@ class _FlowPageState extends ConsumerState<FlowPage> {
     );
   }
 
+  Future<void> _captureThought() async {
+    if (_capturingVoice) return;
+    setState(() => _capturingVoice = true);
+    try {
+      _focus.unfocus();
+      await Navigator.of(context).push<String>(
+        MaterialPageRoute(
+          builder: (_) => const VoiceCapturePage(
+            title: 'Capture a thought',
+            target: 'flow',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _capturingVoice = false);
+    }
+  }
+
   Widget _composer(AsyncValue<FlowEditorState> editor) {
     return editor.when(
       loading: () => const Text('Opening writing…'),
@@ -373,6 +394,7 @@ class _FlowPageState extends ConsumerState<FlowPage> {
             controller: _draft,
             focusNode: _focus,
             onSend: _send,
+            onMicrophone: _capturingVoice ? null : _captureThought,
             onChanged: ref.read(flowEditorProvider(null).notifier).edit,
             enabled: !state.saving,
             saving: state.saving,

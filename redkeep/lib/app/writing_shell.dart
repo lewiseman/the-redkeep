@@ -22,7 +22,8 @@ class WritingShell extends StatelessWidget {
     final focusedDiary =
         location == '/diary/search' ||
         location.startsWith('/diary/calendar/') ||
-        (location.startsWith('/diary/') && location.endsWith('/title')) ||
+        (location.startsWith('/diary/') &&
+            (location.endsWith('/title') || location.endsWith('/talk'))) ||
         (location.startsWith('/diary/') && location.contains('/entries/'));
     return Scaffold(
       resizeToAvoidBottomInset: false,

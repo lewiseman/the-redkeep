@@ -74,13 +74,13 @@ String _destination(String location) {
   }.contains(location)) {
     return location;
   }
-  final diaryTitle = RegExp(r'^/diary/(\d{4}-\d{2}-\d{2})/title$')
+  final diaryTitle = RegExp(r'^/diary/(\d{4}-\d{2}-\d{2})/(?:title|talk)$')
       .firstMatch(location);
   if (diaryTitle != null && CivilDate.tryParse(diaryTitle[1]!) != null) {
     return location;
   }
   final diary = RegExp(
-    r'^/diary/(?:calendar/)?(\d{4}-\d{2}-\d{2})(?:/entries/([0-9a-f]{32})(/edit)?)?$',
+    r'^/diary/(?:calendar/)?(\d{4}-\d{2}-\d{2})(?:/entries/([0-9a-f]{32})(/(?:edit|photos|conversation))?)?$',
   ).firstMatch(location);
   if (diary != null &&
       CivilDate.tryParse(diary[1]!) != null &&

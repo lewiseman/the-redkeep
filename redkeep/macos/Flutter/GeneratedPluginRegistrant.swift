@@ -7,6 +7,7 @@ import Foundation
 
 import bonsoir_darwin
 import connectivity_plus
+import file_selector_macos
 import flutter_edge_ai
 import flutter_secure_storage_darwin
 import flutter_tts
@@ -19,6 +20,7 @@ import url_launcher_macos
 func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
   SwiftBonsoirPlugin.register(with: registry.registrar(forPlugin: "SwiftBonsoirPlugin"))
   ConnectivityPlusPlugin.register(with: registry.registrar(forPlugin: "ConnectivityPlusPlugin"))
+  FileSelectorPlugin.register(with: registry.registrar(forPlugin: "FileSelectorPlugin"))
   FlutterEdgeAiPlugin.register(with: registry.registrar(forPlugin: "FlutterEdgeAiPlugin"))
   FlutterSecureStorageDarwinPlugin.register(with: registry.registrar(forPlugin: "FlutterSecureStorageDarwinPlugin"))
   FlutterTtsPlugin.register(with: registry.registrar(forPlugin: "FlutterTtsPlugin"))

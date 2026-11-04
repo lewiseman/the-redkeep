@@ -1,4 +1,7 @@
+import '../domain/diary_media_validation.dart';
 import '../domain/diary_ai_contract.dart';
+import '../domain/diary_photo.dart';
+import '../domain/diary_ai_conversation.dart';
 
 import 'dart:convert';
 
@@ -178,13 +181,19 @@ class DriftDiaryRepository implements DiaryRepository {
       final snapshot = await openDocument(id);
       if (text.isEmpty) throw const DiaryException(DiaryFailure.empty);
       final old = snapshot.entry;
+      if (old?.photos.isNotEmpty == true) {
+        throw const DiaryException(DiaryFailure.unavailable);
+      }
       if (old != null && old.date != date) {
         throw const DiaryException(DiaryFailure.unavailable);
       }
       if (old?.deletedAt != null || (old?.revision ?? 0) != expectedRevision) {
         throw const DiaryException(DiaryFailure.staleRevision);
       }
-      final now = _clock().toUtc();
+      final now = DateTime.fromMillisecondsSinceEpoch(
+        _clock().millisecondsSinceEpoch,
+        isUtc: true,
+      );
       final revision = expectedRevision + 1;
       if (old == null) {
         await _db
@@ -227,9 +236,114 @@ class DriftDiaryRepository implements DiaryRepository {
         revision: revision,
         createdAt: old?.createdAt ?? now,
         updatedAt: now,
+        photos: old?.photos ?? const [],
+        conversation: old?.conversation,
       );
     });
   }
+
+  @override
+  Future<DiaryEntry> savePhotoStory({
+    required String id,
+    required CivilDate date,
+    required List<DiaryPhoto> photos,
+    required int expectedRevision,
+  }) => _saveRich(
+    id: id,
+    date: date,
+    expectedRevision: expectedRevision,
+    photos: photos,
+  );
+
+  @override
+  Future<DiaryEntry> saveConversation({
+    required String id,
+    required CivilDate date,
+    required DiaryAiConversation conversation,
+    required int expectedRevision,
+    String? body,
+  }) => _saveRich(
+    id: id,
+    date: date,
+    expectedRevision: expectedRevision,
+    conversation: conversation,
+    body: body,
+  );
+
+  Future<DiaryEntry> _saveRich({
+    required String id,
+    required CivilDate date,
+    required int expectedRevision,
+    List<DiaryPhoto>? photos,
+    DiaryAiConversation? conversation,
+    String? body,
+  }) => _db.transaction(() async {
+    _validate(id);
+    final old = (await openDocument(id)).entry;
+    await checkWritingAccess(
+      _db,
+      _generation,
+      creating: old == null,
+      diaryDate: date.key,
+      now: _clock(),
+    );
+    if (old != null &&
+            (old.date != date ||
+                old.deletedAt != null ||
+                old.revision != expectedRevision) ||
+        old == null && expectedRevision != 0) {
+      throw const DiaryException(DiaryFailure.staleRevision);
+    }
+    if (photos != null && (photos.isEmpty || old?.conversation != null) ||
+        conversation != null &&
+            (!conversation.hasUserTurn || old?.photos.isNotEmpty == true)) {
+      throw const DiaryException(DiaryFailure.empty);
+    }
+    validateDiaryMedia(photos ?? const [], conversation);
+    final now = DateTime.fromMillisecondsSinceEpoch(
+      _clock().millisecondsSinceEpoch,
+      isUtc: true,
+    );
+    final newPhotos = photos ?? const <DiaryPhoto>[];
+    final text = photos != null
+        ? DiaryPhoto.composeContent(photos)
+        : body ?? old?.text.body ?? '';
+    await _db
+        .into(_db.diaryEntries)
+        .insertOnConflictUpdate(
+          DiaryEntriesCompanion.insert(
+            id: id,
+            dateKey: date.key,
+            title: old?.text.title ?? '',
+            body: text,
+            photos: Value(
+              jsonEncode([for (final photo in newPhotos) photo.toJson()]),
+            ),
+            conversation: Value(
+              conversation == null ? null : jsonEncode(conversation.toJson()),
+            ),
+            revision: expectedRevision + 1,
+            createdAt: (old?.createdAt ?? now).millisecondsSinceEpoch,
+            updatedAt: now.millisecondsSinceEpoch,
+          ),
+        );
+    final kept = newPhotos.map((p) => p.path).toSet();
+    for (final photo in old?.photos ?? const <DiaryPhoto>[]) {
+      if (!kept.contains(photo.path)) {
+        await _db
+            .into(_db.diaryMediaOps)
+            .insertOnConflictUpdate(
+              DiaryMediaOpsCompanion.insert(
+                path: photo.path,
+                action: 'delete',
+                owner: id,
+                created: now.millisecondsSinceEpoch,
+              ),
+            );
+      }
+    }
+    return (await openDocument(id)).entry!;
+  });
 
   @override
   Future<void> deleteEntry(String id, int expectedRevision) async {
@@ -237,6 +351,19 @@ class DriftDiaryRepository implements DiaryRepository {
       await checkWritingAccess(_db, _generation);
       _validate(id);
       final now = _clock().toUtc().millisecondsSinceEpoch;
+      final previous = (await openDocument(id)).entry;
+      for (final photo in previous?.photos ?? const <DiaryPhoto>[]) {
+        await _db
+            .into(_db.diaryMediaOps)
+            .insertOnConflictUpdate(
+              DiaryMediaOpsCompanion.insert(
+                path: photo.path,
+                action: 'delete',
+                owner: id,
+                created: now,
+              ),
+            );
+      }
       final count =
           await (_db.update(_db.diaryEntries)..where(
                 (r) =>
@@ -249,6 +376,9 @@ class DriftDiaryRepository implements DiaryRepository {
                   deletedAt: Value(now),
                   title: const Value(''),
                   body: const Value(''),
+                  // Rich metadata travels with the tombstone so an append or
+                  // merge cannot erase the record's kind and source history.
+                  // Owned image bytes are removed through the file journal.
                   updatedAt: Value(now),
                   revision: Value(expectedRevision + 1),
                 ),
@@ -257,10 +387,31 @@ class DriftDiaryRepository implements DiaryRepository {
     });
   }
 
+  List<DiaryPhoto> _photos(String raw) {
+    try {
+      return [
+        for (final p in jsonDecode(raw) as List)
+          DiaryPhoto.fromJson(Map<String, dynamic>.from(p as Map)),
+      ];
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  DiaryAiConversation? _conversation(String? raw) {
+    try {
+      return raw == null ? null : DiaryAiConversation.tryParse(jsonDecode(raw));
+    } catch (_) {
+      return null;
+    }
+  }
+
   DiaryEntry _entry(DiaryEntryRow r) => DiaryEntry(
     id: r.id,
     date: CivilDate.tryParse(r.dateKey)!,
     text: DiaryText(title: r.title, body: r.body),
+    photos: _photos(r.photos),
+    conversation: _conversation(r.conversation),
     revision: r.revision,
     createdAt: DateTime.fromMillisecondsSinceEpoch(r.createdAt, isUtc: true),
     updatedAt: DateTime.fromMillisecondsSinceEpoch(r.updatedAt, isUtc: true),

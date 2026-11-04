@@ -4261,6 +4261,27 @@ class $DiaryEntriesTable extends DiaryEntries
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _photosMeta = const VerificationMeta('photos');
+  @override
+  late final GeneratedColumn<String> photos = GeneratedColumn<String>(
+    'photos',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('[]'),
+  );
+  static const VerificationMeta _conversationMeta = const VerificationMeta(
+    'conversation',
+  );
+  @override
+  late final GeneratedColumn<String> conversation = GeneratedColumn<String>(
+    'conversation',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _revisionMeta = const VerificationMeta(
     'revision',
   );
@@ -4312,6 +4333,8 @@ class $DiaryEntriesTable extends DiaryEntries
     dateKey,
     title,
     body,
+    photos,
+    conversation,
     revision,
     createdAt,
     updatedAt,
@@ -4357,6 +4380,21 @@ class $DiaryEntriesTable extends DiaryEntries
       );
     } else if (isInserting) {
       context.missing(_bodyMeta);
+    }
+    if (data.containsKey('photos')) {
+      context.handle(
+        _photosMeta,
+        photos.isAcceptableOrUnknown(data['photos']!, _photosMeta),
+      );
+    }
+    if (data.containsKey('conversation')) {
+      context.handle(
+        _conversationMeta,
+        conversation.isAcceptableOrUnknown(
+          data['conversation']!,
+          _conversationMeta,
+        ),
+      );
     }
     if (data.containsKey('revision')) {
       context.handle(
@@ -4413,6 +4451,14 @@ class $DiaryEntriesTable extends DiaryEntries
         DriftSqlType.string,
         data['${effectivePrefix}body'],
       )!,
+      photos: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}photos'],
+      )!,
+      conversation: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}conversation'],
+      ),
       revision: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}revision'],
@@ -4443,6 +4489,8 @@ class DiaryEntryRow extends DataClass implements Insertable<DiaryEntryRow> {
   final String dateKey;
   final String title;
   final String body;
+  final String photos;
+  final String? conversation;
   final int revision;
   final int createdAt;
   final int updatedAt;
@@ -4452,6 +4500,8 @@ class DiaryEntryRow extends DataClass implements Insertable<DiaryEntryRow> {
     required this.dateKey,
     required this.title,
     required this.body,
+    required this.photos,
+    this.conversation,
     required this.revision,
     required this.createdAt,
     required this.updatedAt,
@@ -4464,6 +4514,10 @@ class DiaryEntryRow extends DataClass implements Insertable<DiaryEntryRow> {
     map['date_key'] = Variable<String>(dateKey);
     map['title'] = Variable<String>(title);
     map['body'] = Variable<String>(body);
+    map['photos'] = Variable<String>(photos);
+    if (!nullToAbsent || conversation != null) {
+      map['conversation'] = Variable<String>(conversation);
+    }
     map['revision'] = Variable<int>(revision);
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
@@ -4479,6 +4533,10 @@ class DiaryEntryRow extends DataClass implements Insertable<DiaryEntryRow> {
       dateKey: Value(dateKey),
       title: Value(title),
       body: Value(body),
+      photos: Value(photos),
+      conversation: conversation == null && nullToAbsent
+          ? const Value.absent()
+          : Value(conversation),
       revision: Value(revision),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
@@ -4498,6 +4556,8 @@ class DiaryEntryRow extends DataClass implements Insertable<DiaryEntryRow> {
       dateKey: serializer.fromJson<String>(json['dateKey']),
       title: serializer.fromJson<String>(json['title']),
       body: serializer.fromJson<String>(json['body']),
+      photos: serializer.fromJson<String>(json['photos']),
+      conversation: serializer.fromJson<String?>(json['conversation']),
       revision: serializer.fromJson<int>(json['revision']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
@@ -4512,6 +4572,8 @@ class DiaryEntryRow extends DataClass implements Insertable<DiaryEntryRow> {
       'dateKey': serializer.toJson<String>(dateKey),
       'title': serializer.toJson<String>(title),
       'body': serializer.toJson<String>(body),
+      'photos': serializer.toJson<String>(photos),
+      'conversation': serializer.toJson<String?>(conversation),
       'revision': serializer.toJson<int>(revision),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
@@ -4524,6 +4586,8 @@ class DiaryEntryRow extends DataClass implements Insertable<DiaryEntryRow> {
     String? dateKey,
     String? title,
     String? body,
+    String? photos,
+    Value<String?> conversation = const Value.absent(),
     int? revision,
     int? createdAt,
     int? updatedAt,
@@ -4533,6 +4597,8 @@ class DiaryEntryRow extends DataClass implements Insertable<DiaryEntryRow> {
     dateKey: dateKey ?? this.dateKey,
     title: title ?? this.title,
     body: body ?? this.body,
+    photos: photos ?? this.photos,
+    conversation: conversation.present ? conversation.value : this.conversation,
     revision: revision ?? this.revision,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -4544,6 +4610,10 @@ class DiaryEntryRow extends DataClass implements Insertable<DiaryEntryRow> {
       dateKey: data.dateKey.present ? data.dateKey.value : this.dateKey,
       title: data.title.present ? data.title.value : this.title,
       body: data.body.present ? data.body.value : this.body,
+      photos: data.photos.present ? data.photos.value : this.photos,
+      conversation: data.conversation.present
+          ? data.conversation.value
+          : this.conversation,
       revision: data.revision.present ? data.revision.value : this.revision,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
@@ -4558,6 +4628,8 @@ class DiaryEntryRow extends DataClass implements Insertable<DiaryEntryRow> {
           ..write('dateKey: $dateKey, ')
           ..write('title: $title, ')
           ..write('body: $body, ')
+          ..write('photos: $photos, ')
+          ..write('conversation: $conversation, ')
           ..write('revision: $revision, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -4572,6 +4644,8 @@ class DiaryEntryRow extends DataClass implements Insertable<DiaryEntryRow> {
     dateKey,
     title,
     body,
+    photos,
+    conversation,
     revision,
     createdAt,
     updatedAt,
@@ -4585,6 +4659,8 @@ class DiaryEntryRow extends DataClass implements Insertable<DiaryEntryRow> {
           other.dateKey == this.dateKey &&
           other.title == this.title &&
           other.body == this.body &&
+          other.photos == this.photos &&
+          other.conversation == this.conversation &&
           other.revision == this.revision &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
@@ -4596,6 +4672,8 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntryRow> {
   final Value<String> dateKey;
   final Value<String> title;
   final Value<String> body;
+  final Value<String> photos;
+  final Value<String?> conversation;
   final Value<int> revision;
   final Value<int> createdAt;
   final Value<int> updatedAt;
@@ -4606,6 +4684,8 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntryRow> {
     this.dateKey = const Value.absent(),
     this.title = const Value.absent(),
     this.body = const Value.absent(),
+    this.photos = const Value.absent(),
+    this.conversation = const Value.absent(),
     this.revision = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -4617,6 +4697,8 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntryRow> {
     required String dateKey,
     required String title,
     required String body,
+    this.photos = const Value.absent(),
+    this.conversation = const Value.absent(),
     required int revision,
     required int createdAt,
     required int updatedAt,
@@ -4634,6 +4716,8 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntryRow> {
     Expression<String>? dateKey,
     Expression<String>? title,
     Expression<String>? body,
+    Expression<String>? photos,
+    Expression<String>? conversation,
     Expression<int>? revision,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
@@ -4645,6 +4729,8 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntryRow> {
       if (dateKey != null) 'date_key': dateKey,
       if (title != null) 'title': title,
       if (body != null) 'body': body,
+      if (photos != null) 'photos': photos,
+      if (conversation != null) 'conversation': conversation,
       if (revision != null) 'revision': revision,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -4658,6 +4744,8 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntryRow> {
     Value<String>? dateKey,
     Value<String>? title,
     Value<String>? body,
+    Value<String>? photos,
+    Value<String?>? conversation,
     Value<int>? revision,
     Value<int>? createdAt,
     Value<int>? updatedAt,
@@ -4669,6 +4757,8 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntryRow> {
       dateKey: dateKey ?? this.dateKey,
       title: title ?? this.title,
       body: body ?? this.body,
+      photos: photos ?? this.photos,
+      conversation: conversation ?? this.conversation,
       revision: revision ?? this.revision,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -4691,6 +4781,12 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntryRow> {
     }
     if (body.present) {
       map['body'] = Variable<String>(body.value);
+    }
+    if (photos.present) {
+      map['photos'] = Variable<String>(photos.value);
+    }
+    if (conversation.present) {
+      map['conversation'] = Variable<String>(conversation.value);
     }
     if (revision.present) {
       map['revision'] = Variable<int>(revision.value);
@@ -4717,6 +4813,8 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntryRow> {
           ..write('dateKey: $dateKey, ')
           ..write('title: $title, ')
           ..write('body: $body, ')
+          ..write('photos: $photos, ')
+          ..write('conversation: $conversation, ')
           ..write('revision: $revision, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -5087,6 +5185,579 @@ class DiaryDaysCompanion extends UpdateCompanion<DiaryDayRow> {
           ..write('mood: $mood, ')
           ..write('themes: $themes, ')
           ..write('revision: $revision, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $DiaryMediaOpsTable extends DiaryMediaOps
+    with TableInfo<$DiaryMediaOpsTable, DiaryMediaOpRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DiaryMediaOpsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _pathMeta = const VerificationMeta('path');
+  @override
+  late final GeneratedColumn<String> path = GeneratedColumn<String>(
+    'path',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _actionMeta = const VerificationMeta('action');
+  @override
+  late final GeneratedColumn<String> action = GeneratedColumn<String>(
+    'action',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _ownerMeta = const VerificationMeta('owner');
+  @override
+  late final GeneratedColumn<String> owner = GeneratedColumn<String>(
+    'owner',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdMeta = const VerificationMeta(
+    'created',
+  );
+  @override
+  late final GeneratedColumn<int> created = GeneratedColumn<int>(
+    'created',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [path, action, owner, created];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'diary_media_ops';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DiaryMediaOpRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('path')) {
+      context.handle(
+        _pathMeta,
+        path.isAcceptableOrUnknown(data['path']!, _pathMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_pathMeta);
+    }
+    if (data.containsKey('action')) {
+      context.handle(
+        _actionMeta,
+        action.isAcceptableOrUnknown(data['action']!, _actionMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_actionMeta);
+    }
+    if (data.containsKey('owner')) {
+      context.handle(
+        _ownerMeta,
+        owner.isAcceptableOrUnknown(data['owner']!, _ownerMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_ownerMeta);
+    }
+    if (data.containsKey('created')) {
+      context.handle(
+        _createdMeta,
+        created.isAcceptableOrUnknown(data['created']!, _createdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {path};
+  @override
+  DiaryMediaOpRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DiaryMediaOpRow(
+      path: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}path'],
+      )!,
+      action: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}action'],
+      )!,
+      owner: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}owner'],
+      )!,
+      created: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created'],
+      )!,
+    );
+  }
+
+  @override
+  $DiaryMediaOpsTable createAlias(String alias) {
+    return $DiaryMediaOpsTable(attachedDatabase, alias);
+  }
+}
+
+class DiaryMediaOpRow extends DataClass implements Insertable<DiaryMediaOpRow> {
+  final String path;
+  final String action;
+  final String owner;
+  final int created;
+  const DiaryMediaOpRow({
+    required this.path,
+    required this.action,
+    required this.owner,
+    required this.created,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['path'] = Variable<String>(path);
+    map['action'] = Variable<String>(action);
+    map['owner'] = Variable<String>(owner);
+    map['created'] = Variable<int>(created);
+    return map;
+  }
+
+  DiaryMediaOpsCompanion toCompanion(bool nullToAbsent) {
+    return DiaryMediaOpsCompanion(
+      path: Value(path),
+      action: Value(action),
+      owner: Value(owner),
+      created: Value(created),
+    );
+  }
+
+  factory DiaryMediaOpRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DiaryMediaOpRow(
+      path: serializer.fromJson<String>(json['path']),
+      action: serializer.fromJson<String>(json['action']),
+      owner: serializer.fromJson<String>(json['owner']),
+      created: serializer.fromJson<int>(json['created']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'path': serializer.toJson<String>(path),
+      'action': serializer.toJson<String>(action),
+      'owner': serializer.toJson<String>(owner),
+      'created': serializer.toJson<int>(created),
+    };
+  }
+
+  DiaryMediaOpRow copyWith({
+    String? path,
+    String? action,
+    String? owner,
+    int? created,
+  }) => DiaryMediaOpRow(
+    path: path ?? this.path,
+    action: action ?? this.action,
+    owner: owner ?? this.owner,
+    created: created ?? this.created,
+  );
+  DiaryMediaOpRow copyWithCompanion(DiaryMediaOpsCompanion data) {
+    return DiaryMediaOpRow(
+      path: data.path.present ? data.path.value : this.path,
+      action: data.action.present ? data.action.value : this.action,
+      owner: data.owner.present ? data.owner.value : this.owner,
+      created: data.created.present ? data.created.value : this.created,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DiaryMediaOpRow(')
+          ..write('path: $path, ')
+          ..write('action: $action, ')
+          ..write('owner: $owner, ')
+          ..write('created: $created')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(path, action, owner, created);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DiaryMediaOpRow &&
+          other.path == this.path &&
+          other.action == this.action &&
+          other.owner == this.owner &&
+          other.created == this.created);
+}
+
+class DiaryMediaOpsCompanion extends UpdateCompanion<DiaryMediaOpRow> {
+  final Value<String> path;
+  final Value<String> action;
+  final Value<String> owner;
+  final Value<int> created;
+  final Value<int> rowid;
+  const DiaryMediaOpsCompanion({
+    this.path = const Value.absent(),
+    this.action = const Value.absent(),
+    this.owner = const Value.absent(),
+    this.created = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DiaryMediaOpsCompanion.insert({
+    required String path,
+    required String action,
+    required String owner,
+    required int created,
+    this.rowid = const Value.absent(),
+  }) : path = Value(path),
+       action = Value(action),
+       owner = Value(owner),
+       created = Value(created);
+  static Insertable<DiaryMediaOpRow> custom({
+    Expression<String>? path,
+    Expression<String>? action,
+    Expression<String>? owner,
+    Expression<int>? created,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (path != null) 'path': path,
+      if (action != null) 'action': action,
+      if (owner != null) 'owner': owner,
+      if (created != null) 'created': created,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DiaryMediaOpsCompanion copyWith({
+    Value<String>? path,
+    Value<String>? action,
+    Value<String>? owner,
+    Value<int>? created,
+    Value<int>? rowid,
+  }) {
+    return DiaryMediaOpsCompanion(
+      path: path ?? this.path,
+      action: action ?? this.action,
+      owner: owner ?? this.owner,
+      created: created ?? this.created,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (path.present) {
+      map['path'] = Variable<String>(path.value);
+    }
+    if (action.present) {
+      map['action'] = Variable<String>(action.value);
+    }
+    if (owner.present) {
+      map['owner'] = Variable<String>(owner.value);
+    }
+    if (created.present) {
+      map['created'] = Variable<int>(created.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DiaryMediaOpsCompanion(')
+          ..write('path: $path, ')
+          ..write('action: $action, ')
+          ..write('owner: $owner, ')
+          ..write('created: $created, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $PhotoQuestionCacheTable extends PhotoQuestionCache
+    with TableInfo<$PhotoQuestionCacheTable, PhotoQuestionCacheRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PhotoQuestionCacheTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _keyMeta = const VerificationMeta('key');
+  @override
+  late final GeneratedColumn<String> key = GeneratedColumn<String>(
+    'key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _valueMeta = const VerificationMeta('value');
+  @override
+  late final GeneratedColumn<String> value = GeneratedColumn<String>(
+    'value',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdMeta = const VerificationMeta(
+    'created',
+  );
+  @override
+  late final GeneratedColumn<int> created = GeneratedColumn<int>(
+    'created',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [key, value, created];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'photo_question_cache';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PhotoQuestionCacheRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('key')) {
+      context.handle(
+        _keyMeta,
+        key.isAcceptableOrUnknown(data['key']!, _keyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_keyMeta);
+    }
+    if (data.containsKey('value')) {
+      context.handle(
+        _valueMeta,
+        value.isAcceptableOrUnknown(data['value']!, _valueMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_valueMeta);
+    }
+    if (data.containsKey('created')) {
+      context.handle(
+        _createdMeta,
+        created.isAcceptableOrUnknown(data['created']!, _createdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {key};
+  @override
+  PhotoQuestionCacheRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PhotoQuestionCacheRow(
+      key: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}key'],
+      )!,
+      value: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}value'],
+      )!,
+      created: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created'],
+      )!,
+    );
+  }
+
+  @override
+  $PhotoQuestionCacheTable createAlias(String alias) {
+    return $PhotoQuestionCacheTable(attachedDatabase, alias);
+  }
+}
+
+class PhotoQuestionCacheRow extends DataClass
+    implements Insertable<PhotoQuestionCacheRow> {
+  final String key;
+  final String value;
+  final int created;
+  const PhotoQuestionCacheRow({
+    required this.key,
+    required this.value,
+    required this.created,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['key'] = Variable<String>(key);
+    map['value'] = Variable<String>(value);
+    map['created'] = Variable<int>(created);
+    return map;
+  }
+
+  PhotoQuestionCacheCompanion toCompanion(bool nullToAbsent) {
+    return PhotoQuestionCacheCompanion(
+      key: Value(key),
+      value: Value(value),
+      created: Value(created),
+    );
+  }
+
+  factory PhotoQuestionCacheRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PhotoQuestionCacheRow(
+      key: serializer.fromJson<String>(json['key']),
+      value: serializer.fromJson<String>(json['value']),
+      created: serializer.fromJson<int>(json['created']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'key': serializer.toJson<String>(key),
+      'value': serializer.toJson<String>(value),
+      'created': serializer.toJson<int>(created),
+    };
+  }
+
+  PhotoQuestionCacheRow copyWith({String? key, String? value, int? created}) =>
+      PhotoQuestionCacheRow(
+        key: key ?? this.key,
+        value: value ?? this.value,
+        created: created ?? this.created,
+      );
+  PhotoQuestionCacheRow copyWithCompanion(PhotoQuestionCacheCompanion data) {
+    return PhotoQuestionCacheRow(
+      key: data.key.present ? data.key.value : this.key,
+      value: data.value.present ? data.value.value : this.value,
+      created: data.created.present ? data.created.value : this.created,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PhotoQuestionCacheRow(')
+          ..write('key: $key, ')
+          ..write('value: $value, ')
+          ..write('created: $created')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(key, value, created);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PhotoQuestionCacheRow &&
+          other.key == this.key &&
+          other.value == this.value &&
+          other.created == this.created);
+}
+
+class PhotoQuestionCacheCompanion
+    extends UpdateCompanion<PhotoQuestionCacheRow> {
+  final Value<String> key;
+  final Value<String> value;
+  final Value<int> created;
+  final Value<int> rowid;
+  const PhotoQuestionCacheCompanion({
+    this.key = const Value.absent(),
+    this.value = const Value.absent(),
+    this.created = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  PhotoQuestionCacheCompanion.insert({
+    required String key,
+    required String value,
+    required int created,
+    this.rowid = const Value.absent(),
+  }) : key = Value(key),
+       value = Value(value),
+       created = Value(created);
+  static Insertable<PhotoQuestionCacheRow> custom({
+    Expression<String>? key,
+    Expression<String>? value,
+    Expression<int>? created,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (key != null) 'key': key,
+      if (value != null) 'value': value,
+      if (created != null) 'created': created,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  PhotoQuestionCacheCompanion copyWith({
+    Value<String>? key,
+    Value<String>? value,
+    Value<int>? created,
+    Value<int>? rowid,
+  }) {
+    return PhotoQuestionCacheCompanion(
+      key: key ?? this.key,
+      value: value ?? this.value,
+      created: created ?? this.created,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (key.present) {
+      map['key'] = Variable<String>(key.value);
+    }
+    if (value.present) {
+      map['value'] = Variable<String>(value.value);
+    }
+    if (created.present) {
+      map['created'] = Variable<int>(created.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PhotoQuestionCacheCompanion(')
+          ..write('key: $key, ')
+          ..write('value: $value, ')
+          ..write('created: $created, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -6573,6 +7244,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $NoteTagsTable noteTags = $NoteTagsTable(this);
   late final $DiaryEntriesTable diaryEntries = $DiaryEntriesTable(this);
   late final $DiaryDaysTable diaryDays = $DiaryDaysTable(this);
+  late final $DiaryMediaOpsTable diaryMediaOps = $DiaryMediaOpsTable(this);
+  late final $PhotoQuestionCacheTable photoQuestionCache =
+      $PhotoQuestionCacheTable(this);
   late final $FlowThoughtsTable flowThoughts = $FlowThoughtsTable(this);
   late final $BrainAssignmentsTableTable brainAssignmentsTable =
       $BrainAssignmentsTableTable(this);
@@ -6604,6 +7278,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     noteTags,
     diaryEntries,
     diaryDays,
+    diaryMediaOps,
+    photoQuestionCache,
     flowThoughts,
     brainAssignmentsTable,
     syncOperations,
@@ -9175,6 +9851,8 @@ typedef $$DiaryEntriesTableCreateCompanionBuilder =
       required String dateKey,
       required String title,
       required String body,
+      Value<String> photos,
+      Value<String?> conversation,
       required int revision,
       required int createdAt,
       required int updatedAt,
@@ -9187,6 +9865,8 @@ typedef $$DiaryEntriesTableUpdateCompanionBuilder =
       Value<String> dateKey,
       Value<String> title,
       Value<String> body,
+      Value<String> photos,
+      Value<String?> conversation,
       Value<int> revision,
       Value<int> createdAt,
       Value<int> updatedAt,
@@ -9220,6 +9900,16 @@ class $$DiaryEntriesTableFilterComposer
 
   ColumnFilters<String> get body => $composableBuilder(
     column: $table.body,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get photos => $composableBuilder(
+    column: $table.photos,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get conversation => $composableBuilder(
+    column: $table.conversation,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -9273,6 +9963,16 @@ class $$DiaryEntriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get photos => $composableBuilder(
+    column: $table.photos,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get conversation => $composableBuilder(
+    column: $table.conversation,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get revision => $composableBuilder(
     column: $table.revision,
     builder: (column) => ColumnOrderings(column),
@@ -9314,6 +10014,14 @@ class $$DiaryEntriesTableAnnotationComposer
 
   GeneratedColumn<String> get body =>
       $composableBuilder(column: $table.body, builder: (column) => column);
+
+  GeneratedColumn<String> get photos =>
+      $composableBuilder(column: $table.photos, builder: (column) => column);
+
+  GeneratedColumn<String> get conversation => $composableBuilder(
+    column: $table.conversation,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get revision =>
       $composableBuilder(column: $table.revision, builder: (column) => column);
@@ -9363,6 +10071,8 @@ class $$DiaryEntriesTableTableManager
                 Value<String> dateKey = const Value.absent(),
                 Value<String> title = const Value.absent(),
                 Value<String> body = const Value.absent(),
+                Value<String> photos = const Value.absent(),
+                Value<String?> conversation = const Value.absent(),
                 Value<int> revision = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
@@ -9373,6 +10083,8 @@ class $$DiaryEntriesTableTableManager
                 dateKey: dateKey,
                 title: title,
                 body: body,
+                photos: photos,
+                conversation: conversation,
                 revision: revision,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -9385,6 +10097,8 @@ class $$DiaryEntriesTableTableManager
                 required String dateKey,
                 required String title,
                 required String body,
+                Value<String> photos = const Value.absent(),
+                Value<String?> conversation = const Value.absent(),
                 required int revision,
                 required int createdAt,
                 required int updatedAt,
@@ -9395,6 +10109,8 @@ class $$DiaryEntriesTableTableManager
                 dateKey: dateKey,
                 title: title,
                 body: body,
+                photos: photos,
+                conversation: conversation,
                 revision: revision,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -9640,6 +10356,382 @@ typedef $$DiaryDaysTableProcessedTableManager =
         BaseReferences<_$AppDatabase, $DiaryDaysTable, DiaryDayRow>,
       ),
       DiaryDayRow,
+      PrefetchHooks Function()
+    >;
+typedef $$DiaryMediaOpsTableCreateCompanionBuilder =
+    DiaryMediaOpsCompanion Function({
+      required String path,
+      required String action,
+      required String owner,
+      required int created,
+      Value<int> rowid,
+    });
+typedef $$DiaryMediaOpsTableUpdateCompanionBuilder =
+    DiaryMediaOpsCompanion Function({
+      Value<String> path,
+      Value<String> action,
+      Value<String> owner,
+      Value<int> created,
+      Value<int> rowid,
+    });
+
+class $$DiaryMediaOpsTableFilterComposer
+    extends Composer<_$AppDatabase, $DiaryMediaOpsTable> {
+  $$DiaryMediaOpsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get path => $composableBuilder(
+    column: $table.path,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get action => $composableBuilder(
+    column: $table.action,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get owner => $composableBuilder(
+    column: $table.owner,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get created => $composableBuilder(
+    column: $table.created,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$DiaryMediaOpsTableOrderingComposer
+    extends Composer<_$AppDatabase, $DiaryMediaOpsTable> {
+  $$DiaryMediaOpsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get path => $composableBuilder(
+    column: $table.path,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get action => $composableBuilder(
+    column: $table.action,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get owner => $composableBuilder(
+    column: $table.owner,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get created => $composableBuilder(
+    column: $table.created,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DiaryMediaOpsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $DiaryMediaOpsTable> {
+  $$DiaryMediaOpsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get path =>
+      $composableBuilder(column: $table.path, builder: (column) => column);
+
+  GeneratedColumn<String> get action =>
+      $composableBuilder(column: $table.action, builder: (column) => column);
+
+  GeneratedColumn<String> get owner =>
+      $composableBuilder(column: $table.owner, builder: (column) => column);
+
+  GeneratedColumn<int> get created =>
+      $composableBuilder(column: $table.created, builder: (column) => column);
+}
+
+class $$DiaryMediaOpsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $DiaryMediaOpsTable,
+          DiaryMediaOpRow,
+          $$DiaryMediaOpsTableFilterComposer,
+          $$DiaryMediaOpsTableOrderingComposer,
+          $$DiaryMediaOpsTableAnnotationComposer,
+          $$DiaryMediaOpsTableCreateCompanionBuilder,
+          $$DiaryMediaOpsTableUpdateCompanionBuilder,
+          (
+            DiaryMediaOpRow,
+            BaseReferences<_$AppDatabase, $DiaryMediaOpsTable, DiaryMediaOpRow>,
+          ),
+          DiaryMediaOpRow,
+          PrefetchHooks Function()
+        > {
+  $$DiaryMediaOpsTableTableManager(_$AppDatabase db, $DiaryMediaOpsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DiaryMediaOpsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DiaryMediaOpsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DiaryMediaOpsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> path = const Value.absent(),
+                Value<String> action = const Value.absent(),
+                Value<String> owner = const Value.absent(),
+                Value<int> created = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DiaryMediaOpsCompanion(
+                path: path,
+                action: action,
+                owner: owner,
+                created: created,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String path,
+                required String action,
+                required String owner,
+                required int created,
+                Value<int> rowid = const Value.absent(),
+              }) => DiaryMediaOpsCompanion.insert(
+                path: path,
+                action: action,
+                owner: owner,
+                created: created,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$DiaryMediaOpsTable, DiaryMediaOpRow>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $DiaryMediaOpsTable,
+                    DiaryMediaOpRow
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$DiaryMediaOpsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $DiaryMediaOpsTable,
+      DiaryMediaOpRow,
+      $$DiaryMediaOpsTableFilterComposer,
+      $$DiaryMediaOpsTableOrderingComposer,
+      $$DiaryMediaOpsTableAnnotationComposer,
+      $$DiaryMediaOpsTableCreateCompanionBuilder,
+      $$DiaryMediaOpsTableUpdateCompanionBuilder,
+      (
+        DiaryMediaOpRow,
+        BaseReferences<_$AppDatabase, $DiaryMediaOpsTable, DiaryMediaOpRow>,
+      ),
+      DiaryMediaOpRow,
+      PrefetchHooks Function()
+    >;
+typedef $$PhotoQuestionCacheTableCreateCompanionBuilder =
+    PhotoQuestionCacheCompanion Function({
+      required String key,
+      required String value,
+      required int created,
+      Value<int> rowid,
+    });
+typedef $$PhotoQuestionCacheTableUpdateCompanionBuilder =
+    PhotoQuestionCacheCompanion Function({
+      Value<String> key,
+      Value<String> value,
+      Value<int> created,
+      Value<int> rowid,
+    });
+
+class $$PhotoQuestionCacheTableFilterComposer
+    extends Composer<_$AppDatabase, $PhotoQuestionCacheTable> {
+  $$PhotoQuestionCacheTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get key => $composableBuilder(
+    column: $table.key,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get value => $composableBuilder(
+    column: $table.value,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get created => $composableBuilder(
+    column: $table.created,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$PhotoQuestionCacheTableOrderingComposer
+    extends Composer<_$AppDatabase, $PhotoQuestionCacheTable> {
+  $$PhotoQuestionCacheTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get key => $composableBuilder(
+    column: $table.key,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get value => $composableBuilder(
+    column: $table.value,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get created => $composableBuilder(
+    column: $table.created,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$PhotoQuestionCacheTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PhotoQuestionCacheTable> {
+  $$PhotoQuestionCacheTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get key =>
+      $composableBuilder(column: $table.key, builder: (column) => column);
+
+  GeneratedColumn<String> get value =>
+      $composableBuilder(column: $table.value, builder: (column) => column);
+
+  GeneratedColumn<int> get created =>
+      $composableBuilder(column: $table.created, builder: (column) => column);
+}
+
+class $$PhotoQuestionCacheTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PhotoQuestionCacheTable,
+          PhotoQuestionCacheRow,
+          $$PhotoQuestionCacheTableFilterComposer,
+          $$PhotoQuestionCacheTableOrderingComposer,
+          $$PhotoQuestionCacheTableAnnotationComposer,
+          $$PhotoQuestionCacheTableCreateCompanionBuilder,
+          $$PhotoQuestionCacheTableUpdateCompanionBuilder,
+          (
+            PhotoQuestionCacheRow,
+            BaseReferences<
+              _$AppDatabase,
+              $PhotoQuestionCacheTable,
+              PhotoQuestionCacheRow
+            >,
+          ),
+          PhotoQuestionCacheRow,
+          PrefetchHooks Function()
+        > {
+  $$PhotoQuestionCacheTableTableManager(
+    _$AppDatabase db,
+    $PhotoQuestionCacheTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PhotoQuestionCacheTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PhotoQuestionCacheTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$PhotoQuestionCacheTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> key = const Value.absent(),
+                Value<String> value = const Value.absent(),
+                Value<int> created = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PhotoQuestionCacheCompanion(
+                key: key,
+                value: value,
+                created: created,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String key,
+                required String value,
+                required int created,
+                Value<int> rowid = const Value.absent(),
+              }) => PhotoQuestionCacheCompanion.insert(
+                key: key,
+                value: value,
+                created: created,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$PhotoQuestionCacheTable, PhotoQuestionCacheRow>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $PhotoQuestionCacheTable,
+                    PhotoQuestionCacheRow
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$PhotoQuestionCacheTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PhotoQuestionCacheTable,
+      PhotoQuestionCacheRow,
+      $$PhotoQuestionCacheTableFilterComposer,
+      $$PhotoQuestionCacheTableOrderingComposer,
+      $$PhotoQuestionCacheTableAnnotationComposer,
+      $$PhotoQuestionCacheTableCreateCompanionBuilder,
+      $$PhotoQuestionCacheTableUpdateCompanionBuilder,
+      (
+        PhotoQuestionCacheRow,
+        BaseReferences<
+          _$AppDatabase,
+          $PhotoQuestionCacheTable,
+          PhotoQuestionCacheRow
+        >,
+      ),
+      PhotoQuestionCacheRow,
       PrefetchHooks Function()
     >;
 typedef $$FlowThoughtsTableCreateCompanionBuilder =
@@ -10601,6 +11693,10 @@ class $AppDatabaseManager {
       $$DiaryEntriesTableTableManager(_db, _db.diaryEntries);
   $$DiaryDaysTableTableManager get diaryDays =>
       $$DiaryDaysTableTableManager(_db, _db.diaryDays);
+  $$DiaryMediaOpsTableTableManager get diaryMediaOps =>
+      $$DiaryMediaOpsTableTableManager(_db, _db.diaryMediaOps);
+  $$PhotoQuestionCacheTableTableManager get photoQuestionCache =>
+      $$PhotoQuestionCacheTableTableManager(_db, _db.photoQuestionCache);
   $$FlowThoughtsTableTableManager get flowThoughts =>
       $$FlowThoughtsTableTableManager(_db, _db.flowThoughts);
   $$BrainAssignmentsTableTableTableManager get brainAssignmentsTable =>

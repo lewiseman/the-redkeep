@@ -33,6 +33,8 @@ part 'app_database.g.dart';
     NoteTags,
     DiaryEntries,
     DiaryDays,
+    DiaryMediaOps,
+    PhotoQuestionCache,
     FlowThoughts,
     BrainAssignmentsTable,
     SyncOperations,
@@ -44,7 +46,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   // Reset changes this generation before disposing editors. Old repositories
   // cannot write after cleanup, even when an async continuation finishes late.
@@ -59,6 +61,14 @@ class AppDatabase extends _$AppDatabase {
       await installRecallTriggers(this);
     },
     onUpgrade: (migrator, from, to) async {
+      if (from < 13 && to >= 13) {
+        if (from >= 5) {
+          await migrator.addColumn(diaryEntries, diaryEntries.photos);
+          await migrator.addColumn(diaryEntries, diaryEntries.conversation);
+        }
+        await migrator.createTable(diaryMediaOps);
+        await migrator.createTable(photoQuestionCache);
+      }
       if (from < 12 && to >= 12) {
         await migrator.createTable(aiPreferencesTable);
         await migrator.createTable(aiJobReceipts);

@@ -177,7 +177,7 @@ class _ReplyVoicePageState extends ConsumerState<ReplyVoicePage>
                 const Padding(
                   padding: EdgeInsets.fromLTRB(20, 0, 20, 12),
                   child: Text(
-                    'The voice used for spoken setup guidance and future diary conversations. It runs on this phone. Tap a voice to choose it and hear a sample. For better voices, install Speech Services by Google and download its voice data.',
+                    'The voice used for spoken setup guidance and diary conversations. It runs on this phone. Tap a voice to choose it and hear a sample. For better voices, install Speech Services by Google and download its voice data.',
                   ),
                 ),
                 if (_engines.length > 1)

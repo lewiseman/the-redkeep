@@ -1,3 +1,5 @@
+import 'photos/diary_photo_story_strip.dart';
+import '../application/diary_media_providers.dart';
 import 'daily_diary_prompt.dart';
 
 import 'dart:math' as math;
@@ -118,6 +120,7 @@ class DiaryDayContent extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(diaryPhotoStoreProvider);
     final colors = diaryPaperColors(context);
     final typography = DiaryTypography.of(context);
     final canEdit = ref.watch(syncCanEditProvider);
@@ -234,6 +237,28 @@ class DiaryDayContent extends ConsumerWidget {
                 ),
                 const SizedBox(height: 12),
               ],
+              if (day.entries[i].photos.isNotEmpty)
+                DiaryPhotoStoryStrip(
+                  item: day.entries[i],
+                  onOpen: interactive
+                      ? () => context.push(
+                          '${diaryEntryLocation(day.date, day.entries[i].id)}/photos',
+                        )
+                      : null,
+                ),
+              if (day.entries[i].conversation != null)
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: ActionChip(
+                    avatar: const Icon(Icons.forum_outlined, size: 18),
+                    label: const Text('Conversation'),
+                    onPressed: interactive
+                        ? () => context.push(
+                            '${diaryEntryLocation(day.date, day.entries[i].id)}/conversation',
+                          )
+                        : null,
+                  ),
+                ),
               Text(
                 day.entries[i].text.body,
                 style: typography.body.copyWith(color: colors.foreground),

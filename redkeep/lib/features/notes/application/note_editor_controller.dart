@@ -144,6 +144,45 @@ class NoteEditorController extends AsyncNotifier<NoteEditorState> {
     return true;
   }
 
+  /// Dictation is an append proposal, including for an initially empty note.
+  /// The transcript remains retained by the caller when any token changed.
+  Future<bool> appendReviewedTranscript({
+    required NoteEditorState expected,
+    required String transcript,
+    required bool Function() stillCurrent,
+  }) async {
+    bool valid() =>
+        ref.mounted &&
+        !_saving &&
+        state.hasValue &&
+        stillCurrent() &&
+        _sequence == expected.editVersion &&
+        _baseRevision == expected.baseRevision &&
+        _text.title == expected.text.title &&
+        _text.body == expected.text.body;
+    if (transcript.trim().isEmpty || !valid()) return false;
+    if (!await flushRecovery() || !valid()) return false;
+    final opened = await _repository.openDocument(id);
+    if (!valid() ||
+        (expected.baseRevision == 0
+            ? opened.note != null
+            : !opened.available ||
+                  opened.note!.revision != expected.baseRevision) ||
+        opened.draft?.draftRevision != _draftRevision) {
+      return false;
+    }
+    edit(
+      PlainTextDocument(
+        title: _text.title,
+        body: [
+          if (_text.body.isNotEmpty) _text.body,
+          transcript.trim(),
+        ].join('\n\n'),
+      ),
+    );
+    return true;
+  }
+
   /// Coalesces changes during a write and retains this provider until settled.
   Future<bool> flushRecovery() {
     if (_pending != null) return _pending!;

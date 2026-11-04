@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'ai_operation.dart';
 
 class AiJob {
@@ -84,7 +86,8 @@ class AiJob {
         j['created'] is! int ||
         j['key'] is! String ||
         (j['source'] as String? ?? '').length > 131072 ||
-        (j['prompt'] as String? ?? '').length > 2000) {
+        utf8.encode(j['prompt'] as String? ?? '').length >
+            AiOperation.values.byName(j['operation'] as String).inputBytes) {
       throw const FormatException('Invalid protected AI task');
     }
     return AiJob(

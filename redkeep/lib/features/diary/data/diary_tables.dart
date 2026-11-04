@@ -9,6 +9,8 @@ class DiaryEntries extends Table {
   TextColumn get dateKey => text().withLength(min: 10, max: 10)();
   TextColumn get title => text()();
   TextColumn get body => text()();
+  TextColumn get photos => text().withDefault(const Constant('[]'))();
+  TextColumn get conversation => text().nullable()();
   IntColumn get revision =>
       integer().customConstraint('NOT NULL CHECK (revision > 0)')();
   IntColumn get createdAt => integer()();
@@ -28,4 +30,23 @@ class DiaryDays extends Table {
       integer().customConstraint('NOT NULL CHECK (revision > 0)')();
   @override
   Set<Column> get primaryKey => {dateKey};
+}
+
+@DataClassName('DiaryMediaOpRow')
+class DiaryMediaOps extends Table {
+  TextColumn get path => text()();
+  TextColumn get action => text()();
+  TextColumn get owner => text()();
+  IntColumn get created => integer()();
+  @override
+  Set<Column> get primaryKey => {path};
+}
+
+@DataClassName('PhotoQuestionCacheRow')
+class PhotoQuestionCache extends Table {
+  TextColumn get key => text()();
+  TextColumn get value => text()();
+  IntColumn get created => integer()();
+  @override
+  Set<Column> get primaryKey => {key};
 }

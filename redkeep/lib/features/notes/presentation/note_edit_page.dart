@@ -1,3 +1,6 @@
+import '../../voice/presentation/voice_capture_page.dart';
+import '../../voice/application/voice_receipts.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -20,6 +23,7 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
   final _body = TextEditingController();
   bool _loaded = false;
   bool _leaving = false;
+  bool _dictating = false;
 
   @override
   void dispose() {
@@ -67,6 +71,13 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
             onPressed: () => Navigator.of(context).maybePop(),
           ),
           actions: [
+            IconButton(
+              tooltip: 'Dictate a note',
+              icon: const Icon(Icons.mic_none_rounded),
+              onPressed: value == null || readOnly || value.saving || _dictating
+                  ? null
+                  : _dictate,
+            ),
             Padding(
               padding: const EdgeInsetsDirectional.only(end: 12),
               child: FilledButton.icon(
@@ -259,6 +270,46 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _dictate() async {
+    if (_dictating) return;
+    setState(() => _dictating = true);
+    try {
+      final editor = ref.read(noteEditorProvider(widget.id).notifier);
+      if (!await editor.flushRecovery() || !mounted) return;
+      final expected = ref.read(noteEditorProvider(widget.id)).requireValue;
+      FocusScope.of(context).unfocus();
+      final text = await Navigator.of(context).push<String>(
+        MaterialPageRoute(
+          builder: (_) => const VoiceCapturePage(title: 'Dictate a note'),
+        ),
+      );
+      if (!mounted || text == null) return;
+      final accepted = await editor.appendReviewedTranscript(
+        expected: expected,
+        transcript: text,
+        stillCurrent: () => mounted,
+      );
+      if (!mounted) return;
+      if (accepted) {
+        final next = ref.read(noteEditorProvider(widget.id)).requireValue;
+        _body.text = next.text.body;
+        if (await editor.flushRecovery()) {
+          await ref.read(voiceReceiptsProvider).consume('note');
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'The note changed during capture. Your transcript is kept; open the microphone to review it again.',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _dictating = false);
+    }
   }
 
   void _edit(NoteEditorController controller) =>

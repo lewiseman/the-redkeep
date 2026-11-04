@@ -61,7 +61,7 @@ class DriftSyncStateStore extends SyncStateStore {
           (e) => e['id'] == op.id && e['deleted_at'] == null,
         );
         if (items.isEmpty) continue;
-        payload = {'id': op.documentId, 'schema': 1, 'entry': items.single};
+        payload = {'id': op.documentId, 'schema': 2, 'entry': items.single};
       }
       result.add(
         PendingCreation(

@@ -275,7 +275,7 @@ class _CompanionPageState extends ConsumerState<CompanionPage>
             'Choose a destination for individual diary operations',
           ),
           children: [
-            for (final operation in AiOperation.values)
+            for (final operation in AiOperation.values.where((o) => o.supportsPhone))
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 child: DropdownButtonFormField<AiMode>(
@@ -287,7 +287,7 @@ class _CompanionPageState extends ConsumerState<CompanionPage>
                   isExpanded: true,
                   itemHeight: null,
                   decoration: InputDecoration(
-                    labelText: operation.capability.label,
+                    labelText: operation.label,
                   ),
                   items: const [
                     DropdownMenuItem(
@@ -358,7 +358,7 @@ class AiTaskPanel extends ConsumerWidget {
           children: [
             if (job != null)
               Text(
-                '${job.operation.capability.label} · ${job.phase} · ${job.provider == 'companion' ? 'Computer' : 'Phone'}',
+                '${job.operation.label} · ${job.phase} · ${job.provider == 'companion' ? 'Computer' : 'Phone'}',
               ),
             if (state.message != null) Text(state.message!),
             if (job?.operation == AiOperation.diaryDetails &&

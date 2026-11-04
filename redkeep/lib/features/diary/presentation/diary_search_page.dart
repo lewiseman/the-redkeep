@@ -1,3 +1,4 @@
+import 'diary_answer_page.dart';
 import '../../recall/application/recall_search.dart';
 import '../../ai/application/ai_lifecycle.dart';
 
@@ -342,6 +343,17 @@ class _DiarySearchPageState extends ConsumerState<DiarySearchPage> {
           ),
         ),
         const SizedBox(height: 24),
+        if (_stage == _SearchStage.results || _stage == _SearchStage.empty)
+          TextButton.icon(
+            key: const ValueKey('diary-search-ask'),
+            icon: const Icon(Icons.computer_outlined),
+            label: const Text('Ask your past'),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => DiaryAnswerPage(question: _submitted),
+              ),
+            ),
+          ),
         if (_stage == _SearchStage.error)
           _message(
             title: 'The pages need a moment.',

@@ -1,0 +1,107 @@
+{
+  "date": "2026-11-04",
+  "scope": "Diary photo stories, photo questions, Android diary conversation, saved conversation review, Notes dictation, Flow speech-to-text, and Ask your past.",
+  "data": "Synthetic writing, images, audio and pairing only. Native checks used a separate Android application ID. Installed Redkeep data and the old app/companion sources were not changed.",
+  "storage": {
+    "driftSchema": 13,
+    "diarySyncPayload": 2,
+    "version1Import": "Accepted and normalized without resetting writing or sync state.",
+    "mediaBytesSynced": false,
+    "tombstones": "Preserve rich metadata; exclude deleted entries from retrieval and remove owned photo bytes through the durable file journal.",
+    "otherDevices": "Update other Redkeep devices before editing rich diary documents. Older clients reject payload version 2."
+  },
+  "automated": {
+    "offlineFocusedTests": 180,
+    "passed": true,
+    "coverage": [
+      "Schema 12 to 13 migration and writing, draft, sync and assignment preservation",
+      "Rich-entry round trips, text projections, source hashes, sync v1/v2 and secondary-device transactions",
+      "Immutable staged photo files, path/hash validation, missing originals, duplicate selection and picker recovery",
+      "Photos/Reflect/Review, empty-editor gating, offline questions, sequential AI questions, caption/model cache isolation and answer preservation",
+      "PCM terminal frames, microphone permissions/Settings, live talk interruptions and spoken-reply microphone ownership",
+      "Pairing-pinned speech recovery, signed TLS/WSS, malformed events, acknowledgement, expiry and protected cleanup",
+      "Flow speech-only readiness, reviewed text save with stable logical ID, composer preservation and no writing task",
+      "Notes editor/repository revision guards and retained transcript on conflicts",
+      "Conversation turn retention, secondary append deduplication, protected generated drafts, explicit retry and recovered-result revision validation",
+      "History budgets/date scopes/citations and exclusion of assistant turns, AI observations and question prompts",
+      "Interactive AI coordination, background/reset fences, interrupted cleanup and preference/pairing preservation",
+      "Current diary details/daily questions/search regressions; 320x480 layouts at 3x text and reduced motion"
+    ],
+    "followup": "26 focused repository, tombstone/sync and reset checks passed after the final metadata and late-cleanup fences.",
+    "analyzer": "No issues found",
+    "logs": {
+      "regression": "/tmp/redkeep-media-final-tests4.log",
+      "cleanupAndTombstones": "/tmp/redkeep-media-final-cleanup-tests.log",
+      "analyzer": "/tmp/redkeep-media-final-analyze5.log",
+      "androidBuild": "/tmp/redkeep-media-final-android-build5.log"
+    }
+  },
+  "android": {
+    "debugApk": "build/app/outputs/flutter-apk/app-debug.apk",
+    "buildPassed": true,
+    "buildWarnings": "Existing Gradle native-access warning and flutter_tts Kotlin Gradle Plugin migration warning; no signing, SDK, ABI or inference-pin changes.",
+    "device": "Android emulator sdk_gphone16k_arm64",
+    "api": 37,
+    "pageBytes": 16384,
+    "qualificationApplicationId": "com.lewiseman.redkeep.mediaqualification",
+    "nativeEvidence": {
+      "utc": "2026-11-04T16:47:10.768702Z",
+      "nativePcm": {
+        "chunks": 8,
+        "bytes": 23552,
+        "fileMatchesFrames": true,
+        "sampleRate": 16000,
+        "channels": 1,
+        "format": "s16le"
+      },
+      "protectedDraftAndAudioCleanup": true,
+      "nativePhotoStorageAndCleanup": true,
+      "companionVoiceTransport": {
+        "accepted": true,
+        "acknowledged": true,
+        "state": "completed",
+        "syntheticSpeech": true
+      },
+      "passed": true
+    },
+    "temporaryAppAndPairingRemoved": true,
+    "probeEntryPoint": "tool/qualify_diary_media.dart"
+  },
+  "existingCompanion": {
+    "sourceChanged": false,
+    "fixture": "test/support/companion_media_peer.cjs",
+    "actualServerModules": [
+      "DeviceService",
+      "Jobs",
+      "Voice",
+      "Talk",
+      "operation validators"
+    ],
+    "tested": [
+      "Pinned TLS and WSS",
+      "Ed25519 signed requests and authentication",
+      "photo questions",
+      "conversation drafting",
+      "history answers with citations",
+      "live speech/talk contracts",
+      "job acknowledgement"
+    ],
+    "modelOutputs": "Synthetic test runtimes. This verifies protocol compatibility and state handling, not model accuracy or output quality.",
+    "tests": [
+      "test/features/voice/companion_media_protocol_test.dart",
+      "test/features/voice/voice_connection_test.dart"
+    ]
+  },
+  "notYetQualified": [
+    "Real Whisper/VAD speech recognition accuracy and physical Android microphone interruption/silencing behaviour",
+    "Real companion writing and Qwen vision output quality for conversation, photo questions and history answers",
+    "Audible offline reply playback and device-specific voice removal/fallback on physical Android hardware",
+    "Physical iOS photo picker/library permission and saved-conversation review"
+  ],
+  "intentionalBoundaries": [
+    "iOS new recording and typed AI chat remain outside this migration",
+    "Flow persists only the reviewed ordinary text thought; no rewriting, summary or conversation follows",
+    "Photos/audio bytes are not journal-sync payloads",
+    "QVAC setup, its Android worker and other Notes/Flow AI tools are not migrated"
+  ]
+}

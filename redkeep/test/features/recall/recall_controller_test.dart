@@ -1,3 +1,5 @@
+import 'package:redkeep/features/voice/application/voice_coordination.dart';
+
 import 'dart:async';
 
 import 'package:drift/native.dart';
@@ -53,6 +55,21 @@ void main() {
     await notes.commitDraft('a' * 32, draft.draftRevision);
   }
 
+  test(
+    'interactive voice pauses new indexing and semantic queries, then resumes',
+    () async {
+      await save('Garden writing');
+      final lease = scope.read(voiceActiveProvider.notifier), owner = Object();
+      lease.acquire(owner, () async {});
+      final controller = scope.read(recallControllerProvider.notifier);
+      await controller.run();
+      expect(embedder.batches, isEmpty);
+      expect((await controller.search('garden', 'note')).semantic, isFalse);
+      lease.release(owner);
+      await controller.run();
+      expect(embedder.batches, isNotEmpty);
+    },
+  );
   test('full long text is indexed, acknowledgements follow writes, and retrieved sources are revalidated', () async {
     await save('Planting 🌿 中文\n' * 2600);
     final controller = scope.read(recallControllerProvider.notifier);

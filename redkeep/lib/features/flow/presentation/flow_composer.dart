@@ -10,6 +10,7 @@ class FlowComposer extends StatelessWidget {
     required this.focusNode,
     required this.onSend,
     required this.onChanged,
+    this.onMicrophone,
     this.enabled = true,
     this.saving = false,
   });
@@ -17,6 +18,7 @@ class FlowComposer extends StatelessWidget {
   final TextEditingController controller;
   final FocusNode focusNode;
   final VoidCallback onSend;
+  final VoidCallback? onMicrophone;
   final ValueChanged<String> onChanged;
   final bool enabled;
   final bool saving;
@@ -82,6 +84,12 @@ class FlowComposer extends StatelessWidget {
                   ),
                 ),
               ),
+            ),
+            IconButton(
+              key: const ValueKey('flow-microphone'),
+              tooltip: 'Capture a thought by voice',
+              onPressed: enabled ? onMicrophone : null,
+              icon: const Icon(Icons.mic_none_rounded),
             ),
             ValueListenableBuilder<TextEditingValue>(
               valueListenable: controller,

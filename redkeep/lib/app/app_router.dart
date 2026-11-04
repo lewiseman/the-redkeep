@@ -1,3 +1,6 @@
+import '../features/diary/presentation/diary_photos_page.dart';
+import '../features/voice/presentation/diary_conversation_page.dart';
+import '../features/voice/presentation/diary_talk_page.dart';
 import '../features/flow/presentation/flow_search_page.dart';
 import '../features/companion/presentation/companion_page.dart';
 import '../features/companion/presentation/companion_pairing.dart';
@@ -116,6 +119,20 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
                     ),
                     routes: [
                       GoRoute(
+                        path: 'talk',
+                        pageBuilder: (context, state) {
+                          final date = CivilDate.tryParse(
+                            state.pathParameters['date']!,
+                          )!;
+                          return _page(
+                            state,
+                            DiaryTalkPage(
+                              date: DateTime(date.year, date.month, date.day),
+                            ),
+                          );
+                        },
+                      ),
+                      GoRoute(
                         path: 'title',
                         pageBuilder: (context, state) => _page(
                           state,
@@ -142,6 +159,34 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
                           ),
                         ),
                         routes: [
+                          GoRoute(
+                            path: 'photos',
+                            pageBuilder: (context, state) => _page(
+                              state,
+                              DiaryPhotosPage(
+                                address: (
+                                  date: CivilDate.tryParse(
+                                    state.pathParameters['date']!,
+                                  )!,
+                                  id: state.pathParameters['id']!,
+                                ),
+                              ),
+                            ),
+                          ),
+                          GoRoute(
+                            path: 'conversation',
+                            pageBuilder: (context, state) => _page(
+                              state,
+                              DiaryConversationPage(
+                                address: (
+                                  date: CivilDate.tryParse(
+                                    state.pathParameters['date']!,
+                                  )!,
+                                  id: state.pathParameters['id']!,
+                                ),
+                              ),
+                            ),
+                          ),
                           GoRoute(
                             path: 'edit',
                             pageBuilder: (context, state) => _page(

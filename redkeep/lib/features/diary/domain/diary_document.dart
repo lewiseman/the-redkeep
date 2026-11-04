@@ -1,4 +1,6 @@
 import 'civil_date.dart';
+import 'diary_photo.dart';
+import 'diary_ai_conversation.dart';
 import 'diary_day_details.dart';
 
 class DiaryText {
@@ -17,6 +19,8 @@ class DiaryEntry {
     required this.createdAt,
     required this.updatedAt,
     this.deletedAt,
+    this.photos = const [],
+    this.conversation,
   });
   final String id;
   final CivilDate date;
@@ -25,6 +29,9 @@ class DiaryEntry {
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? deletedAt;
+  final List<DiaryPhoto> photos;
+  final DiaryAiConversation? conversation;
+  bool get hasMedia => photos.isNotEmpty || conversation != null;
 }
 
 class OpenDiaryEntry {

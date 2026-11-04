@@ -1,3 +1,4 @@
+import '../../voice/application/voice_coordination.dart';
 import '../../../core/storage/app_database.dart';
 
 import 'dart:async';
@@ -49,7 +50,11 @@ class DailyQuestionController extends Notifier<DailyQuestionView> {
   bool get _today =>
       CivilDate.fromComponents(ref.read(diaryClockProvider)()) == date;
   bool get _canAuto =>
-      _active && _today && _enabled && ref.read(aiForegroundProvider);
+      _active &&
+      _today &&
+      _enabled &&
+      ref.read(aiForegroundProvider) &&
+      !ref.read(voiceActiveProvider);
   @override
   DailyQuestionView build() {
     final db = ref.read(appDatabaseProvider);
@@ -67,6 +72,9 @@ class DailyQuestionController extends Notifier<DailyQuestionView> {
     });
     ref.listen(companionControllerProvider, (_, _) {
       if (_canAuto) scheduleMicrotask(ensure);
+    });
+    ref.listen(voiceActiveProvider, (_, active) {
+      if (!active && _canAuto) scheduleMicrotask(ensure);
     });
     ref.listen(aiForegroundProvider, (_, next) {
       if (next && _active) scheduleMicrotask(() => unawaited(refresh()));

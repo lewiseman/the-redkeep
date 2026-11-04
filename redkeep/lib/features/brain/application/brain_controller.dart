@@ -269,6 +269,7 @@ class BrainController extends Notifier<BrainState> {
                 DiarySuggestions.parse(text, source);
               case AiOperation.dailyQuestion:
                 DailyQuestion.parse(text, questionSource);
+              default: throw const BrainException(BrainFailure.incompatible);
             }
           } catch (_) {
             throw const BrainException(BrainFailure.generation);

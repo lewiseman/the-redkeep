@@ -1,3 +1,5 @@
+import '../application/diary_providers.dart';
+import '../domain/civil_date.dart';
 import '../../../core/presentation/confirm_discard_changes.dart';
 import '../../../core/presentation/diary_typography.dart';
 import '../../sync/application/sync_providers.dart';
@@ -24,6 +26,7 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
   final _body = TextEditingController();
   bool _loaded = false;
   bool _leaving = false;
+  bool _openingMedia = false;
 
   @override
   void dispose() {
@@ -56,6 +59,18 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
             ? 'Edit entry'
             : 'Add text',
         actions: [
+          if (value == null || value.baseRevision == 0) ...[
+            IconButton(
+              tooltip: 'Add photos',
+              icon: const Icon(Icons.add_photo_alternate_outlined),
+              onPressed: _canAddMedia(value) ? () => _media('photos') : null,
+            ),
+            IconButton(
+              tooltip: 'Talk to your diary',
+              icon: const Icon(Icons.mic_none_rounded),
+              onPressed: _canAddMedia(value) ? () => _media('talk') : null,
+            ),
+          ],
           TextButton(
             onPressed:
                 value == null ||
@@ -236,6 +251,36 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
         ),
       ),
     );
+  }
+
+  bool _canAddMedia(DiaryEditorState? value) {
+    final today = CivilDate.fromComponents(ref.read(diaryClockProvider)());
+    return !_openingMedia &&
+        value != null &&
+        value.baseRevision == 0 &&
+        !value.saving &&
+        value.text.title.trim().isEmpty &&
+        value.text.body.trim().isEmpty &&
+        widget.address.date.compareTo(today) <= 0 &&
+        (ref.read(syncCanEditProvider) || widget.address.date == today);
+  }
+
+  Future<void> _media(String kind) async {
+    if (_openingMedia) return;
+    setState(() => _openingMedia = true);
+    try {
+      FocusScope.of(context).unfocus();
+      final saved = await context.push<bool>(
+        kind == 'talk'
+            ? '${diaryDayLocation(widget.address.date)}/talk'
+            : '${diaryEntryLocation(widget.address.date, widget.address.id)}/photos',
+      );
+      if (!mounted || saved != true) return;
+      await ref.read(diaryEditorProvider(widget.address).notifier).discard();
+      if (mounted) context.go(diaryDayLocation(widget.address.date));
+    } finally {
+      if (mounted) setState(() => _openingMedia = false);
+    }
   }
 
   void _edit(DiaryEditorController controller) =>

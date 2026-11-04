@@ -1,3 +1,12 @@
+import '../../voice/application/voice_coordination.dart';
+import '../../diary/domain/diary_photo_question_contract.dart';
+import '../../diary/domain/diary_history_contract.dart';
+import '../../diary/data/diary_photo_question_store.dart';
+import '../../diary/data/prepare_diary_image.dart';
+import '../../diary/data/diary_photo_store.dart';
+import '../../diary/application/diary_providers.dart';
+
+import 'dart:typed_data';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
@@ -156,6 +165,7 @@ class AiJobs extends Notifier<AiJobState> {
   }
 
   Future<BrainModel?> phoneModel(AiOperation operation) async {
+    if (!operation.supportsPhone) return null;
     final assignments = await ref.read(brainAssignmentsProvider).read();
     final id = assignments
         .where((a) => a.capability == operation.capability)
@@ -194,10 +204,11 @@ class AiJobs extends Notifier<AiJobState> {
     final status = ref.read(companionControllerProvider).status;
     final capability = (status?['capabilities'] as List? ?? [])
         .whereType<Map>()
-        .where((c) => c['id'] == 'text')
+        .where((c) => c['id'] == operation.capabilityId)
         .firstOrNull;
     if (status?['recovery'] != 1 ||
-        capability?[operation.contractKey] != 1 ||
+        (operation.contractKey.isNotEmpty &&
+            capability?[operation.contractKey] != operation.contractVersion) ||
         capability?['operations'] is! List ||
         !(capability!['operations'] as List).contains(operation.wireName)) {
       throw const CompanionFailure(
@@ -207,9 +218,11 @@ class AiJobs extends Notifier<AiJobState> {
     }
     if (capability['implemented'] != true ||
         !['ready', 'busy'].contains(capability['status'])) {
-      throw const CompanionFailure(
+      throw CompanionFailure(
         'NOT_READY',
-        'Load a writing model on your computer.',
+        operation == AiOperation.photoQuestions
+            ? 'Load Qwen3-VL in Journal Companion for photo questions.'
+            : 'Load a writing model on your computer.',
       );
     }
   }
@@ -218,9 +231,20 @@ class AiJobs extends Notifier<AiJobState> {
     AiOperation operation,
     String key,
     String prompt,
-    String source,
-  ) async {
+    String source, {
+    Object? voiceOwner,
+  }) async {
     if (_working || !_foreground) return;
+    if (ref.read(voiceActiveProvider) &&
+        !(operation == AiOperation.conversation &&
+            ref.read(voiceActiveProvider.notifier).owns(voiceOwner))) {
+      state = AiJobState(
+        job: state.job,
+        loaded: state.loaded,
+        message: 'Finish the voice session before starting another AI task.',
+      );
+      return;
+    }
     await restore();
     if (!ref.mounted || !state.loaded || state.job != null || _working) return;
     final epoch = ++_epoch;
@@ -228,7 +252,7 @@ class AiJobs extends Notifier<AiJobState> {
     state = const AiJobState(busy: true, loaded: true);
     try {
       if (prompt.trim().isEmpty ||
-          utf8.encode(prompt).length > 2000 ||
+          utf8.encode(prompt).length > operation.inputBytes ||
           source.length > 131072) {
         throw const FormatException(
           'This request is too large. Nothing was shortened or sent.',
@@ -240,6 +264,14 @@ class AiJobs extends Notifier<AiJobState> {
       if (!_alive(epoch)) return;
       final connection = ref.read(companionControllerProvider);
       final mode = preferences.modeFor(operation);
+      if (!operation.supportsPhone &&
+          (mode == AiMode.device ||
+              connection.phase != CompanionPhase.connected)) {
+        throw const CompanionFailure(
+          'UNSUPPORTED',
+          'This feature needs your computer. Choose Auto or Computer and connect in Grand Maestar.',
+        );
+      }
       final phone =
           mode == AiMode.companion ||
               mode == AiMode.auto &&
@@ -268,12 +300,19 @@ class AiJobs extends Notifier<AiJobState> {
         source: source,
       );
       final reader = ref.read(diaryAiSourcesProvider);
-      final valid = operation == AiOperation.diaryDetails
-          ? await reader.current(DiarySuggestionSource.decode(source))
-          : CivilDate.fromComponents(ref.read(aiClockProvider)()).key == key &&
-                await reader.questionCurrent(
-                  DailyQuestionSource.decode(source),
-                );
+      final valid = switch (operation) {
+        AiOperation.diaryDetails => await reader.current(
+          DiarySuggestionSource.decode(source),
+        ),
+        AiOperation.dailyQuestion =>
+          CivilDate.fromComponents(ref.read(aiClockProvider)()).key == key &&
+              await reader.questionCurrent(DailyQuestionSource.decode(source)),
+        AiOperation.photoQuestions => true,
+        AiOperation.history => await _historyCurrent(
+          DiaryHistorySelection.decode(source),
+        ),
+        AiOperation.conversation => await _conversationCurrent(source),
+      };
       if (!valid) {
         throw const FormatException(
           'Your entries changed. Nothing was sent; ask again.',
@@ -323,6 +362,18 @@ class AiJobs extends Notifier<AiJobState> {
         DiarySuggestions.parse(text, DiarySuggestionSource.decode(job.source));
       case AiOperation.dailyQuestion:
         DailyQuestion.parse(text, DailyQuestionSource.decode(job.source));
+      case AiOperation.photoQuestions:
+        DiaryPhotoQuestions.parse(text);
+      case AiOperation.history:
+        DiaryHistoryAnswer.parse(
+          text,
+          DiaryHistorySelection.decode(job.source),
+        );
+      case AiOperation.conversation:
+        if (text.trim().isEmpty ||
+            RegExp(r'[\x00-\x08\x0b\x0c\x0e-\x1f]').hasMatch(text)) {
+          throw const FormatException('Invalid conversation draft');
+        }
     }
   }
 
@@ -333,7 +384,7 @@ class AiJobs extends Notifier<AiJobState> {
     final buffer = StringBuffer();
     await executor.execute(
       model: model,
-      capability: job.operation.capability,
+      capability: job.operation.capability!,
       text: job.prompt,
       preparedPrompt: job.prompt,
       owner: _owner,
@@ -368,13 +419,19 @@ class AiJobs extends Notifier<AiJobState> {
     var response = await client.authenticated(
       computer,
       submit ? 'POST' : 'GET',
-      submit ? '/v1/jobs' : '/v1/jobs/${job.id}',
+      submit
+          ? (job.operation == AiOperation.photoQuestions
+                ? '/v1/image-jobs'
+                : '/v1/jobs')
+          : '/v1/jobs/${job.id}',
       body: submit
           ? {
               'id': job.id,
               'operation': job.operation.wireName,
               'prompt': job.prompt,
               'expires': job.expires,
+              if (job.operation == AiOperation.photoQuestions)
+                'image': await _photoUpload(job),
             }
           : null,
     );
@@ -397,6 +454,12 @@ class AiJobs extends Notifier<AiJobState> {
           }.contains(phase)) {
         throw const FormatException(
           'The computer returned an invalid task state.',
+        );
+      }
+      if (job.operation == AiOperation.photoQuestions &&
+          response['model'] != jsonDecode(job.source)['model']) {
+        throw const FormatException(
+          'The computer returned a different photo model. Generate questions again.',
         );
       }
       var next = job.copy(accepted: true, phase: phase);
@@ -438,6 +501,129 @@ class AiJobs extends Notifier<AiJobState> {
         '/v1/jobs/${job.id}',
       );
     }
+  }
+
+  Future<String> _photoUpload(AiJob job) async {
+    final bytes = await ref
+        .read(diaryPhotoQuestionStoreProvider)
+        .readUpload(jsonDecode(job.source)['upload'] as String);
+    if (bytes == null ||
+        await DiaryPhotoStore.digest(bytes) !=
+            jsonDecode(job.source)['imageSha']) {
+      throw const FormatException(
+        'The photo prepared for this task is missing. Generate questions again.',
+      );
+    }
+    return base64Encode(bytes);
+  }
+
+  Future<void> startDiaryPhotoQuestions({
+    required String date,
+    required String photoSha,
+    required Uint8List photo,
+    String caption = '',
+    int group = -1,
+    List<String> avoid = const [],
+  }) async {
+    final generation = ref.read(appDatabaseProvider).writingGeneration;
+    try {
+      if (state.job != null ||
+          _working ||
+          !_foreground ||
+          ref.read(voiceActiveProvider)) {
+        throw StateError(
+          'Another AI session is open. Finish it before asking about photos.',
+        );
+      }
+      final mode =
+          (await ref.read(aiPreferencesRepositoryProvider).read()).mode;
+      if (mode == AiMode.device ||
+          ref.read(companionControllerProvider).phase !=
+              CompanionPhase.connected) {
+        throw const CompanionFailure(
+          'UNSUPPORTED',
+          'Photo questions need your computer. Choose Auto or Computer and connect in Grand Maestar.',
+        );
+      }
+      _checkCapability(AiOperation.photoQuestions);
+      final bytes = await prepareImageBytes(photo);
+      if (!ref.mounted ||
+          generation != ref.read(appDatabaseProvider).writingGeneration ||
+          ref.read(appDatabaseProvider).writingBlocked) {
+        return;
+      }
+      final upload = ref.read(aiIdProvider)();
+      await ref
+          .read(diaryPhotoQuestionStoreProvider)
+          .writeUpload(upload, bytes);
+      final source = DiaryPhotoQuestionSource(
+        date: date,
+        photoSha: photoSha,
+        imageSha: await DiaryPhotoStore.digest(bytes),
+        caption: caption.trim(),
+        group: group,
+        avoid: avoid,
+      );
+      DiaryPhotoQuestionSource.decode(source.encode());
+      final model =
+          (ref.read(companionControllerProvider).status?['capabilities']
+                          as List? ??
+                      [])
+                  .whereType<Map>()
+                  .where((c) => c['id'] == 'vision')
+                  .firstOrNull?['model']
+              as String? ??
+          '';
+      await start(
+        AiOperation.photoQuestions,
+        photoSha,
+        source.request(),
+        jsonEncode({
+          ...jsonDecode(source.encode()) as Map<String, dynamic>,
+          'upload': upload,
+          'model': model,
+          'cache': diaryPhotoCacheKey(photoSha, caption, model),
+        }),
+      );
+    } catch (e) {
+      if (ref.mounted &&
+          generation == ref.read(appDatabaseProvider).writingGeneration) {
+        state = AiJobState(
+          job: state.job,
+          loaded: state.loaded,
+          message: _message(e),
+        );
+      }
+    }
+  }
+
+  Future<bool> _conversationCurrent(String raw) async {
+    final source = jsonDecode(raw) as Map;
+    final entry =
+        (await ref
+                .read(diaryRepositoryProvider)
+                .openDocument(source['id'] as String))
+            .entry;
+    if (source['new'] == true && entry == null) return true;
+    return entry != null &&
+        entry.deletedAt == null &&
+        entry.revision == source['revision'] &&
+        jsonEncode(entry.conversation?.turns) == jsonEncode(source['turns']);
+  }
+
+  Future<bool> _historyCurrent(DiaryHistorySelection source) async {
+    for (final s in source.sources) {
+      final entry =
+          (await ref.read(diaryRepositoryProvider).openDocument(s.uuid)).entry;
+      if (entry == null ||
+          entry.deletedAt != null ||
+          entry.date.key != s.date) {
+        return false;
+      }
+      // Selection versions include exact text and update time.
+      if (itemVersion(entry) != s.version) return false;
+    }
+    return true;
   }
 
   Future<void> retry() async {
@@ -510,6 +696,15 @@ class AiJobs extends Notifier<AiJobState> {
     if (!ref.mounted || job == null || !job.terminal) return;
     ++_epoch;
     await ref.read(aiJobStoreProvider).release(job);
+    if (job.operation == AiOperation.photoQuestions) {
+      try {
+        await ref
+            .read(diaryPhotoQuestionStoreProvider)
+            .deleteUpload(jsonDecode(job.source)['upload'] as String);
+      } catch (_) {
+        /* Expiry cleanup retries. */
+      }
+    }
     if (ref.mounted) state = const AiJobState(loaded: true);
     await _ackReceipts();
   }

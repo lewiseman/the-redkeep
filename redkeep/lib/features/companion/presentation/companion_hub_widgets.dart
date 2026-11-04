@@ -302,7 +302,7 @@ class CompanionReadinessStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     final capabilities = (state.status?['capabilities'] as List? ?? const [])
         .whereType<Map>()
-        .where((c) => const {'text', 'embedding'}.contains(c['id']))
+        .where((c) => const {'text', 'embedding', 'vision', 'transcription'}.contains(c['id']))
         .toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

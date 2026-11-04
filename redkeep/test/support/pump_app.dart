@@ -1,3 +1,5 @@
+import 'package:redkeep/features/voice/application/voice_coordination.dart';
+import 'package:redkeep/features/voice/application/voice_capture.dart';
 import 'package:drift/native.dart';
 import 'package:redkeep/core/storage/app_database.dart';
 import 'package:redkeep/features/companion/application/companion_controller.dart';
@@ -62,6 +64,7 @@ Future<GoRouter> pumpApp(
   CompanionState? companion,
   MemoryAiTasks? tasks,
   GuideVoice? guideVoice,
+  VoiceCapture Function(String)? voiceCapture,
 }) async {
   final db = database ?? AppDatabase(NativeDatabase.memory());
   if (database == null) addTearDown(db.close);
@@ -71,6 +74,8 @@ Future<GoRouter> pumpApp(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        if (voiceCapture != null)
+          voiceCaptureFactoryProvider.overrideWithValue(voiceCapture),
         appDatabaseProvider.overrideWithValue(db),
         companionControllerProvider.overrideWith(
           () => TestConnection(

@@ -1,3 +1,5 @@
+import 'photos/diary_photo_story_strip.dart';
+import '../application/diary_media_providers.dart';
 import '../../../core/presentation/diary_typography.dart';
 import '../../sync/application/sync_providers.dart';
 
@@ -14,69 +16,91 @@ class DiaryEntryPage extends ConsumerWidget {
   const DiaryEntryPage({super.key, required this.address});
   final DiaryAddress address;
   @override
-  Widget build(BuildContext context, WidgetRef ref) => DiaryWritingFrame(
-    title: 'Diary entry',
-    child: ref
-        .watch(diaryDocumentProvider(address.id))
-        .when(
-          loading: () => const Text('Loading entry…'),
-          error: (_, _) => TextButton(
-            onPressed: () => ref.invalidate(diaryDocumentProvider(address.id)),
-            child: const Text('Could not load entry. Retry'),
-          ),
-          data: (opened) {
-            final entry = opened.entry;
-            final available = opened.available && entry!.date == address.date;
-            return NotebookSurface(
-              variant: address.date.weekday,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    available
-                        ? diaryTitle(entry.text.title)
-                        : 'Entry unavailable',
-                    style: DiaryTypography.of(context).title,
-                  ),
-                  Text(address.date.key),
-                  if (available) ...[
-                    const SizedBox(height: 16),
-                    SelectableText(
-                      entry.text.body,
-                      style: DiaryTypography.of(context).body,
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(diaryPhotoStoreProvider);
+    return DiaryWritingFrame(
+      title: 'Diary entry',
+      child: ref
+          .watch(diaryDocumentProvider(address.id))
+          .when(
+            loading: () => const Text('Loading entry…'),
+            error: (_, _) => TextButton(
+              onPressed: () =>
+                  ref.invalidate(diaryDocumentProvider(address.id)),
+              child: const Text('Could not load entry. Retry'),
+            ),
+            data: (opened) {
+              final entry = opened.entry;
+              final available = opened.available && entry!.date == address.date;
+              return NotebookSurface(
+                variant: address.date.weekday,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      available
+                          ? diaryTitle(entry.text.title)
+                          : 'Entry unavailable',
+                      style: DiaryTypography.of(context).title,
                     ),
-                    const SizedBox(height: 16),
-                    OutlinedButton(
-                      onPressed: !ref.watch(syncCanEditProvider)
-                          ? null
-                          : () => context.go(
-                              diaryEntryLocation(
-                                address.date,
-                                address.id,
-                                edit: true,
+                    Text(address.date.key),
+                    if (available) ...[
+                      const SizedBox(height: 16),
+                      if (entry.photos.isNotEmpty)
+                        DiaryPhotoStoryStrip(
+                          item: entry,
+                          onOpen: () => context.push(
+                            '${diaryEntryLocation(address.date, address.id)}/photos',
+                          ),
+                        ),
+                      if (entry.text.body.isNotEmpty)
+                        SelectableText(
+                          entry.text.body,
+                          style: DiaryTypography.of(context).body,
+                        ),
+                      const SizedBox(height: 16),
+                      if (entry.conversation != null)
+                        ActionChip(
+                          avatar: const Icon(Icons.forum_outlined, size: 18),
+                          label: const Text('Conversation'),
+                          onPressed: () => context.push(
+                            '${diaryEntryLocation(address.date, address.id)}/conversation',
+                          ),
+                        ),
+                      OutlinedButton(
+                        onPressed: !ref.watch(syncCanEditProvider)
+                            ? null
+                            : () => context.go(
+                                diaryEntryLocation(
+                                      address.date,
+                                      address.id,
+                                      edit: entry.photos.isEmpty,
+                                    ) +
+                                    (entry.photos.isNotEmpty ? '/photos' : ''),
                               ),
-                            ),
-                      child: const Text('Edit entry'),
-                    ),
+                        child: const Text('Edit entry'),
+                      ),
+                      OutlinedButton(
+                        onPressed:
+                            !ref.watch(syncCanEditProvider) ||
+                                ref.watch(diaryActionsProvider)
+                            ? null
+                            : () => _delete(context, ref, entry),
+                        child: const Text('Delete entry'),
+                      ),
+                    ],
                     OutlinedButton(
-                      onPressed:
-                          !ref.watch(syncCanEditProvider) ||
-                              ref.watch(diaryActionsProvider)
-                          ? null
-                          : () => _delete(context, ref, entry),
-                      child: const Text('Delete entry'),
+                      onPressed: () =>
+                          context.go(diaryDayLocation(address.date)),
+                      child: const Text('Return to day'),
                     ),
                   ],
-                  OutlinedButton(
-                    onPressed: () => context.go(diaryDayLocation(address.date)),
-                    child: const Text('Return to day'),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
-  );
+                ),
+              );
+            },
+          ),
+    );
+  }
 
   Future<void> _delete(
     BuildContext context,

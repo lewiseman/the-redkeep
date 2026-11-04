@@ -47,6 +47,59 @@ void main() {
   NoteEditorController editor() => scope.read(provider.notifier);
   NoteEditorState state() => scope.read(provider).requireValue;
 
+  test(
+    'dictation appends to an empty note working buffer and normal save commits',
+    () async {
+      final newId = (await scope.read(notesActionsProvider.notifier).create())!;
+      final fresh = noteEditorProvider(newId);
+      scope.listen(fresh, (_, _) {});
+      final before = await scope.read(fresh.future);
+      final controller = scope.read(fresh.notifier);
+      expect(
+        await controller.appendReviewedTranscript(
+          expected: before,
+          transcript: ' Spoken words ',
+          stillCurrent: () => true,
+        ),
+        isTrue,
+      );
+      expect(scope.read(fresh).requireValue.text.body, 'Spoken words');
+      expect((await inner.openDocument(newId)).note, isNull);
+      expect(await controller.save(), isTrue);
+      expect((await inner.openDocument(newId)).note!.text.body, 'Spoken words');
+    },
+  );
+  test('dictation rejects editor changes and repository changes without replacing words', () async {
+    final before = state();
+    editor().edit(const PlainTextDocument(body: 'Manual words'));
+    expect(
+      await editor().appendReviewedTranscript(
+        expected: before,
+        transcript: 'Voice',
+        stillCurrent: () => true,
+      ),
+      isFalse,
+    );
+    expect(state().text.body, 'Manual words');
+    await editor().flushRecovery();
+    final current = state();
+    await inner.putDraft(
+      id: id,
+      text: const PlainTextDocument(body: 'Other draft'),
+      baseRevision: 0,
+      expectedDraftRevision: current.draftRevision,
+    );
+    expect(
+      await editor().appendReviewedTranscript(
+        expected: current,
+        transcript: 'Voice',
+        stillCurrent: () => true,
+      ),
+      isFalse,
+    );
+    expect(state().text.body, 'Manual words');
+  });
+
   test('opening a new note and whitespace edits create no draft', () async {
     final newId = await scope.read(notesActionsProvider.notifier).create();
     expect(newId, copyId);

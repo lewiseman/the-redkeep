@@ -1,5 +1,8 @@
 import 'dart:convert';
 
+import '../../diary/domain/diary_photo.dart';
+import '../../diary/domain/diary_ai_conversation.dart';
+
 import '../../diary/domain/civil_date.dart';
 import '../../diary/domain/diary_day_details.dart';
 
@@ -44,7 +47,10 @@ class DriftSyncCollection implements SyncCollection {
   Future<SyncDocument?> read(String id) async => db.transaction(() async {
     final record = await _record(id);
     if (record == null) return null;
-    final payload = <String, dynamic>{'schema': 1, 'id': id};
+    final payload = <String, dynamic>{
+      'schema': type == 'diary' ? 2 : 1,
+      'id': id,
+    };
     if (record.removed) {
       payload['removed'] = true;
     } else if (type == 'diary') {
@@ -65,6 +71,10 @@ class DriftSyncCollection implements SyncCollection {
               'id': e.id,
               'title': e.title,
               'body': e.body,
+              'photos': jsonDecode(e.photos),
+              'conversation': e.conversation == null
+                  ? null
+                  : jsonDecode(e.conversation!),
               'created_at': e.createdAt,
               'updated_at': e.updatedAt,
               'deleted_at': e.deletedAt,
@@ -105,7 +115,7 @@ class DriftSyncCollection implements SyncCollection {
   @override
   SyncDocument decode(Map<String, dynamic> payload) {
     final id = payload['id'];
-    if (payload['schema'] != 1 ||
+    if (!(type == 'diary' ? {1, 2} : {1}).contains(payload['schema']) ||
         id is! String ||
         (type == 'diary'
             ? CivilDate.tryParse(id) == null
@@ -135,7 +145,20 @@ class DriftSyncCollection implements SyncCollection {
         final themes = normalizeDiaryThemes(
           (payload['themes'] as List? ?? const []).cast<String>(),
         );
-        payload = {...payload, 'mood': payload['mood'], 'themes': themes};
+        payload = {
+          ...payload,
+          'schema': 2,
+          'mood': payload['mood'],
+          'themes': themes,
+          'entries': [
+            for (final item in payload['entries'] as List)
+              {
+                ...Map<String, dynamic>.from(item as Map),
+                'photos': item['photos'] ?? [],
+                'conversation': item['conversation'],
+              },
+          ],
+        };
         final ids = <String>{};
         for (final item in payload['entries'] as List) {
           if (item is! Map<String, dynamic> ||
@@ -145,6 +168,7 @@ class DriftSyncCollection implements SyncCollection {
             throw const FormatException('Invalid diary entry.');
           }
           _validateText(item, title: true);
+          _validateDiaryMedia(item);
         }
       } else {
         _validateText(payload, title: type == 'note');
@@ -159,6 +183,47 @@ class DriftSyncCollection implements SyncCollection {
       }
     }
     return SyncDocument(id: id, payload: payload);
+  }
+
+  void _validateDiaryMedia(Map<String, dynamic> item) {
+    final photos = item['photos'];
+    if (photos is! List ||
+        photos.length > 100 ||
+        jsonEncode(photos).length > 1000000) {
+      throw const FormatException('Invalid diary photos.');
+    }
+    final ids = <String>{};
+    for (final raw in photos) {
+      final photo = DiaryPhoto.fromJson(Map<String, dynamic>.from(raw as Map));
+      if (!ids.add(photo.id) ||
+          !RegExp(r'^[a-zA-Z0-9_-]{8,80}$').hasMatch(photo.id) ||
+          !RegExp(r'^diary_photos/[a-zA-Z0-9_-]+\.[a-zA-Z0-9]{1,5}$')
+              .hasMatch(photo.path) ||
+          !RegExp(r'^[a-f0-9]{64}$').hasMatch(photo.sha256)) {
+        throw const FormatException('Invalid photo reference.');
+      }
+    }
+    final conversation = item['conversation'];
+    if (conversation != null) {
+      final parsed = DiaryAiConversation.tryParse(conversation);
+      if (parsed == null ||
+          !parsed.hasUserTurn ||
+          parsed.turns.length > 24 ||
+          parsed.turns.length != (conversation as Map)['turns'].length ||
+          photos.isNotEmpty ||
+          jsonEncode(conversation).length > 131072) {
+        throw const FormatException('Invalid saved conversation.');
+      }
+    }
+    if (photos.isNotEmpty &&
+        item['deleted_at'] == null &&
+        item['body'] !=
+            DiaryPhoto.composeContent([
+              for (final p in photos)
+                DiaryPhoto.fromJson(Map<String, dynamic>.from(p as Map)),
+            ])) {
+      throw const FormatException('Photo writing does not match the story.');
+    }
   }
 
   void _validateText(Map<String, dynamic> p, {required bool title}) {
@@ -306,6 +371,24 @@ class DriftSyncCollection implements SyncCollection {
     if (old != null && old.dateKey != date) {
       throw const FormatException('Diary entry belongs to another day.');
     }
+    final kept = {
+      for (final p in item['photos'] as List? ?? []) (p as Map)['path'],
+    };
+    for (final raw in jsonDecode(old?.photos ?? '[]') as List) {
+      final path = (raw as Map)['path'] as String;
+      if (!kept.contains(path) || item['deleted_at'] != null) {
+        await db
+            .into(db.diaryMediaOps)
+            .insertOnConflictUpdate(
+              DiaryMediaOpsCompanion.insert(
+                path: path,
+                action: 'delete',
+                owner: item['id'] as String,
+                created: DateTime.now().millisecondsSinceEpoch,
+              ),
+            );
+      }
+    }
     await db
         .into(db.diaryEntries)
         .insertOnConflictUpdate(
@@ -314,6 +397,12 @@ class DriftSyncCollection implements SyncCollection {
             dateKey: date,
             title: item['title'] as String,
             body: item['body'] as String,
+            photos: Value(jsonEncode(item['photos'] ?? [])),
+            conversation: Value(
+              item['conversation'] == null
+                  ? null
+                  : jsonEncode(item['conversation']),
+            ),
             revision: (old?.revision ?? 0) + 1,
             createdAt: item['created_at'] as int,
             updatedAt: item['updated_at'] as int,
@@ -331,7 +420,7 @@ class DriftSyncCollection implements SyncCollection {
     final p =
         remote?.payload ??
         {
-          'schema': 1,
+          'schema': 2,
           'id': operations.first.documentId,
           'heading': '',
           'entries': <Map<String, dynamic>>[],

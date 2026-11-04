@@ -1,3 +1,4 @@
+import '../../voice/application/voice_coordination.dart';
 import '../../../core/storage/app_database.dart';
 
 import 'dart:async';
@@ -105,6 +106,9 @@ class RecallController extends Notifier<RecallState> {
       }
       schedule();
     });
+    ref.listen(voiceActiveProvider, (_, active) {
+      if (active) { _epoch++; _timer?.cancel(); } else { schedule(); }
+    });
     ref.listen(aiPreferencesProvider, (previous, next) {
       if (!next.hasValue) return;
       final old = previous?.value?.collections;
@@ -127,7 +131,7 @@ class RecallController extends Notifier<RecallState> {
 
   void schedule({Duration delay = const Duration(milliseconds: 650)}) {
     _timer?.cancel();
-    if (!_foreground) return;
+    if (!_foreground || ref.read(voiceActiveProvider)) return;
     _timer = Timer(delay, () => unawaited(run()));
   }
 
@@ -212,7 +216,7 @@ class RecallController extends Notifier<RecallState> {
 
   Future<void> _runOnce() async {
     await _maintenance;
-    if (!ref.mounted || !_foreground || _maintenanceFailed) return;
+    if (!ref.mounted || !_foreground || ref.read(voiceActiveProvider) || _maintenanceFailed) return;
     try {
       if (await ref.read(aiPreferencesRepositoryProvider).cleanupRequired()) {
         await _rebuild();
@@ -450,6 +454,7 @@ class RecallController extends Notifier<RecallState> {
     final connection = ref.read(companionControllerProvider);
     final profile = RecallProfile.fromStatus(connection.status);
     if (!_foreground ||
+        ref.read(voiceActiveProvider) ||
         _maintenanceFailed ||
         ref.read(appDatabaseProvider).writingBlocked ||
         !prefs.collections.contains(kind) ||

@@ -1,3 +1,5 @@
+import '../features/notes/presentation/note_ai_sheet.dart';
+import '../features/notes/presentation/note_ai_widgets.dart';
 import '../features/diary/presentation/diary_photos_page.dart';
 import '../features/voice/presentation/diary_conversation_page.dart';
 import '../features/voice/presentation/diary_talk_page.dart';
@@ -213,6 +215,18 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
                 pageBuilder: (context, state) =>
                     _page(state, const NotesListPage()),
                 routes: [
+                  GoRoute(
+                    path: 'ai-search',
+                    pageBuilder: (context, state) => _page(
+                      state,
+                      const NoteAiToolPage(tool: NoteAiTool.search),
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'ai-task',
+                    pageBuilder: (context, state) =>
+                        _page(state, const RetainedNoteAiPage()),
+                  ),
                   GoRoute(
                     path: ':id',
                     pageBuilder: (context, state) => _page(

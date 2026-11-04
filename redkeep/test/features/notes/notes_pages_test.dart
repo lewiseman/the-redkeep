@@ -1,3 +1,4 @@
+import 'package:redkeep/features/notes/presentation/note_markdown_preview.dart';
 import 'package:redkeep/features/assets/presentation/local_artwork.dart';
 import 'package:redkeep/features/notes/presentation/note_card.dart';
 import 'package:redkeep/features/notes/presentation/note_paper_surface.dart';
@@ -52,6 +53,21 @@ void main() {
     FocusManager.instance.primaryFocus?.unfocus();
     await tester.pumpAndSettle();
     if (text == 'Save note') text = 'Save';
+    if (text == 'Save' &&
+        find.text('Save').evaluate().isEmpty &&
+        find.byTooltip('Save note').evaluate().isNotEmpty) {
+      await tester.tap(find.byTooltip('Save note'));
+      await tester.pumpAndSettle();
+      return;
+    }
+    if (text == 'Cancel' &&
+        find.byTooltip('Cancel tags').evaluate().isNotEmpty) {
+      await tester.ensureVisible(find.byTooltip('Cancel tags'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Cancel tags'));
+      await tester.pumpAndSettle();
+      return;
+    }
     final noteActions = {
       'Pin note',
       'Unpin note',
@@ -249,7 +265,7 @@ void main() {
       notes: repo,
       noteId: () => id,
     );
-    expect(find.text('A little room for your thoughts'), findsOneWidget);
+    expect(find.text('Every idea\nstarts somewhere.'), findsOneWidget);
     await tap(tester, 'Create note');
     expect(
       router.routeInformationProvider.value.uri.path,
@@ -263,7 +279,18 @@ void main() {
     await tester.pumpAndSettle();
     await tap(tester, 'Save note');
     expect(find.text('Saved revision 1 on this device.'), findsOneWidget);
-    expect(find.text('Hello 👩🏽‍💻\nHabari • 中文'), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is NoteMarkdownPreview &&
+            widget.text == 'Hello 👩🏽‍💻\nHabari • 中文',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      (await repo.openDocument(id)).note!.text.body,
+      'Hello 👩🏽‍💻\nHabari • 中文',
+    );
     await tap(tester, 'Edit note');
     await tester.enterText(
       find.byKey(const ValueKey('note-body')),
@@ -435,7 +462,7 @@ void main() {
         await tester.tap(find.text('Retry loading').first);
         await tester.pumpAndSettle();
       }
-      expect(find.text('A little room for your thoughts'), findsOneWidget);
+      expect(find.text('Every idea\nstarts somewhere.'), findsOneWidget);
       expect(tester.takeException(), isNull);
       // Router from the first disposed scope is intentionally never reused.
       expect(router, isNotNull);
@@ -474,12 +501,12 @@ void main() {
           router.go(noteLocation(id));
           await tester.pumpAndSettle();
           expect(find.text('Saved revision 1'), findsOneWidget);
-          await tap(tester, 'Markdown preview');
-          expect(tester.takeException(), isNull);
           await tap(tester, 'Show plain text');
+          expect(tester.takeException(), isNull);
+          await tap(tester, 'Markdown preview');
           await tap(tester, 'Edit tags');
           await tester.enterText(
-            find.byKey(const ValueKey('note-tags')),
+            find.byKey(const ValueKey('tag-search')),
             '工作, travel',
           );
           await tap(tester, 'Cancel');
@@ -655,11 +682,17 @@ void main() {
       expect((await repo.openDocument(id)).note!.pinned, isTrue);
       await tap(tester, 'Edit tags');
       await tester.enterText(
-        find.byKey(const ValueKey('note-tags')),
-        ' Travel, TRAVEL, 工作',
+        find.byKey(const ValueKey('tag-search')),
+        'travel',
       );
-      await tap(tester, 'Save tags');
-      expect((await repo.openDocument(id)).note!.tags, ['travel', '工作']);
+      await tap(tester, 'Create');
+      await tester.enterText(find.byKey(const ValueKey('tag-search')), '工作');
+      await tap(tester, 'Create');
+      await tap(tester, 'Apply tags');
+      expect((await repo.openDocument(id)).note!.tags, [
+        '🏷️#travel',
+        '🏷️#工作',
+      ]);
       router.go('/notes');
       await tester.pumpAndSettle();
       await tester.enterText(
@@ -667,9 +700,9 @@ void main() {
         'synthetic',
       );
       await tap(tester, 'Pinned only');
-      await tester.tap(find.byKey(const ValueKey('notes-tag-travel')));
+      await tester.tap(find.byKey(const ValueKey('notes-tag-🏷️#travel')));
       await tester.pumpAndSettle();
-      expect(tester.container().read(notesFilterProvider).tag, 'travel');
+      expect(tester.container().read(notesFilterProvider).tag, '🏷️#travel');
       await tester.scrollUntilVisible(
         find.text('Synthetic note'),
         200,
@@ -692,7 +725,10 @@ void main() {
       );
       await tap(tester, 'Restore note');
       expect(find.text('Note unavailable'), findsNothing);
-      expect((await repo.openDocument(id)).note!.tags, ['travel', '工作']);
+      expect((await repo.openDocument(id)).note!.tags, [
+        '🏷️#travel',
+        '🏷️#工作',
+      ]);
       await tap(tester, 'Delete note');
       await tap(tester, 'Delete');
       tester

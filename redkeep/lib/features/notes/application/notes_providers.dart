@@ -11,6 +11,9 @@ import '../domain/note_collection_entry.dart';
 import '../domain/notes_repository.dart';
 import '../domain/notes_query.dart';
 
+/// Allows static rendering in previews and offline UI checks.
+final notesAmbientMotionProvider = Provider<bool>((ref) => true);
+
 final notesClockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
 final noteIdProvider = Provider<String Function()>((ref) {
   final random = Random.secure();

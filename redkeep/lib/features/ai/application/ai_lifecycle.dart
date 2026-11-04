@@ -1,3 +1,7 @@
+import '../../notes/application/notes_providers.dart';
+import '../../../app/navigation_destination.dart';
+import '../../notes/presentation/website/website_assets.dart';
+import '../../notes/data/note_media_store.dart';
 import '../../voice/application/voice_receipts.dart';
 
 import 'package:go_router/go_router.dart';
@@ -51,6 +55,8 @@ final aiResetProvider = Provider<Future<void> Function()>(
     await ref.read(aiJobStoreProvider).clear();
     await ref.read(voiceStoreProvider).clearAll();
     await DiaryPickerRecovery().reset();
+    clearNoteWebsiteCache();
+    await ref.read(noteMediaStoreProvider).clearAll();
     await ref.read(diaryPhotoStoreProvider).clearAll();
     await ref.read(diaryPhotoQuestionStoreProvider).clearAll();
     ref.invalidate(diaryPhotoQuestionProvider);
@@ -65,6 +71,7 @@ final aiResetProvider = Provider<Future<void> Function()>(
 final aiResumeAfterResetProvider = Provider<void Function()>(
   (ref) => () {
     if (!ref.read(aiEnabledProvider)) return;
+    ref.invalidate(noteMediaStoreProvider);
     ref.invalidate(diaryPhotoStoreProvider);
     ref.invalidate(diaryPhotoQuestionStoreProvider);
     ref.invalidate(voiceReceiptsProvider);
@@ -73,6 +80,9 @@ final aiResumeAfterResetProvider = Provider<void Function()>(
     ref.read(aiJobsProvider.notifier).foreground(active);
     ref.read(recallControllerProvider.notifier).foreground(active);
     if (active) {
+      unawaited(
+        ref.read(noteMediaStoreProvider).reconcile().catchError((_) {}),
+      );
       unawaited(ref.read(voiceReceiptsProvider).drain().catchError((_) {}));
     }
   },
@@ -95,12 +105,34 @@ class _AiLifecycleHostState extends ConsumerState<AiLifecycleHost>
       if (mounted && ref.read(aiEnabledProvider)) {
         _foreground(ref.read(aiForegroundProvider));
         unawaited(ref.read(voiceStoreProvider).cleanup().catchError((_) {}));
-        unawaited(_recoverPicker());
+        unawaited(_recoverPicker().then((_) => _recoverNotePicker()));
         unawaited(
           ref.read(diaryPhotoStoreProvider).reconcile().catchError((_) {}),
         );
       }
     });
+  }
+
+  Future<void> _recoverNotePicker() async {
+    try {
+      final pending = await ref.read(noteMediaStoreProvider).pendingPhoto();
+      if (!mounted || pending == null) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          duration: const Duration(seconds: 30),
+          content: const Text('Your selected note photo was recovered.'),
+          action: SnackBarAction(
+            label: 'Open note',
+            onPressed: () {
+              ref.read(noteNewIdsProvider.notifier).add(pending.id);
+              context.push(noteLocation(pending.id, edit: true));
+            },
+          ),
+        ),
+      );
+    } catch (_) {
+      /* Retain the picker address and retry on the next startup. */
+    }
   }
 
   Future<void> _recoverPicker() async {

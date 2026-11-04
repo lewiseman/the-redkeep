@@ -15,6 +15,7 @@ final noteEditorProvider = AsyncNotifierProvider.autoDispose
 class NoteEditorState {
   const NoteEditorState({
     required this.text,
+    this.details = const NoteDetails(),
     required this.baseRevision,
     this.draftRevision,
     this.editVersion = 0,
@@ -25,6 +26,7 @@ class NoteEditorState {
     this.sourceUnavailable = false,
   });
   final PlainTextDocument text;
+  final NoteDetails details;
   final int baseRevision;
   final int? draftRevision;
   final int editVersion;
@@ -42,6 +44,7 @@ class NoteEditorController extends AsyncNotifier<NoteEditorState> {
   final String id;
   late NotesRepository _repository;
   late PlainTextDocument _text;
+  NoteDetails _details = const NoteDetails();
   late int _baseRevision;
   int? _draftRevision;
   bool _unavailable = false;
@@ -55,14 +58,19 @@ class NoteEditorController extends AsyncNotifier<NoteEditorState> {
   @override
   Future<NoteEditorState> build() async {
     _repository = ref.watch(notesRepositoryProvider);
+    final allocated = ref.read(noteNewIdsProvider).contains(id);
     final opened = await _repository.openDocument(id);
     if (!opened.available &&
         opened.draft == null &&
-        (opened.note != null || !ref.read(noteNewIdsProvider).contains(id))) {
+        (opened.note != null || !allocated)) {
       throw const NoteException(NoteFailure.unavailable);
     }
     _text =
         opened.draft?.text ?? opened.note?.text ?? const PlainTextDocument();
+    _details =
+        opened.draft?.details ??
+        opened.note?.details.copy(tags: opened.note!.tags) ??
+        const NoteDetails();
     _baseRevision = opened.draft?.baseRevision ?? opened.note?.revision ?? 0;
     _draftRevision = opened.draft?.draftRevision;
     _unavailable = !opened.available && _baseRevision != 0;
@@ -75,6 +83,7 @@ class NoteEditorController extends AsyncNotifier<NoteEditorState> {
 
   NoteEditorState _snapshot({String? message}) => NoteEditorState(
     text: _text,
+    details: _details,
     baseRevision: _baseRevision,
     draftRevision: _draftRevision,
     editVersion: _sequence,
@@ -92,6 +101,15 @@ class NoteEditorController extends AsyncNotifier<NoteEditorState> {
   void edit(PlainTextDocument text) {
     if (_saving || !state.hasValue) return;
     _text = text;
+    _sequence++;
+    _recoveryFailed = false;
+    _publish();
+    unawaited(flushRecovery());
+  }
+
+  void editDetails(NoteDetails details) {
+    if (_saving || !state.hasValue) return;
+    _details = details;
     _sequence++;
     _recoveryFailed = false;
     _publish();
@@ -213,7 +231,7 @@ class NoteEditorController extends AsyncNotifier<NoteEditorState> {
       final sequence = _sequence;
       final text = _text;
       try {
-        if (text.isEmpty) {
+        if (text.isEmpty && !_details.hasWriting) {
           if (_draftRevision != null) {
             await _repository.discardDraft(id, _draftRevision!);
             _draftRevision = null;
@@ -222,6 +240,7 @@ class NoteEditorController extends AsyncNotifier<NoteEditorState> {
           final draft = await _repository.putDraft(
             id: id,
             text: text,
+            details: _details,
             baseRevision: _baseRevision,
             expectedDraftRevision: _draftRevision,
           );
@@ -242,7 +261,9 @@ class NoteEditorController extends AsyncNotifier<NoteEditorState> {
   }
 
   Future<bool> save() async {
-    if (_saving || !state.hasValue || _text.isEmpty) return false;
+    if (_saving || !state.hasValue || (_text.isEmpty && !_details.hasWriting)) {
+      return false;
+    }
     _saving = true;
     _publish();
     final keep = ref.keepAlive();
@@ -286,7 +307,9 @@ class NoteEditorController extends AsyncNotifier<NoteEditorState> {
 
   /// Explicit conflict recovery; the source and its recovery draft are retained.
   Future<String?> saveCopy() async {
-    if (_saving || !state.hasValue || _text.isEmpty) return null;
+    if (_saving || !state.hasValue || (_text.isEmpty && !_details.hasWriting)) {
+      return null;
+    }
     final newId = ref.read(noteIdProvider)();
     _saving = true;
     _publish();
@@ -295,6 +318,7 @@ class NoteEditorController extends AsyncNotifier<NoteEditorState> {
       final draft = await _repository.putDraft(
         id: newId,
         text: _text,
+        details: _details,
         baseRevision: 0,
         expectedDraftRevision: null,
       );

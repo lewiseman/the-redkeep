@@ -7,6 +7,11 @@ environment:
   sdk: ^3.13.4
 
 dependencies:
+  html: 0.15.7
+  file_picker: ^13.1.0
+  open_filex: ^5.0.0
+  mime: ^2.0.0
+  webview_flutter: ^4.14.1
   sync_wise:
     path: packages/sync_wise
   bonsoir: 7.1.6
@@ -47,8 +52,14 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  shaders:
+    - shaders/wabi_sabi.frag
   assets:
     - assets/catalog/presentation-v1.json
     - assets/branding/grand_maestar.png
     - assets/branding/ink-paper.webp
     - assets/licenses/Allura-OFL.txt
+    - assets/fonts/Caveat-Medium.ttf
+    - assets/fonts/Lora-Regular.ttf
+    - assets/licenses/Caveat-OFL.txt
+    - assets/licenses/Lora-OFL.txt

@@ -56,12 +56,13 @@ class DriftNotesRepository implements NotesRepository {
     // excerpt crosses the database boundary, even for very large documents.
     final source = query.trash
         ? '''SELECT id, title, body, updated_at, pinned, deleted_at,
-             0 AS is_draft, 0 AS source_unavailable FROM notes'''
+             details, 0 AS is_draft, 0 AS source_unavailable FROM notes'''
         : '''SELECT ids.id,
              CASE WHEN d.id IS NOT NULL THEN d.title ELSE n.title END AS title,
              CASE WHEN d.id IS NOT NULL THEN d.body ELSE n.body END AS body,
              CASE WHEN d.id IS NOT NULL THEN d.updated_at ELSE n.updated_at END AS updated_at,
              coalesce(n.pinned, 0) AS pinned, n.deleted_at,
+             CASE WHEN d.id IS NOT NULL THEN d.details ELSE n.details END AS details,
              (d.id IS NOT NULL) AS is_draft,
              (d.id IS NOT NULL AND d.base_revision > 0 AND
                (n.id IS NULL OR n.deleted_at IS NOT NULL)) AS source_unavailable
@@ -72,7 +73,8 @@ class DriftNotesRepository implements NotesRepository {
         .customSelect(
           '''WITH effective AS ($source)
          SELECT id, title, substr(body, 1, ${NoteCollectionEntry.excerptCharacters}) AS excerpt,
-           updated_at, pinned, is_draft, source_unavailable
+           updated_at, pinned, is_draft, source_unavailable,
+           json_remove(details, '\$.website', '\$.websiteSourceHash') AS card_details
          FROM effective WHERE ${conditions.join(' AND ')}
          ORDER BY pinned DESC, updated_at DESC, id''',
           variables: variables,
@@ -93,6 +95,7 @@ class DriftNotesRepository implements NotesRepository {
                 pinned: row.read<int>('pinned') == 1,
                 isDraft: row.read<int>('is_draft') == 1,
                 sourceUnavailable: row.read<int>('source_unavailable') == 1,
+                details: NoteDetails.decode(row.read<String>('card_details')),
               ),
           ],
         );
@@ -205,7 +208,15 @@ class DriftNotesRepository implements NotesRepository {
         note: note == null
             ? null
             : _note(note, tags.map((t) => t.tag).toList()),
-        draft: draft == null ? null : _draft(draft),
+        draft: draft == null
+            ? null
+            : _draft(
+                draft,
+                legacyDetails: note == null
+                    ? null
+                    : NoteDetails.decode(note.details)
+                          .copy(tags: tags.map((t) => t.tag).toList()),
+              ),
       );
     });
   }
@@ -216,6 +227,7 @@ class DriftNotesRepository implements NotesRepository {
     required PlainTextDocument text,
     required int baseRevision,
     required int? expectedDraftRevision,
+    NoteDetails? details,
   }) async {
     return _db.transaction(() async {
       await checkWritingAccess(_db, _generation, recoveryOnly: true);
@@ -228,7 +240,16 @@ class DriftNotesRepository implements NotesRepository {
           (old != null && old.baseRevision != baseRevision)) {
         throw const NoteException(NoteFailure.draftChanged);
       }
-      if (text.isEmpty) throw const NoteException(NoteFailure.empty);
+      final source = await openDocument(id);
+      final effectiveDetails =
+          details ??
+          source.draft?.details ??
+          source.note?.details.copy(tags: source.note!.tags) ??
+          const NoteDetails();
+      NoteDetails.decode(effectiveDetails.encode());
+      if (text.isEmpty && !effectiveDetails.hasWriting) {
+        throw const NoteException(NoteFailure.empty);
+      }
       final now = _clock().toUtc().millisecondsSinceEpoch;
       if (old != null) await discardDraft(id, old.draftRevision);
       final version = await _db
@@ -238,6 +259,7 @@ class DriftNotesRepository implements NotesRepository {
               id: id,
               title: text.title,
               body: text.body,
+              details: Value(effectiveDetails.encode()),
               baseRevision: baseRevision,
               updatedAt: now,
             ),
@@ -245,6 +267,7 @@ class DriftNotesRepository implements NotesRepository {
       return RecoveryDraft(
         id: id,
         text: text,
+        details: effectiveDetails,
         baseRevision: baseRevision,
         draftRevision: version,
         updatedAt: DateTime.fromMillisecondsSinceEpoch(now, isUtc: true),
@@ -286,6 +309,7 @@ class DriftNotesRepository implements NotesRepository {
                 id: id,
                 title: draft.text.title,
                 body: draft.text.body,
+                details: Value(draft.details.encode()),
                 revision: revision,
                 createdAt: now.millisecondsSinceEpoch,
                 updatedAt: now.millisecondsSinceEpoch,
@@ -303,12 +327,14 @@ class DriftNotesRepository implements NotesRepository {
                   NotesCompanion(
                     title: Value(draft.text.title),
                     body: Value(draft.text.body),
+                    details: Value(draft.details.encode()),
                     revision: Value(revision),
                     updatedAt: Value(now.millisecondsSinceEpoch),
                   ),
                 );
         if (count != 1) throw const NoteException(NoteFailure.staleRevision);
       }
+      await _putTags(id, draft.details.tags);
       await discardDraft(id, expectedDraftRevision);
       return NoteDocument(
         id: id,
@@ -317,7 +343,8 @@ class DriftNotesRepository implements NotesRepository {
         createdAt: old?.createdAt ?? now,
         updatedAt: now,
         pinned: old?.pinned ?? false,
-        tags: old?.tags ?? const [],
+        tags: draft.details.tags,
+        details: draft.details,
       );
     });
   }
@@ -461,23 +488,153 @@ class DriftNotesRepository implements NotesRepository {
     });
   }
 
+  Future<void> _putTags(String id, List<String> tags) async {
+    NoteDetails.decode(NoteDetails(tags: tags).encode());
+    await (_db.delete(_db.noteTags)..where((r) => r.noteId.equals(id))).go();
+    for (final tag in tags.toSet()) {
+      await _db
+          .into(_db.noteTags)
+          .insert(NoteTagsCompanion.insert(noteId: id, tag: tag));
+    }
+  }
+
+  @override
+  Future<NoteDocument> applyProposal(
+    String id,
+    int expectedRevision, {
+    required PlainTextDocument text,
+    required NoteDetails details,
+    required String taskId,
+    required String operation,
+    bool retainPrior = true,
+  }) => _db.transaction(() async {
+    await checkWritingAccess(_db, _generation);
+    _validate(id);
+    NoteDetails.decode(details.encode());
+    final opened = await openDocument(id);
+    if (!opened.available ||
+        opened.note!.revision != expectedRevision ||
+        opened.draft != null) {
+      throw const NoteException(NoteFailure.staleRevision);
+    }
+    final old = opened.note!;
+    if (text.isEmpty && !details.hasWriting) {
+      throw const NoteException(NoteFailure.empty);
+    }
+    if (await (_db.select(
+          _db.noteAiRecoveries,
+        )..where((r) => r.taskId.equals(taskId))).getSingleOrNull() !=
+        null) {
+      throw const NoteException(NoteFailure.staleRevision);
+    }
+    final now = _clock().toUtc().millisecondsSinceEpoch;
+    await (_db.update(_db.notes)..where((r) => r.id.equals(id))).write(
+      NotesCompanion(
+        title: Value(text.title),
+        body: Value(text.body),
+        details: Value(details.encode()),
+        revision: Value(expectedRevision + 1),
+        updatedAt: Value(now),
+      ),
+    );
+    await _putTags(id, details.tags);
+    if (retainPrior) {
+      await _db
+          .into(_db.noteAiRecoveries)
+          .insert(
+            NoteAiRecoveriesCompanion.insert(
+              noteId: id,
+              taskId: taskId,
+              operation: operation,
+              title: old.text.title,
+              body: old.text.body,
+              details: old.details.copy(tags: old.tags).encode(),
+              appliedRevision: expectedRevision + 1,
+              created: now,
+            ),
+          );
+      await _db.customStatement(
+        'DELETE FROM note_ai_recoveries WHERE id NOT IN (SELECT id FROM note_ai_recoveries ORDER BY id DESC LIMIT 10)',
+      );
+    }
+    return (await openDocument(id)).note!;
+  });
+
+  @override
+  Future<List<NotePriorContent>> priorContent(String id) async => [
+    for (final r
+        in await (_db.select(_db.noteAiRecoveries)
+              ..where((r) => r.noteId.equals(id))
+              ..orderBy([(r) => OrderingTerm.desc(r.id)]))
+            .get())
+      NotePriorContent(
+        id: r.id,
+        noteId: r.noteId,
+        operation: r.operation,
+        title: r.title,
+        body: r.body,
+        details: NoteDetails.decode(r.details),
+        appliedRevision: r.appliedRevision,
+        created: DateTime.fromMillisecondsSinceEpoch(r.created, isUtc: true),
+      ),
+  ];
+
+  @override
+  Future<void> restorePriorContent(
+    String id,
+    int recoveryId,
+    int expectedRevision,
+  ) => _db.transaction(() async {
+    final prior = (await priorContent(id))
+        .where((r) => r.id == recoveryId)
+        .firstOrNull;
+    if (prior == null || prior.appliedRevision != expectedRevision) {
+      throw const NoteException(NoteFailure.staleRevision);
+    }
+    await applyProposal(
+      id,
+      expectedRevision,
+      text: PlainTextDocument(title: prior.title, body: prior.body),
+      details: prior.details,
+      taskId: 'restore-$recoveryId-$expectedRevision',
+      operation: 'restore',
+      retainPrior: false,
+    );
+  });
+
+  @override
+  Future<void> clearPriorContent(String id) async {
+    await checkWritingAccess(_db, _generation, recoveryOnly: true);
+    await (_db.delete(
+      _db.noteAiRecoveries,
+    )..where((r) => r.noteId.equals(id))).go();
+  }
+
   NoteDocument _note(Note r, List<String> tags) => NoteDocument(
     id: r.id,
     text: PlainTextDocument(title: r.title, body: r.body),
     revision: r.revision,
     pinned: r.pinned,
     tags: List.unmodifiable(tags),
+    details: NoteDetails.decode(r.details).copy(tags: tags),
     createdAt: DateTime.fromMillisecondsSinceEpoch(r.createdAt, isUtc: true),
     updatedAt: DateTime.fromMillisecondsSinceEpoch(r.updatedAt, isUtc: true),
     deletedAt: r.deletedAt == null
         ? null
         : DateTime.fromMillisecondsSinceEpoch(r.deletedAt!, isUtc: true),
   );
-  RecoveryDraft _draft(NoteDraft r) => RecoveryDraft(
-    id: r.id,
-    text: PlainTextDocument(title: r.title, body: r.body),
-    baseRevision: r.baseRevision,
-    draftRevision: r.draftRevision,
-    updatedAt: DateTime.fromMillisecondsSinceEpoch(r.updatedAt, isUtc: true),
-  );
+  RecoveryDraft _draft(NoteDraft r, {NoteDetails? legacyDetails}) =>
+      RecoveryDraft(
+        id: r.id,
+        text: PlainTextDocument(title: r.title, body: r.body),
+        details: r.details == '{}'
+            ? legacyDetails ?? const NoteDetails()
+            : NoteDetails.decode(r.details),
+        baseRevision: r.baseRevision,
+        draftRevision: r.draftRevision,
+        updatedAt: DateTime.fromMillisecondsSinceEpoch(
+          r.updatedAt,
+          isUtc: true,
+        ),
+      );
 }

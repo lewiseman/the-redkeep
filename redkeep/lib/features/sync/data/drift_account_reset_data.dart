@@ -10,6 +10,8 @@ class DriftAccountResetData implements AccountResetLocalData {
   Future<void> clear() async {
     await beforeClear?.call();
     await db.transaction(() async {
+      await db.delete(db.noteAiRecoveries).go();
+      await db.delete(db.noteMediaOps).go();
       await db.delete(db.noteTags).go();
       await db.delete(db.noteDrafts).go();
       await db.delete(db.notes).go();

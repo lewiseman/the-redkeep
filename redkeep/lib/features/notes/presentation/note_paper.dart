@@ -1,3 +1,5 @@
+import 'note_scene.dart';
+
 import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
@@ -367,7 +369,10 @@ class _NotePaperState extends State<NotePaper>
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
-                        NotePaperSurface(color: widget.color),
+                        FadeTransition(
+                          opacity: NotePaperOpacity.of(context),
+                          child: NotePaperSurface(color: widget.color),
+                        ),
                         IgnorePointer(
                           ignoring: _enteringEdit || _collapsing,
                           child: _fadeScrollableContent(

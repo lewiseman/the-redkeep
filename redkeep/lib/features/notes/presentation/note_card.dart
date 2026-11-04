@@ -1,121 +1,221 @@
 import 'dart:math' as math;
 
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/presentation/rendering_policy.dart';
 import '../domain/note_collection_entry.dart';
-import '../domain/note_document.dart';
+import '../domain/note_colors.dart';
 
-class NoteCard extends StatelessWidget {
+import 'note_scene.dart';
+import 'note_card_preview.dart';
+
+class NoteCard extends ConsumerWidget {
   const NoteCard({
     super.key,
     required this.entry,
-    required this.index,
     required this.onTap,
+    required this.index,
   });
   final NoteCollectionEntry entry;
   final int index;
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final colors = theme.colorScheme;
-    final simple = RenderingPolicyScope.of(context).simplerEffects;
-    final shape = _FoldedPaperBorder(
-      side: BorderSide(color: colors.onSurface.withValues(alpha: .09)),
+    final colors = NoteColors.fromBackground(
+      theme.colorScheme,
+      entry.details.background,
     );
-    final paper = colors.surfaceContainerLow;
+    final imageKey =
+        entry.details.background['image'] ?? entry.details.background['asset'];
+    final image = imageKey is String
+        ? ref.watch(noteBackgroundImageProvider(imageKey)).value
+        : null;
+    final simple = RenderingPolicyScope.of(context).simplerEffects;
+    final title = entry.title.trim();
+    final shape = _FoldedPaperBorder(
+      side: BorderSide(color: colors.foreground.withValues(alpha: .09)),
+    );
+    final previewTheme = theme.copyWith(
+      textTheme: theme.textTheme.apply(
+        bodyColor: colors.foreground,
+        displayColor: colors.foreground,
+      ),
+    );
+    // Tiles read as a uniform, compact excerpt: emphasis and headings use the
+    // body style and blocks sit flush. Lists and tasks keep their markers.
+    final body = previewTheme.textTheme.bodyMedium;
+    const plain = TextStyle(
+      fontWeight: FontWeight.normal,
+      fontStyle: FontStyle.normal,
+      decoration: TextDecoration.none,
+    );
+    final markdownStyle = MarkdownStyleSheet.fromTheme(previewTheme).copyWith(
+      p: body,
+      h1: body,
+      h2: body,
+      h3: body,
+      h4: body,
+      h5: body,
+      h6: body,
+      strong: plain,
+      em: plain,
+      del: plain,
+      a: plain.copyWith(color: colors.foreground),
+      code: body?.copyWith(backgroundColor: Colors.transparent),
+      blockquote: body,
+      listBullet: body,
+      tableHead: plain,
+      tableBody: body,
+      blockSpacing: 0,
+      pPadding: EdgeInsets.zero,
+      h1Padding: EdgeInsets.zero,
+      h2Padding: EdgeInsets.zero,
+      h3Padding: EdgeInsets.zero,
+      h4Padding: EdgeInsets.zero,
+      h5Padding: EdgeInsets.zero,
+      h6Padding: EdgeInsets.zero,
+      blockquotePadding: EdgeInsets.zero,
+      blockquoteDecoration: const BoxDecoration(),
+      codeblockPadding: EdgeInsets.zero,
+      codeblockDecoration: const BoxDecoration(),
+      tablePadding: EdgeInsets.zero,
+      tableCellsPadding: EdgeInsets.zero,
+      tableBorder: TableBorder.all(
+        color: colors.foreground.withValues(alpha: .15),
+      ),
+    );
+
     return Material(
-      color: paper,
+      color: colors.background,
       elevation: simple ? 0 : 1,
-      shadowColor: colors.shadow.withValues(alpha: .18),
+      shadowColor: theme.colorScheme.shadow.withValues(alpha: .18),
       surfaceTintColor: Colors.transparent,
       clipBehavior: Clip.antiAlias,
       shape: shape,
-      child: InkWell(
-        onTap: onTap,
-        customBorder: shape,
-        child: CustomPaint(
-          painter: _PaperDetailsPainter(
-            inkColor: colors.onSurface,
-            paperColor: paper,
-            shape: shape,
-            simple: simple,
-          ),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 13, 14, 14),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(right: 14),
-                  child: Text(
-                    noteTitle(entry.title),
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontSize: 17,
-                      height: 1.25,
-                      letterSpacing: -.35,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+      child: Stack(
+        fit: StackFit.passthrough,
+        children: [
+          if (image != null)
+            Positioned.fill(
+              child: _NoteCardImage(
+                image: image,
+                paperColor: colors.background,
+              ),
+            ),
+          // Keep ink above the image and its wash so feedback stays visible.
+          Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              onTap: onTap,
+              customBorder: shape,
+              splashColor: colors.foreground.withValues(alpha: .12),
+              highlightColor: colors.foreground.withValues(alpha: .04),
+              child: CustomPaint(
+                painter: _PaperDetailsPainter(
+                  inkColor: colors.foreground,
+                  paperColor: colors.background,
+                  shape: shape,
                 ),
-                if (entry.isDraft || entry.pinned) ...[
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 13, 14, 14),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (entry.isDraft)
-                        Text(
-                          'Draft',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: colors.primary,
+                      Padding(
+                        // Leave the folded corner clear, even for long titles.
+                        padding: const EdgeInsets.only(right: 14),
+                        child: Text(
+                          title.isEmpty ? 'Untitled note' : title,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: colors.foreground,
+                            fontSize: 17,
+                            height: 1.25,
+                            letterSpacing: -.35,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                      if (entry.pinned)
-                        Icon(
-                          Icons.push_pin_outlined,
-                          size: 16,
-                          semanticLabel: 'Pinned',
+                      ),
+                      if (entry.isDraft)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 8),
+                          child: Text('Draft'),
                         ),
+                      if (entry.pinned)
+                        const Icon(Icons.push_pin_rounded, size: 14),
+                      if (entry.excerpt.trim().isNotEmpty) ...[
+                        const SizedBox(height: 9),
+                        NoteCardPreview(
+                          data: entry.excerpt,
+                          maxLines: switch (index % 3) {
+                            0 => 7,
+                            1 => 9,
+                            _ => 6,
+                          },
+                          styleSheet: markdownStyle,
+                        ),
+                      ],
                     ],
                   ),
-                ],
-                if (entry.sourceUnavailable) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    'Original unavailable',
-                    style: theme.textTheme.labelSmall,
-                  ),
-                ],
-                if (entry.excerpt.trim().isNotEmpty) ...[
-                  const SizedBox(height: 9),
-                  // A bounded, noninteractive excerpt never resolves links or images.
-                  Text(
-                    entry.excerpt,
-                    maxLines: switch (index % 3) {
-                      0 => 7,
-                      1 => 9,
-                      _ => 6,
-                    },
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodyMedium?.copyWith(height: 1.4),
-                  ),
-                ],
-              ],
+                ),
+              ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NoteCardImage extends StatelessWidget {
+  const _NoteCardImage({required this.image, required this.paperColor});
+
+  final ImageProvider image;
+  final Color paperColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark =
+        ThemeData.estimateBrightnessForColor(paperColor) == Brightness.dark;
+    return IgnorePointer(
+      child: ExcludeSemantics(
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image(
+              image: ResizeImage.resizeIfNeeded(720, null, image),
+              fit: BoxFit.cover,
+              // A missing local file or failed download leaves colored paper.
+              errorBuilder: (_, _, _) => const SizedBox.expand(),
+            ),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    paperColor.withValues(alpha: .94),
+                    paperColor.withValues(alpha: .88),
+                    paperColor.withValues(alpha: dark ? .82 : .72),
+                  ],
+                  stops: const [0, .5, 1],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-// The paper, border, shadow, and ink share one outline.
+/// One outline controls the paper, image, border, shadow, and ink clipping.
 class _FoldedPaperBorder extends OutlinedBorder {
   const _FoldedPaperBorder({super.side, this.fold = 26, this.radius = 14});
 
@@ -194,10 +294,8 @@ class _PaperDetailsPainter extends CustomPainter {
     required this.inkColor,
     required this.paperColor,
     required this.shape,
-    required this.simple,
   });
 
-  final bool simple;
   final Color inkColor;
   final Color paperColor;
   final _FoldedPaperBorder shape;
@@ -213,9 +311,7 @@ class _PaperDetailsPainter extends CustomPainter {
       ..quadraticBezierTo(size.width - f, f, size.width - f + corner, f)
       ..lineTo(size.width, f)
       ..close();
-    if (!simple) {
-      canvas.drawShadow(fold, inkColor.withValues(alpha: .22), 3, false);
-    }
+    canvas.drawShadow(fold, inkColor.withValues(alpha: .22), 3, false);
     canvas.drawPath(
       fold,
       Paint()
@@ -234,7 +330,6 @@ class _PaperDetailsPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_PaperDetailsPainter oldDelegate) =>
-      simple != oldDelegate.simple ||
       inkColor != oldDelegate.inkColor ||
       paperColor != oldDelegate.paperColor ||
       shape != oldDelegate.shape;

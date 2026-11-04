@@ -1,3 +1,5 @@
+import 'package:redkeep/features/notes/data/note_media_store.dart';
+
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -46,6 +48,7 @@ void main() {
     final root = await Directory.systemTemp.createTemp('redkeep-reset-media-');
     final db = AppDatabase(NativeDatabase.memory());
     final photo = RetryPhotoStore(db, root);
+    final notes = NoteMediaStore(db, support: () => Future.value(root));
     final voice = VoiceStore(supportDirectory: () => Future.value(root));
     final vectors = MemoryVectors(), tasks = MemoryAiTasks();
     final scope = ProviderContainer(
@@ -53,6 +56,7 @@ void main() {
         appDatabaseProvider.overrideWithValue(db),
         protectedAiTasksProvider.overrideWithValue(tasks),
         diaryPhotoStoreProvider.overrideWithValue(photo),
+        noteMediaStoreProvider.overrideWithValue(notes),
         diaryPhotoQuestionStoreProvider.overrideWithValue(
           DiaryPhotoQuestionStore(
             db,
@@ -77,6 +81,7 @@ void main() {
     );
     await scope.read(aiPreferencesRepositoryProvider).questions(false);
     await photo.write('orphan-11111111', Uint8List.fromList([1, 2, 3]));
+    await notes.write(Uint8List.fromList([1, 2, 3]));
     await voice.save('note', {
       'id': 'capture-11111111',
       'created': DateTime.now().millisecondsSinceEpoch,
@@ -129,5 +134,6 @@ void main() {
       photo.delete(['diary_photos/late-11111111.png']),
       throwsStateError,
     );
+    expect(await Directory('${root.path}/note_media').exists(), isFalse);
   });
 }

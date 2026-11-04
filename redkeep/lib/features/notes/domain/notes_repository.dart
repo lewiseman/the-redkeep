@@ -21,6 +21,7 @@ abstract interface class NotesRepository {
     required PlainTextDocument text,
     required int baseRevision,
     required int? expectedDraftRevision,
+    NoteDetails? details,
   });
 
   /// Commit note and remove precisely this draft in one transaction.
@@ -42,5 +43,23 @@ abstract interface class NotesRepository {
     int expectedRevision, {
     required int? expectedDraftRevision,
   });
+
+  /// Applies a reviewed saved-note proposal atomically; a recovery draft blocks it.
+  Future<NoteDocument> applyProposal(
+    String id,
+    int expectedRevision, {
+    required PlainTextDocument text,
+    required NoteDetails details,
+    required String taskId,
+    required String operation,
+    bool retainPrior = true,
+  });
+  Future<List<NotePriorContent>> priorContent(String id);
+  Future<void> restorePriorContent(
+    String id,
+    int recoveryId,
+    int expectedRevision,
+  );
+  Future<void> clearPriorContent(String id);
   Future<void> discardDraft(String id, int expectedDraftRevision);
 }

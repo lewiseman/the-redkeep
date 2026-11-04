@@ -1,3 +1,5 @@
+import '../../notes/domain/note_details.dart';
+
 import 'dart:convert';
 
 import '../../diary/domain/diary_photo.dart';
@@ -172,6 +174,12 @@ class DriftSyncCollection implements SyncCollection {
         }
       } else {
         _validateText(payload, title: type == 'note');
+        if (type == 'note' && payload['details'] != null) {
+          if (payload['details'] is! String) {
+            throw const FormatException('Invalid note details.');
+          }
+          NoteDetails.decode(payload['details'] as String);
+        }
         if (type == 'note' &&
             (payload['pinned'] != 0 && payload['pinned'] != 1 ||
                 payload['tags'] is! List ||
@@ -316,6 +324,7 @@ class DriftSyncCollection implements SyncCollection {
               id: document.id,
               title: p['title'] as String,
               body: p['body'] as String,
+              details: Value(p['details'] as String? ?? old?.details ?? '{}'),
               revision: (old?.revision ?? 0) + 1,
               createdAt: p['created_at'] as int,
               updatedAt: p['updated_at'] as int,

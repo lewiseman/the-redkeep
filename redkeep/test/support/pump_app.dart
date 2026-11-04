@@ -1,3 +1,4 @@
+import 'package:redkeep/features/notes/data/note_media_store.dart';
 import 'package:redkeep/features/voice/application/voice_coordination.dart';
 import 'package:redkeep/features/voice/application/voice_capture.dart';
 import 'package:drift/native.dart';
@@ -53,6 +54,7 @@ Future<GoRouter> pumpApp(
   FlowRepository? flow,
   String Function()? flowId,
   NotesRepository? notes,
+  NoteMediaStore? noteMedia,
   String Function()? noteId,
   DiaryRepository? diary,
   String Function()? diaryId,
@@ -105,7 +107,10 @@ Future<GoRouter> pumpApp(
         if (diaryId != null) diaryIdProvider.overrideWithValue(diaryId),
         if (flow != null) flowRepositoryProvider.overrideWithValue(flow),
         if (flowId != null) flowIdProvider.overrideWithValue(flowId),
+        notesAmbientMotionProvider.overrideWithValue(false),
         if (notes != null) notesRepositoryProvider.overrideWithValue(notes),
+        if (noteMedia != null)
+          noteMediaStoreProvider.overrideWithValue(noteMedia),
         if (noteId != null) noteIdProvider.overrideWithValue(noteId),
         brainAssignmentsProvider.overrideWithValue(
           brainAssignments ?? FakeBrainAssignments(),

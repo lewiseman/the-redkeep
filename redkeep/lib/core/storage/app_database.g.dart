@@ -3088,6 +3088,18 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
   $NotesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _detailsMeta = const VerificationMeta(
+    'details',
+  );
+  @override
+  late final GeneratedColumn<String> details = GeneratedColumn<String>(
+    'details',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('{}'),
+  );
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<String> id = GeneratedColumn<String>(
@@ -3175,6 +3187,7 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
   );
   @override
   List<GeneratedColumn> get $columns => [
+    details,
     id,
     title,
     body,
@@ -3196,6 +3209,12 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
   }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
+    if (data.containsKey('details')) {
+      context.handle(
+        _detailsMeta,
+        details.isAcceptableOrUnknown(data['details']!, _detailsMeta),
+      );
+    }
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     } else if (isInserting) {
@@ -3262,6 +3281,10 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
   Note map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return Note(
+      details: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}details'],
+      )!,
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}id'],
@@ -3304,6 +3327,7 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
 }
 
 class Note extends DataClass implements Insertable<Note> {
+  final String details;
   final String id;
   final String title;
   final String body;
@@ -3313,6 +3337,7 @@ class Note extends DataClass implements Insertable<Note> {
   final bool pinned;
   final int? deletedAt;
   const Note({
+    required this.details,
     required this.id,
     required this.title,
     required this.body,
@@ -3325,6 +3350,7 @@ class Note extends DataClass implements Insertable<Note> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
+    map['details'] = Variable<String>(details);
     map['id'] = Variable<String>(id);
     map['title'] = Variable<String>(title);
     map['body'] = Variable<String>(body);
@@ -3340,6 +3366,7 @@ class Note extends DataClass implements Insertable<Note> {
 
   NotesCompanion toCompanion(bool nullToAbsent) {
     return NotesCompanion(
+      details: Value(details),
       id: Value(id),
       title: Value(title),
       body: Value(body),
@@ -3359,6 +3386,7 @@ class Note extends DataClass implements Insertable<Note> {
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Note(
+      details: serializer.fromJson<String>(json['details']),
       id: serializer.fromJson<String>(json['id']),
       title: serializer.fromJson<String>(json['title']),
       body: serializer.fromJson<String>(json['body']),
@@ -3373,6 +3401,7 @@ class Note extends DataClass implements Insertable<Note> {
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
+      'details': serializer.toJson<String>(details),
       'id': serializer.toJson<String>(id),
       'title': serializer.toJson<String>(title),
       'body': serializer.toJson<String>(body),
@@ -3385,6 +3414,7 @@ class Note extends DataClass implements Insertable<Note> {
   }
 
   Note copyWith({
+    String? details,
     String? id,
     String? title,
     String? body,
@@ -3394,6 +3424,7 @@ class Note extends DataClass implements Insertable<Note> {
     bool? pinned,
     Value<int?> deletedAt = const Value.absent(),
   }) => Note(
+    details: details ?? this.details,
     id: id ?? this.id,
     title: title ?? this.title,
     body: body ?? this.body,
@@ -3405,6 +3436,7 @@ class Note extends DataClass implements Insertable<Note> {
   );
   Note copyWithCompanion(NotesCompanion data) {
     return Note(
+      details: data.details.present ? data.details.value : this.details,
       id: data.id.present ? data.id.value : this.id,
       title: data.title.present ? data.title.value : this.title,
       body: data.body.present ? data.body.value : this.body,
@@ -3419,6 +3451,7 @@ class Note extends DataClass implements Insertable<Note> {
   @override
   String toString() {
     return (StringBuffer('Note(')
+          ..write('details: $details, ')
           ..write('id: $id, ')
           ..write('title: $title, ')
           ..write('body: $body, ')
@@ -3433,6 +3466,7 @@ class Note extends DataClass implements Insertable<Note> {
 
   @override
   int get hashCode => Object.hash(
+    details,
     id,
     title,
     body,
@@ -3446,6 +3480,7 @@ class Note extends DataClass implements Insertable<Note> {
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is Note &&
+          other.details == this.details &&
           other.id == this.id &&
           other.title == this.title &&
           other.body == this.body &&
@@ -3457,6 +3492,7 @@ class Note extends DataClass implements Insertable<Note> {
 }
 
 class NotesCompanion extends UpdateCompanion<Note> {
+  final Value<String> details;
   final Value<String> id;
   final Value<String> title;
   final Value<String> body;
@@ -3467,6 +3503,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
   final Value<int?> deletedAt;
   final Value<int> rowid;
   const NotesCompanion({
+    this.details = const Value.absent(),
     this.id = const Value.absent(),
     this.title = const Value.absent(),
     this.body = const Value.absent(),
@@ -3478,6 +3515,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
     this.rowid = const Value.absent(),
   });
   NotesCompanion.insert({
+    this.details = const Value.absent(),
     required String id,
     required String title,
     required String body,
@@ -3494,6 +3532,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt);
   static Insertable<Note> custom({
+    Expression<String>? details,
     Expression<String>? id,
     Expression<String>? title,
     Expression<String>? body,
@@ -3505,6 +3544,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
+      if (details != null) 'details': details,
       if (id != null) 'id': id,
       if (title != null) 'title': title,
       if (body != null) 'body': body,
@@ -3518,6 +3558,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
   }
 
   NotesCompanion copyWith({
+    Value<String>? details,
     Value<String>? id,
     Value<String>? title,
     Value<String>? body,
@@ -3529,6 +3570,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
     Value<int>? rowid,
   }) {
     return NotesCompanion(
+      details: details ?? this.details,
       id: id ?? this.id,
       title: title ?? this.title,
       body: body ?? this.body,
@@ -3544,6 +3586,9 @@ class NotesCompanion extends UpdateCompanion<Note> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
+    if (details.present) {
+      map['details'] = Variable<String>(details.value);
+    }
     if (id.present) {
       map['id'] = Variable<String>(id.value);
     }
@@ -3577,6 +3622,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
   @override
   String toString() {
     return (StringBuffer('NotesCompanion(')
+          ..write('details: $details, ')
           ..write('id: $id, ')
           ..write('title: $title, ')
           ..write('body: $body, ')
@@ -3597,6 +3643,18 @@ class $NoteDraftsTable extends NoteDrafts
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
   $NoteDraftsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _detailsMeta = const VerificationMeta(
+    'details',
+  );
+  @override
+  late final GeneratedColumn<String> details = GeneratedColumn<String>(
+    'details',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('{}'),
+  );
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<String> id = GeneratedColumn<String>(
@@ -3665,6 +3723,7 @@ class $NoteDraftsTable extends NoteDrafts
   );
   @override
   List<GeneratedColumn> get $columns => [
+    details,
     id,
     title,
     body,
@@ -3684,6 +3743,12 @@ class $NoteDraftsTable extends NoteDrafts
   }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
+    if (data.containsKey('details')) {
+      context.handle(
+        _detailsMeta,
+        details.isAcceptableOrUnknown(data['details']!, _detailsMeta),
+      );
+    }
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     } else if (isInserting) {
@@ -3742,6 +3807,10 @@ class $NoteDraftsTable extends NoteDrafts
   NoteDraft map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return NoteDraft(
+      details: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}details'],
+      )!,
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}id'],
@@ -3776,6 +3845,7 @@ class $NoteDraftsTable extends NoteDrafts
 }
 
 class NoteDraft extends DataClass implements Insertable<NoteDraft> {
+  final String details;
   final String id;
   final String title;
   final String body;
@@ -3783,6 +3853,7 @@ class NoteDraft extends DataClass implements Insertable<NoteDraft> {
   final int draftRevision;
   final int updatedAt;
   const NoteDraft({
+    required this.details,
     required this.id,
     required this.title,
     required this.body,
@@ -3793,6 +3864,7 @@ class NoteDraft extends DataClass implements Insertable<NoteDraft> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
+    map['details'] = Variable<String>(details);
     map['id'] = Variable<String>(id);
     map['title'] = Variable<String>(title);
     map['body'] = Variable<String>(body);
@@ -3804,6 +3876,7 @@ class NoteDraft extends DataClass implements Insertable<NoteDraft> {
 
   NoteDraftsCompanion toCompanion(bool nullToAbsent) {
     return NoteDraftsCompanion(
+      details: Value(details),
       id: Value(id),
       title: Value(title),
       body: Value(body),
@@ -3819,6 +3892,7 @@ class NoteDraft extends DataClass implements Insertable<NoteDraft> {
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return NoteDraft(
+      details: serializer.fromJson<String>(json['details']),
       id: serializer.fromJson<String>(json['id']),
       title: serializer.fromJson<String>(json['title']),
       body: serializer.fromJson<String>(json['body']),
@@ -3831,6 +3905,7 @@ class NoteDraft extends DataClass implements Insertable<NoteDraft> {
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
+      'details': serializer.toJson<String>(details),
       'id': serializer.toJson<String>(id),
       'title': serializer.toJson<String>(title),
       'body': serializer.toJson<String>(body),
@@ -3841,6 +3916,7 @@ class NoteDraft extends DataClass implements Insertable<NoteDraft> {
   }
 
   NoteDraft copyWith({
+    String? details,
     String? id,
     String? title,
     String? body,
@@ -3848,6 +3924,7 @@ class NoteDraft extends DataClass implements Insertable<NoteDraft> {
     int? draftRevision,
     int? updatedAt,
   }) => NoteDraft(
+    details: details ?? this.details,
     id: id ?? this.id,
     title: title ?? this.title,
     body: body ?? this.body,
@@ -3857,6 +3934,7 @@ class NoteDraft extends DataClass implements Insertable<NoteDraft> {
   );
   NoteDraft copyWithCompanion(NoteDraftsCompanion data) {
     return NoteDraft(
+      details: data.details.present ? data.details.value : this.details,
       id: data.id.present ? data.id.value : this.id,
       title: data.title.present ? data.title.value : this.title,
       body: data.body.present ? data.body.value : this.body,
@@ -3873,6 +3951,7 @@ class NoteDraft extends DataClass implements Insertable<NoteDraft> {
   @override
   String toString() {
     return (StringBuffer('NoteDraft(')
+          ..write('details: $details, ')
           ..write('id: $id, ')
           ..write('title: $title, ')
           ..write('body: $body, ')
@@ -3884,12 +3963,20 @@ class NoteDraft extends DataClass implements Insertable<NoteDraft> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, title, body, baseRevision, draftRevision, updatedAt);
+  int get hashCode => Object.hash(
+    details,
+    id,
+    title,
+    body,
+    baseRevision,
+    draftRevision,
+    updatedAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is NoteDraft &&
+          other.details == this.details &&
           other.id == this.id &&
           other.title == this.title &&
           other.body == this.body &&
@@ -3899,6 +3986,7 @@ class NoteDraft extends DataClass implements Insertable<NoteDraft> {
 }
 
 class NoteDraftsCompanion extends UpdateCompanion<NoteDraft> {
+  final Value<String> details;
   final Value<String> id;
   final Value<String> title;
   final Value<String> body;
@@ -3906,6 +3994,7 @@ class NoteDraftsCompanion extends UpdateCompanion<NoteDraft> {
   final Value<int> draftRevision;
   final Value<int> updatedAt;
   const NoteDraftsCompanion({
+    this.details = const Value.absent(),
     this.id = const Value.absent(),
     this.title = const Value.absent(),
     this.body = const Value.absent(),
@@ -3914,6 +4003,7 @@ class NoteDraftsCompanion extends UpdateCompanion<NoteDraft> {
     this.updatedAt = const Value.absent(),
   });
   NoteDraftsCompanion.insert({
+    this.details = const Value.absent(),
     required String id,
     required String title,
     required String body,
@@ -3926,6 +4016,7 @@ class NoteDraftsCompanion extends UpdateCompanion<NoteDraft> {
        baseRevision = Value(baseRevision),
        updatedAt = Value(updatedAt);
   static Insertable<NoteDraft> custom({
+    Expression<String>? details,
     Expression<String>? id,
     Expression<String>? title,
     Expression<String>? body,
@@ -3934,6 +4025,7 @@ class NoteDraftsCompanion extends UpdateCompanion<NoteDraft> {
     Expression<int>? updatedAt,
   }) {
     return RawValuesInsertable({
+      if (details != null) 'details': details,
       if (id != null) 'id': id,
       if (title != null) 'title': title,
       if (body != null) 'body': body,
@@ -3944,6 +4036,7 @@ class NoteDraftsCompanion extends UpdateCompanion<NoteDraft> {
   }
 
   NoteDraftsCompanion copyWith({
+    Value<String>? details,
     Value<String>? id,
     Value<String>? title,
     Value<String>? body,
@@ -3952,6 +4045,7 @@ class NoteDraftsCompanion extends UpdateCompanion<NoteDraft> {
     Value<int>? updatedAt,
   }) {
     return NoteDraftsCompanion(
+      details: details ?? this.details,
       id: id ?? this.id,
       title: title ?? this.title,
       body: body ?? this.body,
@@ -3964,6 +4058,9 @@ class NoteDraftsCompanion extends UpdateCompanion<NoteDraft> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
+    if (details.present) {
+      map['details'] = Variable<String>(details.value);
+    }
     if (id.present) {
       map['id'] = Variable<String>(id.value);
     }
@@ -3988,6 +4085,7 @@ class NoteDraftsCompanion extends UpdateCompanion<NoteDraft> {
   @override
   String toString() {
     return (StringBuffer('NoteDraftsCompanion(')
+          ..write('details: $details, ')
           ..write('id: $id, ')
           ..write('title: $title, ')
           ..write('body: $body, ')
@@ -4207,6 +4305,764 @@ class NoteTagsCompanion extends UpdateCompanion<NoteTag> {
     return (StringBuffer('NoteTagsCompanion(')
           ..write('noteId: $noteId, ')
           ..write('tag: $tag, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $NoteAiRecoveriesTable extends NoteAiRecoveries
+    with TableInfo<$NoteAiRecoveriesTable, NoteAiRecovery> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $NoteAiRecoveriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _noteIdMeta = const VerificationMeta('noteId');
+  @override
+  late final GeneratedColumn<String> noteId = GeneratedColumn<String>(
+    'note_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _taskIdMeta = const VerificationMeta('taskId');
+  @override
+  late final GeneratedColumn<String> taskId = GeneratedColumn<String>(
+    'task_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
+  static const VerificationMeta _operationMeta = const VerificationMeta(
+    'operation',
+  );
+  @override
+  late final GeneratedColumn<String> operation = GeneratedColumn<String>(
+    'operation',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _bodyMeta = const VerificationMeta('body');
+  @override
+  late final GeneratedColumn<String> body = GeneratedColumn<String>(
+    'body',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _detailsMeta = const VerificationMeta(
+    'details',
+  );
+  @override
+  late final GeneratedColumn<String> details = GeneratedColumn<String>(
+    'details',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _appliedRevisionMeta = const VerificationMeta(
+    'appliedRevision',
+  );
+  @override
+  late final GeneratedColumn<int> appliedRevision = GeneratedColumn<int>(
+    'applied_revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdMeta = const VerificationMeta(
+    'created',
+  );
+  @override
+  late final GeneratedColumn<int> created = GeneratedColumn<int>(
+    'created',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    noteId,
+    taskId,
+    operation,
+    title,
+    body,
+    details,
+    appliedRevision,
+    created,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'note_ai_recoveries';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<NoteAiRecovery> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('note_id')) {
+      context.handle(
+        _noteIdMeta,
+        noteId.isAcceptableOrUnknown(data['note_id']!, _noteIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_noteIdMeta);
+    }
+    if (data.containsKey('task_id')) {
+      context.handle(
+        _taskIdMeta,
+        taskId.isAcceptableOrUnknown(data['task_id']!, _taskIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_taskIdMeta);
+    }
+    if (data.containsKey('operation')) {
+      context.handle(
+        _operationMeta,
+        operation.isAcceptableOrUnknown(data['operation']!, _operationMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_operationMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('body')) {
+      context.handle(
+        _bodyMeta,
+        body.isAcceptableOrUnknown(data['body']!, _bodyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_bodyMeta);
+    }
+    if (data.containsKey('details')) {
+      context.handle(
+        _detailsMeta,
+        details.isAcceptableOrUnknown(data['details']!, _detailsMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_detailsMeta);
+    }
+    if (data.containsKey('applied_revision')) {
+      context.handle(
+        _appliedRevisionMeta,
+        appliedRevision.isAcceptableOrUnknown(
+          data['applied_revision']!,
+          _appliedRevisionMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_appliedRevisionMeta);
+    }
+    if (data.containsKey('created')) {
+      context.handle(
+        _createdMeta,
+        created.isAcceptableOrUnknown(data['created']!, _createdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  NoteAiRecovery map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return NoteAiRecovery(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      noteId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note_id'],
+      )!,
+      taskId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}task_id'],
+      )!,
+      operation: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}operation'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      body: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}body'],
+      )!,
+      details: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}details'],
+      )!,
+      appliedRevision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}applied_revision'],
+      )!,
+      created: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created'],
+      )!,
+    );
+  }
+
+  @override
+  $NoteAiRecoveriesTable createAlias(String alias) {
+    return $NoteAiRecoveriesTable(attachedDatabase, alias);
+  }
+}
+
+class NoteAiRecovery extends DataClass implements Insertable<NoteAiRecovery> {
+  final int id;
+  final String noteId;
+  final String taskId;
+  final String operation;
+  final String title;
+  final String body;
+  final String details;
+  final int appliedRevision;
+  final int created;
+  const NoteAiRecovery({
+    required this.id,
+    required this.noteId,
+    required this.taskId,
+    required this.operation,
+    required this.title,
+    required this.body,
+    required this.details,
+    required this.appliedRevision,
+    required this.created,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['note_id'] = Variable<String>(noteId);
+    map['task_id'] = Variable<String>(taskId);
+    map['operation'] = Variable<String>(operation);
+    map['title'] = Variable<String>(title);
+    map['body'] = Variable<String>(body);
+    map['details'] = Variable<String>(details);
+    map['applied_revision'] = Variable<int>(appliedRevision);
+    map['created'] = Variable<int>(created);
+    return map;
+  }
+
+  NoteAiRecoveriesCompanion toCompanion(bool nullToAbsent) {
+    return NoteAiRecoveriesCompanion(
+      id: Value(id),
+      noteId: Value(noteId),
+      taskId: Value(taskId),
+      operation: Value(operation),
+      title: Value(title),
+      body: Value(body),
+      details: Value(details),
+      appliedRevision: Value(appliedRevision),
+      created: Value(created),
+    );
+  }
+
+  factory NoteAiRecovery.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return NoteAiRecovery(
+      id: serializer.fromJson<int>(json['id']),
+      noteId: serializer.fromJson<String>(json['noteId']),
+      taskId: serializer.fromJson<String>(json['taskId']),
+      operation: serializer.fromJson<String>(json['operation']),
+      title: serializer.fromJson<String>(json['title']),
+      body: serializer.fromJson<String>(json['body']),
+      details: serializer.fromJson<String>(json['details']),
+      appliedRevision: serializer.fromJson<int>(json['appliedRevision']),
+      created: serializer.fromJson<int>(json['created']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'noteId': serializer.toJson<String>(noteId),
+      'taskId': serializer.toJson<String>(taskId),
+      'operation': serializer.toJson<String>(operation),
+      'title': serializer.toJson<String>(title),
+      'body': serializer.toJson<String>(body),
+      'details': serializer.toJson<String>(details),
+      'appliedRevision': serializer.toJson<int>(appliedRevision),
+      'created': serializer.toJson<int>(created),
+    };
+  }
+
+  NoteAiRecovery copyWith({
+    int? id,
+    String? noteId,
+    String? taskId,
+    String? operation,
+    String? title,
+    String? body,
+    String? details,
+    int? appliedRevision,
+    int? created,
+  }) => NoteAiRecovery(
+    id: id ?? this.id,
+    noteId: noteId ?? this.noteId,
+    taskId: taskId ?? this.taskId,
+    operation: operation ?? this.operation,
+    title: title ?? this.title,
+    body: body ?? this.body,
+    details: details ?? this.details,
+    appliedRevision: appliedRevision ?? this.appliedRevision,
+    created: created ?? this.created,
+  );
+  NoteAiRecovery copyWithCompanion(NoteAiRecoveriesCompanion data) {
+    return NoteAiRecovery(
+      id: data.id.present ? data.id.value : this.id,
+      noteId: data.noteId.present ? data.noteId.value : this.noteId,
+      taskId: data.taskId.present ? data.taskId.value : this.taskId,
+      operation: data.operation.present ? data.operation.value : this.operation,
+      title: data.title.present ? data.title.value : this.title,
+      body: data.body.present ? data.body.value : this.body,
+      details: data.details.present ? data.details.value : this.details,
+      appliedRevision: data.appliedRevision.present
+          ? data.appliedRevision.value
+          : this.appliedRevision,
+      created: data.created.present ? data.created.value : this.created,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NoteAiRecovery(')
+          ..write('id: $id, ')
+          ..write('noteId: $noteId, ')
+          ..write('taskId: $taskId, ')
+          ..write('operation: $operation, ')
+          ..write('title: $title, ')
+          ..write('body: $body, ')
+          ..write('details: $details, ')
+          ..write('appliedRevision: $appliedRevision, ')
+          ..write('created: $created')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    noteId,
+    taskId,
+    operation,
+    title,
+    body,
+    details,
+    appliedRevision,
+    created,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is NoteAiRecovery &&
+          other.id == this.id &&
+          other.noteId == this.noteId &&
+          other.taskId == this.taskId &&
+          other.operation == this.operation &&
+          other.title == this.title &&
+          other.body == this.body &&
+          other.details == this.details &&
+          other.appliedRevision == this.appliedRevision &&
+          other.created == this.created);
+}
+
+class NoteAiRecoveriesCompanion extends UpdateCompanion<NoteAiRecovery> {
+  final Value<int> id;
+  final Value<String> noteId;
+  final Value<String> taskId;
+  final Value<String> operation;
+  final Value<String> title;
+  final Value<String> body;
+  final Value<String> details;
+  final Value<int> appliedRevision;
+  final Value<int> created;
+  const NoteAiRecoveriesCompanion({
+    this.id = const Value.absent(),
+    this.noteId = const Value.absent(),
+    this.taskId = const Value.absent(),
+    this.operation = const Value.absent(),
+    this.title = const Value.absent(),
+    this.body = const Value.absent(),
+    this.details = const Value.absent(),
+    this.appliedRevision = const Value.absent(),
+    this.created = const Value.absent(),
+  });
+  NoteAiRecoveriesCompanion.insert({
+    this.id = const Value.absent(),
+    required String noteId,
+    required String taskId,
+    required String operation,
+    required String title,
+    required String body,
+    required String details,
+    required int appliedRevision,
+    required int created,
+  }) : noteId = Value(noteId),
+       taskId = Value(taskId),
+       operation = Value(operation),
+       title = Value(title),
+       body = Value(body),
+       details = Value(details),
+       appliedRevision = Value(appliedRevision),
+       created = Value(created);
+  static Insertable<NoteAiRecovery> custom({
+    Expression<int>? id,
+    Expression<String>? noteId,
+    Expression<String>? taskId,
+    Expression<String>? operation,
+    Expression<String>? title,
+    Expression<String>? body,
+    Expression<String>? details,
+    Expression<int>? appliedRevision,
+    Expression<int>? created,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (noteId != null) 'note_id': noteId,
+      if (taskId != null) 'task_id': taskId,
+      if (operation != null) 'operation': operation,
+      if (title != null) 'title': title,
+      if (body != null) 'body': body,
+      if (details != null) 'details': details,
+      if (appliedRevision != null) 'applied_revision': appliedRevision,
+      if (created != null) 'created': created,
+    });
+  }
+
+  NoteAiRecoveriesCompanion copyWith({
+    Value<int>? id,
+    Value<String>? noteId,
+    Value<String>? taskId,
+    Value<String>? operation,
+    Value<String>? title,
+    Value<String>? body,
+    Value<String>? details,
+    Value<int>? appliedRevision,
+    Value<int>? created,
+  }) {
+    return NoteAiRecoveriesCompanion(
+      id: id ?? this.id,
+      noteId: noteId ?? this.noteId,
+      taskId: taskId ?? this.taskId,
+      operation: operation ?? this.operation,
+      title: title ?? this.title,
+      body: body ?? this.body,
+      details: details ?? this.details,
+      appliedRevision: appliedRevision ?? this.appliedRevision,
+      created: created ?? this.created,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (noteId.present) {
+      map['note_id'] = Variable<String>(noteId.value);
+    }
+    if (taskId.present) {
+      map['task_id'] = Variable<String>(taskId.value);
+    }
+    if (operation.present) {
+      map['operation'] = Variable<String>(operation.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (body.present) {
+      map['body'] = Variable<String>(body.value);
+    }
+    if (details.present) {
+      map['details'] = Variable<String>(details.value);
+    }
+    if (appliedRevision.present) {
+      map['applied_revision'] = Variable<int>(appliedRevision.value);
+    }
+    if (created.present) {
+      map['created'] = Variable<int>(created.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NoteAiRecoveriesCompanion(')
+          ..write('id: $id, ')
+          ..write('noteId: $noteId, ')
+          ..write('taskId: $taskId, ')
+          ..write('operation: $operation, ')
+          ..write('title: $title, ')
+          ..write('body: $body, ')
+          ..write('details: $details, ')
+          ..write('appliedRevision: $appliedRevision, ')
+          ..write('created: $created')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $NoteMediaOpsTable extends NoteMediaOps
+    with TableInfo<$NoteMediaOpsTable, NoteMediaOp> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $NoteMediaOpsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _pathMeta = const VerificationMeta('path');
+  @override
+  late final GeneratedColumn<String> path = GeneratedColumn<String>(
+    'path',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdMeta = const VerificationMeta(
+    'created',
+  );
+  @override
+  late final GeneratedColumn<int> created = GeneratedColumn<int>(
+    'created',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [path, created];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'note_media_ops';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<NoteMediaOp> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('path')) {
+      context.handle(
+        _pathMeta,
+        path.isAcceptableOrUnknown(data['path']!, _pathMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_pathMeta);
+    }
+    if (data.containsKey('created')) {
+      context.handle(
+        _createdMeta,
+        created.isAcceptableOrUnknown(data['created']!, _createdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {path};
+  @override
+  NoteMediaOp map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return NoteMediaOp(
+      path: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}path'],
+      )!,
+      created: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created'],
+      )!,
+    );
+  }
+
+  @override
+  $NoteMediaOpsTable createAlias(String alias) {
+    return $NoteMediaOpsTable(attachedDatabase, alias);
+  }
+}
+
+class NoteMediaOp extends DataClass implements Insertable<NoteMediaOp> {
+  final String path;
+  final int created;
+  const NoteMediaOp({required this.path, required this.created});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['path'] = Variable<String>(path);
+    map['created'] = Variable<int>(created);
+    return map;
+  }
+
+  NoteMediaOpsCompanion toCompanion(bool nullToAbsent) {
+    return NoteMediaOpsCompanion(path: Value(path), created: Value(created));
+  }
+
+  factory NoteMediaOp.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return NoteMediaOp(
+      path: serializer.fromJson<String>(json['path']),
+      created: serializer.fromJson<int>(json['created']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'path': serializer.toJson<String>(path),
+      'created': serializer.toJson<int>(created),
+    };
+  }
+
+  NoteMediaOp copyWith({String? path, int? created}) =>
+      NoteMediaOp(path: path ?? this.path, created: created ?? this.created);
+  NoteMediaOp copyWithCompanion(NoteMediaOpsCompanion data) {
+    return NoteMediaOp(
+      path: data.path.present ? data.path.value : this.path,
+      created: data.created.present ? data.created.value : this.created,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NoteMediaOp(')
+          ..write('path: $path, ')
+          ..write('created: $created')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(path, created);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is NoteMediaOp &&
+          other.path == this.path &&
+          other.created == this.created);
+}
+
+class NoteMediaOpsCompanion extends UpdateCompanion<NoteMediaOp> {
+  final Value<String> path;
+  final Value<int> created;
+  final Value<int> rowid;
+  const NoteMediaOpsCompanion({
+    this.path = const Value.absent(),
+    this.created = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  NoteMediaOpsCompanion.insert({
+    required String path,
+    required int created,
+    this.rowid = const Value.absent(),
+  }) : path = Value(path),
+       created = Value(created);
+  static Insertable<NoteMediaOp> custom({
+    Expression<String>? path,
+    Expression<int>? created,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (path != null) 'path': path,
+      if (created != null) 'created': created,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  NoteMediaOpsCompanion copyWith({
+    Value<String>? path,
+    Value<int>? created,
+    Value<int>? rowid,
+  }) {
+    return NoteMediaOpsCompanion(
+      path: path ?? this.path,
+      created: created ?? this.created,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (path.present) {
+      map['path'] = Variable<String>(path.value);
+    }
+    if (created.present) {
+      map['created'] = Variable<int>(created.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NoteMediaOpsCompanion(')
+          ..write('path: $path, ')
+          ..write('created: $created, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -7242,6 +8098,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $NotesTable notes = $NotesTable(this);
   late final $NoteDraftsTable noteDrafts = $NoteDraftsTable(this);
   late final $NoteTagsTable noteTags = $NoteTagsTable(this);
+  late final $NoteAiRecoveriesTable noteAiRecoveries = $NoteAiRecoveriesTable(
+    this,
+  );
+  late final $NoteMediaOpsTable noteMediaOps = $NoteMediaOpsTable(this);
   late final $DiaryEntriesTable diaryEntries = $DiaryEntriesTable(this);
   late final $DiaryDaysTable diaryDays = $DiaryDaysTable(this);
   late final $DiaryMediaOpsTable diaryMediaOps = $DiaryMediaOpsTable(this);
@@ -7276,6 +8136,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     notes,
     noteDrafts,
     noteTags,
+    noteAiRecoveries,
+    noteMediaOps,
     diaryEntries,
     diaryDays,
     diaryMediaOps,
@@ -9020,6 +9882,7 @@ typedef $$OnboardingCompletionTableProcessedTableManager =
       PrefetchHooks Function()
     >;
 typedef $$NotesTableCreateCompanionBuilder = NotesCompanion Function({
+  Value<String> details,
   required String id,
   required String title,
   required String body,
@@ -9031,6 +9894,7 @@ typedef $$NotesTableCreateCompanionBuilder = NotesCompanion Function({
   Value<int> rowid,
 });
 typedef $$NotesTableUpdateCompanionBuilder = NotesCompanion Function({
+  Value<String> details,
   Value<String> id,
   Value<String> title,
   Value<String> body,
@@ -9074,6 +9938,11 @@ class $$NotesTableFilterComposer extends Composer<_$AppDatabase, $NotesTable> {
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnFilters<String> get details => $composableBuilder(
+    column: $table.details,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnFilters(column),
@@ -9149,6 +10018,11 @@ class $$NotesTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnOrderings<String> get details => $composableBuilder(
+    column: $table.details,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnOrderings(column),
@@ -9199,6 +10073,9 @@ class $$NotesTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  GeneratedColumn<String> get details =>
+      $composableBuilder(column: $table.details, builder: (column) => column);
+
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
@@ -9277,6 +10154,7 @@ class $$NotesTableTableManager
               $$NotesTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
+                Value<String> details = const Value.absent(),
                 Value<String> id = const Value.absent(),
                 Value<String> title = const Value.absent(),
                 Value<String> body = const Value.absent(),
@@ -9287,6 +10165,7 @@ class $$NotesTableTableManager
                 Value<int?> deletedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => NotesCompanion(
+                details: details,
                 id: id,
                 title: title,
                 body: body,
@@ -9299,6 +10178,7 @@ class $$NotesTableTableManager
               ),
           createCompanionCallback:
               ({
+                Value<String> details = const Value.absent(),
                 required String id,
                 required String title,
                 required String body,
@@ -9309,6 +10189,7 @@ class $$NotesTableTableManager
                 Value<int?> deletedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => NotesCompanion.insert(
+                details: details,
                 id: id,
                 title: title,
                 body: body,
@@ -9373,6 +10254,7 @@ typedef $$NotesTableProcessedTableManager =
       PrefetchHooks Function({bool noteTagsRefs})
     >;
 typedef $$NoteDraftsTableCreateCompanionBuilder = NoteDraftsCompanion Function({
+  Value<String> details,
   required String id,
   required String title,
   required String body,
@@ -9381,6 +10263,7 @@ typedef $$NoteDraftsTableCreateCompanionBuilder = NoteDraftsCompanion Function({
   required int updatedAt,
 });
 typedef $$NoteDraftsTableUpdateCompanionBuilder = NoteDraftsCompanion Function({
+  Value<String> details,
   Value<String> id,
   Value<String> title,
   Value<String> body,
@@ -9398,6 +10281,11 @@ class $$NoteDraftsTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnFilters<String> get details => $composableBuilder(
+    column: $table.details,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnFilters(column),
@@ -9438,6 +10326,11 @@ class $$NoteDraftsTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnOrderings<String> get details => $composableBuilder(
+    column: $table.details,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnOrderings(column),
@@ -9478,6 +10371,9 @@ class $$NoteDraftsTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  GeneratedColumn<String> get details =>
+      $composableBuilder(column: $table.details, builder: (column) => column);
+
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
@@ -9532,6 +10428,7 @@ class $$NoteDraftsTableTableManager
               $$NoteDraftsTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
+                Value<String> details = const Value.absent(),
                 Value<String> id = const Value.absent(),
                 Value<String> title = const Value.absent(),
                 Value<String> body = const Value.absent(),
@@ -9539,6 +10436,7 @@ class $$NoteDraftsTableTableManager
                 Value<int> draftRevision = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
               }) => NoteDraftsCompanion(
+                details: details,
                 id: id,
                 title: title,
                 body: body,
@@ -9548,6 +10446,7 @@ class $$NoteDraftsTableTableManager
               ),
           createCompanionCallback:
               ({
+                Value<String> details = const Value.absent(),
                 required String id,
                 required String title,
                 required String body,
@@ -9555,6 +10454,7 @@ class $$NoteDraftsTableTableManager
                 Value<int> draftRevision = const Value.absent(),
                 required int updatedAt,
               }) => NoteDraftsCompanion.insert(
+                details: details,
                 id: id,
                 title: title,
                 body: body,
@@ -9844,6 +10744,445 @@ typedef $$NoteTagsTableProcessedTableManager =
       (NoteTag, $$NoteTagsTableReferences),
       NoteTag,
       PrefetchHooks Function({bool noteId})
+    >;
+typedef $$NoteAiRecoveriesTableCreateCompanionBuilder =
+    NoteAiRecoveriesCompanion Function({
+      Value<int> id,
+      required String noteId,
+      required String taskId,
+      required String operation,
+      required String title,
+      required String body,
+      required String details,
+      required int appliedRevision,
+      required int created,
+    });
+typedef $$NoteAiRecoveriesTableUpdateCompanionBuilder =
+    NoteAiRecoveriesCompanion Function({
+      Value<int> id,
+      Value<String> noteId,
+      Value<String> taskId,
+      Value<String> operation,
+      Value<String> title,
+      Value<String> body,
+      Value<String> details,
+      Value<int> appliedRevision,
+      Value<int> created,
+    });
+
+class $$NoteAiRecoveriesTableFilterComposer
+    extends Composer<_$AppDatabase, $NoteAiRecoveriesTable> {
+  $$NoteAiRecoveriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get noteId => $composableBuilder(
+    column: $table.noteId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get taskId => $composableBuilder(
+    column: $table.taskId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get operation => $composableBuilder(
+    column: $table.operation,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get details => $composableBuilder(
+    column: $table.details,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get appliedRevision => $composableBuilder(
+    column: $table.appliedRevision,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get created => $composableBuilder(
+    column: $table.created,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$NoteAiRecoveriesTableOrderingComposer
+    extends Composer<_$AppDatabase, $NoteAiRecoveriesTable> {
+  $$NoteAiRecoveriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get noteId => $composableBuilder(
+    column: $table.noteId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get taskId => $composableBuilder(
+    column: $table.taskId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get operation => $composableBuilder(
+    column: $table.operation,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get details => $composableBuilder(
+    column: $table.details,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get appliedRevision => $composableBuilder(
+    column: $table.appliedRevision,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get created => $composableBuilder(
+    column: $table.created,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$NoteAiRecoveriesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $NoteAiRecoveriesTable> {
+  $$NoteAiRecoveriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get noteId =>
+      $composableBuilder(column: $table.noteId, builder: (column) => column);
+
+  GeneratedColumn<String> get taskId =>
+      $composableBuilder(column: $table.taskId, builder: (column) => column);
+
+  GeneratedColumn<String> get operation =>
+      $composableBuilder(column: $table.operation, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get body =>
+      $composableBuilder(column: $table.body, builder: (column) => column);
+
+  GeneratedColumn<String> get details =>
+      $composableBuilder(column: $table.details, builder: (column) => column);
+
+  GeneratedColumn<int> get appliedRevision => $composableBuilder(
+    column: $table.appliedRevision,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get created =>
+      $composableBuilder(column: $table.created, builder: (column) => column);
+}
+
+class $$NoteAiRecoveriesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $NoteAiRecoveriesTable,
+          NoteAiRecovery,
+          $$NoteAiRecoveriesTableFilterComposer,
+          $$NoteAiRecoveriesTableOrderingComposer,
+          $$NoteAiRecoveriesTableAnnotationComposer,
+          $$NoteAiRecoveriesTableCreateCompanionBuilder,
+          $$NoteAiRecoveriesTableUpdateCompanionBuilder,
+          (
+            NoteAiRecovery,
+            BaseReferences<
+              _$AppDatabase,
+              $NoteAiRecoveriesTable,
+              NoteAiRecovery
+            >,
+          ),
+          NoteAiRecovery,
+          PrefetchHooks Function()
+        > {
+  $$NoteAiRecoveriesTableTableManager(
+    _$AppDatabase db,
+    $NoteAiRecoveriesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$NoteAiRecoveriesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$NoteAiRecoveriesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$NoteAiRecoveriesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> noteId = const Value.absent(),
+                Value<String> taskId = const Value.absent(),
+                Value<String> operation = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String> body = const Value.absent(),
+                Value<String> details = const Value.absent(),
+                Value<int> appliedRevision = const Value.absent(),
+                Value<int> created = const Value.absent(),
+              }) => NoteAiRecoveriesCompanion(
+                id: id,
+                noteId: noteId,
+                taskId: taskId,
+                operation: operation,
+                title: title,
+                body: body,
+                details: details,
+                appliedRevision: appliedRevision,
+                created: created,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String noteId,
+                required String taskId,
+                required String operation,
+                required String title,
+                required String body,
+                required String details,
+                required int appliedRevision,
+                required int created,
+              }) => NoteAiRecoveriesCompanion.insert(
+                id: id,
+                noteId: noteId,
+                taskId: taskId,
+                operation: operation,
+                title: title,
+                body: body,
+                details: details,
+                appliedRevision: appliedRevision,
+                created: created,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$NoteAiRecoveriesTable, NoteAiRecovery>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $NoteAiRecoveriesTable,
+                    NoteAiRecovery
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$NoteAiRecoveriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $NoteAiRecoveriesTable,
+      NoteAiRecovery,
+      $$NoteAiRecoveriesTableFilterComposer,
+      $$NoteAiRecoveriesTableOrderingComposer,
+      $$NoteAiRecoveriesTableAnnotationComposer,
+      $$NoteAiRecoveriesTableCreateCompanionBuilder,
+      $$NoteAiRecoveriesTableUpdateCompanionBuilder,
+      (
+        NoteAiRecovery,
+        BaseReferences<_$AppDatabase, $NoteAiRecoveriesTable, NoteAiRecovery>,
+      ),
+      NoteAiRecovery,
+      PrefetchHooks Function()
+    >;
+typedef $$NoteMediaOpsTableCreateCompanionBuilder =
+    NoteMediaOpsCompanion Function({
+      required String path,
+      required int created,
+      Value<int> rowid,
+    });
+typedef $$NoteMediaOpsTableUpdateCompanionBuilder =
+    NoteMediaOpsCompanion Function({
+      Value<String> path,
+      Value<int> created,
+      Value<int> rowid,
+    });
+
+class $$NoteMediaOpsTableFilterComposer
+    extends Composer<_$AppDatabase, $NoteMediaOpsTable> {
+  $$NoteMediaOpsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get path => $composableBuilder(
+    column: $table.path,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get created => $composableBuilder(
+    column: $table.created,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$NoteMediaOpsTableOrderingComposer
+    extends Composer<_$AppDatabase, $NoteMediaOpsTable> {
+  $$NoteMediaOpsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get path => $composableBuilder(
+    column: $table.path,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get created => $composableBuilder(
+    column: $table.created,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$NoteMediaOpsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $NoteMediaOpsTable> {
+  $$NoteMediaOpsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get path =>
+      $composableBuilder(column: $table.path, builder: (column) => column);
+
+  GeneratedColumn<int> get created =>
+      $composableBuilder(column: $table.created, builder: (column) => column);
+}
+
+class $$NoteMediaOpsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $NoteMediaOpsTable,
+          NoteMediaOp,
+          $$NoteMediaOpsTableFilterComposer,
+          $$NoteMediaOpsTableOrderingComposer,
+          $$NoteMediaOpsTableAnnotationComposer,
+          $$NoteMediaOpsTableCreateCompanionBuilder,
+          $$NoteMediaOpsTableUpdateCompanionBuilder,
+          (
+            NoteMediaOp,
+            BaseReferences<_$AppDatabase, $NoteMediaOpsTable, NoteMediaOp>,
+          ),
+          NoteMediaOp,
+          PrefetchHooks Function()
+        > {
+  $$NoteMediaOpsTableTableManager(_$AppDatabase db, $NoteMediaOpsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$NoteMediaOpsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$NoteMediaOpsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$NoteMediaOpsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> path = const Value.absent(),
+                Value<int> created = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => NoteMediaOpsCompanion(
+                path: path,
+                created: created,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String path,
+                required int created,
+                Value<int> rowid = const Value.absent(),
+              }) => NoteMediaOpsCompanion.insert(
+                path: path,
+                created: created,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$NoteMediaOpsTable, NoteMediaOp>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $NoteMediaOpsTable,
+                    NoteMediaOp
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$NoteMediaOpsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $NoteMediaOpsTable,
+      NoteMediaOp,
+      $$NoteMediaOpsTableFilterComposer,
+      $$NoteMediaOpsTableOrderingComposer,
+      $$NoteMediaOpsTableAnnotationComposer,
+      $$NoteMediaOpsTableCreateCompanionBuilder,
+      $$NoteMediaOpsTableUpdateCompanionBuilder,
+      (
+        NoteMediaOp,
+        BaseReferences<_$AppDatabase, $NoteMediaOpsTable, NoteMediaOp>,
+      ),
+      NoteMediaOp,
+      PrefetchHooks Function()
     >;
 typedef $$DiaryEntriesTableCreateCompanionBuilder =
     DiaryEntriesCompanion Function({
@@ -11689,6 +13028,10 @@ class $AppDatabaseManager {
       $$NoteDraftsTableTableManager(_db, _db.noteDrafts);
   $$NoteTagsTableTableManager get noteTags =>
       $$NoteTagsTableTableManager(_db, _db.noteTags);
+  $$NoteAiRecoveriesTableTableManager get noteAiRecoveries =>
+      $$NoteAiRecoveriesTableTableManager(_db, _db.noteAiRecoveries);
+  $$NoteMediaOpsTableTableManager get noteMediaOps =>
+      $$NoteMediaOpsTableTableManager(_db, _db.noteMediaOps);
   $$DiaryEntriesTableTableManager get diaryEntries =>
       $$DiaryEntriesTableTableManager(_db, _db.diaryEntries);
   $$DiaryDaysTableTableManager get diaryDays =>

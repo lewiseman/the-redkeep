@@ -120,7 +120,13 @@ void main() {
 
   test('note IDs and editor destinations survive both gates and reject malformed input', () {
     const id = '0123456789abcdef0123456789abcdef';
-    for (final path in ['/notes', '/notes/$id', '/notes/$id/edit']) {
+    for (final path in [
+      '/notes',
+      '/notes/ai-search',
+      '/notes/ai-task',
+      '/notes/$id',
+      '/notes/$id/edit',
+    ]) {
       expect(validatedNavigationLocation(path), path);
       final startup = redirect(path, ready: false)!;
       final welcome = redirect(startup, complete: false)!;

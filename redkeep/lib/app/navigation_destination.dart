@@ -62,6 +62,8 @@ String _destination(String location) {
     return location;
   }
   if (const {
+    '/notes/ai-search',
+    '/notes/ai-task',
     '/diary/search',
     '/flow/search',
     '/settings/brain/phone',

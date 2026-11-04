@@ -1,3 +1,6 @@
+import 'note_details.dart';
+export 'note_details.dart';
+
 /// Application-owned plain-text boundary. No editor, database or CRDT types.
 class PlainTextDocument {
   const PlainTextDocument({this.title = '', this.body = ''});
@@ -16,6 +19,7 @@ class NoteDocument {
     this.deletedAt,
     this.pinned = false,
     this.tags = const [],
+    this.details = const NoteDetails(),
   });
   final String id;
   final PlainTextDocument text;
@@ -25,6 +29,7 @@ class NoteDocument {
   final DateTime? deletedAt;
   final bool pinned;
   final List<String> tags;
+  final NoteDetails details;
 }
 
 class RecoveryDraft {
@@ -33,12 +38,14 @@ class RecoveryDraft {
     required this.text,
     required this.baseRevision,
     required this.draftRevision,
+    this.details = const NoteDetails(),
     required this.updatedAt,
   });
   final String id;
   final PlainTextDocument text;
   final int baseRevision;
   final int draftRevision;
+  final NoteDetails details;
   final DateTime updatedAt;
 }
 

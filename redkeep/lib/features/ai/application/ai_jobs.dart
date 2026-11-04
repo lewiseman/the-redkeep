@@ -1,3 +1,8 @@
+import '../../notes/domain/note_question_contract.dart'
+    show RecallAnswerRejected;
+import '../../notes/application/note_ai_sources.dart';
+import '../../notes/domain/note_background_contract.dart';
+import '../../notes/data/note_media_store.dart';
 import '../../voice/application/voice_coordination.dart';
 import '../../diary/domain/diary_photo_question_contract.dart';
 import '../../diary/domain/diary_history_contract.dart';
@@ -213,7 +218,7 @@ class AiJobs extends Notifier<AiJobState> {
         !(capability!['operations'] as List).contains(operation.wireName)) {
       throw const CompanionFailure(
         'INCOMPATIBLE_VERSION',
-        'Update the companion to support this diary operation.',
+        'Update the companion to support this AI operation.',
       );
     }
     if (capability['implemented'] != true ||
@@ -312,6 +317,7 @@ class AiJobs extends Notifier<AiJobState> {
           DiaryHistorySelection.decode(source),
         ),
         AiOperation.conversation => await _conversationCurrent(source),
+        _ => await noteAiSourceCurrent(ref, operation, source),
       };
       if (!valid) {
         throw const FormatException(
@@ -369,7 +375,11 @@ class AiJobs extends Notifier<AiJobState> {
           text,
           DiaryHistorySelection.decode(job.source),
         );
-      case AiOperation.conversation:
+      default:
+        if (job.operation.isNote) {
+          validateNoteAiOutput(job.operation, text, job.source);
+          return;
+        }
         if (text.trim().isEmpty ||
             RegExp(r'[\x00-\x08\x0b\x0c\x0e-\x1f]').hasMatch(text)) {
           throw const FormatException('Invalid conversation draft');
@@ -386,7 +396,9 @@ class AiJobs extends Notifier<AiJobState> {
       model: model,
       capability: job.operation.capability!,
       text: job.prompt,
-      preparedPrompt: job.prompt,
+      preparedPrompt: job.operation == AiOperation.noteSummary
+          ? jsonEncode({'note': job.prompt})
+          : job.prompt,
       owner: _owner,
       settings: job.operation.phoneSettings(),
       onChunk: (chunk) {
@@ -420,9 +432,7 @@ class AiJobs extends Notifier<AiJobState> {
       computer,
       submit ? 'POST' : 'GET',
       submit
-          ? (job.operation == AiOperation.photoQuestions
-                ? '/v1/image-jobs'
-                : '/v1/jobs')
+          ? (job.operation.imageInput ? '/v1/image-jobs' : '/v1/jobs')
           : '/v1/jobs/${job.id}',
       body: submit
           ? {
@@ -430,8 +440,10 @@ class AiJobs extends Notifier<AiJobState> {
               'operation': job.operation.wireName,
               'prompt': job.prompt,
               'expires': job.expires,
-              if (job.operation == AiOperation.photoQuestions)
-                'image': await _photoUpload(job),
+              if (job.operation.imageInput)
+                'image': job.operation.isNote
+                    ? await _noteUpload(job)
+                    : await _photoUpload(job),
             }
           : null,
     );
@@ -471,6 +483,10 @@ class AiJobs extends Notifier<AiJobState> {
           );
         }
         _validate(job, text);
+        if (job.operation == AiOperation.noteBackground) {
+          await _collectNoteBackground(job, text, client, computer);
+          if (!_alive(epoch)) return;
+        }
         next = next.copy(text: text);
       }
       if (next.terminal) {
@@ -501,6 +517,58 @@ class AiJobs extends Notifier<AiJobState> {
         '/v1/jobs/${job.id}',
       );
     }
+  }
+
+  Future<String> _noteUpload(AiJob job) async {
+    final source = noteTaskSource(job.source);
+    final file = await ref
+        .read(noteMediaStoreProvider)
+        .resolve(source['upload'] as String);
+    if (file == null) {
+      throw const FormatException(
+        'The prepared image is missing. Clear this task and choose the image again.',
+      );
+    }
+    final bytes = await file.readAsBytes();
+    if (await hexHash(bytes) != source['imageSha']) {
+      throw const FormatException(
+        'The prepared image changed. Nothing was sent.',
+      );
+    }
+    return base64Encode(bytes);
+  }
+
+  Future<void> _collectNoteBackground(
+    AiJob job,
+    String text,
+    CompanionClient client,
+    TrustedComputer computer,
+  ) async {
+    final meta = NoteBackgroundResult.parse(text);
+    final store = ref.read(noteMediaStoreProvider);
+    final path = backgroundPreviewPath(job.id, text);
+    final existing = await store.resolve(path);
+    if (existing != null &&
+        meta.matches(
+          await existing.readAsBytes(),
+          await hexHash(await existing.readAsBytes()),
+        )) {
+      return;
+    }
+    final result = await client.authenticated(
+      computer,
+      'GET',
+      '/v1/image-jobs/${job.id}/result',
+    );
+    final bytes = result['image'] is String
+        ? base64Decode(result['image'] as String)
+        : Uint8List(0);
+    if (result['id'] != job.id || !meta.matches(bytes, await hexHash(bytes))) {
+      throw const FormatException(
+        'The generated image failed verification. Nothing was applied.',
+      );
+    }
+    await store.write(bytes, identity: job.id);
   }
 
   Future<String> _photoUpload(AiJob job) async {
@@ -746,6 +814,7 @@ class AiJobs extends Notifier<AiJobState> {
     BrainException() => error.message,
     FormatException() => error.message,
     DailyQuestionRejected() => error.message,
+    RecallAnswerRejected() => error.message,
     _ => 'Could not finish the AI task. Your writing is safe. Unlock the phone and retry.',
   };
 }

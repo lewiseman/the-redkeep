@@ -275,7 +275,9 @@ class _CompanionPageState extends ConsumerState<CompanionPage>
             'Choose a destination for individual diary operations',
           ),
           children: [
-            for (final operation in AiOperation.values.where((o) => o.supportsPhone))
+            for (final operation in AiOperation.values.where(
+              (o) => o.supportsPhone,
+            ))
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 child: DropdownButtonFormField<AiMode>(
@@ -286,9 +288,7 @@ class _CompanionPageState extends ConsumerState<CompanionPage>
                       prefs.value?.overrides[operation] ?? AiMode.auto,
                   isExpanded: true,
                   itemHeight: null,
-                  decoration: InputDecoration(
-                    labelText: operation.label,
-                  ),
+                  decoration: InputDecoration(labelText: operation.label),
                   items: const [
                     DropdownMenuItem(
                       value: AiMode.auto,
@@ -361,6 +361,11 @@ class AiTaskPanel extends ConsumerWidget {
                 '${job.operation.label} · ${job.phase} · ${job.provider == 'companion' ? 'Computer' : 'Phone'}',
               ),
             if (state.message != null) Text(state.message!),
+            if (job?.operation.isNote == true)
+              TextButton(
+                onPressed: () => context.push('/notes/ai-task'),
+                child: const Text('Review note task'),
+              ),
             if (job?.operation == AiOperation.diaryDetails &&
                 job?.phase == 'completed')
               TextButton(

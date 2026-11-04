@@ -1,3 +1,4 @@
+import 'generated/schema_v13.dart' as v13;
 import 'generated/schema_v12.dart' as v12;
 import 'generated/schema_v11.dart' as v11;
 
@@ -26,6 +27,44 @@ import 'package:redkeep/features/notes/data/drift_notes_repository.dart';
 import 'package:redkeep/features/notes/domain/note_document.dart';
 
 void main() {
+  test('version 13 adds empty note metadata without changing saved writing or recovery drafts', () async {
+    final verifier = SchemaVerifier(GeneratedHelper());
+    final schema = await verifier.schemaAt(13);
+    final old = v13.DatabaseAtV13(schema.newConnection());
+    await old.customStatement(
+      "INSERT INTO notes(id,title,body,revision,created_at,updated_at,pinned) VALUES('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','Saved','Exact words 👩🏽‍💻',7,1,2,1)",
+    );
+    await old.customStatement(
+      "INSERT INTO note_drafts(id,title,body,base_revision,updated_at) VALUES('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','Draft','Unfinished words',7,4)",
+    );
+    await old.customStatement(
+      "INSERT INTO note_tags(note_id,tag) VALUES('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','travel')",
+    );
+    await old.close();
+    final db = AppDatabase(schema.newConnection());
+    try {
+      await verifier.migrateAndValidate(db, 14);
+      final note = await db.select(db.notes).getSingle();
+      final draft = await db.select(db.noteDrafts).getSingle();
+      expect(note.body, 'Exact words 👩🏽‍💻');
+      expect(note.revision, 7);
+      expect(note.pinned, isTrue);
+      expect(note.details, '{}');
+      expect(draft.body, 'Unfinished words');
+      expect(draft.details, '{}');
+      expect(await db.select(db.noteAiRecoveries).get(), isEmpty);
+      final repo = DriftNotesRepository(db, clock: DateTime.now);
+      final opened = await repo.openDocument('a' * 32);
+      expect(opened.draft!.details.tags, ['travel']);
+      expect(
+        (await repo.commitDraft('a' * 32, opened.draft!.draftRevision)).tags,
+        ['travel'],
+      );
+    } finally {
+      await db.close();
+    }
+  });
+
   test('version 12 adds empty media fields and retains writing, private drafts, AI choices and sync state', () async {
     final verifier = SchemaVerifier(GeneratedHelper());
     final schema = await verifier.schemaAt(12);
@@ -48,7 +87,7 @@ void main() {
     await old.close();
     final db = AppDatabase(schema.newConnection());
     try {
-      await verifier.migrateAndValidate(db, 13);
+      await verifier.migrateAndValidate(db, 14);
       final entry = await db.select(db.diaryEntries).getSingle();
       expect(entry.body, 'Exact saved words 👩🏽‍💻');
       expect(entry.revision, 7);
@@ -82,7 +121,7 @@ void main() {
     await old.close();
     final db = AppDatabase(schema.newConnection());
     try {
-      await verifier.migrateAndValidate(db, 13);
+      await verifier.migrateAndValidate(db, 14);
       expect((await db.select(db.notes).getSingle()).body, 'Exact 👩🏽‍💻 中文');
       expect(
         (await db.select(db.brainAssignmentsTable).getSingle()).modelId,
@@ -115,7 +154,7 @@ void main() {
     await old.close();
     final db = AppDatabase(schema.newConnection());
     try {
-      await verifier.migrateAndValidate(db, 13);
+      await verifier.migrateAndValidate(db, 14);
       final day = await db.select(db.diaryDays).getSingle();
       expect(day.heading, 'Keep my title');
       expect(day.revision, 7);
@@ -145,7 +184,7 @@ void main() {
     await old.close();
     final db = AppDatabase(schema.newConnection());
     try {
-      await verifier.migrateAndValidate(db, 13);
+      await verifier.migrateAndValidate(db, 14);
       expect(
         await DriftAppearanceRepository(db).watch().first,
         const AppearancePreferences(
@@ -178,7 +217,7 @@ void main() {
     await old.close();
     final db = AppDatabase(schema.newConnection());
     try {
-      await verifier.migrateAndValidate(db, 13);
+      await verifier.migrateAndValidate(db, 14);
       expect(
         (await db.select(db.onboardingCompletion).getSingle()).name,
         'Lewis',
@@ -210,7 +249,7 @@ void main() {
     await old.close();
     final db = AppDatabase(schema.newConnection());
     try {
-      await verifier.migrateAndValidate(db, 13);
+      await verifier.migrateAndValidate(db, 14);
       expect(await DriftOnboardingRepository(db).isComplete(), false);
       expect((await db.select(db.onboardingCompletion).getSingle()).id, 1);
       expect((await db.select(db.notes).getSingle()).body, 'Keep this writing');
@@ -229,7 +268,7 @@ void main() {
   test('fresh schema matches the committed version 13 snapshot', () async {
     final database = AppDatabase(NativeDatabase.memory());
     addTearDown(database.close);
-    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 13);
+    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 14);
   });
 
   test('version 1 upgrade preserves every saved appearance choice', () async {
@@ -244,7 +283,7 @@ void main() {
       await old.close();
       final database = AppDatabase(schema.newConnection());
       try {
-        await verifier.migrateAndValidate(database, 13);
+        await verifier.migrateAndValidate(database, 14);
         expect(
           await DriftAppearanceRepository(database).watch().first,
           AppearancePreferences(
@@ -278,7 +317,7 @@ void main() {
       await old.close();
       final database = AppDatabase(schema.newConnection());
       try {
-        await verifier.migrateAndValidate(database, 13);
+        await verifier.migrateAndValidate(database, 14);
         expect(
           await DriftAppearanceRepository(database).watch().first,
           const AppearancePreferences(
@@ -323,7 +362,7 @@ void main() {
       await old.close();
       final database = AppDatabase(schema.newConnection());
       try {
-        await verifier.migrateAndValidate(database, 13);
+        await verifier.migrateAndValidate(database, 14);
         expect(await DriftOnboardingRepository(database).isComplete(), isFalse);
         expect(
           (await DriftAppearanceRepository(database).watch().first).theme,
@@ -385,7 +424,7 @@ void main() {
     await old.close();
     final database = AppDatabase(schema.newConnection());
     try {
-      await verifier.migrateAndValidate(database, 13);
+      await verifier.migrateAndValidate(database, 14);
       expect(
         (await DriftAppearanceRepository(database).watch().first),
         const AppearancePreferences(
@@ -480,12 +519,14 @@ void main() {
     await old.close();
     final database = AppDatabase(schema.newConnection());
     try {
-      await verifier.migrateAndValidate(database, 13);
+      await verifier.migrateAndValidate(database, 14);
       for (final table in tables) {
         expect(
           (await database.customSelect('SELECT * FROM $table').get())
               .map(
-                (r) => table == 'onboarding_completion'
+                (r) => table == 'notes' || table == 'note_drafts'
+                    ? (Map<String, dynamic>.of(r.data)..remove('details'))
+                    : table == 'onboarding_completion'
                     ? (Map<String, dynamic>.of(r.data)..remove('name'))
                     : table == 'appearance_settings'
                     ? (Map<String, dynamic>.of(r.data)
@@ -594,12 +635,14 @@ void main() {
       await old.close();
       final database = AppDatabase(schema.newConnection());
       try {
-        await verifier.migrateAndValidate(database, 13);
+        await verifier.migrateAndValidate(database, 14);
         for (final table in tables) {
           expect(
             (await database.customSelect('SELECT * FROM $table').get())
                 .map(
-                  (r) => table == 'onboarding_completion'
+                  (r) => table == 'notes' || table == 'note_drafts'
+                      ? (Map<String, dynamic>.of(r.data)..remove('details'))
+                      : table == 'onboarding_completion'
                       ? (Map<String, dynamic>.of(r.data)..remove('name'))
                       : table == 'appearance_settings'
                       ? (Map<String, dynamic>.of(r.data)

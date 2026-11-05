@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:redkeep/app/more_page.dart';
 import 'package:redkeep/features/diary/presentation/diary_paper_material.dart';
 import 'package:redkeep/core/presentation/redkeep_theme.dart';
 import 'package:redkeep/core/presentation/rendering_policy.dart';
@@ -84,7 +85,8 @@ void main() {
       expect(RenderingPolicyScope.of(context).simplerEffects, isTrue);
       await tester.pageBack();
       await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('diary-active-paper')), findsOneWidget);
+      expect(find.byType(MorePage), findsOneWidget);
+      expect(find.byType(AppearancePage), findsNothing);
     },
   );
 

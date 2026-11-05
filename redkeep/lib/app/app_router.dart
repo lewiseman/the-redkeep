@@ -37,6 +37,7 @@ import '../features/notes/presentation/notes_list_page.dart';
 import '../features/notes/presentation/note_read_page.dart';
 import '../features/notes/presentation/note_edit_page.dart';
 import 'bootstrap/bootstrap_controller.dart';
+import 'bootstrap/startup_handoff.dart';
 import 'bootstrap/startup_page.dart';
 import 'home_page.dart';
 import 'navigation_destination.dart';
@@ -356,11 +357,17 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
       ),
       GoRoute(
         path: '/startup',
-        pageBuilder: (context, state) => _page(state, const StartupPage()),
+        pageBuilder: (context, state) => const MaterialPage<void>(
+          key: StartupHandoff.pageKey,
+          child: StartupHandoff(child: StartupPage()),
+        ),
       ),
       GoRoute(
         path: '/onboarding',
-        pageBuilder: (context, state) => _page(state, const OnboardingPage()),
+        pageBuilder: (context, state) => const MaterialPage<void>(
+          key: StartupHandoff.pageKey,
+          child: StartupHandoff(animateIn: true, child: OnboardingPage()),
+        ),
       ),
       GoRoute(
         path: '/unavailable',

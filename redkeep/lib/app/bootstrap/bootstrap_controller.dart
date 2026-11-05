@@ -70,6 +70,10 @@ class BootstrapController extends Notifier<BootstrapState> {
       // Never wait for a first frame: preserve() deferred that frame.
       if (ref.mounted) _release();
     }
+    // The artwork is required and small, so there is nothing to ask first.
+    if (ref.mounted && state.stage == BootstrapStage.download) {
+      await download();
+    }
   }
 
   Future<void> download() async {
@@ -87,7 +91,10 @@ class BootstrapController extends Notifier<BootstrapState> {
           );
         }
       });
-      if (ref.mounted) state = const BootstrapState(BootstrapStage.ready);
+      if (ref.mounted) {
+        // Keep the finished size on screen while the next page takes over.
+        state = BootstrapState(BootstrapStage.ready, progress: state.progress);
+      }
     } catch (error) {
       if (ref.mounted) {
         state = BootstrapState(

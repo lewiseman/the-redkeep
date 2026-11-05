@@ -138,23 +138,22 @@ void main() {
     assets.downloadError = const AssetException(AssetFailure.network);
     assets.onDownload = () => expect(releases, 1);
     final controller = start();
-    await controller.check();
-    expect(
-      container.read(bootstrapControllerProvider).stage,
-      BootstrapStage.download,
-    );
-    expect(assets.downloads, 0);
-    expect(releases, 1);
     final stages = <BootstrapState>[];
     final subscription = container.listen(
       bootstrapControllerProvider,
       (_, next) => stages.add(next),
     );
-    await controller.download();
+    await controller.check();
+    expect(
+      container.read(bootstrapControllerProvider).stage,
+      BootstrapStage.download,
+    );
     expect(
       container.read(bootstrapControllerProvider).failure,
       AssetFailure.network,
     );
+    expect(assets.downloads, 1);
+    expect(releases, 1);
     expect(stages.any((s) => s.progress?.completedBytes == 1), isTrue);
     assets.downloadError = null;
     await controller.download();
@@ -186,9 +185,10 @@ void main() {
       assets.missing = ['test.one'];
       await controller.repair();
       expect(assets.verifyAll, isTrue);
+      expect(assets.downloads, 1);
       expect(
         container.read(bootstrapControllerProvider).stage,
-        BootstrapStage.download,
+        BootstrapStage.ready,
       );
     },
   );

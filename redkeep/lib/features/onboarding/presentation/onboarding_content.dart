@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts_lite.dart';
 
+import '../../../app/bootstrap/startup_handoff.dart';
 import '../../../core/presentation/rendering_policy.dart';
 import 'onboarding_book.dart';
 import 'onboarding_chapter.dart';
@@ -127,14 +128,17 @@ class _OnboardingContentState extends State<OnboardingContent> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (showMascot) ...[
-                  Image.asset(
-                    'assets/branding/grand_maestar.png',
-                    key: const ValueKey('onboarding-mascot'),
-                    height: mascotHeight,
-                    cacheHeight:
-                        (mascotHeight * MediaQuery.devicePixelRatioOf(context))
-                            .ceil(),
-                    excludeFromSemantics: true,
+                  StartupHandoffLogo(
+                    child: Image.asset(
+                      'assets/branding/grand_maestar.png',
+                      key: const ValueKey('onboarding-mascot'),
+                      height: mascotHeight,
+                      cacheHeight:
+                          (mascotHeight *
+                                  MediaQuery.devicePixelRatioOf(context))
+                              .ceil(),
+                      excludeFromSemantics: true,
+                    ),
                   ),
                   // Keep the logo with the book as the viewport grows.
                   const SizedBox(height: 8),

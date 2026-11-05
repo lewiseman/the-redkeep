@@ -146,7 +146,7 @@ class _DiaryPhotoEntryBookState extends State<DiaryPhotoEntryBook> {
                 edgeScale: .65,
                 variant: 1,
               ),
-              foregroundPainter: _AlbumMarginPainter(ink: palette.ink),
+              foregroundPainter: DiaryAlbumMarginPainter(ink: palette.ink),
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(23, 24, 17, 24),
                 child: Column(
@@ -389,8 +389,8 @@ class _DiaryPhotoEntryBookState extends State<DiaryPhotoEntryBook> {
   }
 }
 
-class _AlbumMarginPainter extends CustomPainter {
-  const _AlbumMarginPainter({required this.ink});
+class DiaryAlbumMarginPainter extends CustomPainter {
+  const DiaryAlbumMarginPainter({required this.ink});
   final Color ink;
 
   @override
@@ -409,7 +409,7 @@ class _AlbumMarginPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_AlbumMarginPainter oldDelegate) => ink != oldDelegate.ink;
+  bool shouldRepaint(DiaryAlbumMarginPainter oldDelegate) => ink != oldDelegate.ink;
 }
 
 class _MemoryStitchPainter extends CustomPainter {

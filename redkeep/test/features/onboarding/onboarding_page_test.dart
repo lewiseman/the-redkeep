@@ -42,7 +42,8 @@ void main() {
         onboarding: onboarding,
         assets: assets,
       );
-      expect(find.text('Opening Redkeep'), findsOneWidget);
+      expect(find.byKey(const ValueKey('startup-logo')), findsOneWidget);
+      expect(find.text('Getting Redkeep ready'), findsNothing);
       expect(
         router.routeInformationProvider.value.uri.toString(),
         '/startup?continue=%2Fsettings',
@@ -50,16 +51,14 @@ void main() {
       expect(assets.downloads, 0);
       onboarding.readGate!.complete();
       await tester.pumpAndSettle();
-      expect(find.text('Download artwork'), findsOneWidget);
-      await tester.tap(find.text('Download artwork'));
-      await tester.pumpAndSettle();
-      expect(find.text('Retry download'), findsOneWidget);
+      expect(assets.downloads, 1);
+      expect(find.text('Try again'), findsOneWidget);
       expect(
         router.routeInformationProvider.value.uri.queryParameters['continue'],
         '/settings',
       );
       assets.downloadError = null;
-      await tester.tap(find.text('Retry download'));
+      await tester.tap(find.text('Try again'));
       await tester.pumpAndSettle();
       expect(find.byType(OnboardingPage), findsOneWidget);
       expect(
@@ -154,10 +153,10 @@ void main() {
         initialLocation: '/settings',
         onboarding: onboarding,
       );
-      expect(find.text('Retry local checks'), findsOneWidget);
+      expect(find.text('Try again'), findsOneWidget);
       expect(find.textContaining('Synthetic private'), findsNothing);
       onboarding.failRead = false;
-      await tester.tap(find.text('Retry local checks'));
+      await tester.tap(find.text('Try again'));
       await tester.pumpAndSettle();
       expect(find.byType(OnboardingPage), findsOneWidget);
       expect(
@@ -186,8 +185,6 @@ void main() {
         router.routeInformationProvider.value.uri.queryParameters['continue'],
         '/settings',
       );
-      await tester.tap(find.text('Download artwork'));
-      await tester.pumpAndSettle();
       router.go('/');
       await tester.pumpAndSettle();
       expect(
@@ -297,7 +294,7 @@ void main() {
         router.routeInformationProvider.value.uri.queryParameters['continue'],
         '/settings',
       );
-      await tester.tap(find.text('Retry local checks'));
+      await tester.tap(find.text('Try again'));
       await tester.pumpAndSettle();
       expect(find.byType(AppearancePage), findsOneWidget);
       expect(router.canPop(), isTrue);

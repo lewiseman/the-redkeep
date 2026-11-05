@@ -740,7 +740,7 @@ void main() {
         initialLocation: '/settings',
       );
       await _decodeVisible(tester);
-      expect(find.text('Retry local checks'), findsOneWidget);
+      expect(find.text('Try again'), findsOneWidget);
       expect(
         router.routeInformationProvider.value.uri.queryParameters['continue'],
         '/settings',
@@ -761,7 +761,7 @@ void main() {
         initialLocation: '/settings',
       );
       await _tap(tester, "Let's begin");
-      expect(find.text('Retry local checks'), findsOneWidget);
+      expect(find.text('Try again'), findsOneWidget);
       expect(repository.saves, 0);
       expect(
         router.routeInformationProvider.value.uri.queryParameters['continue'],
@@ -815,14 +815,14 @@ void main() {
           initialLocation: '/settings',
         );
         if (corrupt) await _decodeVisible(tester);
-        expect(find.text('Retry local checks'), findsOneWidget);
+        expect(find.text('Try again'), findsOneWidget);
         expect(
           router.routeInformationProvider.value.uri.queryParameters['continue'],
           '/settings',
         );
         expect(repository.completed, false);
         assets.failedKey = null;
-        await _tap(tester, 'Retry local checks');
+        await _tap(tester, 'Try again');
         expect(find.byType(OnboardingPage), findsOneWidget);
         await _decodeVisible(tester);
         expect(repository.saves, 0);

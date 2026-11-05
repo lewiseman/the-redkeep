@@ -77,7 +77,9 @@ void main() {
         ..missing = ['test.one']
         ..downloadError = const AssetException(AssetFailure.network);
       await pump(tester, assets);
-      expect(find.text('Prepare your artwork'), findsOneWidget);
+      // The required artwork starts by itself; a failure waits for the reader.
+      expect(assets.downloads, 1);
+      expect(find.text('Setup paused'), findsOneWidget);
       for (final entry in {
         'startup-background': 'assets/branding/ink-paper.webp',
         'startup-logo': 'assets/branding/grand_maestar.png',
@@ -90,11 +92,8 @@ void main() {
       }
       expect(find.text('Theme'), findsNothing);
       expect(find.textContaining('Skip'), findsNothing);
-      await tester.tap(find.text('Download artwork'));
-      await tester.pumpAndSettle();
-      expect(find.text('Retry download'), findsOneWidget);
       assets.downloadError = null;
-      await tester.tap(find.text('Retry download'));
+      await tester.tap(find.text('Try again'));
       await tester.pumpAndSettle();
       expect(find.text('Theme'), findsOneWidget);
       expect(
@@ -117,10 +116,10 @@ void main() {
       final assets = _UnavailableArtwork();
       await pump(tester, assets);
       await tester.pumpAndSettle();
-      expect(find.text('Redkeep could not open'), findsOneWidget);
+      expect(find.text("Redkeep couldn't open"), findsOneWidget);
       expect(find.text('Theme'), findsNothing);
       assets.available = true;
-      await tester.tap(find.text('Retry local checks'));
+      await tester.tap(find.text('Try again'));
       await tester.pumpAndSettle();
       expect(assets.verifyAll, isTrue);
       expect(find.text('Theme'), findsOneWidget);
@@ -140,7 +139,9 @@ void main() {
         addTearDown(tester.view.reset);
         addTearDown(tester.platformDispatcher.clearAllTestValues);
         var fail = true;
-        final assets = FakeRequiredAssets()..missing = ['test.one'];
+        final assets = FakeRequiredAssets()
+          ..missing = ['test.one']
+          ..downloadError = const AssetException(AssetFailure.network);
         await pump(
           tester,
           assets,
@@ -149,13 +150,14 @@ void main() {
             if (fail) throw StateError('synthetic private error never shown');
           },
         );
-        expect(find.text('Redkeep could not open'), findsOneWidget);
+        expect(find.text("Redkeep couldn't open"), findsOneWidget);
         expect(find.textContaining('synthetic private error'), findsNothing);
-        await tester.ensureVisible(find.text('Retry local checks'));
+        await tester.ensureVisible(find.text('Try again'));
         fail = false;
-        await tester.tap(find.text('Retry local checks'));
+        await tester.tap(find.text('Try again'));
         await tester.pumpAndSettle();
-        await tester.ensureVisible(find.text('Download artwork'));
+        expect(find.text('Setup paused'), findsOneWidget);
+        await tester.ensureVisible(find.text('Try again'));
         expect(tester.takeException(), isNull);
       },
     );
@@ -167,8 +169,6 @@ void main() {
       final gate = Completer<void>();
       final assets = _SlowAssets(gate);
       await pump(tester, assets);
-      await tester.tap(find.text('Download artwork'));
-      await tester.pump();
       expect(find.text('50% · 1 B of 2 B'), findsOneWidget);
       expect(
         tester

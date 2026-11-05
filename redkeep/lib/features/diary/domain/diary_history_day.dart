@@ -13,7 +13,6 @@ class DiaryHistoryDay {
 
 extension DiaryHistoryItem on DiaryEntry {
   String get itemUuid => id;
-  String get content =>
-      text.title.isEmpty ? text.body : '${text.title}\n\n${text.body}';
+  String get content => text.body;
   bool get isDeleted => deletedAt != null;
 }

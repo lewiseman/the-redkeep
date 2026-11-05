@@ -150,6 +150,7 @@ class DiaryScene extends StatelessWidget {
                       ink: paper.foreground,
                       shape: DiaryPaperShape.forDate(sheet.calendarDate),
                       flat: !(current && showTurn),
+                      turning: busy && !blocked && !reduced,
                       visible: current
                           ? showTurn
                           : incoming || (preview && showPreview),
@@ -158,7 +159,7 @@ class DiaryScene extends StatelessWidget {
                           !busy &&
                           !reduced &&
                           fadingFrom == null,
-                      child: DiarySheet(
+                      child: _DiaryFaceContent(
                         day: sheet,
                         minimumHeight: restRect.height,
                       ),
@@ -301,4 +302,35 @@ class DiaryScene extends StatelessWidget {
       );
     },
   );
+}
+
+/// A date keeps the same sheet widget as it moves from preview to current.
+/// Only the wrappers above it change during a turn.
+class _DiaryFaceContent extends StatefulWidget {
+  const _DiaryFaceContent({required this.day, required this.minimumHeight});
+
+  final DiaryPaperDay day;
+  final double minimumHeight;
+
+  @override
+  State<_DiaryFaceContent> createState() => _DiaryFaceContentState();
+}
+
+class _DiaryFaceContentState extends State<_DiaryFaceContent> {
+  late Widget _sheet = _buildSheet();
+
+  Widget _buildSheet() =>
+      DiarySheet(day: widget.day, minimumHeight: widget.minimumHeight);
+
+  @override
+  void didUpdateWidget(_DiaryFaceContent oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.day != oldWidget.day ||
+        widget.minimumHeight != oldWidget.minimumHeight) {
+      _sheet = _buildSheet();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => _sheet;
 }

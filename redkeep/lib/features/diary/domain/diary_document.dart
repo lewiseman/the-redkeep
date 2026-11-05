@@ -4,10 +4,9 @@ import 'diary_ai_conversation.dart';
 import 'diary_day_details.dart';
 
 class DiaryText {
-  const DiaryText({this.title = '', this.body = ''});
-  final String title;
+  const DiaryText({this.body = ''});
   final String body;
-  bool get isEmpty => title.trim().isEmpty && body.trim().isEmpty;
+  bool get isEmpty => body.trim().isEmpty;
 }
 
 class DiaryEntry {
@@ -43,14 +42,9 @@ class OpenDiaryEntry {
 
 /// Body-free list metadata; full documents load only when consumed.
 class DiaryListing {
-  const DiaryListing({
-    required this.id,
-    required this.date,
-    required this.title,
-  });
+  const DiaryListing({required this.id, required this.date});
   final String id;
   final CivilDate date;
-  final String title;
 }
 
 /// Optional day details. Never contains entries or controls their dates.
@@ -70,8 +64,6 @@ class DiaryDay {
 }
 
 typedef DiaryAddress = ({CivilDate date, String id});
-String diaryTitle(String title) =>
-    title.trim().isEmpty ? 'Untitled entry' : title;
 bool isDiaryId(String value) => RegExp(r'^[0-9a-f]{32}$').hasMatch(value);
 
 enum DiaryFailure { unavailable, staleRevision, empty, invalidHeading }

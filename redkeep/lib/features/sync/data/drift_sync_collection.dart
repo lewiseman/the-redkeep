@@ -71,7 +71,6 @@ class DriftSyncCollection implements SyncCollection {
           .map(
             (e) => {
               'id': e.id,
-              'title': e.title,
               'body': e.body,
               'photos': jsonDecode(e.photos),
               'conversation': e.conversation == null
@@ -169,7 +168,7 @@ class DriftSyncCollection implements SyncCollection {
               !ids.add(item['id'])) {
             throw const FormatException('Invalid diary entry.');
           }
-          _validateText(item, title: true);
+          _validateText(item, title: false);
           _validateDiaryMedia(item);
         }
       } else {
@@ -404,7 +403,6 @@ class DriftSyncCollection implements SyncCollection {
           DiaryEntriesCompanion.insert(
             id: item['id'] as String,
             dateKey: date,
-            title: item['title'] as String,
             body: item['body'] as String,
             photos: Value(jsonEncode(item['photos'] ?? [])),
             conversation: Value(

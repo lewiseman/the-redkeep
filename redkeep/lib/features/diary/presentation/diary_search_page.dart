@@ -19,13 +19,9 @@ import 'diary_search_loading.dart';
 import 'diary_search_paper.dart';
 
 class DiarySearchMatch {
-  const DiarySearchMatch({
-    required this.date,
-    required this.title,
-    required this.excerpt,
-  });
+  const DiarySearchMatch({required this.date, required this.excerpt});
   final DateTime date;
-  final String title, excerpt;
+  final String excerpt;
 }
 
 class DiarySearchResult {
@@ -137,7 +133,6 @@ class _DiarySearchPageState extends ConsumerState<DiarySearchPage> {
                       opened.entry!.date.month,
                       opened.entry!.date.day,
                     ),
-                    title: opened.entry!.text.title,
                     excerpt: opened.entry!.text.body,
                   ),
           ],
@@ -374,7 +369,7 @@ class _DiarySearchPageState extends ConsumerState<DiarySearchPage> {
         if (_stage == _SearchStage.empty) ...[
           _message(
             title: 'No moments found yet.',
-            message: 'Every keyword must match the saved title or text. Try a person, a feeling, or a few different words.',
+            message: 'Every keyword must match the saved text. Try a person, a feeling, or a few different words.',
           ),
           const SizedBox(height: 12),
           const SizedBox(height: 16),
@@ -558,18 +553,6 @@ class _MemoryCard extends StatelessWidget {
         children: [
           Text(date, style: TextStyle(fontSize: 11, color: paper.secondary)),
           const SizedBox(height: 12),
-          if (match.title.isNotEmpty) ...[
-            Text(
-              match.title,
-              style: TextStyle(
-                fontSize: 21,
-                height: 1.25,
-                letterSpacing: -.4,
-                color: paper.foreground,
-              ),
-            ),
-            const SizedBox(height: 12),
-          ],
           Text(
             match.excerpt,
             maxLines: 4,

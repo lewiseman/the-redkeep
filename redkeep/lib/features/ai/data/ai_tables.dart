@@ -25,6 +25,9 @@ class AiJobReceipts extends Table {
   TextColumn get id => text()();
   TextColumn get metadata => text()();
   BoolColumn get active => boolean().withDefault(const Constant(false))();
+  // Durable deduplication after a derived reflection is dismissed or replaced.
+  BoolColumn get resultConsumed =>
+      boolean().withDefault(const Constant(false))();
   IntColumn get created => integer()();
   @override
   Set<Column> get primaryKey => {id};

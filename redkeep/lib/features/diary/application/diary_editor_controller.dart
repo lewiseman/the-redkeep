@@ -56,7 +56,7 @@ class DiaryEditorController extends AsyncNotifier<DiaryEditorState> {
     return _snapshot();
   }
 
-  bool get _changed => _text.title != _saved.title || _text.body != _saved.body;
+  bool get _changed => _text.body != _saved.body;
 
   DiaryEditorState _snapshot({String? message}) => DiaryEditorState(
     text: _text,

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -7,7 +8,187 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:redkeep/features/diary/presentation/diary_paper_curl.dart';
 import 'package:redkeep/features/diary/presentation/diary_paper_material.dart';
 
+import '../../support/warm_diary_faces.dart';
+
 void main() {
+  Future<void> frame(
+    WidgetTester tester, {
+    double progress = 0,
+    bool turning = false,
+    bool visible = true,
+    Color front = Colors.red,
+    Color paper = Colors.blue,
+    double width = 280,
+  }) => tester.pumpWidget(
+    MediaQuery(
+      data: const MediaQueryData(),
+      child: Center(
+        child: SizedBox(
+          width: width,
+          height: 260,
+          child: DiaryPaperCurl(
+            progress: progress,
+            direction: 1,
+            travel: 350,
+            paper: paper,
+            flat: progress == 0,
+            turning: turning,
+            visible: visible,
+            child: ColoredBox(color: front),
+          ),
+        ),
+      ),
+    ),
+  );
+  RenderDiaryCurl curl(WidgetTester tester) =>
+      tester.renderObject<RenderDiaryCurl>(find.byType(DiaryPaperCurl));
+
+  testWidgets('turn pins front and material until the gesture ends', (
+    tester,
+  ) async {
+    await frame(tester);
+    await warmDiaryFaces(tester);
+    final face = curl(tester);
+    final captures = (face.debugFrontCaptures, face.debugBackCaptures);
+    await frame(tester, progress: .3, turning: true);
+    expect(face.debugUsesCurl, isTrue);
+    for (final progress in [.35, .4, .38, .1, .6]) {
+      await frame(
+        tester,
+        progress: progress,
+        turning: true,
+        front: Colors.yellow,
+        paper: Colors.teal,
+      );
+      await tester.runAsync(face.prepareTextures);
+      expect((face.debugFrontCaptures, face.debugBackCaptures), captures);
+      expect(face.debugReady, isTrue);
+      expect(face.debugUsesCurl, isTrue);
+    }
+    await frame(tester, front: Colors.yellow, paper: Colors.teal);
+    await warmDiaryFaces(tester);
+    expect(face.debugFrontCaptures, captures.$1 + 1);
+    expect(face.debugBackCaptures, captures.$2 + 1);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'a cold turn paints without capturing and never switches to a curl',
+    (tester) async {
+      await frame(tester, progress: .3, turning: true);
+      final face = curl(tester);
+      expect(face.debugFrontCaptures, 0);
+      expect(face.debugBackCaptures, 0);
+      expect(face.debugMeshDraws, 0);
+      await frame(tester);
+      await warmDiaryFaces(tester);
+      await frame(tester, progress: .3, turning: true);
+      expect(face.debugUsesCurl, isTrue);
+      expect(face.debugMeshDraws, 2);
+      await frame(tester, progress: .4, turning: true, width: 260);
+      expect(face.debugUsesCurl, isFalse);
+      expect(face.debugTextureSize, isNull);
+      await frame(tester, width: 260);
+      await warmDiaryFaces(tester);
+      expect(face.debugTextureSize, const Size(260, 260));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('preparation completing mid-turn leaves a cold gesture flat', (
+    tester,
+  ) async {
+    await frame(tester, visible: false);
+    final face = curl(tester);
+    final shadow = Completer<ui.Image>();
+    var calls = 0;
+    face.debugRasterize = (picture, width, height) {
+      calls++;
+      return calls < 3 ? picture.toImage(width, height) : shadow.future;
+    };
+    late Future<void> preparing;
+    await tester.runAsync(() async {
+      preparing = face.prepareTextures();
+      while (calls < 3) {
+        await Future<void>.delayed(const Duration(milliseconds: 1));
+      }
+    });
+    await frame(tester, progress: .3, turning: true);
+    expect(face.debugReady, isFalse);
+    final image = await tester.runAsync(_image);
+    await tester.runAsync(() async {
+      shadow.complete(image);
+      await preparing;
+    });
+    await frame(tester, progress: .4, turning: true);
+    expect(face.debugReady, isTrue);
+    expect(face.debugUsesCurl, isFalse);
+    expect(face.debugMeshDraws, 0);
+    await frame(tester);
+    await frame(tester, progress: .4, turning: true);
+    expect(face.debugUsesCurl, isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('stale images are disposed after resizing or removal', (
+    tester,
+  ) async {
+    await frame(tester, visible: false);
+    final face = curl(tester);
+    final resized = Completer<ui.Image>();
+    face.debugRasterize = (_, _, _) => resized.future;
+    final preparing = face.prepareTextures();
+    await frame(tester, visible: false, width: 260);
+    final oldImage = (await tester.runAsync(_image))!;
+    face.debugRasterize = null;
+    await tester.runAsync(() async {
+      resized.complete(oldImage);
+      await preparing;
+    });
+    expect(oldImage.debugDisposed, isTrue);
+    await warmDiaryFaces(tester);
+    expect(face.debugTextureSize, const Size(260, 260));
+    final removed = Completer<ui.Image>();
+    await frame(tester, visible: false, width: 260, front: Colors.yellow);
+    face.debugRasterize = (_, _, _) => removed.future;
+    final lastPreparation = face.prepareTextures();
+    await tester.pumpWidget(const SizedBox());
+    final lastImage = (await tester.runAsync(_image))!;
+    await tester.runAsync(() async {
+      removed.complete(lastImage);
+      await lastPreparation;
+    });
+    expect(lastImage.debugDisposed, isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('failed preparation falls back without retrying every frame', (
+    tester,
+  ) async {
+    await frame(tester, visible: false);
+    final face = curl(tester);
+    var calls = 0;
+    face.debugRasterize = (picture, width, height) {
+      calls++;
+      if (calls == 1) return Future.error(StateError('raster unavailable'));
+      return picture.toImage(width, height);
+    };
+    await tester.runAsync(face.prepareTextures);
+    expect(tester.takeException(), isStateError);
+    expect(calls, 3);
+    for (var i = 0; i < 5; i++) {
+      await frame(tester, progress: .3 + i * .01);
+      await tester.runAsync(face.prepareTextures);
+    }
+    expect(calls, 3);
+    expect(face.debugUsesCurl, isFalse);
+    await frame(tester, front: Colors.yellow);
+    await warmDiaryFaces(tester);
+    expect(calls, 4);
+    expect(face.debugReady, isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('warm-up tolerates a child repaint during independent layout', (
     tester,
   ) async {
@@ -61,27 +242,31 @@ void main() {
         Color front = Colors.red,
         Color paper = Colors.blue,
         double width = 280,
-      }) => tester.pumpWidget(
-        Directionality(
-          textDirection: TextDirection.ltr,
-          child: MediaQuery(
-            data: const MediaQueryData(devicePixelRatio: 4),
-            child: Center(
-              child: SizedBox(
-                width: width,
-                height: 260,
-                child: DiaryPaperCurl(
-                  progress: progress,
-                  direction: direction,
-                  travel: 350,
-                  paper: paper,
-                  child: ColoredBox(color: front),
+      }) async {
+        await tester.pumpWidget(
+          Directionality(
+            textDirection: TextDirection.ltr,
+            child: MediaQuery(
+              data: const MediaQueryData(devicePixelRatio: 4),
+              child: Center(
+                child: SizedBox(
+                  width: width,
+                  height: 260,
+                  child: DiaryPaperCurl(
+                    progress: progress,
+                    direction: direction,
+                    travel: 350,
+                    paper: paper,
+                    child: ColoredBox(color: front),
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      );
+        );
+        await warmDiaryFaces(tester);
+      }
+
       await frame(.35);
       final curl = tester.renderObject<RenderDiaryCurl>(
         find.byType(DiaryPaperCurl),
@@ -89,10 +274,12 @@ void main() {
       expect(curl.debugTextureSize, const Size(560, 520));
       expect(curl.debugFrontCaptures, 1);
       expect(curl.debugBackCaptures, 1);
+      expect(curl.debugShadowCaptures, 1);
       for (final progress in [.4, .5, .6, .7, .65, .3]) {
         await frame(progress);
         expect(curl.debugFrontCaptures, 1);
         expect(curl.debugBackCaptures, 1);
+        expect(curl.debugShadowCaptures, 1);
         expect(curl.debugMeshDraws, 2);
       }
       await frame(.4, front: Colors.yellow);
@@ -161,6 +348,7 @@ void main() {
             ),
           ),
         );
+        await warmDiaryFaces(tester);
         final boundary = tester.renderObject<RenderRepaintBoundary>(
           find.byKey(capture),
         );
@@ -253,6 +441,17 @@ class _RelayoutFace extends LeafRenderObjectWidget {
   @override
   RenderObject createRenderObject(BuildContext context) =>
       _RenderRelayoutFace();
+}
+
+Future<ui.Image> _image() async {
+  final recorder = ui.PictureRecorder();
+  Canvas(recorder).drawColor(Colors.white, BlendMode.src);
+  final picture = recorder.endRecording();
+  try {
+    return await picture.toImage(280, 260);
+  } finally {
+    picture.dispose();
+  }
 }
 
 class _RenderRelayoutFace extends RenderBox {

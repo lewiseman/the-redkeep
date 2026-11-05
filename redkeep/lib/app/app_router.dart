@@ -1,3 +1,4 @@
+import '../features/ai/presentation/ai_history_page.dart';
 import '../features/notes/presentation/note_ai_sheet.dart';
 import '../features/notes/presentation/note_ai_widgets.dart';
 import '../features/diary/presentation/diary_photos_page.dart';
@@ -298,6 +299,23 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
                     pageBuilder: (context, state) =>
                         _page(state, const CompanionPage()),
                     routes: [
+                      GoRoute(
+                        path: 'history',
+                        pageBuilder: (context, state) =>
+                            _page(state, const AiHistoryPage()),
+                        routes: [
+                          GoRoute(
+                            path: ':id',
+                            pageBuilder: (context, state) => _page(
+                              state,
+                              AiHistoryTaskPage(
+                                key: ValueKey(state.uri.path),
+                                id: state.pathParameters['id']!,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                       GoRoute(
                         path: 'phone',
                         pageBuilder: (context, state) =>

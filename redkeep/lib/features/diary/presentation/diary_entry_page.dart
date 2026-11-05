@@ -37,12 +37,11 @@ class DiaryEntryPage extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(
-                      available
-                          ? diaryTitle(entry.text.title)
-                          : 'Entry unavailable',
-                      style: DiaryTypography.of(context).title,
-                    ),
+                    if (!available)
+                      Text(
+                        'Entry unavailable',
+                        style: DiaryTypography.of(context).title,
+                      ),
                     Text(address.date.key),
                     if (available) ...[
                       const SizedBox(height: 16),

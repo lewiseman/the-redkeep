@@ -1,5 +1,6 @@
-import '../../notes/domain/note_question_contract.dart'
-    show RecallAnswerRejected;
+import '../../flow/application/flow_providers.dart';
+import '../../flow/domain/thought_reflection_contract.dart';
+import '../../recall/domain/recall_question_contract.dart';
 import '../../notes/application/note_ai_sources.dart';
 import '../../notes/domain/note_background_contract.dart';
 import '../../notes/data/note_media_store.dart';
@@ -42,6 +43,7 @@ final aiJobStoreProvider = Provider<AiJobStore>(
   (ref) => AiJobStore(
     ref.watch(appDatabaseProvider),
     ref.watch(protectedAiTasksProvider),
+    clock: ref.watch(aiClockProvider),
   ),
 );
 final aiClockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
@@ -130,7 +132,10 @@ class AiJobs extends Notifier<AiJobState> {
       if (!_alive(epoch)) return;
       if (job != null &&
           ref.read(aiClockProvider)().millisecondsSinceEpoch >= job.expires) {
-        job = job.copy(phase: 'expired');
+        job = AiJob.fromJson({
+          ...job.json(sensitive: false),
+          'phase': 'expired',
+        });
       }
       if (job?.provider == 'device' && !job!.terminal) {
         job = job.copy(phase: 'interrupted');
@@ -313,6 +318,12 @@ class AiJobs extends Notifier<AiJobState> {
           CivilDate.fromComponents(ref.read(aiClockProvider)()).key == key &&
               await reader.questionCurrent(DailyQuestionSource.decode(source)),
         AiOperation.photoQuestions => true,
+        AiOperation.thoughtReflection => await _reflectionCurrent(
+          ThoughtReflectionSource.decode(source),
+        ),
+        AiOperation.thoughtQuestion => await _thoughtQuestionCurrent(
+          RecallQuestionSelection.decode(source),
+        ),
         AiOperation.history => await _historyCurrent(
           DiaryHistorySelection.decode(source),
         ),
@@ -364,6 +375,16 @@ class AiJobs extends Notifier<AiJobState> {
       throw const FormatException('AI returned an oversized result.');
     }
     switch (job.operation) {
+      case AiOperation.thoughtReflection:
+        parseThoughtReflection(
+          text,
+          ThoughtReflectionSource.decode(job.source).body,
+        );
+      case AiOperation.thoughtQuestion:
+        RecallQuestionAnswer.parse(
+          text,
+          RecallQuestionSelection.decode(job.source),
+        );
       case AiOperation.diaryDetails:
         DiarySuggestions.parse(text, DiarySuggestionSource.decode(job.source));
       case AiOperation.dailyQuestion:
@@ -396,9 +417,11 @@ class AiJobs extends Notifier<AiJobState> {
       model: model,
       capability: job.operation.capability!,
       text: job.prompt,
-      preparedPrompt: job.operation == AiOperation.noteSummary
-          ? jsonEncode({'note': job.prompt})
-          : job.prompt,
+      preparedPrompt: switch (job.operation) {
+        AiOperation.noteSummary => jsonEncode({'note': job.prompt}),
+        AiOperation.thoughtReflection => jsonEncode({'thought': job.prompt}),
+        _ => job.prompt,
+      },
       owner: _owner,
       settings: job.operation.phoneSettings(),
       onChunk: (chunk) {
@@ -665,6 +688,27 @@ class AiJobs extends Notifier<AiJobState> {
     }
   }
 
+  Future<bool> _reflectionCurrent(ThoughtReflectionSource source) async =>
+      source.matches(
+        (await ref.read(flowRepositoryProvider).openDocument(source.id))
+            .thought,
+      );
+
+  Future<bool> _thoughtQuestionCurrent(RecallQuestionSelection source) async {
+    if (source.kind != RecallKind.thought || !source.sendable) return false;
+    for (final selected in source.sources) {
+      final thought =
+          (await ref.read(flowRepositoryProvider).openDocument(selected.uuid))
+              .thought;
+      if (thought == null ||
+          thought.deletedAt != null ||
+          RecallItem.thought(thought)!.version != selected.version) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   Future<bool> _conversationCurrent(String raw) async {
     final source = jsonDecode(raw) as Map;
     final entry =
@@ -754,16 +798,30 @@ class AiJobs extends Notifier<AiJobState> {
     await _save(next, epoch);
   }
 
-  Future<void> clear() async {
+  Future<void> clear() => _clear();
+
+  Future<void> clearIfCurrent(String id) => _clear(expectedId: id);
+
+  Future<void> _clear({String? expectedId}) async {
     var job = state.job;
-    if (job == null) return;
+    if (job == null || expectedId != null && job.id != expectedId) return;
+    final targetId = job.id;
+    final generation = _dataGeneration;
     if (!job.terminal) {
       await cancel();
       job = state.job;
     }
-    if (!ref.mounted || job == null || !job.terminal) return;
-    ++_epoch;
-    await ref.read(aiJobStoreProvider).release(job);
+    if (!ref.mounted ||
+        job == null ||
+        !job.terminal ||
+        job.id != targetId ||
+        state.job?.id != targetId ||
+        !_alive(_epoch)) {
+      return;
+    }
+    final epoch = ++_epoch;
+    await ref.read(aiJobStoreProvider).release(job, generation);
+    if (!_alive(epoch) || state.job?.id != targetId) return;
     if (job.operation == AiOperation.photoQuestions) {
       try {
         await ref
@@ -776,6 +834,8 @@ class AiJobs extends Notifier<AiJobState> {
     if (ref.mounted) state = const AiJobState(loaded: true);
     await _ackReceipts();
   }
+
+  Future<void> retryAcknowledgements() => _ackReceipts();
 
   Future<void> _ackReceipts() async {
     for (final job
@@ -815,6 +875,7 @@ class AiJobs extends Notifier<AiJobState> {
     FormatException() => error.message,
     DailyQuestionRejected() => error.message,
     RecallAnswerRejected() => error.message,
+    ThoughtReflectionRejected() => error.message,
     _ => 'Could not finish the AI task. Your writing is safe. Unlock the phone and retry.',
   };
 }

@@ -3,10 +3,27 @@ import 'dart:math';
 import '../../brain/domain/brain.dart';
 import 'local_inference.dart';
 import 'note_operation_prompts.dart';
+import 'flow_operation_prompts.dart';
 
 enum AiMode { auto, companion, device }
 
 enum AiOperation {
+  thoughtReflection(
+    'reflect-thought',
+    BrainCapability.reflect,
+    'reflectionContract',
+    80,
+    512,
+    thoughtReflectionSystem,
+  ),
+  thoughtQuestion(
+    'answer-thought-question',
+    BrainCapability.rewrite,
+    'thoughtQuestionContract',
+    256,
+    2048,
+    thoughtQuestionSystem,
+  ),
   diaryDetails(
     'suggest-diary-day',
     BrainCapability.diaryDetails,
@@ -125,7 +142,11 @@ enum AiOperation {
   bool get isNote => name.startsWith('note');
   bool get imageInput =>
       this == photoQuestions || this == noteImage || this == noteScan;
-  String get label => isNote
+  String get label => this == thoughtReflection
+      ? 'Flow reflection'
+      : this == thoughtQuestion
+      ? 'Flow question'
+      : isNote
       ? switch (this) {
           noteSummary => 'Note summary',
           noteRewrite => 'Rewrite note',
@@ -168,14 +189,18 @@ enum AiOperation {
     return InferenceSettings(
       systemInstruction: system,
       outputTokens: outputTokens,
-      temperature: this == noteIdeas
+      temperature: this == thoughtReflection
+          ? .4
+          : this == noteIdeas
           ? .8
           : question
           ? .7
           : 0,
       topK: question ? 40 : 1,
       topP: question ? .95 : 1,
-      seed: question ? Random.secure().nextInt(0x7fffffff) : 42,
+      seed: question || this == thoughtReflection
+          ? Random.secure().nextInt(0x7fffffff)
+          : 42,
     );
   }
 }

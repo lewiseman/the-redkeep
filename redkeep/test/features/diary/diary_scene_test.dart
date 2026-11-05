@@ -24,6 +24,7 @@ import 'package:redkeep/features/diary/presentation/diary_scene.dart';
 import '../../support/controlled_diary_repository.dart';
 import '../../support/fake_appearance_repository.dart';
 import '../../support/pump_app.dart';
+import '../../support/warm_diary_faces.dart';
 
 final today = CivilDate(2026, 11, 2);
 const id = '11111111111111111111111111111111';
@@ -96,7 +97,7 @@ void main() {
     await repo.save(
       id: id,
       date: date ?? today,
-      text: DiaryText(title: 'The quiet was enough.', body: body),
+      text: DiaryText(body: body),
       expectedRevision: 0,
     );
   }
@@ -173,6 +174,98 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(scene(tester).day.date, today);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  sceneTest(
+    'slow turns reuse real diary faces through pauses, reversals and promotion',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await seed();
+      await pumpApp(
+        tester,
+        initialLocation: diaryDayLocation(today),
+        diary: repo,
+      );
+      final paper = find.byKey(const ValueKey('diary-active-paper'));
+      final cancelledDate = scene(tester).day.date;
+      for (final direction in [1, 1, -1, -1]) {
+        await warmDiaryFaces(tester);
+        final from = scene(tester).day.date;
+        final faces = tester
+            .renderObjectList<RenderDiaryCurl>(find.byType(DiaryPaperCurl))
+            .toList();
+        final captures = {
+          for (final face in faces)
+            face: (
+              face.debugFrontCaptures,
+              face.debugBackCaptures,
+              face.debugShadowCaptures,
+            ),
+        };
+        void expectUnchanged() {
+          for (final face in faces.where((face) => face.attached)) {
+            expect((
+              face.debugFrontCaptures,
+              face.debugBackCaptures,
+              face.debugShadowCaptures,
+            ), captures[face]);
+          }
+        }
+
+        final gesture = await tester.startGesture(tester.getRect(paper).center);
+        await gesture.moveBy(Offset(24.0 * direction, 0));
+        await tester.pump();
+        for (var frame = 0; frame < 36; frame++) {
+          await gesture.moveBy(Offset(3.0 * direction, 0));
+          await tester.pump(const Duration(milliseconds: 24));
+          expectUnchanged();
+        }
+        final outgoing = tester.renderObject<RenderDiaryCurl>(
+          find.byWidgetPredicate((w) => w is DiaryPaperCurl && !w.flat),
+        );
+        expect(outgoing.debugUsesCurl, isTrue);
+        await tester.pump(const Duration(milliseconds: 250));
+        expectUnchanged();
+        // Cross the drag origin, then return to the original direction.
+        await gesture.moveBy(Offset(-180.0 * direction, 0));
+        await tester.pump(const Duration(milliseconds: 24));
+        await gesture.moveBy(Offset(190.0 * direction, 0));
+        await tester.pump(const Duration(milliseconds: 24));
+        expectUnchanged();
+        await gesture.up();
+        for (var frame = 0; scene(tester).busy && frame < 40; frame++) {
+          await tester.pump(const Duration(milliseconds: 16));
+          expectUnchanged();
+        }
+        expect(scene(tester).busy, isFalse);
+        expect(scene(tester).day.date, from.shift(-direction));
+        expect(
+          find.byType(DiaryPaperCurl).evaluate().length,
+          lessThanOrEqualTo(3),
+        );
+        await tester.pumpAndSettle();
+      }
+      expect(scene(tester).day.date, cancelledDate);
+      await warmDiaryFaces(tester);
+      final faces = tester
+          .renderObjectList<RenderDiaryCurl>(find.byType(DiaryPaperCurl))
+          .toList();
+      final captures = [for (final face in faces) face.debugFrontCaptures];
+      final gesture = await tester.startGesture(tester.getRect(paper).center);
+      await gesture.moveBy(const Offset(24, 0));
+      for (var frame = 0; frame < 30; frame++) {
+        await gesture.moveBy(const Offset(4, 0));
+        await tester.pump(const Duration(milliseconds: 32));
+      }
+      await gesture.cancel();
+      await tester.pumpAndSettle();
+      expect(scene(tester).day.date, cancelledDate);
+      expect([for (final face in faces) face.debugFrontCaptures], captures);
       expect(tester.takeException(), isNull);
     },
   );
@@ -317,7 +410,7 @@ void main() {
         'coffee',
       );
       await tester.pump();
-      late.add([DiaryListing(id: id, date: today, title: 'Stale result')]);
+      late.add([DiaryListing(id: id, date: today)]);
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('diary-search-match-0')), findsNothing);
       await submit(tester, 'coffee');
@@ -385,8 +478,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(container.read(diaryPaperDayProvider(today)).failed, isFalse);
       expect(
-        container.read(diaryPaperDayProvider(today)).entries.single.text.title,
-        'The quiet was enough.',
+        container.read(diaryPaperDayProvider(today)).entries.single.text.body,
+        List.filled(80, 'coffee by the window').join('\n'),
       );
       expect(tester.takeException(), isNull);
     },

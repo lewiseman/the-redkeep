@@ -39,17 +39,12 @@ class DriftDiaryRepository implements DiaryRepository {
     }
     for (final token
         in search.trim().split(RegExp(r'\s+')).where((t) => t.isNotEmpty)) {
-      conditions.add(
-        '(instr(lower(title), lower(?)) > 0 OR instr(lower(body), lower(?)) > 0)',
-      );
-      variables.addAll([
-        Variable.withString(token),
-        Variable.withString(token),
-      ]);
+      conditions.add('instr(lower(body), lower(?)) > 0');
+      variables.add(Variable.withString(token));
     }
     return _db
         .customSelect(
-          'SELECT id, date_key, title FROM diary_entries WHERE ${conditions.join(' AND ')} ORDER BY date_key DESC, created_at, id',
+          'SELECT id, date_key FROM diary_entries WHERE ${conditions.join(' AND ')} ORDER BY date_key DESC, created_at, id',
           variables: variables,
           readsFrom: {_db.diaryEntries},
         )
@@ -129,7 +124,6 @@ class DriftDiaryRepository implements DiaryRepository {
   DiaryListing _listing(QueryRow row) => DiaryListing(
     id: row.read<String>('id'),
     date: CivilDate.tryParse(row.read<String>('date_key'))!,
-    title: row.read<String>('title'),
   );
 
   @override
@@ -202,7 +196,6 @@ class DriftDiaryRepository implements DiaryRepository {
               DiaryEntriesCompanion.insert(
                 id: id,
                 dateKey: date.key,
-                title: text.title,
                 body: text.body,
                 revision: revision,
                 createdAt: now.millisecondsSinceEpoch,
@@ -219,7 +212,6 @@ class DriftDiaryRepository implements DiaryRepository {
                 ))
                 .write(
                   DiaryEntriesCompanion(
-                    title: Value(text.title),
                     body: Value(text.body),
                     revision: Value(revision),
                     updatedAt: Value(now.millisecondsSinceEpoch),
@@ -314,7 +306,6 @@ class DriftDiaryRepository implements DiaryRepository {
           DiaryEntriesCompanion.insert(
             id: id,
             dateKey: date.key,
-            title: old?.text.title ?? '',
             body: text,
             photos: Value(
               jsonEncode([for (final photo in newPhotos) photo.toJson()]),
@@ -374,7 +365,6 @@ class DriftDiaryRepository implements DiaryRepository {
               .write(
                 DiaryEntriesCompanion(
                   deletedAt: Value(now),
-                  title: const Value(''),
                   body: const Value(''),
                   // Rich metadata travels with the tombstone so an append or
                   // merge cannot erase the record's kind and source history.
@@ -409,7 +399,7 @@ class DriftDiaryRepository implements DiaryRepository {
   DiaryEntry _entry(DiaryEntryRow r) => DiaryEntry(
     id: r.id,
     date: CivilDate.tryParse(r.dateKey)!,
-    text: DiaryText(title: r.title, body: r.body),
+    text: DiaryText(body: r.body),
     photos: _photos(r.photos),
     conversation: _conversation(r.conversation),
     revision: r.revision,

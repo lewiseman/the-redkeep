@@ -22,7 +22,6 @@ class DiaryEditPage extends ConsumerStatefulWidget {
 }
 
 class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
-  final _title = TextEditingController();
   final _body = TextEditingController();
   bool _loaded = false;
   bool _leaving = false;
@@ -30,7 +29,6 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
 
   @override
   void dispose() {
-    _title.dispose();
     _body.dispose();
     super.dispose();
   }
@@ -107,7 +105,6 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
             final readOnly =
                 state.baseRevision > 0 && !ref.watch(syncCanEditProvider);
             if (!_loaded) {
-              _title.text = state.text.title;
               _body.text = state.text.body;
               _loaded = true;
             }
@@ -137,23 +134,6 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
                       'The original entry was deleted. Save a copy to keep this writing as a new entry.',
                     ),
                   const SizedBox(height: 24),
-                  TextField(
-                    key: const ValueKey('diary-title'),
-                    style: DiaryTypography.of(context).title,
-                    controller: _title,
-                    enabled: !state.saving && !readOnly,
-                    decoration: const InputDecoration(
-                      hintText: 'Title',
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                    maxLines: null,
-                    textCapitalization: TextCapitalization.sentences,
-                    onChanged: (_) => _edit(controller),
-                  ),
-                  const SizedBox(height: 16),
                   TextField(
                     key: const ValueKey('diary-body'),
                     style: DiaryTypography.of(context).body,
@@ -259,8 +239,7 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
         value != null &&
         value.baseRevision == 0 &&
         !value.saving &&
-        value.text.title.trim().isEmpty &&
-        value.text.body.trim().isEmpty &&
+        value.text.isEmpty &&
         widget.address.date.compareTo(today) <= 0 &&
         (ref.read(syncCanEditProvider) || widget.address.date == today);
   }
@@ -284,7 +263,7 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
   }
 
   void _edit(DiaryEditorController controller) =>
-      controller.edit(DiaryText(title: _title.text, body: _body.text));
+      controller.edit(DiaryText(body: _body.text));
 
   Future<void> _discard(DiaryEditorController controller) async {
     final confirmed = await confirmDiscardChanges(context);

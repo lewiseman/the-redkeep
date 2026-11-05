@@ -2,6 +2,40 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:redkeep/app/navigation_destination.dart';
 
 void main() {
+  test('AI history routes are addressable through gates and reject invalid task IDs', () {
+    for (final path in [
+      '/settings/brain/history',
+      '/settings/brain/history/task_123-abc',
+    ]) {
+      expect(validatedNavigationLocation(path), path);
+      final gated = navigationRedirect(
+        Uri.parse(path),
+        startupReady: false,
+        onboardingComplete: false,
+      )!;
+      final welcomed = navigationRedirect(
+        Uri.parse(gated),
+        startupReady: true,
+        onboardingComplete: false,
+      )!;
+      expect(
+        navigationRedirect(
+          Uri.parse(welcomed),
+          startupReady: true,
+          onboardingComplete: true,
+        ),
+        path,
+      );
+    }
+    for (final path in [
+      '/settings/brain/history/short',
+      '/settings/brain/history/task%2F1234',
+      '/settings/brain/history/task_1234?prompt=private',
+      '/settings/brain/history/task_1234/extra',
+    ]) {
+      expect(validatedNavigationLocation(path), '/unavailable');
+    }
+  });
   String? redirect(
     String location, {
     bool ready = true,

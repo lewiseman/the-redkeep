@@ -1,3 +1,4 @@
+import 'generated/schema_v14.dart' as v14;
 import 'generated/schema_v13.dart' as v13;
 import 'generated/schema_v12.dart' as v12;
 import 'generated/schema_v11.dart' as v11;
@@ -27,6 +28,43 @@ import 'package:redkeep/features/notes/data/drift_notes_repository.dart';
 import 'package:redkeep/features/notes/domain/note_document.dart';
 
 void main() {
+  test('version 14 adds local reflections and preserves thoughts, drafts and AI receipts', () async {
+    final verifier = SchemaVerifier(GeneratedHelper());
+    final schema = await verifier.schemaAt(14);
+    final old = v14.DatabaseAtV14(schema.newConnection());
+    await old.customStatement(
+      "INSERT INTO flow_thoughts(id,body,revision,created_at,updated_at) VALUES(?, 'Exact thought 👩🏽‍💻', 7, 1, 2)",
+      ['a' * 32],
+    );
+    await old.customStatement(
+      "INSERT INTO note_drafts(id,title,body,base_revision,updated_at) VALUES(?, 'Unfinished', 'Keep my draft', 0, 3)",
+      ['b' * 32],
+    );
+    await old.customStatement(
+      "INSERT INTO ai_job_receipts(id,metadata,created,active) VALUES('retained-job', 'receipt unchanged', 4, 1)",
+    );
+    await old.close();
+    final db = AppDatabase(schema.newConnection());
+    try {
+      await verifier.migrateAndValidate(db, 16);
+      expect(
+        (await db.select(db.flowThoughts).getSingle()).body,
+        'Exact thought 👩🏽‍💻',
+      );
+      expect((await db.select(db.flowThoughts).getSingle()).revision, 7);
+      expect(
+        (await db.select(db.noteDrafts).getSingle()).body,
+        'Keep my draft',
+      );
+      expect(
+        (await db.select(db.aiJobReceipts).getSingle()).metadata,
+        'receipt unchanged',
+      );
+      expect(await db.select(db.flowReflections).get(), isEmpty);
+    } finally {
+      await db.close();
+    }
+  });
   test('version 13 adds empty note metadata without changing saved writing or recovery drafts', () async {
     final verifier = SchemaVerifier(GeneratedHelper());
     final schema = await verifier.schemaAt(13);
@@ -43,7 +81,7 @@ void main() {
     await old.close();
     final db = AppDatabase(schema.newConnection());
     try {
-      await verifier.migrateAndValidate(db, 14);
+      await verifier.migrateAndValidate(db, 16);
       final note = await db.select(db.notes).getSingle();
       final draft = await db.select(db.noteDrafts).getSingle();
       expect(note.body, 'Exact words 👩🏽‍💻');
@@ -87,7 +125,7 @@ void main() {
     await old.close();
     final db = AppDatabase(schema.newConnection());
     try {
-      await verifier.migrateAndValidate(db, 14);
+      await verifier.migrateAndValidate(db, 16);
       final entry = await db.select(db.diaryEntries).getSingle();
       expect(entry.body, 'Exact saved words 👩🏽‍💻');
       expect(entry.revision, 7);
@@ -121,7 +159,7 @@ void main() {
     await old.close();
     final db = AppDatabase(schema.newConnection());
     try {
-      await verifier.migrateAndValidate(db, 14);
+      await verifier.migrateAndValidate(db, 16);
       expect((await db.select(db.notes).getSingle()).body, 'Exact 👩🏽‍💻 中文');
       expect(
         (await db.select(db.brainAssignmentsTable).getSingle()).modelId,
@@ -154,14 +192,13 @@ void main() {
     await old.close();
     final db = AppDatabase(schema.newConnection());
     try {
-      await verifier.migrateAndValidate(db, 14);
+      await verifier.migrateAndValidate(db, 16);
       final day = await db.select(db.diaryDays).getSingle();
       expect(day.heading, 'Keep my title');
       expect(day.revision, 7);
       expect(day.mood, isNull);
       expect(day.themes, '[]');
       final entry = await db.select(db.diaryEntries).getSingle();
-      expect(entry.title, 'Entry title');
       expect(entry.body, 'Exact 👩🏽‍💻 中文');
       expect(entry.revision, 3);
       expect((await db.select(db.syncRecords).getSingle()).state, 'synced');
@@ -184,7 +221,7 @@ void main() {
     await old.close();
     final db = AppDatabase(schema.newConnection());
     try {
-      await verifier.migrateAndValidate(db, 14);
+      await verifier.migrateAndValidate(db, 16);
       expect(
         await DriftAppearanceRepository(db).watch().first,
         const AppearancePreferences(
@@ -217,7 +254,7 @@ void main() {
     await old.close();
     final db = AppDatabase(schema.newConnection());
     try {
-      await verifier.migrateAndValidate(db, 14);
+      await verifier.migrateAndValidate(db, 16);
       expect(
         (await db.select(db.onboardingCompletion).getSingle()).name,
         'Lewis',
@@ -249,7 +286,7 @@ void main() {
     await old.close();
     final db = AppDatabase(schema.newConnection());
     try {
-      await verifier.migrateAndValidate(db, 14);
+      await verifier.migrateAndValidate(db, 16);
       expect(await DriftOnboardingRepository(db).isComplete(), false);
       expect((await db.select(db.onboardingCompletion).getSingle()).id, 1);
       expect((await db.select(db.notes).getSingle()).body, 'Keep this writing');
@@ -265,10 +302,10 @@ void main() {
     }
   });
 
-  test('fresh schema matches the committed version 13 snapshot', () async {
+  test('fresh schema matches the committed version 16 snapshot', () async {
     final database = AppDatabase(NativeDatabase.memory());
     addTearDown(database.close);
-    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 14);
+    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 16);
   });
 
   test('version 1 upgrade preserves every saved appearance choice', () async {
@@ -283,7 +320,7 @@ void main() {
       await old.close();
       final database = AppDatabase(schema.newConnection());
       try {
-        await verifier.migrateAndValidate(database, 14);
+        await verifier.migrateAndValidate(database, 16);
         expect(
           await DriftAppearanceRepository(database).watch().first,
           AppearancePreferences(
@@ -317,7 +354,7 @@ void main() {
       await old.close();
       final database = AppDatabase(schema.newConnection());
       try {
-        await verifier.migrateAndValidate(database, 14);
+        await verifier.migrateAndValidate(database, 16);
         expect(
           await DriftAppearanceRepository(database).watch().first,
           const AppearancePreferences(
@@ -362,7 +399,7 @@ void main() {
       await old.close();
       final database = AppDatabase(schema.newConnection());
       try {
-        await verifier.migrateAndValidate(database, 14);
+        await verifier.migrateAndValidate(database, 16);
         expect(await DriftOnboardingRepository(database).isComplete(), isFalse);
         expect(
           (await DriftAppearanceRepository(database).watch().first).theme,
@@ -424,7 +461,7 @@ void main() {
     await old.close();
     final database = AppDatabase(schema.newConnection());
     try {
-      await verifier.migrateAndValidate(database, 14);
+      await verifier.migrateAndValidate(database, 16);
       expect(
         (await DriftAppearanceRepository(database).watch().first),
         const AppearancePreferences(
@@ -513,13 +550,17 @@ void main() {
     final before = <String, List<Map<String, dynamic>>>{};
     for (final table in tables) {
       before[table] = (await old.customSelect('SELECT * FROM $table').get())
-          .map((r) => r.data)
+          .map(
+            (r) => table == 'diary_entries'
+                ? (Map<String, dynamic>.of(r.data)..remove('title'))
+                : r.data,
+          )
           .toList();
     }
     await old.close();
     final database = AppDatabase(schema.newConnection());
     try {
-      await verifier.migrateAndValidate(database, 14);
+      await verifier.migrateAndValidate(database, 16);
       for (final table in tables) {
         expect(
           (await database.customSelect('SELECT * FROM $table').get())
@@ -629,13 +670,17 @@ void main() {
       final before = <String, List<Map<String, dynamic>>>{};
       for (final table in tables) {
         before[table] = (await old.customSelect('SELECT * FROM $table').get())
-            .map((r) => r.data)
+            .map(
+              (r) => table == 'diary_entries'
+                  ? (Map<String, dynamic>.of(r.data)..remove('title'))
+                  : r.data,
+            )
             .toList();
       }
       await old.close();
       final database = AppDatabase(schema.newConnection());
       try {
-        await verifier.migrateAndValidate(database, 14);
+        await verifier.migrateAndValidate(database, 16);
         for (final table in tables) {
           expect(
             (await database.customSelect('SELECT * FROM $table').get())

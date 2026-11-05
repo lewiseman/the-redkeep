@@ -128,11 +128,7 @@ class DiarySuggestionSource {
           });
     return DiarySuggestionSource(date.key, [
       for (final e in sorted)
-        {
-          'id': e.id,
-          'revision': e.revision,
-          'content': '${e.text.title}\n\n${e.text.body}'.trim(),
-        },
+        {'id': e.id, 'revision': e.revision, 'content': e.text.body.trim()},
     ]);
   }
 

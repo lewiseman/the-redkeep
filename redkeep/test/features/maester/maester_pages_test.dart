@@ -39,7 +39,7 @@ void main() {
     await diary.save(
       id: id,
       date: date,
-      text: const DiaryText(title: 'Existing entry', body: writing),
+      text: const DiaryText(body: writing),
       expectedRevision: 0,
     );
     await flow.save(id: id, body: writing, expectedRevision: 0);

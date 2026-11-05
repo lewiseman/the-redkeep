@@ -7,7 +7,6 @@ import 'package:drift/drift.dart';
 class DiaryEntries extends Table {
   TextColumn get id => text()();
   TextColumn get dateKey => text().withLength(min: 10, max: 10)();
-  TextColumn get title => text()();
   TextColumn get body => text()();
   TextColumn get photos => text().withDefault(const Constant('[]'))();
   TextColumn get conversation => text().nullable()();

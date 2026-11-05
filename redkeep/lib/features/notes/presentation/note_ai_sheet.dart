@@ -4,7 +4,6 @@ import 'note_scan_stage.dart';
 import 'note_scan_parts.dart';
 
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -12,7 +11,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/navigation_destination.dart';
-import '../../../app/storage_providers.dart';
 import '../../ai/application/ai_jobs.dart';
 import '../../ai/domain/ai_job.dart';
 import '../../ai/domain/ai_operation.dart';
@@ -55,21 +53,30 @@ Future<void> showNoteAiTools(
   BuildContext context,
   String id, {
   bool editor = false,
-}) => showModalBottomSheet<void>(
-  context: context,
-  isScrollControlled: true,
-  useSafeArea: true,
-  showDragHandle: true,
-  backgroundColor: noteAiPaper(context),
-  constraints: BoxConstraints(
-    maxWidth: 720,
-    maxHeight: MediaQuery.sizeOf(context).height * .94,
-  ),
-  builder: (_) => SizedBox(
-    height: MediaQuery.sizeOf(context).height * .86,
-    child: _NoteToolNavigator(id: id, editor: editor),
-  ),
-);
+}) async {
+  final openHistory = await showModalBottomSheet<bool>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    showDragHandle: true,
+    backgroundColor: noteAiPaper(context),
+    constraints: BoxConstraints(
+      maxWidth: 720,
+      maxHeight: MediaQuery.sizeOf(context).height * .94,
+    ),
+    builder: (sheetContext) => SizedBox(
+      height: MediaQuery.sizeOf(context).height * .86,
+      child: _NoteToolNavigator(
+        id: id,
+        editor: editor,
+        onHistory: () => Navigator.of(sheetContext).pop(true),
+      ),
+    ),
+  );
+  if (openHistory == true && context.mounted) {
+    await context.push('/settings/brain/history');
+  }
+}
 
 Future<String?> showNoteIdeas(BuildContext context) =>
     showModalBottomSheet<String>(
@@ -92,9 +99,14 @@ Future<String?> showNoteIdeas(BuildContext context) =>
     );
 
 class _NoteToolNavigator extends StatefulWidget {
-  const _NoteToolNavigator({required this.id, required this.editor});
+  const _NoteToolNavigator({
+    required this.id,
+    required this.editor,
+    required this.onHistory,
+  });
   final String id;
   final bool editor;
+  final VoidCallback onHistory;
   @override
   State<_NoteToolNavigator> createState() => _NoteToolNavigatorState();
 }
@@ -111,6 +123,7 @@ class _NoteToolNavigatorState extends State<_NoteToolNavigator> {
           id: widget.id,
           editor: widget.editor,
           onClose: () => Navigator.of(context).pop(),
+          onHistory: widget.onHistory,
         ),
       ),
     ),
@@ -122,10 +135,11 @@ class _NoteToolMenu extends ConsumerWidget {
     required this.id,
     required this.editor,
     required this.onClose,
+    required this.onHistory,
   });
   final String id;
   final bool editor;
-  final VoidCallback onClose;
+  final VoidCallback onClose, onHistory;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final opened = ref.watch(noteDocumentProvider(id));
@@ -240,7 +254,7 @@ class _NoteToolMenu extends ConsumerWidget {
                     label: const Text('Prior content / recovery'),
                   ),
                 TextButton.icon(
-                  onPressed: () => open(const NoteAiHistoryPage()),
+                  onPressed: onHistory,
                   icon: const Icon(Icons.receipt_long_outlined),
                   label: const Text('AI task history'),
                 ),
@@ -1238,61 +1252,6 @@ class _NotePriorContentPageState extends ConsumerState<NotePriorContentPage> {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-final _noteHistoryProvider = StreamProvider.autoDispose<List<AiJob>>(
-  (ref) => ref
-      .watch(appDatabaseProvider)
-      .select(ref.watch(appDatabaseProvider).aiJobReceipts)
-      .watch()
-      .map(
-        (rows) => [
-          for (final row in rows.reversed)
-            if (AiJob.fromJson(
-                  Map<String, dynamic>.from(jsonDecode(row.metadata) as Map),
-                )
-                case final job when job.operation.isNote)
-              job,
-        ],
-      ),
-);
-
-class NoteAiHistoryPage extends ConsumerWidget {
-  const NoteAiHistoryPage({super.key});
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final active = ref.watch(aiJobsProvider).job;
-    final history = ref.watch(_noteHistoryProvider);
-    return Scaffold(
-      appBar: AppBar(title: const Text('AI task history')),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          const Text(
-            'Task receipts stay here for seven days. Preview content is retained only for the current task, for up to 24 hours.',
-          ),
-          for (final job in history.value ?? const <AiJob>[])
-            ListTile(
-              title: Text(job.operation.label),
-              subtitle: Text('${job.phase} · ${job.provider}'),
-              trailing: job.id == active?.id
-                  ? const Icon(Icons.chevron_right_rounded)
-                  : null,
-              onTap: job.id == active?.id
-                  ? () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => NoteAiToolPage(
-                          tool: noteToolForJob(active!),
-                          id: active.key,
-                        ),
-                      ),
-                    )
-                  : null,
-            ),
-        ],
       ),
     );
   }

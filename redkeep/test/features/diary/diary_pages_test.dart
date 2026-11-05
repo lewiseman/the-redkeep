@@ -110,15 +110,16 @@ void main() {
     await repo.save(
       id: key,
       date: day ?? date,
-      text: DiaryText(title: 'Synthetic entry', body: body),
+      text: DiaryText(body: body),
       expectedRevision: 0,
     );
   }
 
   diaryTest(
-    'diary title and body fonts apply to day, reader and editor without changing writing',
+    'only the day has a title; entry readers and editors use the body font',
     (tester) async {
       await seed(body: 'Exact writing stays unchanged');
+      await repo.renameDay(DiaryDay(date: date), 'A quiet day');
       final appearance = FakeAppearanceRepository(
         const AppearancePreferences(
           fontFamily: 'Lora',
@@ -133,13 +134,8 @@ void main() {
         diary: repo,
         repository: appearance,
       );
-      expect(
-        tester
-            .widget<Text>(find.text('Synthetic entry').first)
-            .style!
-            .fontFamily,
-        'Poppins',
-      );
+      expect(find.text('Untitled entry'), findsNothing);
+      expect(find.text('A quiet day'), findsNothing);
       expect(
         tester
             .widget<SelectableText>(find.byType(SelectableText))
@@ -149,13 +145,8 @@ void main() {
       );
       router.go(diaryEntryLocation(date, id, edit: true));
       await tester.pumpAndSettle();
-      expect(
-        tester
-            .widget<TextField>(find.byKey(const ValueKey('diary-title')))
-            .style!
-            .fontFamily,
-        'Poppins',
-      );
+      expect(find.byType(TextField), findsOneWidget);
+      expect(find.byKey(const ValueKey('diary-title')), findsNothing);
       expect(
         tester
             .widget<TextField>(find.byKey(const ValueKey('diary-body')))
@@ -173,10 +164,7 @@ void main() {
       router.go(diaryDayLocation(date));
       await tester.pumpAndSettle();
       expect(
-        tester
-            .widget<Text>(find.text('Synthetic entry').first)
-            .style!
-            .fontFamily,
+        tester.widget<Text>(liveText('A quiet day')).style!.fontFamily,
         'Poppins',
       );
       expect(
@@ -210,10 +198,8 @@ void main() {
         router.routeInformationProvider.value.uri.path,
         diaryEntryLocation(date, id, edit: true),
       );
-      await tester.enterText(
-        find.byKey(const ValueKey('diary-title')),
-        'My day',
-      );
+      expect(find.byType(TextField), findsOneWidget);
+      expect(find.byKey(const ValueKey('diary-title')), findsNothing);
       await tester.enterText(
         find.byKey(const ValueKey('diary-body')),
         'Hello 👩🏽‍💻\nHabari • 中文',
@@ -329,7 +315,6 @@ void main() {
       expect(find.byType(DiaryTitlePrompt).hitTestable(), findsOneWidget);
       final unchanged = (await repo.openDocument(id)).entry!;
       expect(unchanged.revision, original.revision);
-      expect(unchanged.text.title, original.text.title);
       expect(unchanged.text.body, original.text.body);
     },
   );
@@ -627,7 +612,13 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Nov 2, 2026'), findsOneWidget);
       expect(find.text(date.shift(1)!.key), findsNothing);
-      await tap(tester, 'Synthetic entry');
+      final match = find.byKey(const ValueKey('diary-search-match-0'));
+      expect(
+        find.descendant(of: match, matching: find.text('lake 工作')),
+        findsOneWidget,
+      );
+      await tester.tap(match);
+      await tester.pumpAndSettle();
       expect(
         router.routeInformationProvider.value.uri.path,
         diaryDayLocation(date),

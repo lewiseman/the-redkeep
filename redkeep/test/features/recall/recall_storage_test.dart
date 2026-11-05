@@ -6,13 +6,43 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sync_wise/sync_wise.dart';
 import 'package:redkeep/core/storage/app_database.dart';
 import 'package:redkeep/features/ai/data/ai_preferences_repository.dart';
+import 'package:redkeep/features/diary/data/drift_diary_repository.dart';
+import 'package:redkeep/features/diary/domain/civil_date.dart';
+import 'package:redkeep/features/diary/domain/diary_document.dart';
 import 'package:redkeep/features/notes/data/drift_notes_repository.dart';
 import 'package:redkeep/features/notes/domain/note_document.dart';
 import 'package:redkeep/features/sync/data/drift_sync_collection.dart';
 import 'package:redkeep/features/recall/domain/recall.dart';
 import 'package:redkeep/features/recall/data/sqlite_recall_vectors.dart';
+import 'package:redkeep/features/recall/data/recall_sources.dart';
 
 void main() {
+  test(
+    'diary recall uses entry bodies while titles belong to the day',
+    () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      final diary = DriftDiaryRepository(
+        db,
+        clock: () => DateTime.utc(2026, 11, 4),
+      );
+      final date = CivilDate(2026, 11, 4);
+      final id = 'd' * 32;
+      await diary.saveDay(DiaryDay(date: date, heading: 'A quiet day'));
+      await diary.save(
+        id: id,
+        date: date,
+        text: const DiaryText(body: 'Coffee by the window 🌿'),
+        expectedRevision: 0,
+      );
+      final sources = RecallSources(db);
+      final source = (await sources.all('diary')).single;
+      expect(source.title, isEmpty);
+      expect(source.text, 'Coffee by the window 🌿');
+      expect(source.date, date.key);
+      expect((await sources.read('diary', id))!.text, source.text);
+    },
+  );
   test('UTF-8 chunks cover all long writing without broken Unicode', () {
     final text = 'A garden 🌿 中文\n' * 1600;
     final chunks = recallChunks(text);

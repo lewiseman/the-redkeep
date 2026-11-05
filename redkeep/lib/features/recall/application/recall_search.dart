@@ -109,7 +109,7 @@ final diaryHybridSearchProvider = Provider.autoDispose
       final semantic = [
         for (final source in matches)
           if (CivilDate.tryParse(source.date) case final date?)
-            DiaryListing(id: source.id, date: date, title: source.title),
+            DiaryListing(id: source.id, date: date),
       ];
       return AsyncData(
         fuseRecall(keywords.value!, semantic, (entry) => entry.id),

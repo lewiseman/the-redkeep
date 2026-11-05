@@ -7,6 +7,10 @@ import 'package:flutter/widgets.dart';
 
 import 'diary_paper_material.dart';
 
+enum _CurlFace { front, back, shadow }
+
+const _shadowPadding = 16.0;
+
 /// A loose sheet, rather than a page attached to a book's spine. Its trailing
 /// edge rolls back as the whole sheet travels out of the diary viewport.
 /// [child] is a static, non-composited presentation of the card's front.
@@ -23,6 +27,7 @@ class DiaryPaperCurl extends SingleChildRenderObjectWidget {
     this.visible = true,
     this.flat = false,
     this.warm = false,
+    this.turning = false,
   });
 
   final double progress;
@@ -32,6 +37,10 @@ class DiaryPaperCurl extends SingleChildRenderObjectWidget {
   final DiaryPaperShape shape;
   final Color? ink;
   final bool visible, flat, warm;
+
+  /// Pins ready faces for the whole gesture, including pauses and reversals.
+  /// A cold gesture remains a flat slide even if preparation finishes mid-turn.
+  final bool turning;
 
   Color get _ink =>
       ink ??
@@ -51,6 +60,7 @@ class DiaryPaperCurl extends SingleChildRenderObjectWidget {
     visible,
     flat,
     warm,
+    turning,
   );
 
   @override
@@ -69,6 +79,7 @@ class DiaryPaperCurl extends SingleChildRenderObjectWidget {
       visible,
       flat,
       warm,
+      turning,
     );
   }
 }
@@ -95,6 +106,7 @@ class RenderDiaryCurl extends RenderProxyBox {
     this._visible,
     this._flat,
     this._warm,
+    this._turning,
   );
 
   double _progress;
@@ -105,21 +117,34 @@ class RenderDiaryCurl extends RenderProxyBox {
   DiaryPaperShape _shape;
   Color _ink;
   bool _visible, _flat, _warm;
+  bool _turning;
+  bool _curlForTurn = false, _frontDirty = false, _facesDirty = false;
   bool _disposed = false, _warmScheduled = false;
   int _frontGeneration = 0, _backGeneration = 0;
-  Future<void>? _preparingFront, _preparingBack;
+  int? _failedFrontGeneration, _failedBackGeneration, _failedShadowGeneration;
+  Future<void>? _preparing;
   ui.Image? _front;
   ui.ImageShader? _texture;
   ui.Image? _backImage;
   ui.ImageShader? _backTexture;
-  int _frontCaptures = 0, _backCaptures = 0, _meshDraws = 0;
+  ui.Image? _flatShadow;
+  int _frontCaptures = 0,
+      _backCaptures = 0,
+      _shadowCaptures = 0,
+      _meshDraws = 0;
 
   @visibleForTesting
   int get debugFrontCaptures => _frontCaptures;
   @visibleForTesting
   int get debugBackCaptures => _backCaptures;
   @visibleForTesting
+  int get debugShadowCaptures => _shadowCaptures;
+  @visibleForTesting
   int get debugMeshDraws => _meshDraws;
+  @visibleForTesting
+  bool get debugUsesCurl => _usesCurl;
+  @visibleForTesting
+  Future<ui.Image> Function(ui.Picture, int, int)? debugRasterize;
   @visibleForTesting
   Size? get debugTextureSize => _front == null
       ? null
@@ -129,7 +154,11 @@ class RenderDiaryCurl extends RenderProxyBox {
   bool get isRepaintBoundary => true;
 
   @visibleForTesting
-  bool get debugReady => _front != null && _backImage != null;
+  bool get debugReady => _ready;
+
+  bool get _ready =>
+      _front != null && _backImage != null && _flatShadow != null;
+  bool get _usesCurl => !_flat && _ready && (!_turning || _curlForTurn);
 
   void update(
     double progress,
@@ -142,6 +171,7 @@ class RenderDiaryCurl extends RenderProxyBox {
     bool visible,
     bool flat,
     bool warm,
+    bool turning,
   ) {
     final changed =
         progress != _progress ||
@@ -152,12 +182,30 @@ class RenderDiaryCurl extends RenderProxyBox {
         shape != _shape ||
         ink != _ink ||
         visible != _visible ||
-        flat != _flat;
+        flat != _flat ||
+        turning != _turning;
+    final wasTurning = _turning;
+    _turning = turning;
+    if (turning && !wasTurning) _curlForTurn = _ready;
+    if (!turning && wasTurning) {
+      if (_facesDirty) {
+        _discardFaces();
+      } else if (_frontDirty) {
+        _discardFront();
+      }
+    }
     if (paper != _paper ||
         pixelRatio != _pixelRatio ||
         shape != _shape ||
         ink != _ink) {
-      _discardFaces();
+      if (turning && pixelRatio == _pixelRatio) {
+        _frontGeneration++;
+        _backGeneration++;
+        _facesDirty = true;
+      } else {
+        _discardFaces();
+        _curlForTurn = false;
+      }
     }
     _progress = progress;
     _direction = direction;
@@ -169,27 +217,40 @@ class RenderDiaryCurl extends RenderProxyBox {
     _visible = visible;
     _flat = flat;
     _warm = warm;
-    if (warm) _scheduleWarm();
+    _scheduleWarm();
     // Movement only changes the projection; the front texture is shared
     // by all strips and all frames of this turn.
     if (changed) super.markNeedsPaint();
   }
 
   void _discardFaces() {
+    _facesDirty = false;
     _discardFront();
     _backGeneration++;
     _backTexture?.dispose();
     _backTexture = null;
     _backImage?.dispose();
     _backImage = null;
+    _flatShadow?.dispose();
+    _flatShadow = null;
   }
 
   void _discardFront() {
+    _frontDirty = false;
     _frontGeneration++;
     _texture?.dispose();
     _texture = null;
     _front?.dispose();
     _front = null;
+  }
+
+  void _invalidateFront() {
+    if (_turning) {
+      _frontGeneration++;
+      _frontDirty = true;
+    } else {
+      _discardFront();
+    }
   }
 
   ui.Picture _recordBack() {
@@ -234,58 +295,133 @@ class RenderDiaryCurl extends RenderProxyBox {
     filterQuality: FilterQuality.high,
   );
 
-  ui.ImageShader _createBackTexture() {
-    final picture = _recordBack();
-    _backImage = picture.toImageSync(
-      (size.width * _pixelRatio).ceil(),
-      (size.height * _pixelRatio).ceil(),
+  void _paintFlatShadow(Canvas canvas) {
+    final path = _shape.path(size);
+    canvas.drawShadow(
+      path.shift(const Offset(0, 3)),
+      const Color(0x38000000),
+      6,
+      true,
     );
-    picture.dispose();
-    return _shader(_backImage!);
+    canvas.drawShadow(path, const Color(0x1f000000), 1.2, true);
+  }
+
+  ui.Picture _recordShadow() {
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder)
+      ..scale(math.min(1, _pixelRatio))
+      ..translate(_shadowPadding, _shadowPadding);
+    _paintFlatShadow(canvas);
+    assert(() {
+      _shadowCaptures++;
+      return true;
+    }());
+    return recorder.endRecording();
   }
 
   /// Prepare fixed-size neighboring faces between gestures, using asynchronous
   /// rasterization instead of allocating their images on the first drag frame.
   Future<void> prepareTextures() async {
-    if (_disposed || !attached || child == null || !hasSize || size.isEmpty) {
-      return;
-    }
-    final tasks = <Future<void>>[];
-    if (_front == null) tasks.add(_preparingFront ??= _prepareFace(false));
-    if (_backImage == null) tasks.add(_preparingBack ??= _prepareFace(true));
-    await Future.wait(tasks);
+    if (!_canPrepare || child == null) return;
+    // Serialize faces and the small shadow; repeated requests share preparation.
+    await (_preparing ??= _prepareFaces().whenComplete(() {
+      _preparing = null;
+      _scheduleWarm();
+    }));
   }
 
-  Future<void> _prepareFace(bool back) async {
-    final generation = back ? _backGeneration : _frontGeneration;
-    final picture = back ? _recordBack() : _recordFront();
+  bool get _needsFront =>
+      _front == null && _failedFrontGeneration != _frontGeneration;
+  bool get _needsBack =>
+      _backImage == null && _failedBackGeneration != _backGeneration;
+  bool get _needsShadow =>
+      _flatShadow == null && _failedShadowGeneration != _backGeneration;
+
+  bool get _canPrepare =>
+      !_disposed &&
+      attached &&
+      !_turning &&
+      hasSize &&
+      !size.isEmpty &&
+      size.isFinite;
+
+  Future<void> _prepareFaces() async {
+    if (_needsFront) await _prepareFace(_CurlFace.front);
+    // Layout or a gesture may have changed while the front was rasterizing.
+    if (_canPrepare && _needsBack) await _prepareFace(_CurlFace.back);
+    if (_canPrepare && _needsShadow) await _prepareFace(_CurlFace.shadow);
+  }
+
+  Future<void> _prepareFace(_CurlFace face) async {
+    final front = face == _CurlFace.front;
+    final shadow = face == _CurlFace.shadow;
+    final generation = front ? _frontGeneration : _backGeneration;
+    ui.Picture? picture;
+    ui.Image? image;
+    ui.ImageShader? shader;
     try {
-      final image = await picture.toImage(
-        (size.width * _pixelRatio).ceil(),
-        (size.height * _pixelRatio).ceil(),
-      );
+      // Moving/scaling a vector shadow forces expensive GPU work each frame.
+      // Its soft edge needs only a 1x image, shared throughout the date's life.
+      final ratio = shadow ? math.min(1, _pixelRatio) : _pixelRatio;
+      final padding = shadow ? _shadowPadding * 2 : 0;
+      final width = ((size.width + padding) * ratio).ceil();
+      final height = ((size.height + padding) * ratio).ceil();
+      picture = switch (face) {
+        _CurlFace.front => _recordFront(),
+        _CurlFace.back => _recordBack(),
+        _CurlFace.shadow => _recordShadow(),
+      };
+      image =
+          await (debugRasterize?.call(picture, width, height) ??
+              picture.toImage(width, height));
       if (_disposed ||
-          generation != (back ? _backGeneration : _frontGeneration) ||
-          (back ? _backImage != null : _front != null)) {
-        image.dispose();
+          !attached ||
+          generation != (front ? _frontGeneration : _backGeneration) ||
+          switch (face) {
+            _CurlFace.front => _front != null,
+            _CurlFace.back => _backImage != null,
+            _CurlFace.shadow => _flatShadow != null,
+          }) {
         return;
       }
-      if (back) {
+      if (shadow) {
+        _flatShadow = image;
+      } else if (!front) {
+        shader = _shader(image);
         _backImage = image;
-        _backTexture = _shader(image);
+        _backTexture = shader;
       } else {
+        shader = _shader(image);
         _front = image;
-        _texture = _shader(image);
+        _texture = shader;
       }
-      if (_visible && (!back || !_flat)) super.markNeedsPaint();
+      image = null;
+      shader = null;
+      if (_visible) super.markNeedsPaint();
+    } catch (error, stack) {
+      if (!_disposed &&
+          generation == (front ? _frontGeneration : _backGeneration)) {
+        switch (face) {
+          case _CurlFace.front:
+            _failedFrontGeneration = generation;
+          case _CurlFace.back:
+            _failedBackGeneration = generation;
+          case _CurlFace.shadow:
+            _failedShadowGeneration = generation;
+        }
+        FlutterError.reportError(
+          FlutterErrorDetails(
+            exception: error,
+            stack: stack,
+            library: 'diary paper',
+            context: ErrorDescription('while preparing a diary curl face'),
+          ),
+        );
+      }
     } finally {
-      picture.dispose();
-      if (back) {
-        _preparingBack = null;
-      } else {
-        _preparingFront = null;
-      }
-      if (!_disposed && _warm) _scheduleWarm();
+      shader?.dispose();
+      image?.dispose();
+      picture?.dispose();
     }
   }
 
@@ -294,16 +430,18 @@ class RenderDiaryCurl extends RenderProxyBox {
     // Reading our size then violates RenderBox's layout contract, even when
     // hasSize is true. prepareTextures checks geometry after the frame instead.
     if (_disposed ||
+        _turning ||
+        !(_warm || _visible) ||
         _warmScheduled ||
         !attached ||
-        ((_front != null || _preparingFront != null) &&
-            (_backImage != null || _preparingBack != null))) {
+        _preparing != null ||
+        (!_needsFront && !_needsBack && !_needsShadow)) {
       return;
     }
     _warmScheduled = true;
     SchedulerBinding.instance.addPostFrameCallback((_) {
       _warmScheduled = false;
-      if (!_disposed && _warm && attached) prepareTextures();
+      if (!_disposed && (_warm || _visible) && attached) prepareTextures();
     });
     SchedulerBinding.instance.ensureVisualUpdate();
   }
@@ -311,9 +449,9 @@ class RenderDiaryCurl extends RenderProxyBox {
   @override
   void markNeedsPaint() {
     // The reverse is independent of front widgets, including their alpha.
-    _discardFront();
+    _invalidateFront();
     super.markNeedsPaint();
-    if (_warm) _scheduleWarm();
+    _scheduleWarm();
   }
 
   @override
@@ -322,10 +460,11 @@ class RenderDiaryCurl extends RenderProxyBox {
     super.performLayout();
     if (before != size) {
       _discardFaces();
+      _curlForTurn = false;
     } else {
-      _discardFront();
+      _invalidateFront();
     }
-    if (_warm) _scheduleWarm();
+    _scheduleWarm();
   }
 
   @override
@@ -355,38 +494,43 @@ class RenderDiaryCurl extends RenderProxyBox {
   void paint(PaintingContext context, Offset offset) {
     if (!_visible || child == null || size.isEmpty) return;
     assert(!child!.needsCompositing, 'Curl faces must be static card content.');
-    if (_front == null) {
-      final picture = _recordFront();
-      _front = picture.toImageSync(
-        (size.width * _pixelRatio).ceil(),
-        (size.height * _pixelRatio).ceil(),
-      );
-      picture.dispose();
-      _texture = _shader(_front!);
-    }
-    if (_flat) {
+    assert(() {
+      _meshDraws = 0;
+      return true;
+    }());
+    if (!_usesCurl) {
       final canvas = context.canvas;
       canvas.save();
-      canvas.translate(offset.dx, offset.dy);
+      final slide = _flat ? 0.0 : _direction * _travel * _progress.clamp(0, 1);
+      canvas.translate(offset.dx + slide, offset.dy);
       final path = _shape.path(size);
-      canvas.drawShadow(
-        path.shift(const Offset(0, 3)),
-        const Color(0x38000000),
-        6,
-        true,
-      );
-      canvas.drawShadow(path, const Color(0x1f000000), 1.2, true);
-      canvas.drawImageRect(
-        _front!,
-        Rect.fromLTWH(
-          0,
-          0,
-          _front!.width.toDouble(),
-          _front!.height.toDouble(),
-        ),
-        Offset.zero & size,
-        Paint()..filterQuality = FilterQuality.low,
-      );
+      if (_flatShadow case final shadow?) {
+        canvas.drawImageRect(
+          shadow,
+          Rect.fromLTWH(
+            0,
+            0,
+            shadow.width.toDouble(),
+            shadow.height.toDouble(),
+          ),
+          (Offset.zero & size).inflate(_shadowPadding),
+          Paint()..filterQuality = FilterQuality.low,
+        );
+      } else {
+        _paintFlatShadow(canvas);
+      }
+      if (_front case final front?) {
+        canvas.drawImageRect(
+          front,
+          Rect.fromLTWH(0, 0, front.width.toDouble(), front.height.toDouble()),
+          Offset.zero & size,
+          Paint()..filterQuality = FilterQuality.low,
+        );
+      } else {
+        // A cold turn stays responsive without allocating a GPU image in paint.
+        canvas.clipPath(path);
+        context.paintChild(child!, Offset.zero);
+      }
       canvas.restore();
       return;
     }
@@ -459,10 +603,6 @@ class RenderDiaryCurl extends RenderProxyBox {
     final colors = <Color>[];
     final indices = <int>[];
     bool? batchBack;
-    assert(() {
-      _meshDraws = 0;
-      return true;
-    }());
     void flush() {
       if (positions.isEmpty) return;
       final mesh = ui.Vertices(
@@ -475,10 +615,7 @@ class RenderDiaryCurl extends RenderProxyBox {
       canvas.drawVertices(
         mesh,
         BlendMode.modulate,
-        Paint()
-          ..shader = batchBack!
-              ? (_backTexture ??= _createBackTexture())
-              : _texture,
+        Paint()..shader = batchBack! ? _backTexture : _texture,
       );
       mesh.dispose();
       assert(() {

@@ -19,6 +19,9 @@ class DailyDiaryPrompt extends ConsumerStatefulWidget {
   });
   final CivilDate date;
   final VoidCallback onWrite;
+
+  /// Only the live reader owns question generation and activation. Static
+  /// paper faces still mirror its question, messages and controls.
   final bool active;
   @override
   ConsumerState<DailyDiaryPrompt> createState() => _DailyDiaryPromptState();
@@ -52,22 +55,32 @@ class _DailyDiaryPromptState extends ConsumerState<DailyDiaryPrompt> {
     _watchMidnight();
     final today = CivilDate.fromComponents(ref.watch(diaryClockProvider)());
     if (!ref.watch(aiEnabledProvider) ||
-        !widget.active ||
         today != widget.date ||
         ref.watch(aiPreferencesProvider).value?.dailyQuestions != true) {
       _controller?.activate(false);
+      _controller = null;
       return DiaryWritingPrompt(onTap: widget.onWrite);
     }
     final provider = dailyQuestionProvider(widget.date);
     final value = ref.watch(provider);
     final controller = ref.read(provider.notifier);
-    _controller = controller;
-    final active =
-        TickerMode.valuesOf(context).enabled &&
-        (ModalRoute.of(context)?.isCurrent ?? true);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) controller.activate(active);
-    });
+    // A preview observes the same state without activating or deactivating the
+    // shared controller. Otherwise its rebuild/disposal can stop the reader.
+    final owner = widget.active ? controller : null;
+    if (_controller != owner) {
+      _controller?.activate(false);
+      _controller = owner;
+    }
+    if (widget.active) {
+      final active =
+          TickerMode.valuesOf(context).enabled &&
+          (ModalRoute.of(context)?.isCurrent ?? true);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && widget.active && identical(_controller, controller)) {
+          controller.activate(active);
+        }
+      });
+    }
     final question = value.question;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

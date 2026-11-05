@@ -98,7 +98,7 @@ void main() {
     },
   );
   test('blank saves and copies are ignored', () async {
-    editor().edit(const DiaryText(title: ' \n', body: '\t'));
+    editor().edit(const DiaryText(body: ' \n\t'));
     expect(await editor().save(), isFalse);
     expect(await editor().saveCopy(), isNull);
     expect(repo.commits, 0);

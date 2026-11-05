@@ -67,6 +67,7 @@ String _destination(String location) {
     '/diary/search',
     '/flow/search',
     '/settings/brain/phone',
+    '/settings/brain/history',
     '/settings/brain/scan',
     '/settings/brain/computers',
     '/settings/brain/preferences',
@@ -74,6 +75,10 @@ String _destination(String location) {
     '/settings/brain/help',
     '/settings/brain/details',
   }.contains(location)) {
+    return location;
+  }
+  if (RegExp(r'^/settings/brain/history/[A-Za-z0-9_-]{8,80}$')
+      .hasMatch(location)) {
     return location;
   }
   final diaryTitle = RegExp(r'^/diary/(\d{4}-\d{2}-\d{2})/(?:title|talk)$')

@@ -1,3 +1,5 @@
+import '../../ai/application/ai_lifecycle.dart';
+import 'flow_reflection.dart';
 import '../../sync/application/sync_providers.dart';
 
 import 'package:flutter/material.dart';
@@ -38,6 +40,7 @@ class ThoughtReadPage extends ConsumerWidget {
                     Text('Revision ${entry!.revision} • saved on this device'),
                     const SizedBox(height: 16),
                     SelectableText(entry.body),
+                    if (ref.watch(aiEnabledProvider)) FlowReflection(id: id),
                     const SizedBox(height: 16),
                     OutlinedButton(
                       onPressed: !ref.watch(syncCanEditProvider)

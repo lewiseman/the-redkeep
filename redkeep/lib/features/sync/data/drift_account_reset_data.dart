@@ -19,6 +19,7 @@ class DriftAccountResetData implements AccountResetLocalData {
       await db.delete(db.diaryMediaOps).go();
       await db.delete(db.photoQuestionCache).go();
       await db.delete(db.diaryDays).go();
+      await db.delete(db.flowReflections).go();
       await db.delete(db.flowThoughts).go();
       await db.delete(db.syncOperations).go();
       await db.delete(db.syncRecords).go();

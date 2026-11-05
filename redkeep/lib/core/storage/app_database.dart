@@ -38,6 +38,7 @@ part 'app_database.g.dart';
     DiaryMediaOps,
     PhotoQuestionCache,
     FlowThoughts,
+    FlowReflections,
     BrainAssignmentsTable,
     SyncOperations,
     SyncValues,
@@ -48,7 +49,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 16;
 
   // Reset changes this generation before disposing editors. Old repositories
   // cannot write after cleanup, even when an async continuation finishes late.
@@ -59,10 +60,20 @@ class AppDatabase extends _$AppDatabase {
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (migrator) async {
       await migrator.createAll();
+      await installFlowReflectionCleanup(this);
       await installSyncTriggers(this);
       await installRecallTriggers(this);
     },
     onUpgrade: (migrator, from, to) async {
+      if (from >= 5 && from < 16 && to >= 16) {
+        await customStatement('ALTER TABLE diary_entries DROP COLUMN title');
+      }
+      if (from < 15 && to >= 15) {
+        await migrator.createTable(flowReflections);
+        if (from >= 12) {
+          await migrator.addColumn(aiJobReceipts, aiJobReceipts.resultConsumed);
+        }
+      }
       if (from < 14 && to >= 14) {
         if (from >= 3) {
           await migrator.addColumn(notes, notes.details);
@@ -150,6 +161,7 @@ class AppDatabase extends _$AppDatabase {
         await installRecallTriggers(this);
         await seedRecallQueue(this);
       }
+      if (from < 15 && to >= 15) await installFlowReflectionCleanup(this);
       // createTable above already uses the current columns for version 1.
       if (from >= 2 && from < 8 && to >= 8) {
         await migrator.addColumn(

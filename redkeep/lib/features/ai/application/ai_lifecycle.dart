@@ -1,3 +1,4 @@
+import '../../flow/application/flow_ai.dart';
 import '../../notes/application/notes_providers.dart';
 import '../../../app/navigation_destination.dart';
 import '../../notes/presentation/website/website_assets.dart';
@@ -60,6 +61,8 @@ final aiResetProvider = Provider<Future<void> Function()>(
     await ref.read(diaryPhotoStoreProvider).clearAll();
     await ref.read(diaryPhotoQuestionStoreProvider).clearAll();
     ref.invalidate(diaryPhotoQuestionProvider);
+    ref.invalidate(thoughtReflectionConsumerProvider);
+    ref.invalidate(thoughtReflectionsRepositoryProvider);
     await (await ref.read(recallVectorsProvider.future)).reset();
     // The existing durable account-reset marker remains until these operations
     // and the primary-database clear have all succeeded. Repeating is safe.
@@ -189,6 +192,7 @@ class _AiLifecycleHostState extends ConsumerState<AiLifecycleHost>
     ref.watch(aiPreferencesProvider);
     ref.watch(recallControllerProvider);
     ref.watch(diaryPhotoQuestionProvider);
+    ref.watch(thoughtReflectionConsumerProvider);
     ref.watch(diaryPhotoStoreProvider);
     ref.listen(diaryMediaChangesProvider, (_, _) {
       scheduleMicrotask(() {

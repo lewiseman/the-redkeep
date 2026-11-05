@@ -103,7 +103,7 @@ class _StampContentClipper extends CustomClipper<Rect> {
       detail != oldClipper.detail;
 }
 
-class DiaryDayContent extends ConsumerWidget {
+class DiaryDayContent extends ConsumerStatefulWidget {
   const DiaryDayContent({
     super.key,
     required this.day,
@@ -119,17 +119,69 @@ class DiaryDayContent extends ConsumerWidget {
   final double minimumHeight;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    ref.watch(diaryPhotoStoreProvider);
-    final colors = diaryPaperColors(context);
-    final typography = DiaryTypography.of(context);
+  ConsumerState<DiaryDayContent> createState() => _DiaryDayContentState();
+}
+
+class _DiaryDayContentState extends ConsumerState<DiaryDayContent> {
+  Widget? _content;
+  Object? _contentKey;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _content = null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final photoStore = ref.watch(diaryPhotoStoreProvider);
     final canEdit = ref.watch(syncCanEditProvider);
     final busy = ref.watch(diaryActionsProvider);
+    final today = TimeHelper.dateOnly(ref.watch(diaryClockProvider)());
+    final key = (
+      widget.day,
+      widget.interactive,
+      canEdit,
+      busy,
+      today,
+      photoStore,
+    );
+    if (_content == null || _contentKey != key) {
+      _content = _buildContent(context, canEdit, busy, today);
+      _contentKey = key;
+    }
+    // Sizing can change as the header collapses without rebuilding paragraphs,
+    // prompts or photo widgets (and invalidating the curl's captured front).
+    return LayoutBuilder(
+      builder: (context, constraints) => Padding(
+        padding: EdgeInsets.symmetric(
+          vertical: 24,
+          horizontal: math.max(24, (constraints.maxWidth - 560) / 2),
+        ),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight: math.max(0, widget.minimumHeight - 48),
+          ),
+          child: _content,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContent(
+    BuildContext context,
+    bool canEdit,
+    bool busy,
+    DateTime today,
+  ) {
+    final day = widget.day;
+    final interactive = widget.interactive;
+    final colors = diaryPaperColors(context);
+    final typography = DiaryTypography.of(context);
     final details = [
       if (day.mood case final mood?) '${mood.emoji} ${mood.label}',
       ...day.themes,
     ].join(' · ');
-    final today = TimeHelper.dateOnly(ref.read(diaryClockProvider)());
     final canCreate =
         !day.calendarDate.isAfter(today) &&
         (canEdit || day.calendarDate == today);
@@ -174,7 +226,7 @@ class DiaryDayContent extends ConsumerWidget {
           )
         : const SizedBox.shrink();
     final actionsAtTop = day.entries.isNotEmpty && day.calendarDate == today;
-    final content = Column(
+    return Column(
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: day.entries.isEmpty
           ? MainAxisAlignment.spaceBetween
@@ -213,30 +265,24 @@ class DiaryDayContent extends ConsumerWidget {
               ),
             if (day.failed)
               TextButton(
-                onPressed: interactive
-                    ? () {
-                        final listings =
-                            ref.read(diaryEntriesProvider(day.date)).value ??
-                            <DiaryListing>[];
-                        for (final listing in listings) {
-                          ref.invalidate(diaryDocumentProvider(listing.id));
-                        }
-                        ref.invalidate(diaryDayProvider(day.date));
-                        ref.invalidate(diaryEntriesProvider(day.date));
-                      }
-                    : null,
+                // Static faces keep the live button's appearance. Their
+                // callbacks do nothing, and the scene ignores their pointers.
+                onPressed: () {
+                  if (!interactive) return;
+                  final listings =
+                      ref.read(diaryEntriesProvider(day.date)).value ??
+                      <DiaryListing>[];
+                  for (final listing in listings) {
+                    ref.invalidate(diaryDocumentProvider(listing.id));
+                  }
+                  ref.invalidate(diaryDayProvider(day.date));
+                  ref.invalidate(diaryEntriesProvider(day.date));
+                },
                 child: const Text('Could not load this day. Retry'),
               ),
             if (actionsAtTop) actions,
             for (var i = 0; i < day.entries.length; i++) ...[
               if (i > 0) const DiaryEntryBreak(),
-              if (day.entries[i].text.title.isNotEmpty) ...[
-                Text(
-                  day.entries[i].text.title,
-                  style: typography.title.copyWith(color: colors.foreground),
-                ),
-                const SizedBox(height: 12),
-              ],
               if (day.entries[i].photos.isNotEmpty)
                 DiaryPhotoStoryStrip(
                   item: day.entries[i],
@@ -249,10 +295,8 @@ class DiaryDayContent extends ConsumerWidget {
               if (day.entries[i].conversation != null)
                 Align(
                   alignment: AlignmentDirectional.centerStart,
-                  child: ActionChip(
-                    avatar: const Icon(Icons.forum_outlined, size: 18),
-                    label: const Text('Conversation'),
-                    onPressed: interactive
+                  child: _DiaryConversationChip(
+                    onOpen: interactive
                         ? () => context.push(
                             '${diaryEntryLocation(day.date, day.entries[i].id)}/conversation',
                           )
@@ -263,17 +307,6 @@ class DiaryDayContent extends ConsumerWidget {
                 day.entries[i].text.body,
                 style: typography.body.copyWith(color: colors.foreground),
               ),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: interactive
-                      ? () => context.go(
-                          diaryEntryLocation(day.date, day.entries[i].id),
-                        )
-                      : null,
-                  child: const Text('Read full entry'),
-                ),
-              ),
             ],
           ],
         ),
@@ -281,21 +314,34 @@ class DiaryDayContent extends ConsumerWidget {
         if (day.entries.isEmpty) const SizedBox.shrink(),
       ],
     );
-    return LayoutBuilder(
-      builder: (context, constraints) => Padding(
-        padding: EdgeInsets.symmetric(
-          vertical: 24,
-          horizontal: math.max(24, (constraints.maxWidth - 560) / 2),
-        ),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minHeight: math.max(0, minimumHeight - 48),
-          ),
-          child: content,
-        ),
-      ),
-    );
   }
+}
+
+/// Keep the icon in the label: a chip avatar adds an animated compositing
+/// layer, even at rest, which cannot be recorded into a static curl face.
+class _DiaryConversationChip extends StatelessWidget {
+  const _DiaryConversationChip({this.onOpen});
+  final VoidCallback? onOpen;
+
+  static void _previewTap() {}
+
+  @override
+  Widget build(BuildContext context) => ActionChip(
+    onPressed: onOpen ?? _previewTap,
+    label: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          Icons.forum_outlined,
+          size: 18,
+          color:
+              ChipTheme.of(context).iconTheme?.color ?? context.colors.primary,
+        ),
+        const SizedBox(width: 8),
+        const Flexible(child: Text('Conversation')),
+      ],
+    ),
+  );
 }
 
 /// A brief pencil mark between entries, rather than another container.

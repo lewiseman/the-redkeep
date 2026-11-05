@@ -69,6 +69,13 @@ void main() {
           )
           .get();
       expect(tables.map((r) => r.read<String>('name')), ['note_drafts']);
+      final columns = await db
+          .customSelect('PRAGMA table_info(diary_entries)')
+          .get();
+      expect(
+        columns.map((r) => r.read<String>('name')),
+        isNot(contains('title')),
+      );
       await expectLater(
         repo.save(
           id: id,
@@ -198,7 +205,6 @@ void main() {
         id: key,
         date: day,
         text: DiaryText(
-          title: 'Entry $i',
           body: i == 1 ? 'Habari %_ 工作 SQL; --' : 'habari second',
         ),
         expectedRevision: 0,
@@ -207,7 +213,7 @@ void main() {
     expect((await repo.watchEntries(date: date).first).length, 2);
     expect((await repo.watchEntries(search: 'HABARI').first).length, 3);
     expect(
-      (await repo.watchEntries(date: date, search: 'entry second').first)
+      (await repo.watchEntries(date: date, search: 'habari second').first)
           .length,
       1,
     );
@@ -228,7 +234,10 @@ void main() {
     await repo.deleteEntry('1'.padLeft(32, '0'), 1);
     expect(await repo.watchEntries(search: '%_').first, isEmpty);
     expect((await repo.watchDay(date).first).heading, 'Revised heading');
-    expect((await repo.watchEntries(date: date).first).single.title, 'Entry 2');
+    expect(
+      (await repo.watchEntries(date: date).first).single.id,
+      '2'.padLeft(32, '0'),
+    );
   });
 
   test('audit instants cross offsets and DST while the selected date remains fixed', () async {

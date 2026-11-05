@@ -363,7 +363,6 @@ void main() {
         ...(old['entries'] as List),
         {
           'id': 'e' * 32,
-          'title': '',
           'body': 'secondary',
           'created_at': 1,
           'updated_at': 1,
@@ -377,6 +376,16 @@ void main() {
     expect(payload['mood'], 'excited');
     expect(payload['themes'], ['Work']);
     expect((payload['entries'] as List).length, 2);
+    expect(
+      (payload['entries'] as List).every(
+        (item) => !(item as Map).containsKey('title'),
+      ),
+      isTrue,
+    );
+    expect(
+      (await h.diary.openDocument('e' * 32)).entry!.text.body,
+      'secondary',
+    );
   });
   test('secondary Diary append preserves remote headings, tombstones and existing IDs', () async {
     final date = CivilDate(2026, 11, 3);

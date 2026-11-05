@@ -36,7 +36,7 @@ class RecallSources {
   }
 
   RecallSource _source(String kind, QueryRow row) {
-    final title = kind == 'thought' ? '' : row.read<String>('title');
+    final title = kind == 'note' ? row.read<String>('title') : '';
     final body = row.read<String>('body');
     final created = DateTime.fromMillisecondsSinceEpoch(
       row.read<int>('created_at'),

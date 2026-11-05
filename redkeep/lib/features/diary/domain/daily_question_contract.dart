@@ -70,8 +70,7 @@ class DailyQuestionEntry {
 
 /// Today's text entries a question was asked against. Adding, removing or
 /// clearing an entry changes it, which retires the question.
-String entryQuestionText(DiaryEntry e) =>
-    '${e.text.title}\n\n${e.text.body}'.trim();
+String entryQuestionText(DiaryEntry e) => e.text.body.trim();
 List<DiaryEntry> _items(Iterable<DiaryEntry> entries) =>
     entries
         .where((e) => e.deletedAt == null && entryQuestionText(e).isNotEmpty)

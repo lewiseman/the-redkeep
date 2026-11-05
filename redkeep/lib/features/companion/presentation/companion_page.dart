@@ -259,6 +259,11 @@ class _CompanionPageState extends ConsumerState<CompanionPage>
                   : 'Auto uses assigned phone models while your computer is away.',
             ),
           ),
+        TextButton.icon(
+          onPressed: () => context.push('/settings/brain/history'),
+          icon: const Icon(Icons.history_rounded),
+          label: const Text('AI task history'),
+        ),
         const AiTaskPanel(),
         const AiStudioSectionHeading(label: 'Setup'),
         if (phoneFirst) phone else computer,

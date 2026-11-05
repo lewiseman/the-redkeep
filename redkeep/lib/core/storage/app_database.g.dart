@@ -674,6 +674,21 @@ class $AiJobReceiptsTable extends AiJobReceipts
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _resultConsumedMeta = const VerificationMeta(
+    'resultConsumed',
+  );
+  @override
+  late final GeneratedColumn<bool> resultConsumed = GeneratedColumn<bool>(
+    'result_consumed',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("result_consumed" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _createdMeta = const VerificationMeta(
     'created',
   );
@@ -686,7 +701,13 @@ class $AiJobReceiptsTable extends AiJobReceipts
     requiredDuringInsert: true,
   );
   @override
-  List<GeneratedColumn> get $columns => [id, metadata, active, created];
+  List<GeneratedColumn> get $columns => [
+    id,
+    metadata,
+    active,
+    resultConsumed,
+    created,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -718,6 +739,15 @@ class $AiJobReceiptsTable extends AiJobReceipts
         active.isAcceptableOrUnknown(data['active']!, _activeMeta),
       );
     }
+    if (data.containsKey('result_consumed')) {
+      context.handle(
+        _resultConsumedMeta,
+        resultConsumed.isAcceptableOrUnknown(
+          data['result_consumed']!,
+          _resultConsumedMeta,
+        ),
+      );
+    }
     if (data.containsKey('created')) {
       context.handle(
         _createdMeta,
@@ -747,6 +777,10 @@ class $AiJobReceiptsTable extends AiJobReceipts
         DriftSqlType.bool,
         data['${effectivePrefix}active'],
       )!,
+      resultConsumed: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}result_consumed'],
+      )!,
       created: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}created'],
@@ -764,11 +798,13 @@ class AiJobReceiptRow extends DataClass implements Insertable<AiJobReceiptRow> {
   final String id;
   final String metadata;
   final bool active;
+  final bool resultConsumed;
   final int created;
   const AiJobReceiptRow({
     required this.id,
     required this.metadata,
     required this.active,
+    required this.resultConsumed,
     required this.created,
   });
   @override
@@ -777,6 +813,7 @@ class AiJobReceiptRow extends DataClass implements Insertable<AiJobReceiptRow> {
     map['id'] = Variable<String>(id);
     map['metadata'] = Variable<String>(metadata);
     map['active'] = Variable<bool>(active);
+    map['result_consumed'] = Variable<bool>(resultConsumed);
     map['created'] = Variable<int>(created);
     return map;
   }
@@ -786,6 +823,7 @@ class AiJobReceiptRow extends DataClass implements Insertable<AiJobReceiptRow> {
       id: Value(id),
       metadata: Value(metadata),
       active: Value(active),
+      resultConsumed: Value(resultConsumed),
       created: Value(created),
     );
   }
@@ -799,6 +837,7 @@ class AiJobReceiptRow extends DataClass implements Insertable<AiJobReceiptRow> {
       id: serializer.fromJson<String>(json['id']),
       metadata: serializer.fromJson<String>(json['metadata']),
       active: serializer.fromJson<bool>(json['active']),
+      resultConsumed: serializer.fromJson<bool>(json['resultConsumed']),
       created: serializer.fromJson<int>(json['created']),
     );
   }
@@ -809,6 +848,7 @@ class AiJobReceiptRow extends DataClass implements Insertable<AiJobReceiptRow> {
       'id': serializer.toJson<String>(id),
       'metadata': serializer.toJson<String>(metadata),
       'active': serializer.toJson<bool>(active),
+      'resultConsumed': serializer.toJson<bool>(resultConsumed),
       'created': serializer.toJson<int>(created),
     };
   }
@@ -817,11 +857,13 @@ class AiJobReceiptRow extends DataClass implements Insertable<AiJobReceiptRow> {
     String? id,
     String? metadata,
     bool? active,
+    bool? resultConsumed,
     int? created,
   }) => AiJobReceiptRow(
     id: id ?? this.id,
     metadata: metadata ?? this.metadata,
     active: active ?? this.active,
+    resultConsumed: resultConsumed ?? this.resultConsumed,
     created: created ?? this.created,
   );
   AiJobReceiptRow copyWithCompanion(AiJobReceiptsCompanion data) {
@@ -829,6 +871,9 @@ class AiJobReceiptRow extends DataClass implements Insertable<AiJobReceiptRow> {
       id: data.id.present ? data.id.value : this.id,
       metadata: data.metadata.present ? data.metadata.value : this.metadata,
       active: data.active.present ? data.active.value : this.active,
+      resultConsumed: data.resultConsumed.present
+          ? data.resultConsumed.value
+          : this.resultConsumed,
       created: data.created.present ? data.created.value : this.created,
     );
   }
@@ -839,13 +884,15 @@ class AiJobReceiptRow extends DataClass implements Insertable<AiJobReceiptRow> {
           ..write('id: $id, ')
           ..write('metadata: $metadata, ')
           ..write('active: $active, ')
+          ..write('resultConsumed: $resultConsumed, ')
           ..write('created: $created')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, metadata, active, created);
+  int get hashCode =>
+      Object.hash(id, metadata, active, resultConsumed, created);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -853,6 +900,7 @@ class AiJobReceiptRow extends DataClass implements Insertable<AiJobReceiptRow> {
           other.id == this.id &&
           other.metadata == this.metadata &&
           other.active == this.active &&
+          other.resultConsumed == this.resultConsumed &&
           other.created == this.created);
 }
 
@@ -860,12 +908,14 @@ class AiJobReceiptsCompanion extends UpdateCompanion<AiJobReceiptRow> {
   final Value<String> id;
   final Value<String> metadata;
   final Value<bool> active;
+  final Value<bool> resultConsumed;
   final Value<int> created;
   final Value<int> rowid;
   const AiJobReceiptsCompanion({
     this.id = const Value.absent(),
     this.metadata = const Value.absent(),
     this.active = const Value.absent(),
+    this.resultConsumed = const Value.absent(),
     this.created = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -873,6 +923,7 @@ class AiJobReceiptsCompanion extends UpdateCompanion<AiJobReceiptRow> {
     required String id,
     required String metadata,
     this.active = const Value.absent(),
+    this.resultConsumed = const Value.absent(),
     required int created,
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -882,6 +933,7 @@ class AiJobReceiptsCompanion extends UpdateCompanion<AiJobReceiptRow> {
     Expression<String>? id,
     Expression<String>? metadata,
     Expression<bool>? active,
+    Expression<bool>? resultConsumed,
     Expression<int>? created,
     Expression<int>? rowid,
   }) {
@@ -889,6 +941,7 @@ class AiJobReceiptsCompanion extends UpdateCompanion<AiJobReceiptRow> {
       if (id != null) 'id': id,
       if (metadata != null) 'metadata': metadata,
       if (active != null) 'active': active,
+      if (resultConsumed != null) 'result_consumed': resultConsumed,
       if (created != null) 'created': created,
       if (rowid != null) 'rowid': rowid,
     });
@@ -898,6 +951,7 @@ class AiJobReceiptsCompanion extends UpdateCompanion<AiJobReceiptRow> {
     Value<String>? id,
     Value<String>? metadata,
     Value<bool>? active,
+    Value<bool>? resultConsumed,
     Value<int>? created,
     Value<int>? rowid,
   }) {
@@ -905,6 +959,7 @@ class AiJobReceiptsCompanion extends UpdateCompanion<AiJobReceiptRow> {
       id: id ?? this.id,
       metadata: metadata ?? this.metadata,
       active: active ?? this.active,
+      resultConsumed: resultConsumed ?? this.resultConsumed,
       created: created ?? this.created,
       rowid: rowid ?? this.rowid,
     );
@@ -922,6 +977,9 @@ class AiJobReceiptsCompanion extends UpdateCompanion<AiJobReceiptRow> {
     if (active.present) {
       map['active'] = Variable<bool>(active.value);
     }
+    if (resultConsumed.present) {
+      map['result_consumed'] = Variable<bool>(resultConsumed.value);
+    }
     if (created.present) {
       map['created'] = Variable<int>(created.value);
     }
@@ -937,6 +995,7 @@ class AiJobReceiptsCompanion extends UpdateCompanion<AiJobReceiptRow> {
           ..write('id: $id, ')
           ..write('metadata: $metadata, ')
           ..write('active: $active, ')
+          ..write('resultConsumed: $resultConsumed, ')
           ..write('created: $created, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -5099,15 +5158,6 @@ class $DiaryEntriesTable extends DiaryEntries
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _titleMeta = const VerificationMeta('title');
-  @override
-  late final GeneratedColumn<String> title = GeneratedColumn<String>(
-    'title',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
   static const VerificationMeta _bodyMeta = const VerificationMeta('body');
   @override
   late final GeneratedColumn<String> body = GeneratedColumn<String>(
@@ -5187,7 +5237,6 @@ class $DiaryEntriesTable extends DiaryEntries
   List<GeneratedColumn> get $columns => [
     id,
     dateKey,
-    title,
     body,
     photos,
     conversation,
@@ -5220,14 +5269,6 @@ class $DiaryEntriesTable extends DiaryEntries
       );
     } else if (isInserting) {
       context.missing(_dateKeyMeta);
-    }
-    if (data.containsKey('title')) {
-      context.handle(
-        _titleMeta,
-        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_titleMeta);
     }
     if (data.containsKey('body')) {
       context.handle(
@@ -5299,10 +5340,6 @@ class $DiaryEntriesTable extends DiaryEntries
         DriftSqlType.string,
         data['${effectivePrefix}date_key'],
       )!,
-      title: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}title'],
-      )!,
       body: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}body'],
@@ -5343,7 +5380,6 @@ class $DiaryEntriesTable extends DiaryEntries
 class DiaryEntryRow extends DataClass implements Insertable<DiaryEntryRow> {
   final String id;
   final String dateKey;
-  final String title;
   final String body;
   final String photos;
   final String? conversation;
@@ -5354,7 +5390,6 @@ class DiaryEntryRow extends DataClass implements Insertable<DiaryEntryRow> {
   const DiaryEntryRow({
     required this.id,
     required this.dateKey,
-    required this.title,
     required this.body,
     required this.photos,
     this.conversation,
@@ -5368,7 +5403,6 @@ class DiaryEntryRow extends DataClass implements Insertable<DiaryEntryRow> {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
     map['date_key'] = Variable<String>(dateKey);
-    map['title'] = Variable<String>(title);
     map['body'] = Variable<String>(body);
     map['photos'] = Variable<String>(photos);
     if (!nullToAbsent || conversation != null) {
@@ -5387,7 +5421,6 @@ class DiaryEntryRow extends DataClass implements Insertable<DiaryEntryRow> {
     return DiaryEntriesCompanion(
       id: Value(id),
       dateKey: Value(dateKey),
-      title: Value(title),
       body: Value(body),
       photos: Value(photos),
       conversation: conversation == null && nullToAbsent
@@ -5410,7 +5443,6 @@ class DiaryEntryRow extends DataClass implements Insertable<DiaryEntryRow> {
     return DiaryEntryRow(
       id: serializer.fromJson<String>(json['id']),
       dateKey: serializer.fromJson<String>(json['dateKey']),
-      title: serializer.fromJson<String>(json['title']),
       body: serializer.fromJson<String>(json['body']),
       photos: serializer.fromJson<String>(json['photos']),
       conversation: serializer.fromJson<String?>(json['conversation']),
@@ -5426,7 +5458,6 @@ class DiaryEntryRow extends DataClass implements Insertable<DiaryEntryRow> {
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
       'dateKey': serializer.toJson<String>(dateKey),
-      'title': serializer.toJson<String>(title),
       'body': serializer.toJson<String>(body),
       'photos': serializer.toJson<String>(photos),
       'conversation': serializer.toJson<String?>(conversation),
@@ -5440,7 +5471,6 @@ class DiaryEntryRow extends DataClass implements Insertable<DiaryEntryRow> {
   DiaryEntryRow copyWith({
     String? id,
     String? dateKey,
-    String? title,
     String? body,
     String? photos,
     Value<String?> conversation = const Value.absent(),
@@ -5451,7 +5481,6 @@ class DiaryEntryRow extends DataClass implements Insertable<DiaryEntryRow> {
   }) => DiaryEntryRow(
     id: id ?? this.id,
     dateKey: dateKey ?? this.dateKey,
-    title: title ?? this.title,
     body: body ?? this.body,
     photos: photos ?? this.photos,
     conversation: conversation.present ? conversation.value : this.conversation,
@@ -5464,7 +5493,6 @@ class DiaryEntryRow extends DataClass implements Insertable<DiaryEntryRow> {
     return DiaryEntryRow(
       id: data.id.present ? data.id.value : this.id,
       dateKey: data.dateKey.present ? data.dateKey.value : this.dateKey,
-      title: data.title.present ? data.title.value : this.title,
       body: data.body.present ? data.body.value : this.body,
       photos: data.photos.present ? data.photos.value : this.photos,
       conversation: data.conversation.present
@@ -5482,7 +5510,6 @@ class DiaryEntryRow extends DataClass implements Insertable<DiaryEntryRow> {
     return (StringBuffer('DiaryEntryRow(')
           ..write('id: $id, ')
           ..write('dateKey: $dateKey, ')
-          ..write('title: $title, ')
           ..write('body: $body, ')
           ..write('photos: $photos, ')
           ..write('conversation: $conversation, ')
@@ -5498,7 +5525,6 @@ class DiaryEntryRow extends DataClass implements Insertable<DiaryEntryRow> {
   int get hashCode => Object.hash(
     id,
     dateKey,
-    title,
     body,
     photos,
     conversation,
@@ -5513,7 +5539,6 @@ class DiaryEntryRow extends DataClass implements Insertable<DiaryEntryRow> {
       (other is DiaryEntryRow &&
           other.id == this.id &&
           other.dateKey == this.dateKey &&
-          other.title == this.title &&
           other.body == this.body &&
           other.photos == this.photos &&
           other.conversation == this.conversation &&
@@ -5526,7 +5551,6 @@ class DiaryEntryRow extends DataClass implements Insertable<DiaryEntryRow> {
 class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntryRow> {
   final Value<String> id;
   final Value<String> dateKey;
-  final Value<String> title;
   final Value<String> body;
   final Value<String> photos;
   final Value<String?> conversation;
@@ -5538,7 +5562,6 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntryRow> {
   const DiaryEntriesCompanion({
     this.id = const Value.absent(),
     this.dateKey = const Value.absent(),
-    this.title = const Value.absent(),
     this.body = const Value.absent(),
     this.photos = const Value.absent(),
     this.conversation = const Value.absent(),
@@ -5551,7 +5574,6 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntryRow> {
   DiaryEntriesCompanion.insert({
     required String id,
     required String dateKey,
-    required String title,
     required String body,
     this.photos = const Value.absent(),
     this.conversation = const Value.absent(),
@@ -5562,7 +5584,6 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntryRow> {
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        dateKey = Value(dateKey),
-       title = Value(title),
        body = Value(body),
        revision = Value(revision),
        createdAt = Value(createdAt),
@@ -5570,7 +5591,6 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntryRow> {
   static Insertable<DiaryEntryRow> custom({
     Expression<String>? id,
     Expression<String>? dateKey,
-    Expression<String>? title,
     Expression<String>? body,
     Expression<String>? photos,
     Expression<String>? conversation,
@@ -5583,7 +5603,6 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntryRow> {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (dateKey != null) 'date_key': dateKey,
-      if (title != null) 'title': title,
       if (body != null) 'body': body,
       if (photos != null) 'photos': photos,
       if (conversation != null) 'conversation': conversation,
@@ -5598,7 +5617,6 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntryRow> {
   DiaryEntriesCompanion copyWith({
     Value<String>? id,
     Value<String>? dateKey,
-    Value<String>? title,
     Value<String>? body,
     Value<String>? photos,
     Value<String?>? conversation,
@@ -5611,7 +5629,6 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntryRow> {
     return DiaryEntriesCompanion(
       id: id ?? this.id,
       dateKey: dateKey ?? this.dateKey,
-      title: title ?? this.title,
       body: body ?? this.body,
       photos: photos ?? this.photos,
       conversation: conversation ?? this.conversation,
@@ -5631,9 +5648,6 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntryRow> {
     }
     if (dateKey.present) {
       map['date_key'] = Variable<String>(dateKey.value);
-    }
-    if (title.present) {
-      map['title'] = Variable<String>(title.value);
     }
     if (body.present) {
       map['body'] = Variable<String>(body.value);
@@ -5667,7 +5681,6 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntryRow> {
     return (StringBuffer('DiaryEntriesCompanion(')
           ..write('id: $id, ')
           ..write('dateKey: $dateKey, ')
-          ..write('title: $title, ')
           ..write('body: $body, ')
           ..write('photos: $photos, ')
           ..write('conversation: $conversation, ')
@@ -7030,6 +7043,426 @@ class FlowThoughtsCompanion extends UpdateCompanion<ThoughtRow> {
   }
 }
 
+class $FlowReflectionsTable extends FlowReflections
+    with TableInfo<$FlowReflectionsTable, FlowReflectionRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $FlowReflectionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _taskIdMeta = const VerificationMeta('taskId');
+  @override
+  late final GeneratedColumn<String> taskId = GeneratedColumn<String>(
+    'task_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _thoughtIdMeta = const VerificationMeta(
+    'thoughtId',
+  );
+  @override
+  late final GeneratedColumn<String> thoughtId = GeneratedColumn<String>(
+    'thought_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sourceVersionMeta = const VerificationMeta(
+    'sourceVersion',
+  );
+  @override
+  late final GeneratedColumn<String> sourceVersion = GeneratedColumn<String>(
+    'source_version',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _bodyMeta = const VerificationMeta('body');
+  @override
+  late final GeneratedColumn<String> body = GeneratedColumn<String>(
+    'body',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL CHECK (status IN (\'proposed\', \'kept\'))',
+  );
+  static const VerificationMeta _createdMeta = const VerificationMeta(
+    'created',
+  );
+  @override
+  late final GeneratedColumn<int> created = GeneratedColumn<int>(
+    'created',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    taskId,
+    thoughtId,
+    sourceVersion,
+    body,
+    status,
+    created,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'flow_reflections';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<FlowReflectionRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('task_id')) {
+      context.handle(
+        _taskIdMeta,
+        taskId.isAcceptableOrUnknown(data['task_id']!, _taskIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_taskIdMeta);
+    }
+    if (data.containsKey('thought_id')) {
+      context.handle(
+        _thoughtIdMeta,
+        thoughtId.isAcceptableOrUnknown(data['thought_id']!, _thoughtIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_thoughtIdMeta);
+    }
+    if (data.containsKey('source_version')) {
+      context.handle(
+        _sourceVersionMeta,
+        sourceVersion.isAcceptableOrUnknown(
+          data['source_version']!,
+          _sourceVersionMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceVersionMeta);
+    }
+    if (data.containsKey('body')) {
+      context.handle(
+        _bodyMeta,
+        body.isAcceptableOrUnknown(data['body']!, _bodyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_bodyMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_statusMeta);
+    }
+    if (data.containsKey('created')) {
+      context.handle(
+        _createdMeta,
+        created.isAcceptableOrUnknown(data['created']!, _createdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {taskId};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {thoughtId, status},
+  ];
+  @override
+  FlowReflectionRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return FlowReflectionRow(
+      taskId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}task_id'],
+      )!,
+      thoughtId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}thought_id'],
+      )!,
+      sourceVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_version'],
+      )!,
+      body: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}body'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      created: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created'],
+      )!,
+    );
+  }
+
+  @override
+  $FlowReflectionsTable createAlias(String alias) {
+    return $FlowReflectionsTable(attachedDatabase, alias);
+  }
+}
+
+class FlowReflectionRow extends DataClass
+    implements Insertable<FlowReflectionRow> {
+  final String taskId;
+  final String thoughtId;
+  final String sourceVersion;
+  final String body;
+  final String status;
+  final int created;
+  const FlowReflectionRow({
+    required this.taskId,
+    required this.thoughtId,
+    required this.sourceVersion,
+    required this.body,
+    required this.status,
+    required this.created,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['task_id'] = Variable<String>(taskId);
+    map['thought_id'] = Variable<String>(thoughtId);
+    map['source_version'] = Variable<String>(sourceVersion);
+    map['body'] = Variable<String>(body);
+    map['status'] = Variable<String>(status);
+    map['created'] = Variable<int>(created);
+    return map;
+  }
+
+  FlowReflectionsCompanion toCompanion(bool nullToAbsent) {
+    return FlowReflectionsCompanion(
+      taskId: Value(taskId),
+      thoughtId: Value(thoughtId),
+      sourceVersion: Value(sourceVersion),
+      body: Value(body),
+      status: Value(status),
+      created: Value(created),
+    );
+  }
+
+  factory FlowReflectionRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return FlowReflectionRow(
+      taskId: serializer.fromJson<String>(json['taskId']),
+      thoughtId: serializer.fromJson<String>(json['thoughtId']),
+      sourceVersion: serializer.fromJson<String>(json['sourceVersion']),
+      body: serializer.fromJson<String>(json['body']),
+      status: serializer.fromJson<String>(json['status']),
+      created: serializer.fromJson<int>(json['created']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'taskId': serializer.toJson<String>(taskId),
+      'thoughtId': serializer.toJson<String>(thoughtId),
+      'sourceVersion': serializer.toJson<String>(sourceVersion),
+      'body': serializer.toJson<String>(body),
+      'status': serializer.toJson<String>(status),
+      'created': serializer.toJson<int>(created),
+    };
+  }
+
+  FlowReflectionRow copyWith({
+    String? taskId,
+    String? thoughtId,
+    String? sourceVersion,
+    String? body,
+    String? status,
+    int? created,
+  }) => FlowReflectionRow(
+    taskId: taskId ?? this.taskId,
+    thoughtId: thoughtId ?? this.thoughtId,
+    sourceVersion: sourceVersion ?? this.sourceVersion,
+    body: body ?? this.body,
+    status: status ?? this.status,
+    created: created ?? this.created,
+  );
+  FlowReflectionRow copyWithCompanion(FlowReflectionsCompanion data) {
+    return FlowReflectionRow(
+      taskId: data.taskId.present ? data.taskId.value : this.taskId,
+      thoughtId: data.thoughtId.present ? data.thoughtId.value : this.thoughtId,
+      sourceVersion: data.sourceVersion.present
+          ? data.sourceVersion.value
+          : this.sourceVersion,
+      body: data.body.present ? data.body.value : this.body,
+      status: data.status.present ? data.status.value : this.status,
+      created: data.created.present ? data.created.value : this.created,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FlowReflectionRow(')
+          ..write('taskId: $taskId, ')
+          ..write('thoughtId: $thoughtId, ')
+          ..write('sourceVersion: $sourceVersion, ')
+          ..write('body: $body, ')
+          ..write('status: $status, ')
+          ..write('created: $created')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(taskId, thoughtId, sourceVersion, body, status, created);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is FlowReflectionRow &&
+          other.taskId == this.taskId &&
+          other.thoughtId == this.thoughtId &&
+          other.sourceVersion == this.sourceVersion &&
+          other.body == this.body &&
+          other.status == this.status &&
+          other.created == this.created);
+}
+
+class FlowReflectionsCompanion extends UpdateCompanion<FlowReflectionRow> {
+  final Value<String> taskId;
+  final Value<String> thoughtId;
+  final Value<String> sourceVersion;
+  final Value<String> body;
+  final Value<String> status;
+  final Value<int> created;
+  final Value<int> rowid;
+  const FlowReflectionsCompanion({
+    this.taskId = const Value.absent(),
+    this.thoughtId = const Value.absent(),
+    this.sourceVersion = const Value.absent(),
+    this.body = const Value.absent(),
+    this.status = const Value.absent(),
+    this.created = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  FlowReflectionsCompanion.insert({
+    required String taskId,
+    required String thoughtId,
+    required String sourceVersion,
+    required String body,
+    required String status,
+    required int created,
+    this.rowid = const Value.absent(),
+  }) : taskId = Value(taskId),
+       thoughtId = Value(thoughtId),
+       sourceVersion = Value(sourceVersion),
+       body = Value(body),
+       status = Value(status),
+       created = Value(created);
+  static Insertable<FlowReflectionRow> custom({
+    Expression<String>? taskId,
+    Expression<String>? thoughtId,
+    Expression<String>? sourceVersion,
+    Expression<String>? body,
+    Expression<String>? status,
+    Expression<int>? created,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (taskId != null) 'task_id': taskId,
+      if (thoughtId != null) 'thought_id': thoughtId,
+      if (sourceVersion != null) 'source_version': sourceVersion,
+      if (body != null) 'body': body,
+      if (status != null) 'status': status,
+      if (created != null) 'created': created,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  FlowReflectionsCompanion copyWith({
+    Value<String>? taskId,
+    Value<String>? thoughtId,
+    Value<String>? sourceVersion,
+    Value<String>? body,
+    Value<String>? status,
+    Value<int>? created,
+    Value<int>? rowid,
+  }) {
+    return FlowReflectionsCompanion(
+      taskId: taskId ?? this.taskId,
+      thoughtId: thoughtId ?? this.thoughtId,
+      sourceVersion: sourceVersion ?? this.sourceVersion,
+      body: body ?? this.body,
+      status: status ?? this.status,
+      created: created ?? this.created,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (taskId.present) {
+      map['task_id'] = Variable<String>(taskId.value);
+    }
+    if (thoughtId.present) {
+      map['thought_id'] = Variable<String>(thoughtId.value);
+    }
+    if (sourceVersion.present) {
+      map['source_version'] = Variable<String>(sourceVersion.value);
+    }
+    if (body.present) {
+      map['body'] = Variable<String>(body.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (created.present) {
+      map['created'] = Variable<int>(created.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FlowReflectionsCompanion(')
+          ..write('taskId: $taskId, ')
+          ..write('thoughtId: $thoughtId, ')
+          ..write('sourceVersion: $sourceVersion, ')
+          ..write('body: $body, ')
+          ..write('status: $status, ')
+          ..write('created: $created, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $BrainAssignmentsTableTable extends BrainAssignmentsTable
     with TableInfo<$BrainAssignmentsTableTable, BrainAssignmentRow> {
   @override
@@ -8108,6 +8541,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $PhotoQuestionCacheTable photoQuestionCache =
       $PhotoQuestionCacheTable(this);
   late final $FlowThoughtsTable flowThoughts = $FlowThoughtsTable(this);
+  late final $FlowReflectionsTable flowReflections = $FlowReflectionsTable(
+    this,
+  );
   late final $BrainAssignmentsTableTable brainAssignmentsTable =
       $BrainAssignmentsTableTable(this);
   late final $SyncOperationsTable syncOperations = $SyncOperationsTable(this);
@@ -8143,6 +8579,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     diaryMediaOps,
     photoQuestionCache,
     flowThoughts,
+    flowReflections,
     brainAssignmentsTable,
     syncOperations,
     syncValues,
@@ -8482,6 +8919,7 @@ typedef $$AiJobReceiptsTableCreateCompanionBuilder =
       required String id,
       required String metadata,
       Value<bool> active,
+      Value<bool> resultConsumed,
       required int created,
       Value<int> rowid,
     });
@@ -8490,6 +8928,7 @@ typedef $$AiJobReceiptsTableUpdateCompanionBuilder =
       Value<String> id,
       Value<String> metadata,
       Value<bool> active,
+      Value<bool> resultConsumed,
       Value<int> created,
       Value<int> rowid,
     });
@@ -8515,6 +8954,11 @@ class $$AiJobReceiptsTableFilterComposer
 
   ColumnFilters<bool> get active => $composableBuilder(
     column: $table.active,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get resultConsumed => $composableBuilder(
+    column: $table.resultConsumed,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -8548,6 +8992,11 @@ class $$AiJobReceiptsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get resultConsumed => $composableBuilder(
+    column: $table.resultConsumed,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get created => $composableBuilder(
     column: $table.created,
     builder: (column) => ColumnOrderings(column),
@@ -8571,6 +9020,11 @@ class $$AiJobReceiptsTableAnnotationComposer
 
   GeneratedColumn<bool> get active =>
       $composableBuilder(column: $table.active, builder: (column) => column);
+
+  GeneratedColumn<bool> get resultConsumed => $composableBuilder(
+    column: $table.resultConsumed,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get created =>
       $composableBuilder(column: $table.created, builder: (column) => column);
@@ -8610,12 +9064,14 @@ class $$AiJobReceiptsTableTableManager
                 Value<String> id = const Value.absent(),
                 Value<String> metadata = const Value.absent(),
                 Value<bool> active = const Value.absent(),
+                Value<bool> resultConsumed = const Value.absent(),
                 Value<int> created = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AiJobReceiptsCompanion(
                 id: id,
                 metadata: metadata,
                 active: active,
+                resultConsumed: resultConsumed,
                 created: created,
                 rowid: rowid,
               ),
@@ -8624,12 +9080,14 @@ class $$AiJobReceiptsTableTableManager
                 required String id,
                 required String metadata,
                 Value<bool> active = const Value.absent(),
+                Value<bool> resultConsumed = const Value.absent(),
                 required int created,
                 Value<int> rowid = const Value.absent(),
               }) => AiJobReceiptsCompanion.insert(
                 id: id,
                 metadata: metadata,
                 active: active,
+                resultConsumed: resultConsumed,
                 created: created,
                 rowid: rowid,
               ),
@@ -11188,7 +11646,6 @@ typedef $$DiaryEntriesTableCreateCompanionBuilder =
     DiaryEntriesCompanion Function({
       required String id,
       required String dateKey,
-      required String title,
       required String body,
       Value<String> photos,
       Value<String?> conversation,
@@ -11202,7 +11659,6 @@ typedef $$DiaryEntriesTableUpdateCompanionBuilder =
     DiaryEntriesCompanion Function({
       Value<String> id,
       Value<String> dateKey,
-      Value<String> title,
       Value<String> body,
       Value<String> photos,
       Value<String?> conversation,
@@ -11229,11 +11685,6 @@ class $$DiaryEntriesTableFilterComposer
 
   ColumnFilters<String> get dateKey => $composableBuilder(
     column: $table.dateKey,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get title => $composableBuilder(
-    column: $table.title,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -11292,11 +11743,6 @@ class $$DiaryEntriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get title => $composableBuilder(
-    column: $table.title,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<String> get body => $composableBuilder(
     column: $table.body,
     builder: (column) => ColumnOrderings(column),
@@ -11347,9 +11793,6 @@ class $$DiaryEntriesTableAnnotationComposer
 
   GeneratedColumn<String> get dateKey =>
       $composableBuilder(column: $table.dateKey, builder: (column) => column);
-
-  GeneratedColumn<String> get title =>
-      $composableBuilder(column: $table.title, builder: (column) => column);
 
   GeneratedColumn<String> get body =>
       $composableBuilder(column: $table.body, builder: (column) => column);
@@ -11408,7 +11851,6 @@ class $$DiaryEntriesTableTableManager
               ({
                 Value<String> id = const Value.absent(),
                 Value<String> dateKey = const Value.absent(),
-                Value<String> title = const Value.absent(),
                 Value<String> body = const Value.absent(),
                 Value<String> photos = const Value.absent(),
                 Value<String?> conversation = const Value.absent(),
@@ -11420,7 +11862,6 @@ class $$DiaryEntriesTableTableManager
               }) => DiaryEntriesCompanion(
                 id: id,
                 dateKey: dateKey,
-                title: title,
                 body: body,
                 photos: photos,
                 conversation: conversation,
@@ -11434,7 +11875,6 @@ class $$DiaryEntriesTableTableManager
               ({
                 required String id,
                 required String dateKey,
-                required String title,
                 required String body,
                 Value<String> photos = const Value.absent(),
                 Value<String?> conversation = const Value.absent(),
@@ -11446,7 +11886,6 @@ class $$DiaryEntriesTableTableManager
               }) => DiaryEntriesCompanion.insert(
                 id: id,
                 dateKey: dateKey,
-                title: title,
                 body: body,
                 photos: photos,
                 conversation: conversation,
@@ -12301,6 +12740,242 @@ typedef $$FlowThoughtsTableProcessedTableManager =
       ThoughtRow,
       PrefetchHooks Function()
     >;
+typedef $$FlowReflectionsTableCreateCompanionBuilder =
+    FlowReflectionsCompanion Function({
+      required String taskId,
+      required String thoughtId,
+      required String sourceVersion,
+      required String body,
+      required String status,
+      required int created,
+      Value<int> rowid,
+    });
+typedef $$FlowReflectionsTableUpdateCompanionBuilder =
+    FlowReflectionsCompanion Function({
+      Value<String> taskId,
+      Value<String> thoughtId,
+      Value<String> sourceVersion,
+      Value<String> body,
+      Value<String> status,
+      Value<int> created,
+      Value<int> rowid,
+    });
+
+class $$FlowReflectionsTableFilterComposer
+    extends Composer<_$AppDatabase, $FlowReflectionsTable> {
+  $$FlowReflectionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get taskId => $composableBuilder(
+    column: $table.taskId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get thoughtId => $composableBuilder(
+    column: $table.thoughtId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceVersion => $composableBuilder(
+    column: $table.sourceVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get created => $composableBuilder(
+    column: $table.created,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$FlowReflectionsTableOrderingComposer
+    extends Composer<_$AppDatabase, $FlowReflectionsTable> {
+  $$FlowReflectionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get taskId => $composableBuilder(
+    column: $table.taskId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get thoughtId => $composableBuilder(
+    column: $table.thoughtId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceVersion => $composableBuilder(
+    column: $table.sourceVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get created => $composableBuilder(
+    column: $table.created,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$FlowReflectionsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $FlowReflectionsTable> {
+  $$FlowReflectionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get taskId =>
+      $composableBuilder(column: $table.taskId, builder: (column) => column);
+
+  GeneratedColumn<String> get thoughtId =>
+      $composableBuilder(column: $table.thoughtId, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceVersion => $composableBuilder(
+    column: $table.sourceVersion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get body =>
+      $composableBuilder(column: $table.body, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<int> get created =>
+      $composableBuilder(column: $table.created, builder: (column) => column);
+}
+
+class $$FlowReflectionsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $FlowReflectionsTable,
+          FlowReflectionRow,
+          $$FlowReflectionsTableFilterComposer,
+          $$FlowReflectionsTableOrderingComposer,
+          $$FlowReflectionsTableAnnotationComposer,
+          $$FlowReflectionsTableCreateCompanionBuilder,
+          $$FlowReflectionsTableUpdateCompanionBuilder,
+          (
+            FlowReflectionRow,
+            BaseReferences<
+              _$AppDatabase,
+              $FlowReflectionsTable,
+              FlowReflectionRow
+            >,
+          ),
+          FlowReflectionRow,
+          PrefetchHooks Function()
+        > {
+  $$FlowReflectionsTableTableManager(
+    _$AppDatabase db,
+    $FlowReflectionsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$FlowReflectionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$FlowReflectionsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$FlowReflectionsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> taskId = const Value.absent(),
+                Value<String> thoughtId = const Value.absent(),
+                Value<String> sourceVersion = const Value.absent(),
+                Value<String> body = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<int> created = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => FlowReflectionsCompanion(
+                taskId: taskId,
+                thoughtId: thoughtId,
+                sourceVersion: sourceVersion,
+                body: body,
+                status: status,
+                created: created,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String taskId,
+                required String thoughtId,
+                required String sourceVersion,
+                required String body,
+                required String status,
+                required int created,
+                Value<int> rowid = const Value.absent(),
+              }) => FlowReflectionsCompanion.insert(
+                taskId: taskId,
+                thoughtId: thoughtId,
+                sourceVersion: sourceVersion,
+                body: body,
+                status: status,
+                created: created,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$FlowReflectionsTable, FlowReflectionRow>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $FlowReflectionsTable,
+                    FlowReflectionRow
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$FlowReflectionsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $FlowReflectionsTable,
+      FlowReflectionRow,
+      $$FlowReflectionsTableFilterComposer,
+      $$FlowReflectionsTableOrderingComposer,
+      $$FlowReflectionsTableAnnotationComposer,
+      $$FlowReflectionsTableCreateCompanionBuilder,
+      $$FlowReflectionsTableUpdateCompanionBuilder,
+      (
+        FlowReflectionRow,
+        BaseReferences<_$AppDatabase, $FlowReflectionsTable, FlowReflectionRow>,
+      ),
+      FlowReflectionRow,
+      PrefetchHooks Function()
+    >;
 typedef $$BrainAssignmentsTableTableCreateCompanionBuilder =
     BrainAssignmentsTableCompanion Function({
       required String capability,
@@ -13042,6 +13717,8 @@ class $AppDatabaseManager {
       $$PhotoQuestionCacheTableTableManager(_db, _db.photoQuestionCache);
   $$FlowThoughtsTableTableManager get flowThoughts =>
       $$FlowThoughtsTableTableManager(_db, _db.flowThoughts);
+  $$FlowReflectionsTableTableManager get flowReflections =>
+      $$FlowReflectionsTableTableManager(_db, _db.flowReflections);
   $$BrainAssignmentsTableTableTableManager get brainAssignmentsTable =>
       $$BrainAssignmentsTableTableTableManager(_db, _db.brainAssignmentsTable);
   $$SyncOperationsTableTableManager get syncOperations =>

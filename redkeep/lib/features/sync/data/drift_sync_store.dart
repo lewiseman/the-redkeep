@@ -5,6 +5,7 @@ import 'package:sync_wise/sync_wise.dart';
 
 import '../../../core/storage/app_database.dart';
 import 'drift_sync_collection.dart';
+import '../../diary/domain/diary_period.dart';
 
 class DriftSyncKeyValueStore implements SyncKeyValueStore {
   DriftSyncKeyValueStore(this.db);
@@ -61,7 +62,7 @@ class DriftSyncStateStore extends SyncStateStore {
           (e) => e['id'] == op.id && e['deleted_at'] == null,
         );
         if (items.isEmpty) continue;
-        payload = {'id': op.documentId, 'schema': 2, 'entry': items.single};
+        payload = {'id': op.documentId, 'schema': 3, 'entry': items.single};
       }
       result.add(
         PendingCreation(
@@ -111,9 +112,9 @@ Future<void> checkWritingAccess(
       device != null &&
       (jsonDecode(role) as Map)['device_id'] != device) {
     final date = now ?? DateTime.now();
-    final today =
-        '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-    if (!creating || (diaryDate != null && diaryDate != today)) {
+    if (!creating ||
+        (diaryDate != null &&
+            DiaryPeriod.tryParse(diaryDate)?.isCurrent(date) != true)) {
       throw StateError(
         'This device is add-only. Reclaim primary in Sync & devices to edit existing writing.',
       );

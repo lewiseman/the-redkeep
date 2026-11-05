@@ -19,7 +19,7 @@ import 'package:redkeep/features/companion/data/companion_protocol.dart';
 import 'package:redkeep/features/diary/application/diary_ai_sources.dart';
 import 'package:redkeep/features/diary/application/diary_providers.dart';
 import 'package:redkeep/features/diary/data/drift_diary_repository.dart';
-import 'package:redkeep/features/diary/domain/civil_date.dart';
+import 'package:redkeep/features/diary/domain/diary_period.dart';
 import 'package:redkeep/features/diary/domain/diary_document.dart';
 
 import '../../support/fake_ai.dart';
@@ -119,7 +119,7 @@ void main() {
   late MemoryAiTasks protected;
   late JobTransport remote;
   late FakeBrainAssignments assignments;
-  final date = CivilDate(2026, 11, 4);
+  final date = DiaryPeriod(2026, 11, 4);
   ProviderContainer container({
     bool connected = true,
     List<InferenceSettings>? settings,

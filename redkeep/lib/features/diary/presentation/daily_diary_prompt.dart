@@ -7,7 +7,7 @@ import '../../ai/application/ai_lifecycle.dart';
 import '../../ai/application/ai_preferences.dart';
 import '../application/daily_question_controller.dart';
 import '../application/diary_providers.dart';
-import '../domain/civil_date.dart';
+import '../domain/diary_period.dart';
 import 'diary_writing_prompt.dart';
 
 class DailyDiaryPrompt extends ConsumerStatefulWidget {
@@ -17,7 +17,7 @@ class DailyDiaryPrompt extends ConsumerStatefulWidget {
     required this.onWrite,
     required this.active,
   });
-  final CivilDate date;
+  final DiaryPeriod date;
   final VoidCallback onWrite;
 
   /// Only the live reader owns question generation and activation. Static
@@ -33,7 +33,9 @@ class _DailyDiaryPromptState extends ConsumerState<DailyDiaryPrompt> {
 
   void _watchMidnight() {
     _midnight?.cancel();
-    if (!widget.active || !ref.read(aiEnabledProvider)) return;
+    if (!widget.date.isDay || !widget.active || !ref.read(aiEnabledProvider)) {
+      return;
+    }
     final now = ref.read(diaryClockProvider)();
     final next = DateTime(now.year, now.month, now.day + 1);
     _midnight = Timer(next.difference(now), () {
@@ -53,9 +55,10 @@ class _DailyDiaryPromptState extends ConsumerState<DailyDiaryPrompt> {
   @override
   Widget build(BuildContext context) {
     _watchMidnight();
-    final today = CivilDate.fromComponents(ref.watch(diaryClockProvider)());
-    if (!ref.watch(aiEnabledProvider) ||
-        today != widget.date ||
+    final today = ref.watch(diaryClockProvider)();
+    if (!widget.date.isDay ||
+        !ref.watch(aiEnabledProvider) ||
+        !widget.date.isCurrent(today) ||
         ref.watch(aiPreferencesProvider).value?.dailyQuestions != true) {
       _controller?.activate(false);
       _controller = null;

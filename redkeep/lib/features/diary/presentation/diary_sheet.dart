@@ -109,10 +109,14 @@ class DiaryDayContent extends ConsumerStatefulWidget {
     required this.day,
     this.minimumHeight = 0,
     this.interactive = false,
+    this.enableEntryEditing = false,
   }) : assert(minimumHeight >= 0 && minimumHeight < double.infinity);
 
   final DiaryPaperDay day;
   final bool interactive;
+
+  /// Enabled by the live reader only after its header has fully collapsed.
+  final bool enableEntryEditing;
 
   /// Centers an empty invitation while leaving the cached prose independent
   /// of the changing paper viewport.
@@ -141,6 +145,7 @@ class _DiaryDayContentState extends ConsumerState<DiaryDayContent> {
     final key = (
       widget.day,
       widget.interactive,
+      widget.enableEntryEditing,
       canEdit,
       busy,
       today,
@@ -176,6 +181,8 @@ class _DiaryDayContentState extends ConsumerState<DiaryDayContent> {
   ) {
     final day = widget.day;
     final interactive = widget.interactive;
+    final canEditEntries =
+        interactive && widget.enableEntryEditing && canEdit && !busy;
     final colors = diaryPaperColors(context);
     final typography = DiaryTypography.of(context);
     final details = [
@@ -183,8 +190,7 @@ class _DiaryDayContentState extends ConsumerState<DiaryDayContent> {
       ...day.themes,
     ].join(' · ');
     final canCreate =
-        !day.calendarDate.isAfter(today) &&
-        (canEdit || day.calendarDate == today);
+        day.date.hasStarted(today) && (canEdit || day.date.isCurrent(today));
     Future<void> write() async {
       try {
         final id = await ref
@@ -203,7 +209,7 @@ class _DiaryDayContentState extends ConsumerState<DiaryDayContent> {
     final actions = canCreate
         ? Padding(
             padding: EdgeInsets.only(
-              top: day.entries.isNotEmpty && day.calendarDate == today ? 0 : 20,
+              top: day.entries.isNotEmpty && day.date.isCurrent(today) ? 0 : 20,
               bottom: day.entries.isEmpty ? 20 : 26,
             ),
             child: Align(
@@ -217,7 +223,7 @@ class _DiaryDayContentState extends ConsumerState<DiaryDayContent> {
                     child: DailyDiaryPrompt(
                       date: day.date,
                       onWrite: write,
-                      active: interactive && day.calendarDate == today,
+                      active: interactive && day.date.isCurrent(today),
                     ),
                   ),
                 ),
@@ -225,7 +231,7 @@ class _DiaryDayContentState extends ConsumerState<DiaryDayContent> {
             ),
           )
         : const SizedBox.shrink();
-    final actionsAtTop = day.entries.isNotEmpty && day.calendarDate == today;
+    final actionsAtTop = day.entries.isNotEmpty && day.date.isCurrent(today);
     return Column(
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: day.entries.isEmpty
@@ -237,9 +243,21 @@ class _DiaryDayContentState extends ConsumerState<DiaryDayContent> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (!day.date.isDay) ...[
+              Text(
+                day.date.label(Localizations.localeOf(context).toString()),
+                key: const ValueKey('diary-period-label'),
+                style: typography.body.copyWith(
+                  color: colors.secondary,
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
             if (day.heading.isNotEmpty || canEdit) ...[
               DiaryTitlePrompt(
                 title: day.heading,
+                periodName: day.date.kind.name,
                 onTap: interactive && canEdit && !busy
                     ? () => context.go(diaryTitleLocation(day.date))
                     : null,
@@ -283,29 +301,55 @@ class _DiaryDayContentState extends ConsumerState<DiaryDayContent> {
             if (actionsAtTop) actions,
             for (var i = 0; i < day.entries.length; i++) ...[
               if (i > 0) const DiaryEntryBreak(),
-              if (day.entries[i].photos.isNotEmpty)
-                DiaryPhotoStoryStrip(
-                  item: day.entries[i],
-                  onOpen: interactive
+              Semantics(
+                onLongPressHint: canEditEntries ? 'Edit entry' : null,
+                child: GestureDetector(
+                  key: ValueKey('diary-entry-${day.entries[i].id}'),
+                  behavior: HitTestBehavior.opaque,
+                  onLongPress: canEditEntries
                       ? () => context.push(
-                          '${diaryEntryLocation(day.date, day.entries[i].id)}/photos',
+                          day.entries[i].photos.isNotEmpty
+                              ? '${diaryEntryLocation(day.date, day.entries[i].id)}/photos'
+                              : diaryEntryLocation(
+                                  day.date,
+                                  day.entries[i].id,
+                                  edit: true,
+                                ),
                         )
                       : null,
-                ),
-              if (day.entries[i].conversation != null)
-                Align(
-                  alignment: AlignmentDirectional.centerStart,
-                  child: _DiaryConversationChip(
-                    onOpen: interactive
-                        ? () => context.push(
-                            '${diaryEntryLocation(day.date, day.entries[i].id)}/conversation',
-                          )
-                        : null,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (day.entries[i].photos.isNotEmpty)
+                        DiaryPhotoStoryStrip(
+                          item: day.entries[i],
+                          onOpen: interactive
+                              ? () => context.push(
+                                  '${diaryEntryLocation(day.date, day.entries[i].id)}/photos',
+                                )
+                              : null,
+                        ),
+                      if (day.entries[i].conversation != null)
+                        Align(
+                          alignment: AlignmentDirectional.centerStart,
+                          child: _DiaryConversationChip(
+                            onOpen: interactive
+                                ? () => context.push(
+                                    '${diaryEntryLocation(day.date, day.entries[i].id)}/conversation',
+                                  )
+                                : null,
+                          ),
+                        ),
+                      Text(
+                        day.entries[i].text.body,
+                        style: typography.body.copyWith(
+                          color: colors.foreground,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              Text(
-                day.entries[i].text.body,
-                style: typography.body.copyWith(color: colors.foreground),
               ),
             ],
           ],

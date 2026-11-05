@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 
-import '../domain/civil_date.dart';
+import '../domain/diary_period.dart';
 import '../domain/diary_document.dart';
 import '../domain/diary_photo.dart';
 import '../domain/diary_repository.dart';
@@ -79,7 +79,7 @@ class DiaryPhotoStories {
       }
       final entry = await repository.savePhotoStory(
         id: id,
-        date: CivilDate.tryParse(dateString)!,
+        date: DiaryPeriod.tryParse(dateString)!,
         photos: saved,
         expectedRevision: expectedRevision ?? 0,
       );

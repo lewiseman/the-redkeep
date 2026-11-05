@@ -6,8 +6,8 @@ Future<void> installSyncTriggers(AppDatabase db) async {
   for (final spec in [
     ('notes', 'note', 'id'),
     ('flow_thoughts', 'thought', 'id'),
-    ('diary_entries', 'diary', 'date_key'),
-    ('diary_days', 'diary', 'date_key'),
+    ('diary_entries', 'diary', 'period_key'),
+    ('diary_days', 'diary', 'period_key'),
     ('note_tags', 'note', 'note_id'),
   ]) {
     final (table, type, field) = spec;
@@ -37,7 +37,7 @@ Future<void> seedSyncRecords(AppDatabase db) async {
   for (final spec in [
     ('notes', 'note', 'id'),
     ('flow_thoughts', 'thought', 'id'),
-    ('diary_entries', 'diary', 'date_key'),
+    ('diary_entries', 'diary', 'period_key'),
   ]) {
     await db.customStatement(
       "INSERT OR IGNORE INTO sync_operations(type, id, document_id) SELECT '${spec.$2}', id, ${spec.$3} FROM ${spec.$1} WHERE deleted_at IS NULL",
@@ -46,8 +46,8 @@ Future<void> seedSyncRecords(AppDatabase db) async {
   for (final spec in [
     ('notes', 'note', 'id'),
     ('flow_thoughts', 'thought', 'id'),
-    ('diary_entries', 'diary', 'date_key'),
-    ('diary_days', 'diary', 'date_key'),
+    ('diary_entries', 'diary', 'period_key'),
+    ('diary_days', 'diary', 'period_key'),
   ]) {
     await db.customStatement(
       "INSERT OR IGNORE INTO sync_records(type, document_id, state, removed) SELECT '${spec.$2}', ${spec.$3}, 'pending', 0 FROM ${spec.$1}",

@@ -1,6 +1,6 @@
 import 'package:redkeep/features/diary/domain/diary_photo.dart';
 import 'package:redkeep/features/diary/domain/diary_ai_conversation.dart';
-import 'package:redkeep/features/diary/domain/civil_date.dart';
+import 'package:redkeep/features/diary/domain/diary_period.dart';
 import 'package:redkeep/features/diary/domain/diary_document.dart';
 import 'package:redkeep/features/diary/domain/diary_repository.dart';
 
@@ -8,12 +8,14 @@ import 'package:redkeep/features/diary/domain/diary_repository.dart';
 /// explicitly inject a disposable real repository instead.
 class EmptyDiaryRepository implements DiaryRepository {
   @override
+  Stream<Set<DiaryPeriod>> watchSavedPeriods() => Stream.value(const {});
+  @override
   Stream<List<DiaryListing>> watchEntries({
-    CivilDate? date,
+    DiaryPeriod? date,
     String search = '',
   }) => Stream.value(const []);
   @override
-  Stream<DiaryDay> watchDay(CivilDate date) =>
+  Stream<DiaryDay> watchDay(DiaryPeriod date) =>
       Stream.value(DiaryDay(date: date));
   @override
   Stream<OpenDiaryEntry> watchDocument(String id) =>
@@ -30,21 +32,21 @@ class EmptyDiaryRepository implements DiaryRepository {
   @override
   Future<DiaryEntry> save({
     required String id,
-    required CivilDate date,
+    required DiaryPeriod date,
     required DiaryText text,
     required int expectedRevision,
   }) async => throw StateError('Inject writing repository');
   @override
   Future<DiaryEntry> savePhotoStory({
     required String id,
-    required CivilDate date,
+    required DiaryPeriod date,
     required List<DiaryPhoto> photos,
     required int expectedRevision,
   }) => Future.error(StateError('Inject writing repository'));
   @override
   Future<DiaryEntry> saveConversation({
     required String id,
-    required CivilDate date,
+    required DiaryPeriod date,
     required DiaryAiConversation conversation,
     required int expectedRevision,
     String? body,

@@ -15,7 +15,7 @@ import 'package:redkeep/features/appearance/domain/appearance_preferences.dart';
 import 'package:redkeep/features/diary/application/diary_paper_providers.dart';
 import 'package:redkeep/features/diary/application/diary_providers.dart';
 import 'package:redkeep/features/diary/data/drift_diary_repository.dart';
-import 'package:redkeep/features/diary/domain/civil_date.dart';
+import 'package:redkeep/features/diary/domain/diary_period.dart';
 import 'package:redkeep/features/diary/domain/diary_document.dart';
 import 'package:redkeep/features/diary/presentation/diary_calendar.dart';
 import 'package:redkeep/features/diary/presentation/diary_paper_curl.dart';
@@ -26,7 +26,7 @@ import '../../support/fake_appearance_repository.dart';
 import '../../support/pump_app.dart';
 import '../../support/warm_diary_faces.dart';
 
-final today = CivilDate(2026, 11, 2);
+final today = DiaryPeriod(2026, 11, 2);
 const id = '11111111111111111111111111111111';
 
 class PendingSearchRepository extends ControlledDiaryRepository {
@@ -34,7 +34,7 @@ class PendingSearchRepository extends ControlledDiaryRepository {
   final searches = <String, StreamController<List<DiaryListing>>>{};
   @override
   Stream<List<DiaryListing>> watchEntries({
-    CivilDate? date,
+    DiaryPeriod? date,
     String search = '',
   }) =>
       searches[search]?.stream ??
@@ -91,7 +91,7 @@ void main() {
         }
       });
   Future<void> seed({
-    CivilDate? date,
+    DiaryPeriod? date,
     String body = 'The light came in through the kitchen window. I made coffee and watched the street wake up.',
   }) async {
     await repo.save(
@@ -122,7 +122,7 @@ void main() {
     }
   }
 
-  Finder day(CivilDate date) => find.byKey(
+  Finder day(DiaryPeriod date) => find.byKey(
     ValueKey(
       'calendar-day-${DateTime(date.year, date.month, date.day).toIso8601String()}',
     ),
@@ -301,14 +301,14 @@ void main() {
       }
 
       expectTodayPinned();
-      scene(tester).onDateChanged(DateTime(2026, 11, 1));
+      scene(tester).onDateChanged(DiaryPeriod(2026, 11, 1));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 60));
       expectTodayPinned();
       await tester.pumpAndSettle();
       expect(scene(tester).day.date, today.shift(-1));
       expectTodayPinned();
-      scene(tester).onDateChanged(DateTime(2026, 10, 31));
+      scene(tester).onDateChanged(DiaryPeriod(2026, 10, 31));
       await tester.pumpAndSettle();
       expectTodayPinned();
       router.go(diaryDayLocation(today.shift(-10)!));
@@ -337,7 +337,7 @@ void main() {
         repository: appearance,
       );
       expect(find.byType(DiaryPaperCurl), findsNothing);
-      scene(tester).onDateChanged(DateTime(2026, 11, 1));
+      scene(tester).onDateChanged(DiaryPeriod(2026, 11, 1));
       await tester.pumpAndSettle();
       expect(scene(tester).day.date, today.shift(-1));
       expect(find.byType(DiaryPaperCurl), findsNothing);
@@ -488,7 +488,7 @@ void main() {
   sceneTest('earliest civil day has no previous face or underflow', (
     tester,
   ) async {
-    final first = CivilDate(1, 1, 1);
+    final first = DiaryPeriod(1, 1, 1);
     await pumpApp(
       tester,
       initialLocation: diaryDayLocation(first),
@@ -515,14 +515,14 @@ void main() {
         diary: repo,
         repository: appearance,
       );
-      scene(tester).onDateChanged(DateTime(2026, 11, 1));
+      scene(tester).onDateChanged(DiaryPeriod(2026, 11, 1));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 30));
       appearance.emit(const AppearancePreferences(reduceMotion: true));
       await tester.pumpAndSettle();
       expect(scene(tester).day.date, today.shift(-1));
       expect(scene(tester).busy, isFalse);
-      scene(tester).onDateChanged(DateTime(2026, 11, 2));
+      scene(tester).onDateChanged(DiaryPeriod(2026, 11, 2));
       await tester.pumpAndSettle();
       expect(scene(tester).day.date, today);
       expect(tester.takeException(), isNull);
@@ -537,7 +537,7 @@ void main() {
     tester.platformDispatcher.textScaleFactorTestValue = 3;
     addTearDown(tester.view.reset);
     addTearDown(tester.platformDispatcher.clearAllTestValues);
-    final leap = CivilDate(2024, 2, 29);
+    final leap = DiaryPeriod(2024, 2, 29);
     final router = await pumpApp(
       tester,
       initialLocation: diaryCalendarLocation(leap),

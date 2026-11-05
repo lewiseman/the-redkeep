@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:redkeep/features/companion/data/companion_protocol.dart';
 
 import 'diary_conversation.dart';
+import '../../diary/domain/diary_period.dart';
 import '../data/pcm_recorder.dart';
 import 'reply_voice.dart';
 import '../data/voice_connection.dart';
@@ -222,6 +223,9 @@ class TalkSession extends ChangeNotifier {
       final turns = conversation.turns;
       _send({
         'type': 'start',
+        if (DiaryPeriod.tryParse(conversation.dateString) case final period?
+            when !period.isDay)
+          'period': period.kind.name,
         'turns': turns,
         if (turns.isEmpty) 'diary': conversation.diary?.call() ?? const [],
       });

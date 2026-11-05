@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/storage_providers.dart';
 import '../data/drift_diary_repository.dart';
-import '../domain/civil_date.dart';
+import '../domain/diary_period.dart';
 import '../domain/diary_document.dart';
 import '../domain/diary_repository.dart';
 
@@ -23,7 +23,7 @@ final diaryRepositoryProvider = Provider<DiaryRepository>(
   ),
 );
 final diaryEntriesProvider = StreamProvider.autoDispose
-    .family<List<DiaryListing>, CivilDate>(
+    .family<List<DiaryListing>, DiaryPeriod>(
       (ref, date) =>
           ref.watch(diaryRepositoryProvider).watchEntries(date: date),
       retry: (_, _) => null,
@@ -35,10 +35,11 @@ final diarySearchProvider = StreamProvider.autoDispose
       retry: (_, _) => null,
     );
 
-final diaryDayProvider = StreamProvider.autoDispose.family<DiaryDay, CivilDate>(
-  (ref, date) => ref.watch(diaryRepositoryProvider).watchDay(date),
-  retry: (_, _) => null,
-);
+final diaryDayProvider = StreamProvider.autoDispose
+    .family<DiaryDay, DiaryPeriod>(
+      (ref, date) => ref.watch(diaryRepositoryProvider).watchDay(date),
+      retry: (_, _) => null,
+    );
 final diaryDocumentProvider = StreamProvider.autoDispose
     .family<OpenDiaryEntry, String>(
       (ref, id) => ref.watch(diaryRepositoryProvider).watchDocument(id),
@@ -64,7 +65,7 @@ class DiaryActions extends Notifier<bool> {
     }
   }
 
-  Future<String> create(CivilDate date) => run((repository) async {
+  Future<String> create(DiaryPeriod date) => run((repository) async {
     final id = ref.read(diaryIdProvider)();
     ref.read(diaryNewIdsProvider.notifier).add(id);
     return id;

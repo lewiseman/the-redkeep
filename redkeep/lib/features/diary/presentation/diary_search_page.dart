@@ -9,7 +9,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/navigation_destination.dart';
 import '../../../core/presentation/rendering_policy.dart';
 import '../application/diary_providers.dart';
-import '../domain/civil_date.dart';
+import '../domain/diary_period.dart';
 import '../domain/diary_document.dart';
 import 'diary_style.dart';
 import 'diary_day_page.dart';
@@ -20,7 +20,7 @@ import 'diary_search_paper.dart';
 
 class DiarySearchMatch {
   const DiarySearchMatch({required this.date, required this.excerpt});
-  final DateTime date;
+  final DiaryPeriod date;
   final String excerpt;
 }
 
@@ -91,10 +91,7 @@ class _DiarySearchPageState extends ConsumerState<DiarySearchPage> {
     if (_returning) return;
     _returning = true;
     _focus.unfocus();
-    context.go(
-      diaryDayLocation(CivilDate.fromComponents(match.date)),
-      extra: DiaryDaySelection(),
-    );
+    context.go(diaryDayLocation(match.date), extra: DiaryDaySelection());
   }
 
   @override
@@ -110,9 +107,9 @@ class _DiarySearchPageState extends ConsumerState<DiarySearchPage> {
   Widget build(BuildContext context) {
     if (_submitted.isNotEmpty) {
       final listings = ref.watch(diaryHybridSearchProvider(_submitted));
-      final today = CivilDate.fromComponents(ref.read(diaryClockProvider)());
+      final today = DiaryPeriod.fromComponents(ref.read(diaryClockProvider)());
       final matches = (listings.value ?? <DiaryListing>[])
-          .where((entry) => entry.date.compareTo(today) <= 0)
+          .where((entry) => entry.date.hasStarted(today.calendarDate))
           .toList();
       final documents = [
         for (final entry in matches) ref.watch(diaryDocumentProvider(entry.id)),
@@ -128,11 +125,7 @@ class _DiarySearchPageState extends ConsumerState<DiarySearchPage> {
               if (document.value case final opened?)
                 if (opened.available)
                   DiarySearchMatch(
-                    date: DateTime(
-                      opened.entry!.date.year,
-                      opened.entry!.date.month,
-                      opened.entry!.date.day,
-                    ),
+                    date: opened.entry!.date,
                     excerpt: opened.entry!.text.body,
                   ),
           ],
@@ -538,12 +531,7 @@ class _MemoryCard extends StatelessWidget {
       DiaryPaperPreset.sage,
       DiaryPaperPreset.lavender,
     ][variant % 3].resolveColors(context.colors);
-    final date = TimeHelper.format(
-      match.date,
-      pattern: TimeFormat.localizedDate,
-      locale: Localizations.localeOf(context).toString(),
-      toLocal: false,
-    );
+    final date = match.date.label(Localizations.localeOf(context).toString());
     return DiarySearchPaper(
       color: paper.background,
       variant: variant,

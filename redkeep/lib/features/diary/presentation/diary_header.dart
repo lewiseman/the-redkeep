@@ -1,4 +1,6 @@
 import 'diary_style.dart';
+import '../domain/diary_period.dart';
+import '../domain/diary_timeline.dart';
 import 'diary_calendar.dart';
 import 'diary_header_control.dart';
 
@@ -8,6 +10,7 @@ class DiaryHeaderDelegate extends SliverPersistentHeaderDelegate {
   const DiaryHeaderDelegate({
     required this.topInset,
     required this.selectedDate,
+    required this.timeline,
     this.lastDate,
     this.enabled = true,
     required this.controlsHeight,
@@ -24,11 +27,12 @@ class DiaryHeaderDelegate extends SliverPersistentHeaderDelegate {
   });
 
   final double topInset;
-  final DateTime selectedDate;
+  final DiaryPeriod selectedDate;
+  final DiaryTimeline timeline;
   final DateTime? lastDate;
   final bool enabled;
   final double controlsHeight;
-  final ValueChanged<DateTime> onDateChanged;
+  final ValueChanged<DiaryPeriod> onDateChanged;
   final VoidCallback? onSearch;
   final VoidCallback onPickDate;
   final Animation<double> turn;
@@ -59,12 +63,8 @@ class DiaryHeaderDelegate extends SliverPersistentHeaderDelegate {
         final offset = turning
             ? -turnDirection * turn.value.clamp(0.0, 1.0)
             : 0.0;
-        final incoming = TimeHelper.addDays(selectedDate, -turnDirection);
-        final displayDate =
-            offset.abs() >= .5 &&
-                !incoming.isAfter(
-                  TimeHelper.dateOnly(lastDate ?? DateTime.now()),
-                )
+        final incoming = timeline.neighbor(selectedDate, -turnDirection);
+        final displayDate = offset.abs() >= .5 && incoming != null
             ? incoming
             : selectedDate;
         return ClipRect(
@@ -77,6 +77,7 @@ class DiaryHeaderDelegate extends SliverPersistentHeaderDelegate {
                   SizedBox(height: 4 * (1 - progress)),
                   DiaryCalendar(
                     selectedDate: selectedDate,
+                    timeline: timeline,
                     lastDate: lastDate,
                     enabled: enabled,
                     onDateChanged: onDateChanged,
@@ -98,7 +99,7 @@ class DiaryHeaderDelegate extends SliverPersistentHeaderDelegate {
                   action: DiaryHeaderAction.date,
                   progress: progress,
                   onTap: onPickDate,
-                  date: displayDate,
+                  date: displayDate.calendarDate,
                 ),
               ),
               Positioned(
@@ -147,7 +148,7 @@ class DiaryHeaderDelegate extends SliverPersistentHeaderDelegate {
     ),
     collapseProgress: progress,
     action: action,
-    date: date ?? selectedDate,
+    date: date ?? selectedDate.calendarDate,
     onTap: enabled ? onTap : null,
   );
 
@@ -155,6 +156,7 @@ class DiaryHeaderDelegate extends SliverPersistentHeaderDelegate {
   bool shouldRebuild(DiaryHeaderDelegate oldDelegate) =>
       oldDelegate.topInset != topInset ||
       oldDelegate.selectedDate != selectedDate ||
+      oldDelegate.timeline != timeline ||
       oldDelegate.lastDate != lastDate ||
       oldDelegate.enabled != enabled ||
       oldDelegate.turn != turn ||

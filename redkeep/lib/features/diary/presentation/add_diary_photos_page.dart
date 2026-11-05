@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'photos/photo_ui.dart';
-import '../domain/civil_date.dart';
+import '../domain/diary_period.dart';
 import '../application/diary_photo_question_controller.dart';
 import '../../ai/application/ai_jobs.dart';
 import '../data/diary_photo_stories.dart';
@@ -138,7 +138,7 @@ class AddDiaryPhotosPage extends ConsumerStatefulWidget {
     this.imagePicker,
   });
 
-  final DateTime date;
+  final DiaryPeriod date;
 
   /// A saved photo story to reopen at its entry.
   final DiaryItem? story;
@@ -255,7 +255,7 @@ class _AddDiaryPhotosPageState extends ConsumerState<AddDiaryPhotosPage> {
     final messenger = ScaffoldMessenger.of(context);
     try {
       await _stories.save(
-        dateString: CivilDate.fromComponents(widget.date).key,
+        dateString: widget.date.key,
         existingItemUuid: widget.story?.itemUuid,
         newItemUuid: _newItemUuid,
         expectedRevision: widget.story?.revision ?? 0,
@@ -323,7 +323,7 @@ class _AddDiaryPhotosPageState extends ConsumerState<AddDiaryPhotosPage> {
     });
     try {
       final recovery = DiaryPickerRecovery();
-      final date = CivilDate.fromComponents(widget.date).key;
+      final date = widget.date.key;
       final id = widget.story?.id ?? _newItemUuid;
       final recovered = widget.imagePicker == null
           ? await recovery.take(date, id)
@@ -822,11 +822,7 @@ class _AddDiaryPhotosPageState extends ConsumerState<AddDiaryPhotosPage> {
   }
 
   Widget _dateLabel() => Text(
-    TimeHelper.format(
-      widget.date,
-      pattern: TimeFormat.shortWeekdayDate,
-      toLocal: false,
-    ),
+    widget.date.label(Localizations.localeOf(context).toString()),
     style: TextStyle(
       fontSize: 10,
       letterSpacing: 1,
@@ -1130,7 +1126,7 @@ class _AddDiaryPhotosPageState extends ConsumerState<AddDiaryPhotosPage> {
     final sent = await ref
         .read(diaryPhotoQuestionProvider.notifier)
         .another(
-          date: CivilDate.fromComponents(widget.date).key,
+          date: widget.date.key,
           photoSha: moment.sha,
           photo: moment.bytes,
           group: group,
@@ -1147,7 +1143,7 @@ class _AddDiaryPhotosPageState extends ConsumerState<AddDiaryPhotosPage> {
     _shownReason = null;
     final controller = ref.read(diaryPhotoQuestionProvider.notifier);
     final asked = controller.generate(
-      date: CivilDate.fromComponents(widget.date).key,
+      date: widget.date.key,
       photos: [
         for (final moment in _moments)
           (

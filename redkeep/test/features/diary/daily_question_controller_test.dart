@@ -10,7 +10,7 @@ import 'package:redkeep/features/companion/application/companion_controller.dart
 import 'package:redkeep/features/diary/application/daily_question_controller.dart';
 import 'package:redkeep/features/diary/application/diary_providers.dart';
 import 'package:redkeep/features/diary/data/drift_diary_repository.dart';
-import 'package:redkeep/features/diary/domain/civil_date.dart';
+import 'package:redkeep/features/diary/domain/diary_period.dart';
 import 'package:redkeep/features/diary/domain/diary_document.dart';
 
 import '../../support/fake_ai.dart';
@@ -18,7 +18,7 @@ import '../ai/ai_jobs_test.dart' show JobTransport, until;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  final date = CivilDate(2026, 11, 4);
+  final date = DiaryPeriod(2026, 11, 4);
   late AppDatabase db;
   late ProviderContainer scope;
   late JobTransport transport;
@@ -51,6 +51,28 @@ void main() {
     scope.dispose();
     await db.close();
   });
+  for (final period in [
+    DiaryPeriod.week(date.start),
+    DiaryPeriod.month(date.year, date.month),
+    DiaryPeriod.year(date.year),
+  ]) {
+    test(
+      '${period.kind.name} pages do not generate or cache writing questions',
+      () async {
+        final provider = dailyQuestionProvider(period);
+        scope.listen(provider, (_, _) {});
+        final controller = scope.read(provider.notifier);
+        controller.activate(true);
+        await controller.request();
+        controller.ensure();
+        await controller.refresh();
+        await pumpEventQueue();
+        expect(transport.submissions, 0);
+        expect(scope.read(provider).question, isNull);
+        expect(await db.select(db.dailyQuestions).get(), isEmpty);
+      },
+    );
+  }
   test(
     'automatic daily questions wait for the voice session and resume afterward',
     () async {
@@ -120,7 +142,7 @@ void main() {
   });
   test('a cached general question is retired when selected earlier writing changes', () async {
     final repo = scope.read(diaryRepositoryProvider);
-    final yesterday = CivilDate(2026, 11, 3);
+    final yesterday = DiaryPeriod(2026, 11, 3);
     await repo.save(
       id: 'b' * 32,
       date: yesterday,

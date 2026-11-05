@@ -2,11 +2,11 @@ import 'package:drift/drift.dart';
 
 @DataClassName('DiaryEntryRow')
 @TableIndex.sql(
-  'CREATE INDEX diary_entries_day_order ON diary_entries (date_key, created_at, id)',
+  'CREATE INDEX diary_entries_day_order ON diary_entries (period_key, created_at, id)',
 )
 class DiaryEntries extends Table {
   TextColumn get id => text()();
-  TextColumn get dateKey => text().withLength(min: 10, max: 10)();
+  TextColumn get periodKey => text()();
   TextColumn get body => text()();
   TextColumn get photos => text().withDefault(const Constant('[]'))();
   TextColumn get conversation => text().nullable()();
@@ -21,14 +21,14 @@ class DiaryEntries extends Table {
 
 @DataClassName('DiaryDayRow')
 class DiaryDays extends Table {
-  TextColumn get dateKey => text().withLength(min: 10, max: 10)();
+  TextColumn get periodKey => text()();
   TextColumn get heading => text().withLength(max: 160)();
   TextColumn get mood => text().nullable()();
   TextColumn get themes => text().withDefault(const Constant('[]'))();
   IntColumn get revision =>
       integer().customConstraint('NOT NULL CHECK (revision > 0)')();
   @override
-  Set<Column> get primaryKey => {dateKey};
+  Set<Column> get primaryKey => {periodKey};
 }
 
 @DataClassName('DiaryMediaOpRow')

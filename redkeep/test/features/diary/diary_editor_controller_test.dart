@@ -8,14 +8,14 @@ import 'package:redkeep/features/diary/application/diary_editor_controller.dart'
 import 'package:redkeep/features/diary/application/diary_providers.dart';
 import 'package:redkeep/features/diary/data/drift_diary_repository.dart';
 import 'package:redkeep/features/diary/domain/diary_document.dart';
-import 'package:redkeep/features/diary/domain/civil_date.dart';
+import 'package:redkeep/features/diary/domain/diary_period.dart';
 
 import '../../support/controlled_diary_repository.dart';
 
 const id = '11111111111111111111111111111111';
 const copyId = '22222222222222222222222222222222';
 void main() {
-  final date = CivilDate(2026, 11, 2);
+  final date = DiaryPeriod(2026, 11, 2);
   final provider = diaryEditorProvider((date: date, id: id));
   late AppDatabase db;
   late DriftDiaryRepository inner;

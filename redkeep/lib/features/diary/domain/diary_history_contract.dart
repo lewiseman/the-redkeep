@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'diary_history_day.dart';
+import 'diary_period.dart';
 import 'diary_retrieval.dart';
 
 export 'diary_retrieval.dart';
@@ -31,6 +32,7 @@ class DiaryHistorySource {
     required this.created,
   });
   final String date, uuid;
+  DiaryPeriod get period => DiaryPeriod.tryParse(date)!;
 
   /// [itemVersion] when selected; a different value means edited.
   final String version;
@@ -48,7 +50,7 @@ class DiaryHistorySource {
   };
   factory DiaryHistorySource.fromJson(Map<String, dynamic> j) {
     if (j['date'] is! String ||
-        !_dateKey.hasMatch(j['date'] as String) ||
+        DiaryPeriod.tryParse(j['date'] as String) == null ||
         j['uuid'] is! String ||
         j['version'] is! String ||
         j['text'] is! String ||
@@ -196,14 +198,20 @@ class DiaryHistorySelection {
       throw const FormatException('Ask a question of up to 300 characters.');
     }
     final (:terms, :scope, today: t) = parse(q, today);
-    final inScope = [
-      for (final day in days)
-        if (!day.isDeleted &&
-            _dateKey.hasMatch(day.dateString) &&
-            !civil(day.dateString).isAfter(t) &&
-            (scope?.contains(civil(day.dateString)) ?? true))
-          day,
-    ]..sort((a, b) => a.dateString.compareTo(b.dateString));
+    final inScope =
+        [
+          for (final day in days)
+            if (!day.isDeleted &&
+                DiaryPeriod.tryParse(day.dateString) != null &&
+                DiaryPeriod.tryParse(day.dateString)!.hasStarted(t) &&
+                (scope?.overlapsPeriod(DiaryPeriod.tryParse(day.dateString)!) ??
+                    true))
+              day,
+        ]..sort(
+          (a, b) =>
+              DiaryPeriod.tryParse(a.dateString)!
+                  .compareTo(DiaryPeriod.tryParse(b.dateString)!),
+        );
     final candidates = <({DiaryHistoryDay day, DiaryEntry item, int score})>[];
     for (final day in inScope) {
       final title = day.dayTitle ?? '';
@@ -241,7 +249,10 @@ class DiaryHistorySelection {
         ? candidates
         : (candidates.toList()..sort((a, b) {
             final s = b.score.compareTo(a.score);
-            return s != 0 ? s : b.day.dateString.compareTo(a.day.dateString);
+            return s != 0
+                ? s
+                : DiaryPeriod.tryParse(b.day.dateString)!
+                      .compareTo(DiaryPeriod.tryParse(a.day.dateString)!);
           }));
     final chosen = <DiaryHistorySource>[];
     DiaryHistorySelection build(List<DiaryHistorySource> sources) =>
@@ -251,7 +262,7 @@ class DiaryHistorySelection {
           scope: scope,
           sources: List.unmodifiable(
             sources.toList()..sort((a, b) {
-              final d = a.date.compareTo(b.date);
+              final d = a.period.compareTo(b.period);
               return d != 0 ? d : a.created.compareTo(b.created);
             }),
           ),
@@ -298,7 +309,16 @@ class DiaryHistorySelection {
     'scope': scope?.toJson(),
     'sources': [
       for (final (i, s) in sources.indexed)
-        {'id': 's$i', 'date': s.date, 'text': s.text},
+        {
+          'id': 's$i',
+          'date': s.period.start.key,
+          if (!s.period.isDay) ...{
+            'period': s.period.kind.name,
+            'from': s.period.start.key,
+            'to': s.period.end.key,
+          },
+          'text': s.text,
+        },
     ],
   });
 
@@ -363,7 +383,7 @@ class DiaryHistorySelection {
 
   String get coverage {
     final where = scope == null ? 'all of your diary' : scope!.label;
-    final days = daysSearched == 1 ? '1 day' : '$daysSearched days';
+    final days = daysSearched == 1 ? '1 page' : '$daysSearched pages';
     return 'Searched $where ($days with entries). '
         '${sources.length} of $matching ${overview
             ? 'entries'
@@ -432,7 +452,7 @@ class DiaryHistoryAnswer {
       );
     }
     cited.sort((a, b) {
-      final d = a.date.compareTo(b.date);
+      final d = a.period.compareTo(b.period);
       return d != 0 ? d : a.created.compareTo(b.created);
     });
     return DiaryHistoryAnswer(

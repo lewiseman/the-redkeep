@@ -13,7 +13,7 @@ import '../../../core/storage/app_database.dart';
 import '../domain/diary_document.dart';
 import '../domain/diary_repository.dart';
 import '../domain/diary_day_details.dart';
-import '../domain/civil_date.dart';
+import '../domain/diary_period.dart';
 
 class DriftDiaryRepository implements DiaryRepository {
   DriftDiaryRepository(this._db, {required this._clock})
@@ -27,14 +27,31 @@ class DriftDiaryRepository implements DiaryRepository {
   }
 
   @override
+  Stream<Set<DiaryPeriod>> watchSavedPeriods() => _db
+      .customSelect(
+        '''SELECT period_key FROM diary_entries
+       WHERE deleted_at IS NULL AND (length(trim(body)) > 0 OR photos <> '[]' OR conversation IS NOT NULL)
+       UNION SELECT period_key FROM diary_days
+       WHERE length(trim(heading)) > 0 OR mood IS NOT NULL OR themes <> '[]' ''',
+        readsFrom: {_db.diaryEntries, _db.diaryDays},
+      )
+      .watch()
+      .map(
+        (rows) => {
+          for (final row in rows)
+            ?DiaryPeriod.tryParse(row.read<String>('period_key')),
+        },
+      );
+
+  @override
   Stream<List<DiaryListing>> watchEntries({
-    CivilDate? date,
+    DiaryPeriod? date,
     String search = '',
   }) {
     final conditions = <String>['deleted_at IS NULL'];
     final variables = <Variable>[];
     if (date != null) {
-      conditions.add('date_key = ?');
+      conditions.add('period_key = ?');
       variables.add(Variable.withString(date.key));
     }
     for (final token
@@ -44,7 +61,7 @@ class DriftDiaryRepository implements DiaryRepository {
     }
     return _db
         .customSelect(
-          'SELECT id, date_key FROM diary_entries WHERE ${conditions.join(' AND ')} ORDER BY date_key DESC, created_at, id',
+          'SELECT id, period_key FROM diary_entries WHERE ${conditions.join(' AND ')} ORDER BY period_key DESC, created_at, id',
           variables: variables,
           readsFrom: {_db.diaryEntries},
         )
@@ -53,10 +70,10 @@ class DriftDiaryRepository implements DiaryRepository {
   }
 
   @override
-  Stream<DiaryDay> watchDay(CivilDate date) =>
+  Stream<DiaryDay> watchDay(DiaryPeriod date) =>
       (_db.select(
         _db.diaryDays,
-      )..where((r) => r.dateKey.equals(date.key))).watchSingleOrNull().map(
+      )..where((r) => r.periodKey.equals(date.key))).watchSingleOrNull().map(
         (r) => DiaryDay(
           date: date,
           heading: r?.heading ?? '',
@@ -89,7 +106,8 @@ class DriftDiaryRepository implements DiaryRepository {
       if (expectedEntries != null) {
         final rows =
             await (_db.select(_db.diaryEntries)..where(
-                  (e) => e.dateKey.equals(day.date.key) & e.deletedAt.isNull(),
+                  (e) =>
+                      e.periodKey.equals(day.date.key) & e.deletedAt.isNull(),
                 ))
                 .get();
         final actual = DiarySuggestionSource.fromEntries(
@@ -103,7 +121,7 @@ class DriftDiaryRepository implements DiaryRepository {
 
       final old = await (_db.select(
         _db.diaryDays,
-      )..where((r) => r.dateKey.equals(day.date.key))).getSingleOrNull();
+      )..where((r) => r.periodKey.equals(day.date.key))).getSingleOrNull();
       if ((old?.revision ?? 0) != day.revision) {
         throw const DiaryException(DiaryFailure.staleRevision);
       }
@@ -111,7 +129,7 @@ class DriftDiaryRepository implements DiaryRepository {
           .into(_db.diaryDays)
           .insertOnConflictUpdate(
             DiaryDaysCompanion.insert(
-              dateKey: day.date.key,
+              periodKey: day.date.key,
               heading: day.heading,
               mood: Value(day.mood?.name),
               themes: Value(jsonEncode(themes)),
@@ -123,7 +141,7 @@ class DriftDiaryRepository implements DiaryRepository {
 
   DiaryListing _listing(QueryRow row) => DiaryListing(
     id: row.read<String>('id'),
-    date: CivilDate.tryParse(row.read<String>('date_key'))!,
+    date: DiaryPeriod.tryParse(row.read<String>('period_key'))!,
   );
 
   @override
@@ -154,7 +172,7 @@ class DriftDiaryRepository implements DiaryRepository {
   @override
   Future<DiaryEntry> save({
     required String id,
-    required CivilDate date,
+    required DiaryPeriod date,
     required DiaryText text,
     required int expectedRevision,
   }) async {
@@ -195,7 +213,7 @@ class DriftDiaryRepository implements DiaryRepository {
             .insert(
               DiaryEntriesCompanion.insert(
                 id: id,
-                dateKey: date.key,
+                periodKey: date.key,
                 body: text.body,
                 revision: revision,
                 createdAt: now.millisecondsSinceEpoch,
@@ -237,7 +255,7 @@ class DriftDiaryRepository implements DiaryRepository {
   @override
   Future<DiaryEntry> savePhotoStory({
     required String id,
-    required CivilDate date,
+    required DiaryPeriod date,
     required List<DiaryPhoto> photos,
     required int expectedRevision,
   }) => _saveRich(
@@ -250,7 +268,7 @@ class DriftDiaryRepository implements DiaryRepository {
   @override
   Future<DiaryEntry> saveConversation({
     required String id,
-    required CivilDate date,
+    required DiaryPeriod date,
     required DiaryAiConversation conversation,
     required int expectedRevision,
     String? body,
@@ -264,7 +282,7 @@ class DriftDiaryRepository implements DiaryRepository {
 
   Future<DiaryEntry> _saveRich({
     required String id,
-    required CivilDate date,
+    required DiaryPeriod date,
     required int expectedRevision,
     List<DiaryPhoto>? photos,
     DiaryAiConversation? conversation,
@@ -305,7 +323,7 @@ class DriftDiaryRepository implements DiaryRepository {
         .insertOnConflictUpdate(
           DiaryEntriesCompanion.insert(
             id: id,
-            dateKey: date.key,
+            periodKey: date.key,
             body: text,
             photos: Value(
               jsonEncode([for (final photo in newPhotos) photo.toJson()]),
@@ -398,7 +416,7 @@ class DriftDiaryRepository implements DiaryRepository {
 
   DiaryEntry _entry(DiaryEntryRow r) => DiaryEntry(
     id: r.id,
-    date: CivilDate.tryParse(r.dateKey)!,
+    date: DiaryPeriod.tryParse(r.periodKey)!,
     text: DiaryText(body: r.body),
     photos: _photos(r.photos),
     conversation: _conversation(r.conversation),

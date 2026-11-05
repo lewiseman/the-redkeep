@@ -10,7 +10,7 @@ import 'package:intl/intl.dart';
 
 import '../../../app/navigation_destination.dart';
 import '../../companion/application/companion_controller.dart';
-import '../../diary/domain/civil_date.dart';
+import '../../diary/domain/diary_period.dart';
 import '../../diary/domain/daily_question_contract.dart';
 import '../../diary/domain/diary_ai_contract.dart';
 import '../../diary/domain/diary_history_contract.dart';
@@ -273,7 +273,7 @@ String? _sourceLocation(AiJob job) {
   }
   if (job.operation == AiOperation.diaryDetails ||
       job.operation == AiOperation.dailyQuestion) {
-    final date = CivilDate.tryParse(job.key);
+    final date = DiaryPeriod.tryParse(job.key);
     return date == null
         ? null
         : job.operation == AiOperation.diaryDetails
@@ -282,7 +282,7 @@ String? _sourceLocation(AiJob job) {
   }
   try {
     final source = jsonDecode(job.source) as Map;
-    final date = CivilDate.tryParse(source['date'] as String? ?? '');
+    final date = DiaryPeriod.tryParse(source['date'] as String? ?? '');
     if (date == null) return null;
     final id = source['id'];
     return id is String

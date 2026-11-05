@@ -16,7 +16,7 @@ import 'package:redkeep/features/companion/data/companion_protocol.dart';
 import 'package:redkeep/features/diary/application/diary_providers.dart';
 import 'package:redkeep/features/diary/data/diary_photo_question_store.dart';
 import 'package:redkeep/features/diary/data/drift_diary_repository.dart';
-import 'package:redkeep/features/diary/domain/civil_date.dart';
+import 'package:redkeep/features/diary/domain/diary_period.dart';
 import 'package:redkeep/features/diary/domain/diary_ai_conversation.dart';
 import 'package:redkeep/features/diary/domain/diary_history_contract.dart';
 import 'package:redkeep/features/diary/domain/diary_history_day.dart';
@@ -110,7 +110,7 @@ void main() {
       image.dispose();
       drawing.dispose();
       await jobs.startDiaryPhotoQuestions(
-        date: CivilDate.fromComponents(DateTime.now()).key,
+        date: DiaryPeriod.fromComponents(DateTime.now()).key,
         photoSha: await hexHash(bytes),
         photo: bytes,
         caption: 'My synthetic orange square',
@@ -128,7 +128,7 @@ void main() {
       ];
       final entry = await repo.saveConversation(
         id: 'e' * 32,
-        date: CivilDate.fromComponents(DateTime.now()),
+        date: DiaryPeriod.fromComponents(DateTime.now()),
         conversation: DiaryAiConversation(
           turns: turns,
           createdAt: DateTime.now(),

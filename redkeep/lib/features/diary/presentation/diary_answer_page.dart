@@ -10,7 +10,7 @@ import '../../ai/domain/ai_operation.dart';
 import '../../recall/application/recall_controller.dart';
 import '../../recall/domain/recall.dart';
 import '../application/diary_providers.dart';
-import '../domain/civil_date.dart';
+import '../domain/diary_period.dart';
 import '../domain/diary_history_contract.dart';
 import '../domain/diary_history_day.dart';
 
@@ -50,7 +50,7 @@ class _DiaryAnswerPageState extends ConsumerState<DiaryAnswerPage> {
             e.key,
             e.value,
             dayTitle:
-                (await repository.watchDay(CivilDate.tryParse(e.key)!).first)
+                (await repository.watchDay(DiaryPeriod.tryParse(e.key)!).first)
                     .heading,
           ),
       ];
@@ -68,7 +68,7 @@ class _DiaryAnswerPageState extends ConsumerState<DiaryAnswerPage> {
         final eligible = meaning.sources.where(
           (s) =>
               selection.scope == null ||
-              selection.scope!.contains(civil(s.date)),
+              selection.scope!.overlapsPeriod(DiaryPeriod.tryParse(s.date)!),
         );
         selection = DiaryHistorySelection.select(
           question: widget.question,
@@ -128,7 +128,9 @@ class _DiaryAnswerPageState extends ConsumerState<DiaryAnswerPage> {
       final changed = entry != null && itemVersion(entry) != source.version;
       return ListTile(
         contentPadding: EdgeInsets.zero,
-        title: Text(source.date),
+        title: Text(
+          source.period.label(Localizations.localeOf(context).toString()),
+        ),
         subtitle: Text(
           '${source.text}${deleted
               ? '\nEntry deleted'
@@ -141,7 +143,7 @@ class _DiaryAnswerPageState extends ConsumerState<DiaryAnswerPage> {
             ? null
             : () => context.go(
                 diaryEntryLocation(
-                  entry?.date ?? CivilDate.tryParse(source.date)!,
+                  entry?.date ?? DiaryPeriod.tryParse(source.date)!,
                   source.uuid,
                 ),
               ),

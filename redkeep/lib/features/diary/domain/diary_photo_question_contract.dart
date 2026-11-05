@@ -2,6 +2,8 @@ import 'package:crypto/crypto.dart';
 
 import 'dart:convert';
 
+import 'diary_period.dart';
+
 /// I02: reflection questions about one diary photo the user chose. Only the
 /// re-encoded photo and its optional caption are sent; no diary text.
 const diaryPhotoQuestionOperation = 'diary-photo-questions';
@@ -35,7 +37,7 @@ class DiaryPhotoQuestionSource {
     this.avoid = const [],
   });
 
-  /// The civil day of the story, for the history label only.
+  /// The diary period owning the story, for the history label only.
   final String date;
 
   /// SHA-256 of the photo's saved bytes: the key results are cached under.
@@ -75,7 +77,7 @@ class DiaryPhotoQuestionSource {
           'imageSha',
           'caption',
         ].any((k) => json[k] is! String) ||
-        !RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(json['date'] as String) ||
+        DiaryPeriod.tryParse(json['date'] as String) == null ||
         !_sha.hasMatch(json['photoSha'] as String) ||
         !_sha.hasMatch(json['imageSha'] as String)) {
       throw const FormatException('Invalid photo question source');

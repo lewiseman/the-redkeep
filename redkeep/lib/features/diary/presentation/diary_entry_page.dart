@@ -42,7 +42,11 @@ class DiaryEntryPage extends ConsumerWidget {
                         'Entry unavailable',
                         style: DiaryTypography.of(context).title,
                       ),
-                    Text(address.date.key),
+                    Text(
+                      address.date.label(
+                        Localizations.localeOf(context).toString(),
+                      ),
+                    ),
                     if (available) ...[
                       const SizedBox(height: 16),
                       if (entry.photos.isNotEmpty)
@@ -91,7 +95,7 @@ class DiaryEntryPage extends ConsumerWidget {
                     OutlinedButton(
                       onPressed: () =>
                           context.go(diaryDayLocation(address.date)),
-                      child: const Text('Return to day'),
+                      child: Text('Return to ${address.date.kind.name}'),
                     ),
                   ],
                 ),

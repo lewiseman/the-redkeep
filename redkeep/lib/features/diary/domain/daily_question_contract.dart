@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 
-import 'civil_date.dart';
+import 'diary_period.dart';
 import 'diary_document.dart';
 import 'diary_ai_contract.dart';
 import '../../recall/domain/search_terms.dart';
@@ -23,7 +23,6 @@ const dailyQuestionPriorEntries = 8;
 const dailyQuestionLookbackDays = 7;
 const dailyQuestionAvoid = 5;
 
-final _dateKey = RegExp(r'^\d{4}-\d{2}-\d{2}$');
 final _control = RegExp(r'[\x00-\x1f\x7f]');
 
 String _normalize(String value) => value
@@ -53,7 +52,7 @@ class DailyQuestionEntry {
   factory DailyQuestionEntry.fromJson(Map<String, dynamic> json) {
     final date = json['date'], uuid = json['uuid'], text = json['text'];
     if (date is! String ||
-        !_dateKey.hasMatch(date) ||
+        DiaryPeriod.tryParse(date) == null ||
         uuid is! String ||
         uuid.isEmpty ||
         text is! String) {
@@ -78,11 +77,11 @@ List<DiaryEntry> _items(Iterable<DiaryEntry> entries) =>
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 String dailyQuestionBasis(String date, Iterable<DiaryEntry> entries) =>
     DiarySuggestionSource.fromEntries(
-      CivilDate.tryParse(date)!,
+      DiaryPeriod.tryParse(date)!,
       entries,
     ).fingerprint;
 DateTime civil(String key) {
-  final d = CivilDate.tryParse(key)!;
+  final d = DiaryPeriod.tryParse(key)!;
   return DateTime.utc(d.year, d.month, d.day);
 }
 
@@ -153,8 +152,15 @@ class DailyQuestionSource {
     }
     final prior = <DailyQuestionEntry>[];
     final lookback = [
-      for (var ago = 1; ago <= dailyQuestionLookbackDays; ago++)
-        CivilDate.tryParse(today)!.shift(-ago)?.key,
+      for (
+        var ago = 1;
+        ago <=
+            (DiaryPeriod.tryParse(today)!.isDay
+                ? dailyQuestionLookbackDays
+                : 0);
+        ago++
+      )
+        DiaryPeriod.tryParse(today)!.shift(-ago)?.key,
     ].whereType<String>();
     for (final date in lookback) {
       for (final item in _items(day(date))) {
@@ -203,7 +209,7 @@ class DailyQuestionSource {
     final value = jsonDecode(raw);
     if (value is! Map ||
         value['date'] is! String ||
-        !_dateKey.hasMatch(value['date'] as String) ||
+        DiaryPeriod.tryParse(value['date'] as String) == null ||
         value['today'] is! List ||
         value['prior'] is! List ||
         value['avoid'] is! List ||
@@ -218,18 +224,26 @@ class DailyQuestionSource {
       for (final e in list as List)
         DailyQuestionEntry.fromJson(Map<String, dynamic>.from(e as Map)),
     ];
-    return DailyQuestionSource(
+    final source = DailyQuestionSource(
       value['date'] as String,
       entries(value['today']),
       entries(value['prior']),
       List<String>.from(value['avoid'] as List),
       value['basis'] as String? ?? '',
     );
+    if (!DiaryPeriod.tryParse(source.date)!.isDay &&
+        (source.prior.isNotEmpty ||
+            source.today.any((e) => e.date != source.date))) {
+      throw const FormatException('Period questions use only their own page.');
+    }
+    return source;
   }
 
   /// Only temporary IDs, entry text and day offsets: no dates, UUIDs, titles,
   /// moods, photos, device names or anything outside the selection.
   String request() => jsonEncode({
+    if (!DiaryPeriod.tryParse(date)!.isDay)
+      'period': DiaryPeriod.tryParse(date)!.kind.name,
     'today': [
       for (var i = 0; i < today.length; i++)
         {'id': 't$i', 'text': today[i].text},
@@ -369,7 +383,9 @@ class DailyQuestion {
       );
     }
     final ago = source.ago(entry);
-    if ((_yesterday.hasMatch(text) && ago != 1) ||
+    if ((!DiaryPeriod.tryParse(source.date)!.isDay &&
+            _sameDay.hasMatch(text)) ||
+        (_yesterday.hasMatch(text) && ago != 1) ||
         (ago >= 1 && _sameDay.hasMatch(text))) {
       throw const DailyQuestionRejected(
         'The question got the timing of an entry wrong, so it was not shown.',

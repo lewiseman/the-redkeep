@@ -6,6 +6,7 @@ import 'package:flutter/semantics.dart';
 
 import 'diary_style.dart';
 import '../application/diary_paper_providers.dart';
+import '../domain/diary_period.dart';
 import 'diary_paper_curl.dart';
 import 'diary_paper_material.dart';
 import 'diary_sheet.dart';
@@ -49,7 +50,7 @@ class DiaryScene extends StatelessWidget {
   final DiaryPaperDay? fadingFrom;
   final double fadingOffset;
   final ValueChanged<double> onCardWidth;
-  final ValueChanged<DateTime> onDateChanged;
+  final ValueChanged<DiaryPeriod> onDateChanged;
   final GestureDragStartCallback? onDragStart;
   final GestureDragUpdateCallback? onDragUpdate;
   final GestureDragEndCallback? onDragEnd;
@@ -79,8 +80,9 @@ class DiaryScene extends StatelessWidget {
       final previewLeft = left - rect.width - 14 - collapse * w * .35;
       final showTurn = !simple && busy && turn > 0 && !blocked && !reduced;
       final paper = diaryPaperColors(context);
-      final fullDate = MaterialLocalizations.of(context)
-          .formatFullDate(day.calendarDate);
+      final fullDate = day.date.label(
+        Localizations.localeOf(context).toString(),
+      );
       final restLeft = (w * .123).clamp(32.0, 64.0);
       // The nested viewport grows as its header collapses. Keep captured faces
       // at their resting size so scrolling never invalidates their textures.
@@ -98,12 +100,9 @@ class DiaryScene extends StatelessWidget {
             !current &&
             showTurn &&
             (direction > 0
-                ? sheet.calendarDate == previous.calendarDate
-                : sheet.calendarDate.isAfter(day.calendarDate));
-        final preview =
-            !current &&
-            sheet.calendarDate == previous.calendarDate &&
-            !incoming;
+                ? sheet.date == previous.date
+                : sheet.date.compareTo(day.date) > 0);
+        final preview = !current && sheet.date == previous.date && !incoming;
         final x = current
             ? restRect.left + (blocked && busy ? -turn * rect.width : 0)
             : incoming
@@ -128,7 +127,7 @@ class DiaryScene extends StatelessWidget {
             : .72 * (1 - collapse);
         if (simple) return const SizedBox.shrink();
         return Positioned.fromRect(
-          key: ValueKey('diary-face-${sheet.calendarDate.toIso8601String()}'),
+          key: ValueKey('diary-face-${sheet.date.key}'),
           rect: restRect,
           child: ExcludeSemantics(
             child: IgnorePointer(
@@ -218,6 +217,7 @@ class DiaryScene extends StatelessWidget {
                     child: DiaryDayContent(
                       key: const ValueKey('diary-live-content'),
                       interactive: true,
+                      enableEntryEditing: collapse == 1 && !busy,
                       day: day,
                       minimumHeight: rect.height,
                     ),
@@ -237,12 +237,12 @@ class DiaryScene extends StatelessWidget {
       return Semantics(
         container: true,
         customSemanticsActions: {
-          if (day.date.shift(-1) != null)
-            const CustomSemanticsAction(label: 'Previous day'): () =>
-                onDateChanged(TimeHelper.addDays(day.calendarDate, -1)),
-          if (day.calendarDate.isBefore(today))
-            const CustomSemanticsAction(label: 'Next day'): () =>
-                onDateChanged(TimeHelper.addDays(day.calendarDate, 1)),
+          if (previous.date != day.date)
+            const CustomSemanticsAction(label: 'Previous diary page'): () =>
+                onDateChanged(previous.date),
+          if (next().date != day.date)
+            const CustomSemanticsAction(label: 'Next diary page'): () =>
+                onDateChanged(next().date),
         },
         child: GestureDetector(
           behavior: HitTestBehavior.deferToChild,
@@ -292,8 +292,7 @@ class DiaryScene extends StatelessWidget {
                     ),
                   ),
                 if (previous.date != day.date) face(previous, current: false),
-                if (day.calendarDate.isBefore(today))
-                  face(next(), current: false),
+                if (next().date != day.date) face(next(), current: false),
                 face(day, current: true),
               ],
             ),

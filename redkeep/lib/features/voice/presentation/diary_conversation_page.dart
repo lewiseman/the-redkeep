@@ -237,7 +237,9 @@ class _DiaryConversationPageState extends ConsumerState<DiaryConversationPage> {
               children: [
                 VoiceSessionHeader(
                   title: 'Your conversation',
-                  subtitle: widget.address.date.key,
+                  subtitle: widget.address.date.label(
+                    Localizations.localeOf(context).toString(),
+                  ),
                   onClose: () => Navigator.pop(context),
                 ),
                 if (record == null)

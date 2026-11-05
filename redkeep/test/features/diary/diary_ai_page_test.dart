@@ -7,7 +7,7 @@ import 'package:redkeep/core/storage/app_database.dart';
 import 'package:redkeep/features/ai/domain/ai_job.dart';
 import 'package:redkeep/features/ai/domain/ai_operation.dart';
 import 'package:redkeep/features/diary/data/drift_diary_repository.dart';
-import 'package:redkeep/features/diary/domain/civil_date.dart';
+import 'package:redkeep/features/diary/domain/diary_period.dart';
 import 'package:redkeep/features/diary/domain/diary_ai_contract.dart';
 import 'package:redkeep/features/diary/domain/diary_document.dart';
 
@@ -16,7 +16,7 @@ import '../../support/pump_app.dart';
 import '../ai/ai_jobs_test.dart' show dayOutput;
 
 void main() {
-  final date = CivilDate(2026, 11, 4);
+  final date = DiaryPeriod(2026, 11, 4);
   late AppDatabase db;
   late DriftDiaryRepository diary;
   late MemoryAiTasks tasks;

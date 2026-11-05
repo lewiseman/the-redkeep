@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 
-import 'civil_date.dart';
+import 'diary_period.dart';
 import 'diary_document.dart';
 import 'diary_day_details.dart';
 
@@ -25,7 +25,6 @@ const _modelMoods = {
   'unclear',
 };
 
-final _dateKey = RegExp(r'^\d{4}-\d{2}-\d{2}$');
 final _control = RegExp(r'[\x00-\x1f\x7f]');
 
 bool _plain(String value, int chars, {bool empty = false}) =>
@@ -117,7 +116,7 @@ class DiarySuggestionSource {
   final List<Map<String, dynamic>> entries;
 
   static DiarySuggestionSource fromEntries(
-    CivilDate date,
+    DiaryPeriod date,
     Iterable<DiaryEntry> entries,
   ) {
     final sorted =
@@ -143,7 +142,7 @@ class DiarySuggestionSource {
     final date = value['date'];
     final entries = value['entries'];
     if (date is! String ||
-        !_dateKey.hasMatch(date) ||
+        DiaryPeriod.tryParse(date) == null ||
         entries is! List ||
         entries.length > diaryMaxEntries ||
         utf8.encode(raw).length > 131072) {
@@ -162,14 +161,16 @@ class DiarySuggestionSource {
   /// attachments, device names or any other day.
   String request() {
     if (entries.isEmpty) {
-      throw const FormatException('Write an entry for this day first.');
+      throw const FormatException('Write an entry for this page first.');
     }
     if (entries.length > diaryMaxEntries) {
       throw const FormatException(
-        'This day has more than 12 entries. Nothing was sent; days are never shortened.',
+        'This page has more than 12 entries. Nothing was sent; pages are never shortened.',
       );
     }
     final text = jsonEncode({
+      if (!DiaryPeriod.tryParse(date)!.isDay)
+        'period': DiaryPeriod.tryParse(date)!.kind.name,
       'entries': [
         for (var i = 0; i < entries.length; i++)
           {'id': 'e$i', 'text': entries[i]['content']},
@@ -177,7 +178,7 @@ class DiarySuggestionSource {
     });
     if (utf8.encode(text).length > diaryInputBytes) {
       throw const FormatException(
-        'This day’s saved entries exceed 2,000 UTF-8 bytes. Nothing was sent; entries are never shortened.',
+        'This page’s saved entries exceed 2,000 UTF-8 bytes. Nothing was sent; entries are never shortened.',
       );
     }
     return text;

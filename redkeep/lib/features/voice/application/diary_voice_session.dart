@@ -12,7 +12,7 @@ import '../../ai/application/ai_jobs.dart';
 import '../../ai/domain/ai_operation.dart';
 import '../../diary/application/diary_ai_sources.dart';
 import '../../diary/application/diary_providers.dart';
-import '../../diary/domain/civil_date.dart';
+import '../../diary/domain/diary_period.dart';
 import '../../diary/domain/diary_ai_conversation.dart';
 import '../../diary/domain/diary_repository.dart';
 import '../../sync/data/drift_sync_store.dart';
@@ -21,7 +21,7 @@ import 'diary_conversation.dart';
 import 'voice_coordination.dart';
 
 final diaryVoiceSessionProvider = Provider.autoDispose
-    .family<DiaryVoiceSession, CivilDate>((ref, date) {
+    .family<DiaryVoiceSession, DiaryPeriod>((ref, date) {
       final session = DiaryVoiceSession(ref, date);
       return session;
     });
@@ -40,7 +40,7 @@ class DiaryVoiceSession {
     );
   }
   final Ref ref;
-  final CivilDate date;
+  final DiaryPeriod date;
   final AppDatabase db;
   late final int _generation;
   final DiaryRepository repository;
@@ -66,7 +66,7 @@ class DiaryVoiceSession {
     ];
     final retained = await store.load('diary');
     if (retained != null) {
-      final oldDate = CivilDate.tryParse(retained['date'] as String? ?? '');
+      final oldDate = DiaryPeriod.tryParse(retained['date'] as String? ?? '');
       final record = DiaryAiConversation.tryParse(retained['conversation']);
       if (oldDate != null && record?.hasUserTurn == true) {
         final existing = (await repository.openDocument(

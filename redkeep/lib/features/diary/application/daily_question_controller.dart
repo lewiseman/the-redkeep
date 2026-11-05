@@ -14,13 +14,13 @@ import '../../ai/application/ai_lifecycle.dart';
 import '../../ai/domain/ai_operation.dart';
 import '../../companion/application/companion_controller.dart';
 import '../../recall/domain/recall.dart' show recallHash;
-import '../domain/civil_date.dart';
+import '../domain/diary_period.dart';
 import '../domain/daily_question_contract.dart';
 import 'diary_ai_sources.dart';
 import 'diary_providers.dart';
 
 final dailyQuestionProvider = NotifierProvider.autoDispose
-    .family<DailyQuestionController, DailyQuestionView, CivilDate>(
+    .family<DailyQuestionController, DailyQuestionView, DiaryPeriod>(
       DailyQuestionController.new,
     );
 
@@ -39,7 +39,7 @@ class DailyQuestionView {
 
 class DailyQuestionController extends Notifier<DailyQuestionView> {
   DailyQuestionController(this.date);
-  final CivilDate date;
+  final DiaryPeriod date;
   bool _active = false, _working = false, _consuming = false;
   int _epoch = 0;
   final _attempted = <String>{};
@@ -48,7 +48,7 @@ class DailyQuestionController extends Notifier<DailyQuestionView> {
   bool get _enabled =>
       ref.read(aiPreferencesProvider).value?.dailyQuestions == true;
   bool get _today =>
-      CivilDate.fromComponents(ref.read(diaryClockProvider)()) == date;
+      date.isDay && date.isCurrent(ref.read(diaryClockProvider)());
   bool get _canAuto =>
       _active &&
       _today &&

@@ -34,11 +34,7 @@ class DiaryPhotosPage extends ConsumerWidget {
           }
           return AddDiaryPhotosPage(
             key: ValueKey(address.id),
-            date: DateTime(
-              address.date.year,
-              address.date.month,
-              address.date.day,
-            ),
+            date: address.date,
             story: entry,
             newItemUuid: address.id,
             readOnly: !creating && !ref.watch(syncCanEditProvider),

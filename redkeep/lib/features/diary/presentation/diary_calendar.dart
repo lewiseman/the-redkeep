@@ -1,4 +1,6 @@
 import 'diary_artwork.dart';
+import '../domain/diary_period.dart';
+import '../domain/diary_timeline.dart';
 
 import 'dart:math' as math;
 import 'dart:ui' as ui;
@@ -16,6 +18,7 @@ class DiaryCalendar extends StatelessWidget {
   const DiaryCalendar({
     super.key,
     required this.selectedDate,
+    this.timeline,
     required this.onDateChanged,
     this.lastDate,
     this.enabled = true,
@@ -27,8 +30,9 @@ class DiaryCalendar extends StatelessWidget {
     this.onDayDragCancel,
   });
 
-  final DateTime selectedDate;
-  final ValueChanged<DateTime> onDateChanged;
+  final DiaryPeriod selectedDate;
+  final DiaryTimeline? timeline;
+  final ValueChanged<DiaryPeriod> onDateChanged;
   final DateTime? lastDate;
   final bool enabled;
   final double collapseProgress;
@@ -44,13 +48,14 @@ class DiaryCalendar extends StatelessWidget {
 
   static const _weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-  bool _available(DateTime date) =>
-      !date.isBefore(DateTime(1)) &&
-      !date.isAfter(TimeHelper.dateOnly(lastDate ?? DateTime.now()));
-
+  DiaryTimeline get _timeline =>
+      timeline ?? DiaryTimeline(today: lastDate ?? DateTime.now());
+  DiaryPeriod? _at(int offset) => _timeline.offset(selectedDate, offset);
+  bool _available(DiaryPeriod? period) =>
+      period != null && period.hasStarted(lastDate ?? DateTime.now());
   void _selectDay(int offset) {
-    final date = TimeHelper.addDays(selectedDate, offset);
-    if (enabled && offset != 0 && _available(date)) onDateChanged(date);
+    final date = _at(offset);
+    if (enabled && offset != 0 && _available(date)) onDateChanged(date!);
   }
 
   @override
@@ -78,18 +83,22 @@ class DiaryCalendar extends StatelessWidget {
                   collapse,
                 )!;
                 final middleDay = dayOffset.round();
-                final previous = TimeHelper.addDays(selectedDate, -1);
-                final next = TimeHelper.addDays(selectedDate, 1);
+                final previous = _at(-1);
+                final next = _at(1);
                 return Semantics(
                   container: true,
                   explicitChildNodes: true,
                   label: 'Diary calendar',
-                  value: localizations.formatFullDate(selectedDate),
+                  value: selectedDate.label(
+                    Localizations.localeOf(context).toString(),
+                  ),
                   increasedValue: _available(next)
-                      ? localizations.formatFullDate(next)
+                      ? next!.label(Localizations.localeOf(context).toString())
                       : null,
                   decreasedValue: _available(previous)
-                      ? localizations.formatFullDate(previous)
+                      ? previous!.label(
+                          Localizations.localeOf(context).toString(),
+                        )
                       : null,
                   onIncrease: enabled && _available(next)
                       ? () => _selectDay(1)
@@ -200,8 +209,11 @@ class DiaryCalendar extends StatelessWidget {
         )! -
         lift;
     final targetWidth = ui.lerpDouble(76, compactDayWidth, collapse)!;
-    final date = TimeHelper.addDays(selectedDate, day);
-    final pinned = date == today;
+    final date = _at(day);
+    if (date == null) {
+      return const Positioned(left: 0, top: 0, child: SizedBox.shrink());
+    }
+    final pinned = date.isDay && date.isCurrent(today);
     final available = _available(date);
     final canSelect = enabled && available;
     final inactiveInk = Color.lerp(
@@ -215,7 +227,9 @@ class DiaryCalendar extends StatelessWidget {
         (relativeDay.sign * .035 * (1 - prominence) + dayOffset * .065 * sway) *
         (1 - collapse);
     return Positioned(
-      key: ValueKey('diary-calendar-date-${date.toIso8601String()}'),
+      key: ValueKey(
+        'diary-calendar-date-${date.isDay ? date.calendarDate.toIso8601String() : date.key}',
+      ),
       left: x - targetWidth / 2,
       top: 0,
       width: targetWidth,
@@ -230,7 +244,7 @@ class DiaryCalendar extends StatelessWidget {
             button: true,
             enabled: canSelect,
             selected: day == 0,
-            label: localizations.formatFullDate(date),
+            label: date.label(Localizations.localeOf(context).toString()),
             onTap: canSelect ? () => _selectDay(day) : null,
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
@@ -245,7 +259,7 @@ class DiaryCalendar extends StatelessWidget {
                       child: CustomPaint(
                         painter: _DatePaperPainter(
                           colors: context.colors,
-                          date: date,
+                          date: date.calendarDate,
                           centerY: centerY,
                           prominence: prominence,
                           collapse: collapse,
@@ -279,7 +293,9 @@ class DiaryCalendar extends StatelessWidget {
                         ),
                       ),
                     _dateLabel(
-                      text: '${date.day}',
+                      text: date.shortLabel(
+                        Localizations.localeOf(context).toString(),
+                      ),
                       centerY:
                           ui.lerpDouble(
                             ui.lerpDouble(expandedPointY + 16, 50, prominence),
@@ -290,7 +306,7 @@ class DiaryCalendar extends StatelessWidget {
                       style: TextStyle(
                         color: ink,
                         fontSize: ui.lerpDouble(
-                          ui.lerpDouble(13, 23, prominence),
+                          ui.lerpDouble(13, date.isDay ? 23 : 14, prominence),
                           ui.lerpDouble(12.5, 17, prominence),
                           collapse,
                         ),
@@ -304,7 +320,11 @@ class DiaryCalendar extends StatelessWidget {
                       textScaler: textScaler,
                     ),
                     _dateLabel(
-                      text: _weekdays[date.weekday - 1],
+                      text: date.isDay
+                          ? _weekdays[date.weekday - 1]
+                          : date.kind == DiaryPeriodKind.week
+                          ? '${date.day}–${date.end.day}'
+                          : date.kind.name,
                       centerY:
                           ui.lerpDouble(
                             ui.lerpDouble(expandedPointY + 33, 71, prominence),

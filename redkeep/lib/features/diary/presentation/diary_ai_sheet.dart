@@ -7,7 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../ai/application/ai_jobs.dart';
 import '../../ai/domain/ai_operation.dart';
 import '../application/diary_ai_sources.dart';
-import '../domain/civil_date.dart';
+import '../domain/diary_period.dart';
 import '../domain/diary_ai_contract.dart';
 
 class AcceptedDaySuggestions {
@@ -23,7 +23,7 @@ class DiaryAiSheet extends ConsumerStatefulWidget {
     required this.date,
     required this.stillCurrent,
   });
-  final CivilDate date;
+  final DiaryPeriod date;
   final bool Function() stillCurrent;
   @override
   ConsumerState<DiaryAiSheet> createState() => _DiaryAiSheetState();
@@ -63,8 +63,8 @@ class _DiaryAiSheetState extends ConsumerState<DiaryAiSheet> {
     } catch (_) {
       if (mounted) {
         setState(
-          () =>
-              _message = 'Could not read this day. Your details are unchanged.',
+          () => _message =
+              'Could not read this ${widget.date.kind.name}. Your details are unchanged.',
         );
       }
     } finally {
@@ -159,17 +159,19 @@ class _DiaryAiSheetState extends ConsumerState<DiaryAiSheet> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Day details with AI',
+              '${widget.date.kind.name[0].toUpperCase()}${widget.date.kind.name.substring(1)} details with AI',
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 12),
-            const Text(
-              'Uses only this day’s saved entry text. Review each suggestion, then apply the fields you want. Save day commits them.',
+            Text(
+              'Uses only this ${widget.date.kind.name}’s saved entry text. Review each suggestion, then apply the fields you want. Save ${widget.date.kind.name} commits them.',
             ),
             const SizedBox(height: 12),
             if (task != null)
               Text(
-                ours ? 'AI task: ${task.phase}' : 'Another AI task is waiting. Finish or clear it before generating day details.',
+                ours
+                    ? 'AI task: ${task.phase}'
+                    : 'Another AI task is waiting. Finish or clear it before generating ${widget.date.kind.name} details.',
               ),
             if (_message ?? state.message case final message?)
               Padding(
@@ -182,7 +184,7 @@ class _DiaryAiSheetState extends ConsumerState<DiaryAiSheet> {
               else
                 Text(
                   suggestions.rejectedFields.contains('title')
-                      ? 'Title: The suggestion could not be matched to this day’s writing.'
+                      ? 'Title: The suggestion could not be matched to this ${widget.date.kind.name}’s writing.'
                       : 'Title: No title was suggested.',
                   key: const ValueKey('diary-ai-no-title'),
                 ),
@@ -211,7 +213,7 @@ class _DiaryAiSheetState extends ConsumerState<DiaryAiSheet> {
               else
                 Text(
                   suggestions.rejectedFields.contains('themes')
-                      ? 'Themes: The suggestions could not be matched to this day’s writing.'
+                      ? 'Themes: The suggestions could not be matched to this ${widget.date.kind.name}’s writing.'
                       : 'Themes: No themes were suggested.',
                   key: const ValueKey('diary-ai-no-themes'),
                 ),

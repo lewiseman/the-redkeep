@@ -5143,18 +5143,14 @@ class $DiaryEntriesTable extends DiaryEntries
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _dateKeyMeta = const VerificationMeta(
-    'dateKey',
+  static const VerificationMeta _periodKeyMeta = const VerificationMeta(
+    'periodKey',
   );
   @override
-  late final GeneratedColumn<String> dateKey = GeneratedColumn<String>(
-    'date_key',
+  late final GeneratedColumn<String> periodKey = GeneratedColumn<String>(
+    'period_key',
     aliasedName,
     false,
-    additionalChecks: GeneratedColumn.checkTextLength(
-      minTextLength: 10,
-      maxTextLength: 10,
-    ),
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
@@ -5236,7 +5232,7 @@ class $DiaryEntriesTable extends DiaryEntries
   @override
   List<GeneratedColumn> get $columns => [
     id,
-    dateKey,
+    periodKey,
     body,
     photos,
     conversation,
@@ -5262,13 +5258,13 @@ class $DiaryEntriesTable extends DiaryEntries
     } else if (isInserting) {
       context.missing(_idMeta);
     }
-    if (data.containsKey('date_key')) {
+    if (data.containsKey('period_key')) {
       context.handle(
-        _dateKeyMeta,
-        dateKey.isAcceptableOrUnknown(data['date_key']!, _dateKeyMeta),
+        _periodKeyMeta,
+        periodKey.isAcceptableOrUnknown(data['period_key']!, _periodKeyMeta),
       );
     } else if (isInserting) {
-      context.missing(_dateKeyMeta);
+      context.missing(_periodKeyMeta);
     }
     if (data.containsKey('body')) {
       context.handle(
@@ -5336,9 +5332,9 @@ class $DiaryEntriesTable extends DiaryEntries
         DriftSqlType.string,
         data['${effectivePrefix}id'],
       )!,
-      dateKey: attachedDatabase.typeMapping.read(
+      periodKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}date_key'],
+        data['${effectivePrefix}period_key'],
       )!,
       body: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
@@ -5379,7 +5375,7 @@ class $DiaryEntriesTable extends DiaryEntries
 
 class DiaryEntryRow extends DataClass implements Insertable<DiaryEntryRow> {
   final String id;
-  final String dateKey;
+  final String periodKey;
   final String body;
   final String photos;
   final String? conversation;
@@ -5389,7 +5385,7 @@ class DiaryEntryRow extends DataClass implements Insertable<DiaryEntryRow> {
   final int? deletedAt;
   const DiaryEntryRow({
     required this.id,
-    required this.dateKey,
+    required this.periodKey,
     required this.body,
     required this.photos,
     this.conversation,
@@ -5402,7 +5398,7 @@ class DiaryEntryRow extends DataClass implements Insertable<DiaryEntryRow> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
-    map['date_key'] = Variable<String>(dateKey);
+    map['period_key'] = Variable<String>(periodKey);
     map['body'] = Variable<String>(body);
     map['photos'] = Variable<String>(photos);
     if (!nullToAbsent || conversation != null) {
@@ -5420,7 +5416,7 @@ class DiaryEntryRow extends DataClass implements Insertable<DiaryEntryRow> {
   DiaryEntriesCompanion toCompanion(bool nullToAbsent) {
     return DiaryEntriesCompanion(
       id: Value(id),
-      dateKey: Value(dateKey),
+      periodKey: Value(periodKey),
       body: Value(body),
       photos: Value(photos),
       conversation: conversation == null && nullToAbsent
@@ -5442,7 +5438,7 @@ class DiaryEntryRow extends DataClass implements Insertable<DiaryEntryRow> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return DiaryEntryRow(
       id: serializer.fromJson<String>(json['id']),
-      dateKey: serializer.fromJson<String>(json['dateKey']),
+      periodKey: serializer.fromJson<String>(json['periodKey']),
       body: serializer.fromJson<String>(json['body']),
       photos: serializer.fromJson<String>(json['photos']),
       conversation: serializer.fromJson<String?>(json['conversation']),
@@ -5457,7 +5453,7 @@ class DiaryEntryRow extends DataClass implements Insertable<DiaryEntryRow> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
-      'dateKey': serializer.toJson<String>(dateKey),
+      'periodKey': serializer.toJson<String>(periodKey),
       'body': serializer.toJson<String>(body),
       'photos': serializer.toJson<String>(photos),
       'conversation': serializer.toJson<String?>(conversation),
@@ -5470,7 +5466,7 @@ class DiaryEntryRow extends DataClass implements Insertable<DiaryEntryRow> {
 
   DiaryEntryRow copyWith({
     String? id,
-    String? dateKey,
+    String? periodKey,
     String? body,
     String? photos,
     Value<String?> conversation = const Value.absent(),
@@ -5480,7 +5476,7 @@ class DiaryEntryRow extends DataClass implements Insertable<DiaryEntryRow> {
     Value<int?> deletedAt = const Value.absent(),
   }) => DiaryEntryRow(
     id: id ?? this.id,
-    dateKey: dateKey ?? this.dateKey,
+    periodKey: periodKey ?? this.periodKey,
     body: body ?? this.body,
     photos: photos ?? this.photos,
     conversation: conversation.present ? conversation.value : this.conversation,
@@ -5492,7 +5488,7 @@ class DiaryEntryRow extends DataClass implements Insertable<DiaryEntryRow> {
   DiaryEntryRow copyWithCompanion(DiaryEntriesCompanion data) {
     return DiaryEntryRow(
       id: data.id.present ? data.id.value : this.id,
-      dateKey: data.dateKey.present ? data.dateKey.value : this.dateKey,
+      periodKey: data.periodKey.present ? data.periodKey.value : this.periodKey,
       body: data.body.present ? data.body.value : this.body,
       photos: data.photos.present ? data.photos.value : this.photos,
       conversation: data.conversation.present
@@ -5509,7 +5505,7 @@ class DiaryEntryRow extends DataClass implements Insertable<DiaryEntryRow> {
   String toString() {
     return (StringBuffer('DiaryEntryRow(')
           ..write('id: $id, ')
-          ..write('dateKey: $dateKey, ')
+          ..write('periodKey: $periodKey, ')
           ..write('body: $body, ')
           ..write('photos: $photos, ')
           ..write('conversation: $conversation, ')
@@ -5524,7 +5520,7 @@ class DiaryEntryRow extends DataClass implements Insertable<DiaryEntryRow> {
   @override
   int get hashCode => Object.hash(
     id,
-    dateKey,
+    periodKey,
     body,
     photos,
     conversation,
@@ -5538,7 +5534,7 @@ class DiaryEntryRow extends DataClass implements Insertable<DiaryEntryRow> {
       identical(this, other) ||
       (other is DiaryEntryRow &&
           other.id == this.id &&
-          other.dateKey == this.dateKey &&
+          other.periodKey == this.periodKey &&
           other.body == this.body &&
           other.photos == this.photos &&
           other.conversation == this.conversation &&
@@ -5550,7 +5546,7 @@ class DiaryEntryRow extends DataClass implements Insertable<DiaryEntryRow> {
 
 class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntryRow> {
   final Value<String> id;
-  final Value<String> dateKey;
+  final Value<String> periodKey;
   final Value<String> body;
   final Value<String> photos;
   final Value<String?> conversation;
@@ -5561,7 +5557,7 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntryRow> {
   final Value<int> rowid;
   const DiaryEntriesCompanion({
     this.id = const Value.absent(),
-    this.dateKey = const Value.absent(),
+    this.periodKey = const Value.absent(),
     this.body = const Value.absent(),
     this.photos = const Value.absent(),
     this.conversation = const Value.absent(),
@@ -5573,7 +5569,7 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntryRow> {
   });
   DiaryEntriesCompanion.insert({
     required String id,
-    required String dateKey,
+    required String periodKey,
     required String body,
     this.photos = const Value.absent(),
     this.conversation = const Value.absent(),
@@ -5583,14 +5579,14 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntryRow> {
     this.deletedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
-       dateKey = Value(dateKey),
+       periodKey = Value(periodKey),
        body = Value(body),
        revision = Value(revision),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt);
   static Insertable<DiaryEntryRow> custom({
     Expression<String>? id,
-    Expression<String>? dateKey,
+    Expression<String>? periodKey,
     Expression<String>? body,
     Expression<String>? photos,
     Expression<String>? conversation,
@@ -5602,7 +5598,7 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntryRow> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
-      if (dateKey != null) 'date_key': dateKey,
+      if (periodKey != null) 'period_key': periodKey,
       if (body != null) 'body': body,
       if (photos != null) 'photos': photos,
       if (conversation != null) 'conversation': conversation,
@@ -5616,7 +5612,7 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntryRow> {
 
   DiaryEntriesCompanion copyWith({
     Value<String>? id,
-    Value<String>? dateKey,
+    Value<String>? periodKey,
     Value<String>? body,
     Value<String>? photos,
     Value<String?>? conversation,
@@ -5628,7 +5624,7 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntryRow> {
   }) {
     return DiaryEntriesCompanion(
       id: id ?? this.id,
-      dateKey: dateKey ?? this.dateKey,
+      periodKey: periodKey ?? this.periodKey,
       body: body ?? this.body,
       photos: photos ?? this.photos,
       conversation: conversation ?? this.conversation,
@@ -5646,8 +5642,8 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntryRow> {
     if (id.present) {
       map['id'] = Variable<String>(id.value);
     }
-    if (dateKey.present) {
-      map['date_key'] = Variable<String>(dateKey.value);
+    if (periodKey.present) {
+      map['period_key'] = Variable<String>(periodKey.value);
     }
     if (body.present) {
       map['body'] = Variable<String>(body.value);
@@ -5680,7 +5676,7 @@ class DiaryEntriesCompanion extends UpdateCompanion<DiaryEntryRow> {
   String toString() {
     return (StringBuffer('DiaryEntriesCompanion(')
           ..write('id: $id, ')
-          ..write('dateKey: $dateKey, ')
+          ..write('periodKey: $periodKey, ')
           ..write('body: $body, ')
           ..write('photos: $photos, ')
           ..write('conversation: $conversation, ')
@@ -5700,18 +5696,14 @@ class $DiaryDaysTable extends DiaryDays
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
   $DiaryDaysTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _dateKeyMeta = const VerificationMeta(
-    'dateKey',
+  static const VerificationMeta _periodKeyMeta = const VerificationMeta(
+    'periodKey',
   );
   @override
-  late final GeneratedColumn<String> dateKey = GeneratedColumn<String>(
-    'date_key',
+  late final GeneratedColumn<String> periodKey = GeneratedColumn<String>(
+    'period_key',
     aliasedName,
     false,
-    additionalChecks: GeneratedColumn.checkTextLength(
-      minTextLength: 10,
-      maxTextLength: 10,
-    ),
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
@@ -5760,7 +5752,7 @@ class $DiaryDaysTable extends DiaryDays
   );
   @override
   List<GeneratedColumn> get $columns => [
-    dateKey,
+    periodKey,
     heading,
     mood,
     themes,
@@ -5778,13 +5770,13 @@ class $DiaryDaysTable extends DiaryDays
   }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
-    if (data.containsKey('date_key')) {
+    if (data.containsKey('period_key')) {
       context.handle(
-        _dateKeyMeta,
-        dateKey.isAcceptableOrUnknown(data['date_key']!, _dateKeyMeta),
+        _periodKeyMeta,
+        periodKey.isAcceptableOrUnknown(data['period_key']!, _periodKeyMeta),
       );
     } else if (isInserting) {
-      context.missing(_dateKeyMeta);
+      context.missing(_periodKeyMeta);
     }
     if (data.containsKey('heading')) {
       context.handle(
@@ -5818,14 +5810,14 @@ class $DiaryDaysTable extends DiaryDays
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => {dateKey};
+  Set<GeneratedColumn> get $primaryKey => {periodKey};
   @override
   DiaryDayRow map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return DiaryDayRow(
-      dateKey: attachedDatabase.typeMapping.read(
+      periodKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}date_key'],
+        data['${effectivePrefix}period_key'],
       )!,
       heading: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
@@ -5853,13 +5845,13 @@ class $DiaryDaysTable extends DiaryDays
 }
 
 class DiaryDayRow extends DataClass implements Insertable<DiaryDayRow> {
-  final String dateKey;
+  final String periodKey;
   final String heading;
   final String? mood;
   final String themes;
   final int revision;
   const DiaryDayRow({
-    required this.dateKey,
+    required this.periodKey,
     required this.heading,
     this.mood,
     required this.themes,
@@ -5868,7 +5860,7 @@ class DiaryDayRow extends DataClass implements Insertable<DiaryDayRow> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
-    map['date_key'] = Variable<String>(dateKey);
+    map['period_key'] = Variable<String>(periodKey);
     map['heading'] = Variable<String>(heading);
     if (!nullToAbsent || mood != null) {
       map['mood'] = Variable<String>(mood);
@@ -5880,7 +5872,7 @@ class DiaryDayRow extends DataClass implements Insertable<DiaryDayRow> {
 
   DiaryDaysCompanion toCompanion(bool nullToAbsent) {
     return DiaryDaysCompanion(
-      dateKey: Value(dateKey),
+      periodKey: Value(periodKey),
       heading: Value(heading),
       mood: mood == null && nullToAbsent ? const Value.absent() : Value(mood),
       themes: Value(themes),
@@ -5894,7 +5886,7 @@ class DiaryDayRow extends DataClass implements Insertable<DiaryDayRow> {
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return DiaryDayRow(
-      dateKey: serializer.fromJson<String>(json['dateKey']),
+      periodKey: serializer.fromJson<String>(json['periodKey']),
       heading: serializer.fromJson<String>(json['heading']),
       mood: serializer.fromJson<String?>(json['mood']),
       themes: serializer.fromJson<String>(json['themes']),
@@ -5905,7 +5897,7 @@ class DiaryDayRow extends DataClass implements Insertable<DiaryDayRow> {
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
-      'dateKey': serializer.toJson<String>(dateKey),
+      'periodKey': serializer.toJson<String>(periodKey),
       'heading': serializer.toJson<String>(heading),
       'mood': serializer.toJson<String?>(mood),
       'themes': serializer.toJson<String>(themes),
@@ -5914,13 +5906,13 @@ class DiaryDayRow extends DataClass implements Insertable<DiaryDayRow> {
   }
 
   DiaryDayRow copyWith({
-    String? dateKey,
+    String? periodKey,
     String? heading,
     Value<String?> mood = const Value.absent(),
     String? themes,
     int? revision,
   }) => DiaryDayRow(
-    dateKey: dateKey ?? this.dateKey,
+    periodKey: periodKey ?? this.periodKey,
     heading: heading ?? this.heading,
     mood: mood.present ? mood.value : this.mood,
     themes: themes ?? this.themes,
@@ -5928,7 +5920,7 @@ class DiaryDayRow extends DataClass implements Insertable<DiaryDayRow> {
   );
   DiaryDayRow copyWithCompanion(DiaryDaysCompanion data) {
     return DiaryDayRow(
-      dateKey: data.dateKey.present ? data.dateKey.value : this.dateKey,
+      periodKey: data.periodKey.present ? data.periodKey.value : this.periodKey,
       heading: data.heading.present ? data.heading.value : this.heading,
       mood: data.mood.present ? data.mood.value : this.mood,
       themes: data.themes.present ? data.themes.value : this.themes,
@@ -5939,7 +5931,7 @@ class DiaryDayRow extends DataClass implements Insertable<DiaryDayRow> {
   @override
   String toString() {
     return (StringBuffer('DiaryDayRow(')
-          ..write('dateKey: $dateKey, ')
+          ..write('periodKey: $periodKey, ')
           ..write('heading: $heading, ')
           ..write('mood: $mood, ')
           ..write('themes: $themes, ')
@@ -5949,12 +5941,12 @@ class DiaryDayRow extends DataClass implements Insertable<DiaryDayRow> {
   }
 
   @override
-  int get hashCode => Object.hash(dateKey, heading, mood, themes, revision);
+  int get hashCode => Object.hash(periodKey, heading, mood, themes, revision);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is DiaryDayRow &&
-          other.dateKey == this.dateKey &&
+          other.periodKey == this.periodKey &&
           other.heading == this.heading &&
           other.mood == this.mood &&
           other.themes == this.themes &&
@@ -5962,14 +5954,14 @@ class DiaryDayRow extends DataClass implements Insertable<DiaryDayRow> {
 }
 
 class DiaryDaysCompanion extends UpdateCompanion<DiaryDayRow> {
-  final Value<String> dateKey;
+  final Value<String> periodKey;
   final Value<String> heading;
   final Value<String?> mood;
   final Value<String> themes;
   final Value<int> revision;
   final Value<int> rowid;
   const DiaryDaysCompanion({
-    this.dateKey = const Value.absent(),
+    this.periodKey = const Value.absent(),
     this.heading = const Value.absent(),
     this.mood = const Value.absent(),
     this.themes = const Value.absent(),
@@ -5977,17 +5969,17 @@ class DiaryDaysCompanion extends UpdateCompanion<DiaryDayRow> {
     this.rowid = const Value.absent(),
   });
   DiaryDaysCompanion.insert({
-    required String dateKey,
+    required String periodKey,
     required String heading,
     this.mood = const Value.absent(),
     this.themes = const Value.absent(),
     required int revision,
     this.rowid = const Value.absent(),
-  }) : dateKey = Value(dateKey),
+  }) : periodKey = Value(periodKey),
        heading = Value(heading),
        revision = Value(revision);
   static Insertable<DiaryDayRow> custom({
-    Expression<String>? dateKey,
+    Expression<String>? periodKey,
     Expression<String>? heading,
     Expression<String>? mood,
     Expression<String>? themes,
@@ -5995,7 +5987,7 @@ class DiaryDaysCompanion extends UpdateCompanion<DiaryDayRow> {
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
-      if (dateKey != null) 'date_key': dateKey,
+      if (periodKey != null) 'period_key': periodKey,
       if (heading != null) 'heading': heading,
       if (mood != null) 'mood': mood,
       if (themes != null) 'themes': themes,
@@ -6005,7 +5997,7 @@ class DiaryDaysCompanion extends UpdateCompanion<DiaryDayRow> {
   }
 
   DiaryDaysCompanion copyWith({
-    Value<String>? dateKey,
+    Value<String>? periodKey,
     Value<String>? heading,
     Value<String?>? mood,
     Value<String>? themes,
@@ -6013,7 +6005,7 @@ class DiaryDaysCompanion extends UpdateCompanion<DiaryDayRow> {
     Value<int>? rowid,
   }) {
     return DiaryDaysCompanion(
-      dateKey: dateKey ?? this.dateKey,
+      periodKey: periodKey ?? this.periodKey,
       heading: heading ?? this.heading,
       mood: mood ?? this.mood,
       themes: themes ?? this.themes,
@@ -6025,8 +6017,8 @@ class DiaryDaysCompanion extends UpdateCompanion<DiaryDayRow> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
-    if (dateKey.present) {
-      map['date_key'] = Variable<String>(dateKey.value);
+    if (periodKey.present) {
+      map['period_key'] = Variable<String>(periodKey.value);
     }
     if (heading.present) {
       map['heading'] = Variable<String>(heading.value);
@@ -6049,7 +6041,7 @@ class DiaryDaysCompanion extends UpdateCompanion<DiaryDayRow> {
   @override
   String toString() {
     return (StringBuffer('DiaryDaysCompanion(')
-          ..write('dateKey: $dateKey, ')
+          ..write('periodKey: $periodKey, ')
           ..write('heading: $heading, ')
           ..write('mood: $mood, ')
           ..write('themes: $themes, ')
@@ -8551,7 +8543,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $SyncRecordsTable syncRecords = $SyncRecordsTable(this);
   late final Index diaryEntriesDayOrder = Index(
     'diary_entries_day_order',
-    'CREATE INDEX diary_entries_day_order ON diary_entries (date_key, created_at, id)',
+    'CREATE INDEX diary_entries_day_order ON diary_entries (period_key, created_at, id)',
   );
   late final Index flowThoughtsOrder = Index(
     'flow_thoughts_order',
@@ -11645,7 +11637,7 @@ typedef $$NoteMediaOpsTableProcessedTableManager =
 typedef $$DiaryEntriesTableCreateCompanionBuilder =
     DiaryEntriesCompanion Function({
       required String id,
-      required String dateKey,
+      required String periodKey,
       required String body,
       Value<String> photos,
       Value<String?> conversation,
@@ -11658,7 +11650,7 @@ typedef $$DiaryEntriesTableCreateCompanionBuilder =
 typedef $$DiaryEntriesTableUpdateCompanionBuilder =
     DiaryEntriesCompanion Function({
       Value<String> id,
-      Value<String> dateKey,
+      Value<String> periodKey,
       Value<String> body,
       Value<String> photos,
       Value<String?> conversation,
@@ -11683,8 +11675,8 @@ class $$DiaryEntriesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get dateKey => $composableBuilder(
-    column: $table.dateKey,
+  ColumnFilters<String> get periodKey => $composableBuilder(
+    column: $table.periodKey,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -11738,8 +11730,8 @@ class $$DiaryEntriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get dateKey => $composableBuilder(
-    column: $table.dateKey,
+  ColumnOrderings<String> get periodKey => $composableBuilder(
+    column: $table.periodKey,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -11791,8 +11783,8 @@ class $$DiaryEntriesTableAnnotationComposer
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<String> get dateKey =>
-      $composableBuilder(column: $table.dateKey, builder: (column) => column);
+  GeneratedColumn<String> get periodKey =>
+      $composableBuilder(column: $table.periodKey, builder: (column) => column);
 
   GeneratedColumn<String> get body =>
       $composableBuilder(column: $table.body, builder: (column) => column);
@@ -11850,7 +11842,7 @@ class $$DiaryEntriesTableTableManager
           updateCompanionCallback:
               ({
                 Value<String> id = const Value.absent(),
-                Value<String> dateKey = const Value.absent(),
+                Value<String> periodKey = const Value.absent(),
                 Value<String> body = const Value.absent(),
                 Value<String> photos = const Value.absent(),
                 Value<String?> conversation = const Value.absent(),
@@ -11861,7 +11853,7 @@ class $$DiaryEntriesTableTableManager
                 Value<int> rowid = const Value.absent(),
               }) => DiaryEntriesCompanion(
                 id: id,
-                dateKey: dateKey,
+                periodKey: periodKey,
                 body: body,
                 photos: photos,
                 conversation: conversation,
@@ -11874,7 +11866,7 @@ class $$DiaryEntriesTableTableManager
           createCompanionCallback:
               ({
                 required String id,
-                required String dateKey,
+                required String periodKey,
                 required String body,
                 Value<String> photos = const Value.absent(),
                 Value<String?> conversation = const Value.absent(),
@@ -11885,7 +11877,7 @@ class $$DiaryEntriesTableTableManager
                 Value<int> rowid = const Value.absent(),
               }) => DiaryEntriesCompanion.insert(
                 id: id,
-                dateKey: dateKey,
+                periodKey: periodKey,
                 body: body,
                 photos: photos,
                 conversation: conversation,
@@ -11930,7 +11922,7 @@ typedef $$DiaryEntriesTableProcessedTableManager =
       PrefetchHooks Function()
     >;
 typedef $$DiaryDaysTableCreateCompanionBuilder = DiaryDaysCompanion Function({
-  required String dateKey,
+  required String periodKey,
   required String heading,
   Value<String?> mood,
   Value<String> themes,
@@ -11938,7 +11930,7 @@ typedef $$DiaryDaysTableCreateCompanionBuilder = DiaryDaysCompanion Function({
   Value<int> rowid,
 });
 typedef $$DiaryDaysTableUpdateCompanionBuilder = DiaryDaysCompanion Function({
-  Value<String> dateKey,
+  Value<String> periodKey,
   Value<String> heading,
   Value<String?> mood,
   Value<String> themes,
@@ -11955,8 +11947,8 @@ class $$DiaryDaysTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnFilters<String> get dateKey => $composableBuilder(
-    column: $table.dateKey,
+  ColumnFilters<String> get periodKey => $composableBuilder(
+    column: $table.periodKey,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -11990,8 +11982,8 @@ class $$DiaryDaysTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnOrderings<String> get dateKey => $composableBuilder(
-    column: $table.dateKey,
+  ColumnOrderings<String> get periodKey => $composableBuilder(
+    column: $table.periodKey,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -12025,8 +12017,8 @@ class $$DiaryDaysTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  GeneratedColumn<String> get dateKey =>
-      $composableBuilder(column: $table.dateKey, builder: (column) => column);
+  GeneratedColumn<String> get periodKey =>
+      $composableBuilder(column: $table.periodKey, builder: (column) => column);
 
   GeneratedColumn<String> get heading =>
       $composableBuilder(column: $table.heading, builder: (column) => column);
@@ -12072,14 +12064,14 @@ class $$DiaryDaysTableTableManager
               $$DiaryDaysTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
-                Value<String> dateKey = const Value.absent(),
+                Value<String> periodKey = const Value.absent(),
                 Value<String> heading = const Value.absent(),
                 Value<String?> mood = const Value.absent(),
                 Value<String> themes = const Value.absent(),
                 Value<int> revision = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => DiaryDaysCompanion(
-                dateKey: dateKey,
+                periodKey: periodKey,
                 heading: heading,
                 mood: mood,
                 themes: themes,
@@ -12088,14 +12080,14 @@ class $$DiaryDaysTableTableManager
               ),
           createCompanionCallback:
               ({
-                required String dateKey,
+                required String periodKey,
                 required String heading,
                 Value<String?> mood = const Value.absent(),
                 Value<String> themes = const Value.absent(),
                 required int revision,
                 Value<int> rowid = const Value.absent(),
               }) => DiaryDaysCompanion.insert(
-                dateKey: dateKey,
+                periodKey: periodKey,
                 heading: heading,
                 mood: mood,
                 themes: themes,

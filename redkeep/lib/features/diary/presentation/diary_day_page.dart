@@ -10,7 +10,8 @@ import '../../../core/presentation/diary_typography.dart';
 import '../../../core/presentation/rendering_policy.dart';
 import '../application/diary_providers.dart';
 import '../application/diary_paper_providers.dart';
-import '../domain/civil_date.dart';
+import '../domain/diary_period.dart';
+import '../domain/diary_timeline.dart';
 import 'diary_style.dart';
 import 'diary_artwork.dart';
 import 'diary_header.dart';
@@ -21,7 +22,7 @@ class DiaryDaySelection {}
 
 class DiaryDayPage extends ConsumerStatefulWidget {
   const DiaryDayPage({super.key, this.date, this.selection});
-  final CivilDate? date;
+  final DiaryPeriod? date;
   final DiaryDaySelection? selection;
   @override
   ConsumerState<DiaryDayPage> createState() => _DiaryPageState();
@@ -44,11 +45,13 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
     value: 1,
     duration: const Duration(milliseconds: 150),
   );
-  late DateTime _selectedDate = widget.date == null
-      ? _today
-      : DateTime(widget.date!.year, widget.date!.month, widget.date!.day);
+  late DiaryPeriod _selectedDate =
+      widget.date ?? DiaryPeriod.fromComponents(_today);
+  late DiaryTimeline _timeline = DiaryTimeline(today: _today);
   late DiaryPaperDay _day = _dayFor(_selectedDate);
-  late DiaryPaperDay _previous = _dayFor(TimeHelper.addDays(_selectedDate, -1));
+  late DiaryPaperDay _previous = _dayFor(
+    _timeline.neighbor(_selectedDate, -1) ?? _selectedDate,
+  );
   DiaryPaperDay? _next;
   DiaryPaperDay? _fadingFrom;
   double _fadingOffset = 0;
@@ -61,12 +64,8 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
   bool _readingTurn = false;
 
   DateTime get _today => TimeHelper.dateOnly(ref.read(diaryClockProvider)());
-  DiaryPaperDay _dayFor(DateTime date) {
-    if (date.year < 1 || date.year > 9999) {
-      return DiaryPaperDay(date: CivilDate(1, 1, 1));
-    }
-    return ref.read(diaryPaperDayProvider(CivilDate.fromComponents(date)));
-  }
+  DiaryPaperDay _dayFor(DiaryPeriod date) =>
+      ref.read(diaryPaperDayProvider(date));
 
   bool get _busy => _dragging || _settling;
   bool get _reduced =>
@@ -85,12 +84,7 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
   }
 
   bool get _atTop => _outerOffset.abs() < .5 && _innerOffset.abs() < .5;
-  bool get _blocked =>
-      (_direction < 0 && !_selectedDate.isBefore(_today)) ||
-      (_direction > 0 &&
-          _selectedDate.year == 1 &&
-          _selectedDate.month == 1 &&
-          _selectedDate.day == 1);
+  bool get _blocked => _timeline.neighbor(_selectedDate, -_direction) == null;
 
   @override
   void initState() {
@@ -115,21 +109,23 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
   @override
   void didUpdateWidget(covariant DiaryDayPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final date = widget.date == null
-        ? _today
-        : DateTime(widget.date!.year, widget.date!.month, widget.date!.day);
+    final date = widget.date ?? DiaryPeriod.fromComponents(_today);
     if (date != _selectedDate ||
         (widget.selection != null && widget.selection != oldWidget.selection)) {
       _replaceDate(date, fade: true, navigate: false);
     }
   }
 
-  void _replaceDate(DateTime date, {bool fade = false, bool navigate = true}) {
+  void _replaceDate(
+    DiaryPeriod date, {
+    bool fade = false,
+    bool navigate = true,
+  }) {
     final crossfade = fade && !_reduced;
     final oldDay = _day;
     final neighbors = [_day, _previous, ?_next];
-    DiaryPaperDay findDay(DateTime value) => neighbors.firstWhere(
-      (day) => day.dateString == TimeHelper.dateKey(value),
+    DiaryPaperDay findDay(DiaryPeriod value) => neighbors.firstWhere(
+      (day) => day.date == value,
       orElse: () => _dayFor(value),
     );
     final oldOffset = _innerOffset;
@@ -142,30 +138,23 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
     setState(() {
       _selectedDate = date;
       _day = findDay(date);
-      _previous = findDay(TimeHelper.addDays(date, -1));
-      _next = date.isBefore(_today)
-          ? findDay(TimeHelper.addDays(date, 1))
-          : null;
+      _previous = findDay(_timeline.neighbor(date, -1) ?? date);
+      final next = _timeline.neighbor(date, 1);
+      _next = next == null ? null : findDay(next);
       _fadingFrom = crossfade ? oldDay : null;
       _fadingOffset = oldOffset;
     });
     HapticFeedback.selectionClick();
     if (crossfade) _fade.forward(from: 0);
-    if (navigate) context.go(diaryDayLocation(CivilDate.fromComponents(date)));
+    if (navigate) context.go(diaryDayLocation(date));
   }
 
-  void _selectDate(DateTime value) {
-    final date = TimeHelper.dateOnly(value);
-    if (_busy ||
-        date.year < 1 ||
-        date.year > 9999 ||
-        date.isAfter(_today) ||
-        date == _selectedDate) {
-      return;
-    }
-    final distance = TimeHelper.daysBetween(_selectedDate, date);
-    if (_atTop && distance.abs() == 1 && !_reduced) {
-      _direction = distance < 0 ? 1 : -1;
+  void _selectDate(DiaryPeriod date) {
+    if (_busy || !date.hasStarted(_today)) return;
+    final previous = _timeline.neighbor(_selectedDate, -1);
+    final next = _timeline.neighbor(_selectedDate, 1);
+    if (_atTop && (date == previous || date == next) && !_reduced) {
+      _direction = date == previous ? 1 : -1;
       _settle(commit: true);
     } else {
       _replaceDate(date, fade: true);
@@ -174,8 +163,8 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
 
   Future<void> _pickDate() async {
     if (_busy) return;
-    final date = await context.push<DateTime>(
-      diaryCalendarLocation(CivilDate.fromComponents(_selectedDate)),
+    final date = await context.push<DiaryPeriod>(
+      diaryCalendarLocation(_selectedDate),
       extra: true,
     );
     if (date != null && mounted) _selectDate(date);
@@ -260,7 +249,7 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
       if (!mounted) return;
       if (commit) {
         _replaceDate(
-          TimeHelper.addDays(_selectedDate, -_direction),
+          _timeline.neighbor(_selectedDate, -_direction)!,
           fade: _readingTurn,
         );
       }
@@ -286,21 +275,24 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
 
   @override
   Widget build(BuildContext context) {
+    final saved = ref.watch(diaryCalendarDatesProvider);
+    if (!_busy) {
+      _timeline = DiaryTimeline(today: _today, saved: saved.value ?? const {});
+    }
     for (final date in [
       _selectedDate,
-      TimeHelper.addDays(_selectedDate, -1),
-      TimeHelper.addDays(_selectedDate, 1),
-    ]) {
-      if (date.year >= 1 && date.year <= 9999) {
-        ref.watch(diaryPaperDayProvider(CivilDate.fromComponents(date)));
-      }
+      _timeline.neighbor(_selectedDate, -1),
+      _timeline.neighbor(_selectedDate, 1),
+    ].whereType<DiaryPeriod>()) {
+      ref.watch(diaryPaperDayProvider(date));
     }
     if (!_busy) {
       _day = _dayFor(_selectedDate);
-      _previous = _dayFor(TimeHelper.addDays(_selectedDate, -1));
-      _next = _selectedDate.isBefore(_today)
-          ? _dayFor(TimeHelper.addDays(_selectedDate, 1))
-          : null;
+      _previous = _dayFor(
+        _timeline.neighbor(_selectedDate, -1) ?? _selectedDate,
+      );
+      final next = _timeline.neighbor(_selectedDate, 1);
+      _next = next == null ? null : _dayFor(next);
     }
     final requestedTypography =
         Theme.of(context).extension<DiaryTypography>() ??
@@ -413,6 +405,7 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
                       delegate: DiaryHeaderDelegate(
                         topInset: top,
                         selectedDate: _selectedDate,
+                        timeline: _timeline,
                         lastDate: _today,
                         controlsHeight: _controlsHeight,
                         onDateChanged: _selectDate,
@@ -438,9 +431,7 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
                     builder: (context, _) => DiaryScene(
                       day: _day,
                       previous: _previous,
-                      next: () => _next ??= _dayFor(
-                        TimeHelper.addDays(_selectedDate, 1),
-                      ),
+                      next: () => _next ?? _day,
                       today: _today,
                       collapse: (_outerOffset / _collapseExtent).clamp(0, 1),
                       headerHeight: top + 82,

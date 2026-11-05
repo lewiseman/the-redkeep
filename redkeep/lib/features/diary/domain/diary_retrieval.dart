@@ -4,6 +4,7 @@
 library;
 
 import 'diary_history_day.dart';
+import 'diary_period.dart';
 
 final _unsendable = RegExp(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]');
 
@@ -84,6 +85,10 @@ class DiaryDateScope {
 
   String get label =>
       from == to ? _readable(from) : '${_readable(from)} – ${_readable(to)}';
+
+  bool overlapsPeriod(DiaryPeriod period) =>
+      period.start.key.compareTo(civilKey(to)) <= 0 &&
+      period.end.key.compareTo(civilKey(from)) >= 0;
 
   bool contains(DateTime day) => !day.isBefore(from) && !day.isAfter(to);
 

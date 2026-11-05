@@ -11,7 +11,7 @@ import 'package:redkeep/features/ai/domain/ai_job.dart';
 import 'package:redkeep/features/ai/domain/ai_operation.dart';
 import 'package:redkeep/features/diary/application/diary_providers.dart';
 import 'package:redkeep/features/diary/data/drift_diary_repository.dart';
-import 'package:redkeep/features/diary/domain/civil_date.dart';
+import 'package:redkeep/features/diary/domain/diary_period.dart';
 import 'package:redkeep/features/diary/domain/diary_ai_conversation.dart';
 import 'package:redkeep/features/sync/application/sync_providers.dart';
 import 'package:redkeep/features/voice/application/voice_coordination.dart';
@@ -67,7 +67,7 @@ void main() {
       (tester) async {
         final db = AppDatabase(NativeDatabase.memory());
         addTearDown(db.close);
-        final date = CivilDate(2026, 11, 4);
+        final date = DiaryPeriod(2026, 11, 4);
         final repo = DriftDiaryRepository(
           db,
           clock: () => DateTime(2026, 11, 4),

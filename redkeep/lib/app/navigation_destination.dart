@@ -1,4 +1,4 @@
-import '../features/diary/domain/civil_date.dart';
+import '../features/diary/domain/diary_period.dart';
 import '../features/flow/domain/thought.dart';
 import '../features/diary/domain/diary_document.dart';
 import '../features/notes/domain/note_document.dart';
@@ -81,16 +81,16 @@ String _destination(String location) {
       .hasMatch(location)) {
     return location;
   }
-  final diaryTitle = RegExp(r'^/diary/(\d{4}-\d{2}-\d{2})/(?:title|talk)$')
+  final diaryTitle = RegExp(r'^/diary/([a-z0-9-]+)/(?:title|talk)$')
       .firstMatch(location);
-  if (diaryTitle != null && CivilDate.tryParse(diaryTitle[1]!) != null) {
+  if (diaryTitle != null && DiaryPeriod.tryParse(diaryTitle[1]!) != null) {
     return location;
   }
   final diary = RegExp(
-    r'^/diary/(?:calendar/)?(\d{4}-\d{2}-\d{2})(?:/entries/([0-9a-f]{32})(/(?:edit|photos|conversation))?)?$',
+    r'^/diary/(?:calendar/)?([a-z0-9-]+)(?:/entries/([0-9a-f]{32})(/(?:edit|photos|conversation))?)?$',
   ).firstMatch(location);
   if (diary != null &&
-      CivilDate.tryParse(diary[1]!) != null &&
+      DiaryPeriod.tryParse(diary[1]!) != null &&
       !(location.startsWith('/diary/calendar/') && diary[2] != null)) {
     return location;
   }
@@ -128,10 +128,10 @@ String _requestedDestination(Uri requested) {
 String _gate(String path, String destination) =>
     Uri(path: path, queryParameters: {'continue': destination}).toString();
 
-String diaryDayLocation(CivilDate date) => '/diary/${date.key}';
-String diaryTitleLocation(CivilDate date) => '/diary/${date.key}/title';
-String diaryCalendarLocation(CivilDate date) => '/diary/calendar/${date.key}';
-String diaryEntryLocation(CivilDate date, String id, {bool edit = false}) =>
+String diaryDayLocation(DiaryPeriod date) => '/diary/${date.key}';
+String diaryTitleLocation(DiaryPeriod date) => '/diary/${date.key}/title';
+String diaryCalendarLocation(DiaryPeriod date) => '/diary/calendar/${date.key}';
+String diaryEntryLocation(DiaryPeriod date, String id, {bool edit = false}) =>
     isDiaryId(id)
     ? '/diary/${date.key}/entries/$id${edit ? '/edit' : ''}'
     : AppDestination.unavailable.location;

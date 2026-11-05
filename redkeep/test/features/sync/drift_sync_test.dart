@@ -11,7 +11,7 @@ import 'package:redkeep/core/storage/app_database.dart';
 import 'package:redkeep/features/notes/data/drift_notes_repository.dart';
 import 'package:redkeep/features/notes/domain/note_document.dart';
 import 'package:redkeep/features/diary/data/drift_diary_repository.dart';
-import 'package:redkeep/features/diary/domain/civil_date.dart';
+import 'package:redkeep/features/diary/domain/diary_period.dart';
 import 'package:redkeep/features/diary/domain/diary_document.dart';
 import 'package:redkeep/features/diary/domain/diary_day_details.dart';
 import 'package:redkeep/features/flow/data/drift_flow_repository.dart';
@@ -87,7 +87,7 @@ void main() {
   tearDown(() => h.close());
   test('rich diary v2 survives secondary additions, primary edits and tombstones', () async {
     await h.engine.syncNow(manual: true);
-    final date = CivilDate(2026, 11, 3),
+    final date = DiaryPeriod(2026, 11, 3),
         photoId = 'c' * 32,
         conversationId = 'd' * 32;
     const photo = DiaryPhoto(
@@ -194,7 +194,7 @@ void main() {
           .turns,
       conversation.turns,
     );
-    expect(h.drive.documents['diary/${date.key}']!.payload['schema'], 2);
+    expect(h.drive.documents['diary/${date.key}']!.payload['schema'], 3);
   });
 
   test('committed writing queues atomically; drafts remain private and failed transactions roll back', () async {
@@ -324,7 +324,7 @@ void main() {
       await expectLater(
         h.diary.save(
           id: 'c' * 32,
-          date: CivilDate(2026, 11, 2),
+          date: DiaryPeriod(2026, 11, 2),
           text: const DiaryText(body: 'yesterday'),
           expectedRevision: 0,
         ),
@@ -340,7 +340,7 @@ void main() {
   );
   test('dirty primary diary merges unseen secondary additions without losing headings or tombstones', () async {
     final id = 'd' * 32;
-    final date = CivilDate(2026, 11, 3);
+    final date = DiaryPeriod(2026, 11, 3);
     await h.diary.save(
       id: id,
       date: date,
@@ -388,7 +388,7 @@ void main() {
     );
   });
   test('secondary Diary append preserves remote headings, tombstones and existing IDs', () async {
-    final date = CivilDate(2026, 11, 3);
+    final date = DiaryPeriod(2026, 11, 3);
     final oldId = 'd' * 32;
     final old = await h.diary.save(
       id: oldId,
@@ -442,11 +442,11 @@ void main() {
       await secondary.close();
     }
   });
-  test('legacy day payloads default to empty details and malformed metadata is rejected', () async {
+  test('period day payloads default to empty details and malformed metadata is rejected', () async {
     final collection = DriftSyncCollection(h.db, 'diary');
-    final date = CivilDate(2026, 11, 2);
+    final date = DiaryPeriod(2026, 11, 2);
     final legacy = <String, dynamic>{
-      'schema': 1,
+      'schema': 3,
       'id': date.key,
       'heading': 'Old title',
       'entries': <Map<String, dynamic>>[],

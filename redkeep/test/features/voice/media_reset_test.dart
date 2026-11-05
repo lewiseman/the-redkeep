@@ -16,7 +16,7 @@ import 'package:redkeep/features/diary/application/diary_media_providers.dart';
 import 'package:redkeep/features/diary/data/diary_photo_store.dart';
 import 'package:redkeep/features/diary/data/diary_photo_question_store.dart';
 import 'package:redkeep/features/diary/data/drift_diary_repository.dart';
-import 'package:redkeep/features/diary/domain/civil_date.dart';
+import 'package:redkeep/features/diary/domain/diary_period.dart';
 import 'package:redkeep/features/diary/domain/diary_document.dart';
 import 'package:redkeep/features/recall/application/recall_controller.dart';
 import 'package:redkeep/features/sync/data/drift_account_reset_data.dart';
@@ -75,7 +75,7 @@ void main() {
     final repo = DriftDiaryRepository(db, clock: () => DateTime(2026, 11, 4));
     await repo.save(
       id: 'a' * 32,
-      date: CivilDate(2026, 11, 4),
+      date: DiaryPeriod(2026, 11, 4),
       text: const DiaryText(body: 'Saved words'),
       expectedRevision: 0,
     );
@@ -120,7 +120,7 @@ void main() {
     await expectLater(
       repo.save(
         id: 'b' * 32,
-        date: CivilDate(2026, 11, 4),
+        date: DiaryPeriod(2026, 11, 4),
         text: const DiaryText(body: 'Late words'),
         expectedRevision: 0,
       ),

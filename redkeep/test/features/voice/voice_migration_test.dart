@@ -22,7 +22,7 @@ import 'package:redkeep/features/voice/application/diary_conversation_draft.dart
 import 'package:redkeep/features/voice/data/voice_store.dart';
 import 'package:redkeep/features/diary/data/drift_diary_repository.dart';
 import 'package:redkeep/features/diary/application/diary_providers.dart';
-import 'package:redkeep/features/diary/domain/civil_date.dart';
+import 'package:redkeep/features/diary/domain/diary_period.dart';
 import 'package:redkeep/features/sync/data/drift_sync_store.dart';
 
 import '../../support/pump_app.dart';
@@ -180,7 +180,7 @@ void main() {
         voiceStoreProvider.overrideWithValue(store),
       ],
     );
-    final p = diaryVoiceSessionProvider(CivilDate(2026, 11, 4));
+    final p = diaryVoiceSessionProvider(DiaryPeriod(2026, 11, 4));
     scope.listen(p, (_, _) {});
     final session = scope.read(p);
     await session.initialize();
@@ -217,7 +217,7 @@ void main() {
           voiceStoreProvider.overrideWithValue(store),
         ],
       );
-      final p = diaryVoiceSessionProvider(CivilDate(2026, 11, 4));
+      final p = diaryVoiceSessionProvider(DiaryPeriod(2026, 11, 4));
       scope.listen(p, (_, _) {});
       final session = scope.read(p);
       await session.initialize();
@@ -234,7 +234,7 @@ void main() {
       await expectLater(
         repo.saveConversation(
           id: session.conversation.id,
-          date: CivilDate(2026, 11, 4),
+          date: DiaryPeriod(2026, 11, 4),
           conversation: session.record,
           expectedRevision: 1,
         ),
@@ -261,7 +261,7 @@ void main() {
           companionControllerProvider.overrideWith(() => TestConnection()),
         ],
       );
-      final date = CivilDate(2026, 11, 4);
+      final date = DiaryPeriod(2026, 11, 4);
       final provider = diaryVoiceSessionProvider(date);
       scope.listen(provider, (_, _) {});
       final session = scope.read(provider);

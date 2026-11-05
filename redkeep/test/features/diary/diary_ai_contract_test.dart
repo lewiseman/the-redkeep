@@ -4,17 +4,17 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:redkeep/core/storage/app_database.dart';
 import 'package:redkeep/features/diary/data/drift_diary_repository.dart';
-import 'package:redkeep/features/diary/domain/civil_date.dart';
+import 'package:redkeep/features/diary/domain/diary_period.dart';
 import 'package:redkeep/features/diary/domain/diary_document.dart';
 import 'package:redkeep/features/diary/domain/diary_ai_contract.dart';
 import 'package:redkeep/features/diary/domain/daily_question_contract.dart';
 
 void main() {
-  final date = CivilDate(2026, 11, 4);
+  final date = DiaryPeriod(2026, 11, 4);
   DiaryEntry entry(
     String id,
     String body, {
-    CivilDate? day,
+    DiaryPeriod? day,
     int revision = 1,
   }) => DiaryEntry(
     id: id,

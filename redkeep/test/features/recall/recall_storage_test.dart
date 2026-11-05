@@ -7,7 +7,7 @@ import 'package:sync_wise/sync_wise.dart';
 import 'package:redkeep/core/storage/app_database.dart';
 import 'package:redkeep/features/ai/data/ai_preferences_repository.dart';
 import 'package:redkeep/features/diary/data/drift_diary_repository.dart';
-import 'package:redkeep/features/diary/domain/civil_date.dart';
+import 'package:redkeep/features/diary/domain/diary_period.dart';
 import 'package:redkeep/features/diary/domain/diary_document.dart';
 import 'package:redkeep/features/notes/data/drift_notes_repository.dart';
 import 'package:redkeep/features/notes/domain/note_document.dart';
@@ -26,7 +26,7 @@ void main() {
         db,
         clock: () => DateTime.utc(2026, 11, 4),
       );
-      final date = CivilDate(2026, 11, 4);
+      final date = DiaryPeriod(2026, 11, 4);
       final id = 'd' * 32;
       await diary.saveDay(DiaryDay(date: date, heading: 'A quiet day'));
       await diary.save(

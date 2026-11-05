@@ -5,7 +5,7 @@ import 'dart:convert';
 import '../../diary/domain/diary_photo.dart';
 import '../../diary/domain/diary_ai_conversation.dart';
 
-import '../../diary/domain/civil_date.dart';
+import '../../diary/domain/diary_period.dart';
 import '../../diary/domain/diary_day_details.dart';
 
 import 'package:drift/drift.dart';
@@ -13,7 +13,8 @@ import 'package:sync_wise/sync_wise.dart';
 
 import '../../../core/storage/app_database.dart';
 
-/// Redkeep wire schema 1. Local editor revisions and recovery drafts are private.
+/// Diary wire schema 3; notes and thoughts use schema 1. Revisions and drafts
+/// stay private to the local editor.
 class DriftSyncCollection implements SyncCollection {
   DriftSyncCollection(this.db, this.type);
   final AppDatabase db;
@@ -50,7 +51,7 @@ class DriftSyncCollection implements SyncCollection {
     final record = await _record(id);
     if (record == null) return null;
     final payload = <String, dynamic>{
-      'schema': type == 'diary' ? 2 : 1,
+      'schema': type == 'diary' ? 3 : 1,
       'id': id,
     };
     if (record.removed) {
@@ -58,10 +59,10 @@ class DriftSyncCollection implements SyncCollection {
     } else if (type == 'diary') {
       final day = await (db.select(
         db.diaryDays,
-      )..where((r) => r.dateKey.equals(id))).getSingleOrNull();
+      )..where((r) => r.periodKey.equals(id))).getSingleOrNull();
       final entries =
           await (db.select(db.diaryEntries)
-                ..where((r) => r.dateKey.equals(id))
+                ..where((r) => r.periodKey.equals(id))
                 ..orderBy([(r) => OrderingTerm.asc(r.id)]))
               .get();
       payload['heading'] = day?.heading ?? '';
@@ -116,10 +117,10 @@ class DriftSyncCollection implements SyncCollection {
   @override
   SyncDocument decode(Map<String, dynamic> payload) {
     final id = payload['id'];
-    if (!(type == 'diary' ? {1, 2} : {1}).contains(payload['schema']) ||
+    if (!(type == 'diary' ? {3} : {1}).contains(payload['schema']) ||
         id is! String ||
         (type == 'diary'
-            ? CivilDate.tryParse(id) == null
+            ? DiaryPeriod.tryParse(id) == null
             : !RegExp(r'^[a-f0-9]{32}$').hasMatch(id))) {
       throw const FormatException('Unsupported Redkeep document.');
     }
@@ -148,7 +149,7 @@ class DriftSyncCollection implements SyncCollection {
         );
         payload = {
           ...payload,
-          'schema': 2,
+          'schema': 3,
           'mood': payload['mood'],
           'themes': themes,
           'entries': [
@@ -297,12 +298,12 @@ class DriftSyncCollection implements SyncCollection {
     } else if (type == 'diary') {
       final old = await (db.select(
         db.diaryDays,
-      )..where((r) => r.dateKey.equals(document.id))).getSingleOrNull();
+      )..where((r) => r.periodKey.equals(document.id))).getSingleOrNull();
       await db
           .into(db.diaryDays)
           .insertOnConflictUpdate(
             DiaryDaysCompanion.insert(
-              dateKey: document.id,
+              periodKey: document.id,
               heading: p['heading'] as String,
               mood: Value(p['mood'] as String?),
               themes: Value(jsonEncode(p['themes'])),
@@ -376,7 +377,7 @@ class DriftSyncCollection implements SyncCollection {
     final old = await (db.select(
       db.diaryEntries,
     )..where((r) => r.id.equals(item['id'] as String))).getSingleOrNull();
-    if (old != null && old.dateKey != date) {
+    if (old != null && old.periodKey != date) {
       throw const FormatException('Diary entry belongs to another day.');
     }
     final kept = {
@@ -402,7 +403,7 @@ class DriftSyncCollection implements SyncCollection {
         .insertOnConflictUpdate(
           DiaryEntriesCompanion.insert(
             id: item['id'] as String,
-            dateKey: date,
+            periodKey: date,
             body: item['body'] as String,
             photos: Value(jsonEncode(item['photos'] ?? [])),
             conversation: Value(
@@ -427,7 +428,7 @@ class DriftSyncCollection implements SyncCollection {
     final p =
         remote?.payload ??
         {
-          'schema': 2,
+          'schema': 3,
           'id': operations.first.documentId,
           'heading': '',
           'entries': <Map<String, dynamic>>[],

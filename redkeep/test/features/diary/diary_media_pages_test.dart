@@ -18,6 +18,7 @@ import 'package:redkeep/features/diary/application/diary_providers.dart';
 import 'package:redkeep/features/diary/application/diary_media_providers.dart';
 import 'package:redkeep/features/diary/data/diary_photo_store.dart';
 import 'package:redkeep/features/diary/data/drift_diary_repository.dart';
+import 'package:redkeep/features/diary/domain/diary_period.dart';
 import 'package:redkeep/features/diary/presentation/add_diary_photos_page.dart';
 import 'package:redkeep/features/diary/presentation/photos/diary_photo_entry_book.dart';
 import 'package:redkeep/features/diary/presentation/photos/diary_reflection_desk.dart';
@@ -134,7 +135,7 @@ void main() {
                 child: child!,
               ),
               child: AddDiaryPhotosPage(
-                date: DateTime(2026, 11, 4),
+                date: DiaryPeriod(2026, 11, 4),
                 newItemUuid: 'b' * 32,
                 imagePicker: () async => [XFile(file.path), XFile(file.path)],
               ),

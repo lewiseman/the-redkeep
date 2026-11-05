@@ -180,10 +180,16 @@ class _WritingLinesPainter extends CustomPainter {
 
 /// A blank day title uses the same pen strokes as the body invitation.
 class DiaryTitlePrompt extends StatelessWidget {
-  const DiaryTitlePrompt({super.key, required this.onTap, this.title = ''});
+  const DiaryTitlePrompt({
+    super.key,
+    required this.onTap,
+    this.title = '',
+    this.periodName = 'day',
+  });
 
   final VoidCallback? onTap;
   final String title;
+  final String periodName;
 
   @override
   Widget build(BuildContext context) {
@@ -191,7 +197,9 @@ class DiaryTitlePrompt extends StatelessWidget {
     return Semantics(
       button: true,
       enabled: onTap != null,
-      label: title.isEmpty ? 'Edit day details' : 'Edit day details: $title',
+      label: title.isEmpty
+          ? 'Edit $periodName details'
+          : 'Edit $periodName details: $title',
       onTap: onTap,
       excludeSemantics: true,
       child: Material(

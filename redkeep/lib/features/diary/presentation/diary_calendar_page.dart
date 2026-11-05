@@ -7,7 +7,7 @@ import '../../../app/navigation_destination.dart';
 import '../../../core/presentation/rendering_policy.dart';
 import '../application/diary_providers.dart';
 import '../application/diary_paper_providers.dart';
-import '../domain/civil_date.dart';
+import '../domain/diary_period.dart';
 import 'diary_style.dart';
 import 'diary_artwork.dart';
 import 'diary_paper_stamp.dart';
@@ -24,7 +24,7 @@ String _dateKey(DateTime date) => date.toIso8601String();
 /// A calendar route returns a civil date, or null when dismissed with Back.
 class DiaryCalendarPage extends ConsumerStatefulWidget {
   const DiaryCalendarPage({super.key, this.selected});
-  final CivilDate? selected;
+  final DiaryPeriod? selected;
   @override
   ConsumerState<DiaryCalendarPage> createState() => _DiaryCalendarPageState();
 }
@@ -57,15 +57,15 @@ class _DiaryCalendarPageState extends ConsumerState<DiaryCalendarPage> {
     _pages = PageController(initialPage: _year - _firstDate.year);
   }
 
-  void _select(DateTime date) {
-    if (_returning || date.isBefore(_firstDate) || date.isAfter(_lastDate)) {
+  void _select(DiaryPeriod date) {
+    if (_returning || !date.hasStarted(_lastDate)) {
       return;
     }
     _returning = true;
     if (GoRouterState.of(context).extra == true) {
       context.pop(date);
     } else {
-      context.go(diaryDayLocation(CivilDate.fromComponents(date)));
+      context.go(diaryDayLocation(date));
     }
   }
 
@@ -144,44 +144,76 @@ class _DiaryCalendarPageState extends ConsumerState<DiaryCalendarPage> {
                     final inset = constraints.maxWidth < 350 ? 6.0 : 16.0;
                     return Column(
                       children: [
-                        _header(context, inset),
-                        if (dates.hasError)
-                          TextButton(
-                            onPressed: () =>
-                                ref.invalidate(diaryCalendarDatesProvider),
-                            child: const Text(
-                              'Could not load entry markers. Retry',
-                            ),
+                        ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxHeight: math.max(0, constraints.maxHeight - 140),
                           ),
-                        _CalendarYearTabs(
-                          firstYear: _firstDate.year,
-                          lastYear: _lastDate.year,
-                          year: _year,
-                          onSelected: _showYear,
-                        ),
-                        Padding(
-                          padding: EdgeInsets.fromLTRB(inset, 12, inset, 10),
-                          child: ExcludeSemantics(
-                            child: Row(
+                          child: SingleChildScrollView(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                for (var day = 0; day < 7; day++)
-                                  Expanded(
-                                    child: Text(
-                                      TimeHelper.format(
-                                        DateTime(2024, 1, 1 + day),
-                                        pattern: TimeFormat.shortWeekday,
-                                        locale: locale,
-                                        toLocal: false,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w600,
-                                        color: colors.onSurfaceVariant
-                                            .withValues(alpha: .7),
-                                      ),
+                                _header(context, inset),
+                                if (dates.hasError)
+                                  TextButton(
+                                    onPressed: () => ref.invalidate(
+                                      diaryCalendarDatesProvider,
+                                    ),
+                                    child: const Text(
+                                      'Could not load entry markers. Retry',
                                     ),
                                   ),
+                                _CalendarYearTabs(
+                                  firstYear: _firstDate.year,
+                                  lastYear: _lastDate.year,
+                                  year: _year,
+                                  onSelected: _showYear,
+                                ),
+                                Padding(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: inset + 8,
+                                  ),
+                                  child: Align(
+                                    alignment: AlignmentDirectional.centerEnd,
+                                    child: _PeriodButton(
+                                      period: DiaryPeriod.year(_year),
+                                      saved: dates.value ?? const {},
+                                      onSelect: _select,
+                                    ),
+                                  ),
+                                ),
+                                Padding(
+                                  padding: EdgeInsets.fromLTRB(
+                                    inset,
+                                    12,
+                                    inset,
+                                    10,
+                                  ),
+                                  child: ExcludeSemantics(
+                                    child: Row(
+                                      children: [
+                                        for (var day = 0; day < 7; day++)
+                                          Expanded(
+                                            child: Text(
+                                              TimeHelper.format(
+                                                DateTime(2024, 1, 1 + day),
+                                                pattern:
+                                                    TimeFormat.shortWeekday,
+                                                locale: locale,
+                                                toLocal: false,
+                                              ),
+                                              textAlign: TextAlign.center,
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w600,
+                                                color: colors.onSurfaceVariant
+                                                    .withValues(alpha: .7),
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -221,11 +253,14 @@ class _DiaryCalendarPageState extends ConsumerState<DiaryCalendarPage> {
                                 dayData: (date) => DiaryCalendarDay(
                                   hasEntry:
                                       dates.value?.contains(
-                                        CivilDate.fromComponents(date),
+                                        DiaryPeriod.fromComponents(date),
                                       ) ??
                                       false,
                                 ),
-                                onSelect: _select,
+                                onSelect: (date) =>
+                                    _select(DiaryPeriod.fromComponents(date)),
+                                saved: dates.value ?? const {},
+                                onPeriodSelect: _select,
                               );
                             },
                           ),
@@ -255,17 +290,7 @@ class _DiaryCalendarPageState extends ConsumerState<DiaryCalendarPage> {
                     context.canPop() ? context.pop() : context.go('/diary'),
               ),
               const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  '',
-                  style: TextStyle(
-                    fontSize: 20,
-                    letterSpacing: -.8,
-                    fontWeight: FontWeight.w500,
-                    color: context.colors.onSurface,
-                  ),
-                ),
-              ),
+              const Spacer(),
               if (largeType)
                 IconButton(
                   key: const ValueKey('calendar-today'),
@@ -428,6 +453,8 @@ class _CalendarYear extends StatefulWidget {
     required this.onOffset,
     required this.dayData,
     required this.onSelect,
+    required this.saved,
+    required this.onPeriodSelect,
   });
 
   final DateTime initialMonth, firstDate, lastDate, selectedDate;
@@ -435,6 +462,8 @@ class _CalendarYear extends StatefulWidget {
   final ValueChanged<double> onOffset;
   final DiaryCalendarDay Function(DateTime) dayData;
   final ValueChanged<DateTime> onSelect;
+  final Set<DiaryPeriod> saved;
+  final ValueChanged<DiaryPeriod> onPeriodSelect;
 
   @override
   State<_CalendarYear> createState() => _CalendarYearState();
@@ -479,6 +508,8 @@ class _CalendarYearState extends State<_CalendarYear> {
     inset: widget.inset,
     dayData: widget.dayData,
     onSelect: widget.onSelect,
+    saved: widget.saved,
+    onPeriodSelect: widget.onPeriodSelect,
   );
 
   @override
@@ -521,12 +552,16 @@ class _CalendarMonth extends StatelessWidget {
     required this.inset,
     required this.dayData,
     required this.onSelect,
+    required this.saved,
+    required this.onPeriodSelect,
   });
 
   final DateTime month, firstDate, lastDate, selectedDate;
   final double inset;
   final DiaryCalendarDay Function(DateTime) dayData;
   final ValueChanged<DateTime> onSelect;
+  final Set<DiaryPeriod> saved;
+  final ValueChanged<DiaryPeriod> onPeriodSelect;
 
   @override
   Widget build(BuildContext context) {
@@ -600,7 +635,20 @@ class _CalendarMonth extends StatelessWidget {
                       ),
                     ],
                   );
-                  return title;
+                  return Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 12,
+                    runSpacing: 8,
+                    children: [
+                      title,
+                      _PeriodButton(
+                        period: DiaryPeriod.month(month.year, month.month),
+                        saved: saved,
+                        onSelect: onPeriodSelect,
+                      ),
+                    ],
+                  );
                 },
               ),
             ),
@@ -620,24 +668,33 @@ class _CalendarMonth extends StatelessWidget {
                   ],
                 ),
               ),
-              if (TimeHelper.addDays(monday, week * 7 + 6).month ==
-                      month.month &&
-                  TimeHelper.addDays(monday, week * 7 + 6).isBefore(lastDate))
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  child: Text(
-                    '${TimeHelper.format(TimeHelper.addDays(monday, week * 7), pattern: TimeFormat.localizedMonthDay, locale: locale)} – ${TimeHelper.format(TimeHelper.addDays(monday, week * 7 + 6), pattern: TimeFormat.localizedMonthDay, locale: locale)}',
-                    style: TextStyle(
-                      fontSize: 9,
-                      color: colors.onSurfaceVariant.withValues(alpha: .65),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                child: Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: [
+                    Text(
+                      '${TimeHelper.format(TimeHelper.addDays(monday, week * 7), pattern: TimeFormat.localizedMonthDay, locale: locale)} – ${TimeHelper.format(TimeHelper.addDays(monday, week * 7 + 6), pattern: TimeFormat.localizedMonthDay, locale: locale)}',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: colors.onSurfaceVariant,
+                      ),
                     ),
-                  ),
-                )
-              else if (week < weeks - 1)
-                const SizedBox(height: 8),
+                    _PeriodButton(
+                      period: DiaryPeriod.week(
+                        DiaryPeriod.fromComponents(
+                          TimeHelper.addDays(monday, week * 7),
+                        ).start,
+                      ),
+                      saved: saved,
+                      onSelect: onPeriodSelect,
+                    ),
+                  ],
+                ),
+              ),
             ],
           ],
         ),
@@ -808,6 +865,50 @@ class _CalendarDateState extends State<_CalendarDate> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// The inked state and icon distinguish saved pages without relying on color.
+class _PeriodButton extends StatelessWidget {
+  const _PeriodButton({
+    required this.period,
+    required this.saved,
+    required this.onSelect,
+  });
+  final DiaryPeriod period;
+  final Set<DiaryPeriod> saved;
+  final ValueChanged<DiaryPeriod> onSelect;
+  @override
+  Widget build(BuildContext context) {
+    final exists = saved.contains(period);
+    final label = '${exists ? 'Open' : 'Add'} ${period.kind.name}';
+    final child = Text(label);
+    final icon = Icon(
+      exists ? Icons.edit_note_rounded : Icons.add_rounded,
+      size: 18,
+    );
+    return Semantics(
+      label:
+          '$label, ${period.label(Localizations.localeOf(context).toString())}',
+      button: true,
+      excludeSemantics: true,
+      onTap: () => onSelect(period),
+      child: exists
+          ? FilledButton.tonalIcon(
+              style: FilledButton.styleFrom(minimumSize: const Size(44, 44)),
+              key: ValueKey('calendar-period-${period.key}'),
+              onPressed: () => onSelect(period),
+              icon: icon,
+              label: child,
+            )
+          : TextButton.icon(
+              style: TextButton.styleFrom(minimumSize: const Size(44, 44)),
+              key: ValueKey('calendar-period-${period.key}'),
+              onPressed: () => onSelect(period),
+              icon: icon,
+              label: child,
+            ),
     );
   }
 }

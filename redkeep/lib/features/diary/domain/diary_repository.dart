@@ -1,33 +1,34 @@
-import 'civil_date.dart';
+import 'diary_period.dart';
 import 'diary_photo.dart';
 import 'diary_ai_conversation.dart';
 import 'diary_document.dart';
 
 abstract interface class DiaryRepository {
+  Stream<Set<DiaryPeriod>> watchSavedPeriods();
   Stream<List<DiaryListing>> watchEntries({
-    CivilDate? date,
+    DiaryPeriod? date,
     String search = '',
   });
-  Stream<DiaryDay> watchDay(CivilDate date);
+  Stream<DiaryDay> watchDay(DiaryPeriod date);
   Future<void> renameDay(DiaryDay day, String heading);
   Future<void> saveDay(DiaryDay day, {String? expectedEntries});
   Stream<OpenDiaryEntry> watchDocument(String id);
   Future<OpenDiaryEntry> openDocument(String id);
   Future<DiaryEntry> save({
     required String id,
-    required CivilDate date,
+    required DiaryPeriod date,
     required DiaryText text,
     required int expectedRevision,
   });
   Future<DiaryEntry> savePhotoStory({
     required String id,
-    required CivilDate date,
+    required DiaryPeriod date,
     required List<DiaryPhoto> photos,
     required int expectedRevision,
   });
   Future<DiaryEntry> saveConversation({
     required String id,
-    required CivilDate date,
+    required DiaryPeriod date,
     required DiaryAiConversation conversation,
     required int expectedRevision,
     String? body,

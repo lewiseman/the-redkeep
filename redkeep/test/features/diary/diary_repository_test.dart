@@ -6,7 +6,7 @@ import 'package:redkeep/core/storage/app_database.dart';
 import 'package:redkeep/features/diary/data/drift_diary_repository.dart';
 import 'package:redkeep/features/diary/domain/diary_document.dart';
 import 'package:redkeep/features/diary/domain/diary_day_details.dart';
-import 'package:redkeep/features/diary/domain/civil_date.dart';
+import 'package:redkeep/features/diary/domain/diary_period.dart';
 
 const id = '11111111111111111111111111111111';
 void main() {
@@ -20,7 +20,7 @@ void main() {
   tearDown(() => db.close());
 
   test('day details save atomically, normalize themes, preserve metadata on rename and reject stale changes', () async {
-    final date = CivilDate(2026, 11, 2);
+    final date = DiaryPeriod(2026, 11, 2);
     await repo.saveDay(
       DiaryDay(
         date: date,
@@ -79,7 +79,7 @@ void main() {
       await expectLater(
         repo.save(
           id: id,
-          date: CivilDate(2026, 11, 2),
+          date: DiaryPeriod(2026, 11, 2),
           text: const DiaryText(),
           expectedRevision: 0,
         ),
@@ -91,7 +91,7 @@ void main() {
   test('direct saves retain source CAS and deletion tombstones', () async {
     final first = await repo.save(
       id: id,
-      date: CivilDate(2026, 11, 2),
+      date: DiaryPeriod(2026, 11, 2),
       text: const DiaryText(body: 'Exact 👩🏽‍💻 中文'),
       expectedRevision: 0,
     );
@@ -99,7 +99,7 @@ void main() {
     await expectLater(
       repo.save(
         id: id,
-        date: CivilDate(2026, 11, 2),
+        date: DiaryPeriod(2026, 11, 2),
         text: const DiaryText(body: 'Exact 👩🏽‍💻 中文'),
         expectedRevision: 0,
       ),
@@ -112,7 +112,7 @@ void main() {
     await expectLater(
       repo.save(
         id: id,
-        date: CivilDate(2026, 11, 2),
+        date: DiaryPeriod(2026, 11, 2),
         text: const DiaryText(body: 'Exact 👩🏽‍💻 中文'),
         expectedRevision: 1,
       ),
@@ -131,7 +131,7 @@ void main() {
     await expectLater(
       repo.save(
         id: id,
-        date: CivilDate(2026, 11, 2),
+        date: DiaryPeriod(2026, 11, 2),
         text: const DiaryText(body: 'Exact 👩🏽‍💻 中文'),
         expectedRevision: 0,
       ),
@@ -142,7 +142,7 @@ void main() {
     await db.customStatement('DROP TRIGGER fail_insert');
     await repo.save(
       id: id,
-      date: CivilDate(2026, 11, 2),
+      date: DiaryPeriod(2026, 11, 2),
       text: const DiaryText(body: 'Exact 👩🏽‍💻 中文'),
       expectedRevision: 0,
     );
@@ -152,7 +152,7 @@ void main() {
     await expectLater(
       repo.save(
         id: id,
-        date: CivilDate(2026, 11, 2),
+        date: DiaryPeriod(2026, 11, 2),
         text: const DiaryText(body: 'Exact 👩🏽‍💻 中文'),
         expectedRevision: 1,
       ),
@@ -168,13 +168,13 @@ void main() {
       final local = DriftDiaryRepository(disk, clock: () => now);
       await local.save(
         id: id,
-        date: CivilDate(2026, 11, 2),
+        date: DiaryPeriod(2026, 11, 2),
         text: const DiaryText(body: 'Exact 👩🏽‍💻 中文'),
         expectedRevision: 0,
       );
       await local.saveDay(
         DiaryDay(
-          date: CivilDate(2026, 11, 2),
+          date: DiaryPeriod(2026, 11, 2),
           mood: DiaryMood.happy,
           themes: const ['Family', '工作'],
         ),
@@ -182,7 +182,7 @@ void main() {
       await disk.close();
       disk = AppDatabase(NativeDatabase.createInBackground(file));
       final reopened = DriftDiaryRepository(disk, clock: () => now);
-      final details = await reopened.watchDay(CivilDate(2026, 11, 2)).first;
+      final details = await reopened.watchDay(DiaryPeriod(2026, 11, 2)).first;
       expect(details.mood, DiaryMood.happy);
       expect(details.themes, ['Family', '工作']);
       expect(
@@ -195,7 +195,7 @@ void main() {
     }
   });
   test('multiple entries share a civil date independently of day headings and literal local search', () async {
-    final date = CivilDate(2026, 11, 2);
+    final date = DiaryPeriod(2026, 11, 2);
     expect((await repo.watchDay(date).first).revision, 0);
     await repo.renameDay(DiaryDay(date: date), 'A day of words');
     for (var i = 1; i <= 3; i++) {
@@ -241,7 +241,7 @@ void main() {
   });
 
   test('audit instants cross offsets and DST while the selected date remains fixed', () async {
-    final date = CivilDate(2026, 11, 1);
+    final date = DiaryPeriod(2026, 11, 1);
     var time = DateTime.parse('2026-11-01T00:30:00+14:00');
     final repository = DriftDiaryRepository(db, clock: () => time);
     final first = await repository.save(

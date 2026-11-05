@@ -8,7 +8,7 @@ import '../../ai/application/ai_preferences.dart';
 import '../../companion/application/companion_controller.dart';
 import '../../diary/application/diary_providers.dart';
 import '../../diary/domain/diary_document.dart';
-import '../../diary/domain/civil_date.dart';
+import '../../diary/domain/diary_period.dart';
 import '../../notes/application/notes_providers.dart';
 import '../../notes/domain/note_collection_entry.dart';
 import '../../notes/domain/notes_query.dart';
@@ -108,7 +108,7 @@ final diaryHybridSearchProvider = Provider.autoDispose
       if (!keywords.hasValue || keywords.hasError) return keywords;
       final semantic = [
         for (final source in matches)
-          if (CivilDate.tryParse(source.date) case final date?)
+          if (DiaryPeriod.tryParse(source.date) case final date?)
             DiaryListing(id: source.id, date: date),
       ];
       return AsyncData(
@@ -130,8 +130,9 @@ final flowSearchSourcesProvider =
               id: value.thought!.id,
               title: '',
               text: value.thought!.body,
-              date: CivilDate.fromComponents(value.thought!.createdAt.toLocal())
-                  .key,
+              date: DiaryPeriod.fromComponents(
+                value.thought!.createdAt.toLocal(),
+              ).key,
               revision: value.thought!.revision,
             ),
       ];

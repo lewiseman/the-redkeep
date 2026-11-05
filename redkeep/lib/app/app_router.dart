@@ -18,7 +18,7 @@ import '../features/brain/presentation/brain_page.dart';
 import '../features/flow/presentation/flow_page.dart';
 import '../features/flow/presentation/thought_read_page.dart';
 import '../features/flow/presentation/thought_edit_page.dart';
-import '../features/diary/domain/civil_date.dart';
+import '../features/diary/domain/diary_period.dart';
 import '../features/diary/presentation/diary_calendar_page.dart';
 import '../features/diary/presentation/diary_day_page.dart';
 import '../features/diary/presentation/diary_entry_page.dart';
@@ -101,7 +101,7 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
                       state,
                       DiaryCalendarPage(
                         key: ValueKey(state.uri.path),
-                        selected: CivilDate.tryParse(
+                        selected: DiaryPeriod.tryParse(
                           state.pathParameters['date']!,
                         )!,
                       ),
@@ -115,7 +115,7 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
                         selection: state.extra is DiaryDaySelection
                             ? state.extra as DiaryDaySelection
                             : null,
-                        date: CivilDate.tryParse(
+                        date: DiaryPeriod.tryParse(
                           state.pathParameters['date']!,
                         )!,
                       ),
@@ -124,15 +124,10 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
                       GoRoute(
                         path: 'talk',
                         pageBuilder: (context, state) {
-                          final date = CivilDate.tryParse(
+                          final date = DiaryPeriod.tryParse(
                             state.pathParameters['date']!,
                           )!;
-                          return _page(
-                            state,
-                            DiaryTalkPage(
-                              date: DateTime(date.year, date.month, date.day),
-                            ),
-                          );
+                          return _page(state, DiaryTalkPage(date: date));
                         },
                       ),
                       GoRoute(
@@ -141,7 +136,7 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
                           state,
                           DiaryTitlePage(
                             key: ValueKey(state.uri.path),
-                            date: CivilDate.tryParse(
+                            date: DiaryPeriod.tryParse(
                               state.pathParameters['date']!,
                             )!,
                           ),
@@ -154,7 +149,7 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
                           DiaryEntryPage(
                             key: ValueKey(state.uri.path),
                             address: (
-                              date: CivilDate.tryParse(
+                              date: DiaryPeriod.tryParse(
                                 state.pathParameters['date']!,
                               )!,
                               id: state.pathParameters['id']!,
@@ -168,7 +163,7 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
                               state,
                               DiaryPhotosPage(
                                 address: (
-                                  date: CivilDate.tryParse(
+                                  date: DiaryPeriod.tryParse(
                                     state.pathParameters['date']!,
                                   )!,
                                   id: state.pathParameters['id']!,
@@ -182,7 +177,7 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
                               state,
                               DiaryConversationPage(
                                 address: (
-                                  date: CivilDate.tryParse(
+                                  date: DiaryPeriod.tryParse(
                                     state.pathParameters['date']!,
                                   )!,
                                   id: state.pathParameters['id']!,
@@ -197,7 +192,7 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
                               DiaryEditPage(
                                 key: ValueKey(state.uri.path),
                                 address: (
-                                  date: CivilDate.tryParse(
+                                  date: DiaryPeriod.tryParse(
                                     state.pathParameters['date']!,
                                   )!,
                                   id: state.pathParameters['id']!,

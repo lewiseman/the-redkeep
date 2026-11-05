@@ -15,13 +15,14 @@ import 'package:redkeep/features/appearance/domain/appearance_preferences.dart';
 import 'package:redkeep/features/diary/application/daily_question_controller.dart';
 import 'package:redkeep/features/diary/application/diary_providers.dart';
 import 'package:redkeep/features/diary/data/drift_diary_repository.dart';
-import 'package:redkeep/features/diary/domain/civil_date.dart';
+import 'package:redkeep/features/diary/domain/diary_period.dart';
 import 'package:redkeep/features/diary/domain/daily_question_contract.dart';
 import 'package:redkeep/features/diary/domain/diary_ai_conversation.dart';
 import 'package:redkeep/features/diary/presentation/daily_diary_prompt.dart';
 import 'package:redkeep/features/diary/presentation/diary_day_page.dart';
 import 'package:redkeep/features/diary/presentation/diary_paper_curl.dart';
 import 'package:redkeep/features/diary/presentation/diary_scene.dart';
+import 'package:redkeep/features/diary/presentation/diary_writing_prompt.dart';
 import 'package:redkeep/features/sync/application/sync_providers.dart';
 
 import '../../support/fake_required_assets.dart';
@@ -46,7 +47,68 @@ class _QuestionController extends DailyQuestionController {
 }
 
 void main() {
-  final today = CivilDate(2026, 11, 2);
+  final today = DiaryPeriod(2026, 11, 2);
+
+  for (final period in [
+    DiaryPeriod.week(today.start),
+    DiaryPeriod.month(today.year, today.month),
+    DiaryPeriod.year(today.year),
+  ]) {
+    testWidgets(
+      '${period.kind.name} live and preview prompts offer plain writing without questions',
+      (tester) async {
+        var builds = 0;
+        var writes = 0;
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              aiEnabledProvider.overrideWithValue(true),
+              aiPreferencesProvider.overrideWith(
+                (ref) => Stream.value(const AiPreferences()),
+              ),
+              diaryClockProvider.overrideWithValue(
+                () => DateTime(2026, 11, 2, 12),
+              ),
+              dailyQuestionProvider(period).overrideWith(() {
+                builds++;
+                return _QuestionController(period);
+              }),
+            ],
+            child: MaterialApp(
+              home: Scaffold(
+                body: Column(
+                  children: [
+                    for (final active in [true, false])
+                      DailyDiaryPrompt(
+                        date: period,
+                        active: active,
+                        onWrite: () => writes++,
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(builds, 0);
+        expect(find.byType(DiaryWritingPrompt), findsNWidgets(2));
+        expect(
+          tester
+              .widgetList<DiaryWritingPrompt>(find.byType(DiaryWritingPrompt))
+              .map((prompt) => prompt.text),
+          everyElement(isNull),
+        );
+        expect(find.text(initialQuestion.question!.text), findsNothing);
+        expect(find.text('Ask for a question'), findsNothing);
+        expect(find.text('Another question'), findsNothing);
+        expect(find.text('Skip'), findsNothing);
+        await tester.tap(find.byType(DiaryWritingPrompt).first);
+        expect(writes, 1);
+        await tester.pumpWidget(const SizedBox());
+      },
+    );
+  }
 
   for (final (hasEntries, textScale) in [
     (false, 1.0),
@@ -89,7 +151,7 @@ void main() {
                 key: const ValueKey('diary-day'),
                 child: Scaffold(
                   body: DiaryDayPage(
-                    date: CivilDate.tryParse(state.pathParameters['date']!),
+                    date: DiaryPeriod.tryParse(state.pathParameters['date']!),
                   ),
                 ),
               ),
@@ -136,9 +198,7 @@ void main() {
           await tester.pumpAndSettle();
           await warmDiaryFaces(tester);
           final controller = questions.single;
-          final face = find.byKey(
-            ValueKey('diary-face-${DateTime(2026, 11, 2).toIso8601String()}'),
-          );
+          final face = find.byKey(ValueKey('diary-face-${today.key}'));
           final live = find.byKey(const ValueKey('diary-live-content'));
           void expectMatchingPrompts(String question, String message) {
             for (final surface in [live, face]) {

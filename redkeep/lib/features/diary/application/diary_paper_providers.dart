@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../domain/civil_date.dart';
+import '../domain/diary_period.dart';
 import '../domain/diary_day_details.dart';
 import '../domain/diary_document.dart';
 import 'diary_providers.dart';
@@ -16,7 +16,7 @@ class DiaryPaperDay {
     this.loading = false,
     this.failed = false,
   });
-  final CivilDate date;
+  final DiaryPeriod date;
   final String heading;
   final DiaryMood? mood;
   final List<String> themes;
@@ -27,7 +27,7 @@ class DiaryPaperDay {
 }
 
 final diaryPaperDayProvider = Provider.autoDispose
-    .family<DiaryPaperDay, CivilDate>((ref, date) {
+    .family<DiaryPaperDay, DiaryPeriod>((ref, date) {
       final day = ref.watch(diaryDayProvider(date));
       final listings = ref.watch(diaryEntriesProvider(date));
       final documents = [
@@ -55,10 +55,7 @@ final diaryPaperDayProvider = Provider.autoDispose
       );
     });
 
-final diaryCalendarDatesProvider = StreamProvider.autoDispose<Set<CivilDate>>(
-  (ref) => ref
-      .watch(diaryRepositoryProvider)
-      .watchEntries()
-      .map((entries) => entries.map((entry) => entry.date).toSet()),
+final diaryCalendarDatesProvider = StreamProvider.autoDispose<Set<DiaryPeriod>>(
+  (ref) => ref.watch(diaryRepositoryProvider).watchSavedPeriods(),
   retry: (_, _) => null,
 );

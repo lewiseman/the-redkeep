@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../domain/civil_date.dart';
+import '../domain/diary_period.dart';
 import '../domain/diary_document.dart';
 import '../domain/diary_ai_contract.dart';
 import '../domain/daily_question_contract.dart';
@@ -14,7 +14,7 @@ final diaryAiSourcesProvider = Provider<DiaryAiSources>(
 class DiaryAiSources {
   DiaryAiSources(this.repository);
   final DiaryRepository repository;
-  Future<List<DiaryEntry>> entries(CivilDate date) async {
+  Future<List<DiaryEntry>> entries(DiaryPeriod date) async {
     final listings = await repository.watchEntries(date: date).first;
     final opened = await Future.wait(
       listings.map((l) => repository.openDocument(l.id)),
@@ -25,17 +25,18 @@ class DiaryAiSources {
     ];
   }
 
-  Future<DiarySuggestionSource> day(CivilDate date) async =>
+  Future<DiarySuggestionSource> day(DiaryPeriod date) async =>
       DiarySuggestionSource.fromEntries(date, await entries(date));
   Future<bool> current(DiarySuggestionSource source) async =>
-      (await day(CivilDate.tryParse(source.date)!)).encode() == source.encode();
+      (await day(DiaryPeriod.tryParse(source.date)!)).encode() ==
+      source.encode();
   Future<DailyQuestionSource> question(
-    CivilDate today,
+    DiaryPeriod today,
     List<String> avoid,
   ) async {
     final days = <String, List<DiaryEntry>>{};
-    for (var ago = 0; ago <= 7; ago++) {
-      final date = today.shift(-ago);
+    for (var ago = 0; ago <= (today.isDay ? 7 : 0); ago++) {
+      final date = ago == 0 ? today : today.shift(-ago);
       if (date != null) days[date.key] = await entries(date);
     }
     return DailyQuestionSource.select(
@@ -46,7 +47,7 @@ class DiaryAiSources {
   }
 
   Future<bool> questionCurrent(DailyQuestionSource source) async {
-    final date = CivilDate.tryParse(source.date)!;
+    final date = DiaryPeriod.tryParse(source.date)!;
     if ((await day(date)).fingerprint != source.basis) return false;
     for (final entry in [...source.today, ...source.prior]) {
       final opened = await repository.openDocument(entry.uuid);

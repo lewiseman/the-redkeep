@@ -1,5 +1,4 @@
 import '../application/diary_providers.dart';
-import '../domain/civil_date.dart';
 import '../../../core/presentation/confirm_discard_changes.dart';
 import '../../../core/presentation/diary_typography.dart';
 import '../../sync/application/sync_providers.dart';
@@ -10,7 +9,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/navigation_destination.dart';
 import 'diary_widgets.dart';
-import 'diary_style.dart' show TimeHelper, TimeFormat;
 import '../application/diary_editor_controller.dart';
 import '../domain/diary_document.dart';
 
@@ -97,7 +95,7 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
               FilledButton(
                 onPressed: () =>
                     context.go(diaryDayLocation(widget.address.date)),
-                child: const Text('Return to day'),
+                child: Text('Return to ${widget.address.date.kind.name}'),
               ),
             ],
           ),
@@ -114,14 +112,8 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    TimeHelper.format(
-                      DateTime(
-                        widget.address.date.year,
-                        widget.address.date.month,
-                        widget.address.date.day,
-                      ),
-                      pattern: TimeFormat.shortWeekdayDate,
-                      locale: Localizations.localeOf(context).toString(),
+                    widget.address.date.label(
+                      Localizations.localeOf(context).toString(),
                     ),
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -139,8 +131,9 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
                     style: DiaryTypography.of(context).body,
                     controller: _body,
                     enabled: !state.saving && !readOnly,
-                    decoration: const InputDecoration(
-                      hintText: 'Start writing about your day…',
+                    decoration: InputDecoration(
+                      hintText:
+                          'Start writing about your ${widget.address.date.kind.name}…',
                       border: InputBorder.none,
                       enabledBorder: InputBorder.none,
                       focusedBorder: InputBorder.none,
@@ -234,14 +227,14 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
   }
 
   bool _canAddMedia(DiaryEditorState? value) {
-    final today = CivilDate.fromComponents(ref.read(diaryClockProvider)());
     return !_openingMedia &&
         value != null &&
         value.baseRevision == 0 &&
         !value.saving &&
         value.text.isEmpty &&
-        widget.address.date.compareTo(today) <= 0 &&
-        (ref.read(syncCanEditProvider) || widget.address.date == today);
+        widget.address.date.hasStarted(ref.read(diaryClockProvider)()) &&
+        (ref.read(syncCanEditProvider) ||
+            widget.address.date.isCurrent(ref.read(diaryClockProvider)()));
   }
 
   Future<void> _media(String kind) async {

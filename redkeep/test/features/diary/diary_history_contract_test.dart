@@ -3,11 +3,11 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:redkeep/features/diary/domain/diary_history_contract.dart';
 import 'package:redkeep/features/diary/domain/diary_history_day.dart';
-import 'package:redkeep/features/diary/domain/civil_date.dart';
+import 'package:redkeep/features/diary/domain/diary_period.dart';
 
 DiaryEntry entry(String id, String date, String body) => DiaryEntry(
   id: id,
-  date: CivilDate.tryParse(date)!,
+  date: DiaryPeriod.tryParse(date)!,
   text: DiaryText(body: body),
   revision: 1,
   createdAt: DateTime.parse(date),

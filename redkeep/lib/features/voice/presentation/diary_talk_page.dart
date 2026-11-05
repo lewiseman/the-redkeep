@@ -1,5 +1,5 @@
 import 'voice_ui.dart';
-import '../../diary/domain/civil_date.dart';
+import '../../diary/domain/diary_period.dart';
 import '../application/diary_voice_session.dart';
 import '../application/voice_coordination.dart';
 import '../../ai/application/ai_preferences.dart';
@@ -35,7 +35,7 @@ class DiaryTalkPage extends ConsumerStatefulWidget {
     this.permission,
     this.scrollController,
   });
-  final DateTime date;
+  final DiaryPeriod date;
   final ScrollController? scrollController;
 
   /// Injected in tests; the caller then owns and disposes them.
@@ -69,9 +69,7 @@ class _DiaryTalkPageState extends ConsumerState<DiaryTalkPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _session = ref.read(
-      diaryVoiceSessionProvider(CivilDate.fromComponents(widget.date)),
-    );
+    _session = ref.read(diaryVoiceSessionProvider(widget.date));
     _lease = ref.read(voiceActiveProvider.notifier);
     _created = DateTime.now();
     _conversation = widget.conversation ?? _session.conversation;
@@ -402,7 +400,7 @@ class _DiaryTalkPageState extends ConsumerState<DiaryTalkPage>
 
   @override
   Widget build(BuildContext context) {
-    ref.watch(diaryVoiceSessionProvider(CivilDate.fromComponents(widget.date)));
+    ref.watch(diaryVoiceSessionProvider(widget.date));
     final ink = VoiceColors.of(context).ink;
     final phase = _talk.phase;
     final reduced = mediaMotionDisabled(context);
@@ -449,7 +447,7 @@ class _DiaryTalkPageState extends ConsumerState<DiaryTalkPage>
           reducedMotion: reduced,
         ),
         header: VoiceSessionHeader(
-          title: 'Your day, out loud',
+          title: 'Your ${widget.date.kind.name}, out loud',
           subtitle: _writing ? 'Your conversation is already saved' : null,
           closeTooltip: _writing ? 'Close without the entry' : 'Close',
           // Every turn is already in the diary; closing only skips the draft.

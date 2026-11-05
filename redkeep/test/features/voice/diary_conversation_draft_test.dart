@@ -1,11 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:redkeep/features/diary/domain/civil_date.dart';
+import 'package:redkeep/features/diary/domain/diary_period.dart';
 import 'package:redkeep/features/diary/domain/diary_ai_conversation.dart';
 import 'package:redkeep/features/diary/domain/diary_document.dart';
 import 'package:redkeep/features/voice/application/diary_conversation_draft.dart';
 
 void main() {
-  final date = CivilDate(2026, 11, 4), now = DateTime.utc(2026, 11, 4);
+  final date = DiaryPeriod(2026, 11, 4), now = DateTime.utc(2026, 11, 4);
   const turns = [
     {'speaker': 'user', 'text': 'Today I enjoyed walking home.'},
   ];

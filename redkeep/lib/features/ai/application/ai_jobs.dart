@@ -27,7 +27,7 @@ import '../../companion/application/companion_controller.dart';
 import '../../companion/data/companion_protocol.dart';
 import '../../diary/domain/diary_ai_contract.dart';
 import '../../diary/application/diary_ai_sources.dart';
-import '../../diary/domain/civil_date.dart';
+import '../../diary/domain/diary_period.dart';
 import '../../diary/domain/daily_question_contract.dart';
 import '../../sync/application/sync_providers.dart'
     show writingSessionEpochProvider;
@@ -315,7 +315,7 @@ class AiJobs extends Notifier<AiJobState> {
           DiarySuggestionSource.decode(source),
         ),
         AiOperation.dailyQuestion =>
-          CivilDate.fromComponents(ref.read(aiClockProvider)()).key == key &&
+          DiaryPeriod.fromComponents(ref.read(aiClockProvider)()).key == key &&
               await reader.questionCurrent(DailyQuestionSource.decode(source)),
         AiOperation.photoQuestions => true,
         AiOperation.thoughtReflection => await _reflectionCurrent(

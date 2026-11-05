@@ -10,7 +10,7 @@ import '../../../core/presentation/confirm_discard_changes.dart';
 import '../../../core/presentation/diary_typography.dart';
 import '../../sync/application/sync_providers.dart';
 import '../application/diary_providers.dart';
-import '../domain/civil_date.dart';
+import '../domain/diary_period.dart';
 import '../domain/diary_document.dart';
 import '../domain/diary_day_details.dart';
 import 'diary_widgets.dart';
@@ -18,7 +18,7 @@ import 'diary_widgets.dart';
 class DiaryTitlePage extends ConsumerStatefulWidget {
   const DiaryTitlePage({super.key, required this.date});
 
-  final CivilDate date;
+  final DiaryPeriod date;
 
   @override
   ConsumerState<DiaryTitlePage> createState() => _DiaryTitlePageState();
@@ -131,7 +131,7 @@ class _DiaryTitlePageState extends ConsumerState<DiaryTitlePage> {
       if (mounted) {
         diaryMessage(
           context,
-          'Day details could not be saved. Reopen the day and retry.',
+          '${widget.date.kind.name[0].toUpperCase()}${widget.date.kind.name.substring(1)} details could not be saved. Reopen the ${widget.date.kind.name} and retry.',
         );
       }
     } finally {
@@ -158,12 +158,12 @@ class _DiaryTitlePageState extends ConsumerState<DiaryTitlePage> {
         _leaving = false;
       },
       child: DiaryWritingFrame(
-        title: 'Edit day',
+        title: 'Edit ${widget.date.kind.name}',
         actions: [
           if (ref.watch(aiEnabledProvider))
             IconButton(
               key: const ValueKey('diary-day-ai'),
-              tooltip: 'Generate day details with AI',
+              tooltip: 'Generate ${widget.date.kind.name} details with AI',
               icon: const Icon(Icons.auto_awesome_outlined),
               onPressed: !day.hasValue || !canEdit || _saving || busy
                   ? null
@@ -171,11 +171,11 @@ class _DiaryTitlePageState extends ConsumerState<DiaryTitlePage> {
             ),
         ],
         child: day.when(
-          loading: () => const Text('Opening day details…'),
+          loading: () => Text('Opening ${widget.date.kind.name} details…'),
           error: (_, _) => Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text('The day details could not be loaded.'),
+              Text('The ${widget.date.kind.name} details could not be loaded.'),
               TextButton(
                 onPressed: () => ref.invalidate(diaryDayProvider(widget.date)),
                 child: const Text('Retry loading'),
@@ -261,7 +261,9 @@ class _DiaryTitlePageState extends ConsumerState<DiaryTitlePage> {
                     onPressed: canEdit && !busy && !_saving && _changed
                         ? _save
                         : null,
-                    child: Text(_saving ? 'Saving…' : 'Save day'),
+                    child: Text(
+                      _saving ? 'Saving…' : 'Save ${widget.date.kind.name}',
+                    ),
                   ),
                 ],
               ),

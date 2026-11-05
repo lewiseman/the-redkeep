@@ -49,7 +49,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 16;
+  int get schemaVersion => 17;
 
   // Reset changes this generation before disposing editors. Old repositories
   // cannot write after cleanup, even when an async continuation finishes late.
@@ -65,6 +65,14 @@ class AppDatabase extends _$AppDatabase {
       await installRecallTriggers(this);
     },
     onUpgrade: (migrator, from, to) async {
+      if (from >= 5 && from < 17 && to >= 17) {
+        await customStatement(
+          'ALTER TABLE diary_entries RENAME COLUMN date_key TO period_key',
+        );
+        await customStatement(
+          'ALTER TABLE diary_days RENAME COLUMN date_key TO period_key',
+        );
+      }
       if (from >= 5 && from < 16 && to >= 16) {
         await customStatement('ALTER TABLE diary_entries DROP COLUMN title');
       }

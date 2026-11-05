@@ -43,7 +43,7 @@ class RecallSources {
       isUtc: true,
     ).toLocal();
     final date = kind == 'diary'
-        ? row.read<String>('date_key')
+        ? row.read<String>('period_key')
         : '${created.year.toString().padLeft(4, '0')}-${created.month.toString().padLeft(2, '0')}-${created.day.toString().padLeft(2, '0')}';
     return RecallSource(
       kind: kind,

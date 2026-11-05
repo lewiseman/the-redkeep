@@ -13,7 +13,7 @@ import 'package:redkeep/features/diary/presentation/diary_scene.dart';
 import 'package:redkeep/features/diary/presentation/diary_calendar_page.dart';
 import 'package:redkeep/features/diary/presentation/diary_writing_prompt.dart';
 import 'package:redkeep/features/diary/data/drift_diary_repository.dart';
-import 'package:redkeep/features/diary/domain/civil_date.dart';
+import 'package:redkeep/features/diary/domain/diary_period.dart';
 import 'package:redkeep/features/diary/domain/diary_document.dart';
 import 'package:redkeep/features/diary/domain/diary_day_details.dart';
 
@@ -22,7 +22,7 @@ import '../../support/fake_appearance_repository.dart';
 import '../../support/pump_app.dart';
 
 const id = '11111111111111111111111111111111';
-final date = CivilDate(2026, 11, 2);
+final date = DiaryPeriod(2026, 11, 2);
 final address = (date: date, id: id);
 
 void main() {
@@ -58,11 +58,7 @@ void main() {
     if (label == 'Previous day' || label == 'Next day') {
       final scene = tester.widget<DiaryScene>(find.byType(DiaryScene).last);
       scene.onDateChanged(
-        DateTime(
-          scene.day.date.year,
-          scene.day.date.month,
-          scene.day.date.day + (label == 'Previous day' ? -1 : 1),
-        ),
+        scene.day.date.shift(label == 'Previous day' ? -1 : 1)!,
       );
       await tester.pumpAndSettle();
       return;
@@ -105,7 +101,7 @@ void main() {
   Future<void> seed({
     String body = 'Exact writing 👩🏽‍💻 中文 e\u0301',
     String key = id,
-    CivilDate? day,
+    DiaryPeriod? day,
   }) async {
     await repo.save(
       id: key,
@@ -416,7 +412,7 @@ void main() {
   diaryTest(
     'selected calendar month, date steps and heading survive entry visits',
     (tester) async {
-      final leap = CivilDate(2024, 2, 29);
+      final leap = DiaryPeriod(2024, 2, 29);
       final router = await pumpApp(
         tester,
         initialLocation: diaryCalendarLocation(leap),
@@ -483,7 +479,7 @@ void main() {
 
       final router = await pumpApp(
         tester,
-        initialLocation: diaryCalendarLocation(CivilDate(2024, 2, 29)),
+        initialLocation: diaryCalendarLocation(DiaryPeriod(2024, 2, 29)),
         diary: repo,
       );
       final control = find.byKey(

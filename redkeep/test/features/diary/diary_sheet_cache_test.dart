@@ -14,7 +14,7 @@ import 'package:redkeep/features/diary/application/diary_media_providers.dart';
 import 'package:redkeep/features/diary/application/diary_paper_providers.dart';
 import 'package:redkeep/features/diary/application/diary_providers.dart';
 import 'package:redkeep/features/diary/data/diary_photo_store.dart';
-import 'package:redkeep/features/diary/domain/civil_date.dart';
+import 'package:redkeep/features/diary/domain/diary_period.dart';
 import 'package:redkeep/features/diary/domain/diary_document.dart';
 import 'package:redkeep/features/diary/domain/diary_photo.dart';
 import 'package:redkeep/features/diary/presentation/diary_paper_curl.dart';
@@ -39,7 +39,7 @@ class _PhotoStore extends DiaryPhotoStore {
 }
 
 void main() {
-  final date = CivilDate(2026, 11, 1);
+  final date = DiaryPeriod(2026, 11, 1);
   DiaryPaperDay day(String words, {bool photo = false}) => DiaryPaperDay(
     date: date,
     entries: [

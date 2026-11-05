@@ -1,6 +1,6 @@
 import 'package:redkeep/features/diary/domain/diary_photo.dart';
 import 'package:redkeep/features/diary/domain/diary_ai_conversation.dart';
-import 'package:redkeep/features/diary/domain/civil_date.dart';
+import 'package:redkeep/features/diary/domain/diary_period.dart';
 
 import 'dart:async';
 
@@ -17,9 +17,14 @@ class ControlledDiaryRepository implements DiaryRepository {
   int commits = 0;
 
   @override
+  Stream<Set<DiaryPeriod>> watchSavedPeriods() => failRead
+      ? Stream.error(StateError('synthetic read failure'))
+      : inner.watchSavedPeriods();
+
+  @override
   Future<DiaryEntry> save({
     required String id,
-    required CivilDate date,
+    required DiaryPeriod date,
     required DiaryText text,
     required int expectedRevision,
   }) async {
@@ -46,7 +51,7 @@ class ControlledDiaryRepository implements DiaryRepository {
       : inner.watchDocument(id);
   @override
   Stream<List<DiaryListing>> watchEntries({
-    CivilDate? date,
+    DiaryPeriod? date,
     String search = '',
   }) => failRead
       ? Stream.error(StateError('synthetic read failure'))
@@ -54,7 +59,7 @@ class ControlledDiaryRepository implements DiaryRepository {
   @override
   Future<DiaryEntry> savePhotoStory({
     required String id,
-    required CivilDate date,
+    required DiaryPeriod date,
     required List<DiaryPhoto> photos,
     required int expectedRevision,
   }) => inner.savePhotoStory(
@@ -66,7 +71,7 @@ class ControlledDiaryRepository implements DiaryRepository {
   @override
   Future<DiaryEntry> saveConversation({
     required String id,
-    required CivilDate date,
+    required DiaryPeriod date,
     required DiaryAiConversation conversation,
     required int expectedRevision,
     String? body,
@@ -81,7 +86,7 @@ class ControlledDiaryRepository implements DiaryRepository {
   Future<void> deleteEntry(String id, int expectedRevision) =>
       inner.deleteEntry(id, expectedRevision);
   @override
-  Stream<DiaryDay> watchDay(CivilDate date) => failRead
+  Stream<DiaryDay> watchDay(DiaryPeriod date) => failRead
       ? Stream.error(StateError('synthetic read failure'))
       : inner.watchDay(date);
   @override

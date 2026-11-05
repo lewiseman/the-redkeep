@@ -1,4 +1,4 @@
-import '../domain/civil_date.dart';
+import '../domain/diary_period.dart';
 
 import 'dart:convert';
 import 'dart:io';
@@ -34,7 +34,7 @@ class DiaryPickerRecovery {
     try {
       final data = jsonDecode(raw) as Map<String, dynamic>;
       if (!RegExp(r'^[0-9a-f]{32}$').hasMatch(data['id'] as String) ||
-          CivilDate.tryParse(data['date'] as String) == null ||
+          DiaryPeriod.tryParse(data['date'] as String) == null ||
           DateTime.now().millisecondsSinceEpoch - (data['created'] as int) >
               86400000) {
         await clear();

@@ -10,10 +10,11 @@ import release_android as release
 
 
 class FakeGitHub:
-    def __init__(self, existing=None, fail_upload=False, wrong_digest=False):
+    def __init__(self, existing=None, fail_upload=False, wrong_digest=False, tag_lookup_missing=False):
         self.existing = existing
         self.fail_upload = fail_upload
         self.wrong_digest = wrong_digest
+        self.tag_lookup_missing = tag_lookup_missing
         self.events = []
 
     def api(self, method, endpoint, data=None, **kwargs):
@@ -21,7 +22,9 @@ class FakeGitHub:
         if endpoint == "commits/sha":
             return {"sha": "sha"}
         if endpoint.startswith("releases/tags/"):
-            return self.existing
+            return None if self.tag_lookup_missing else self.existing
+        if endpoint.startswith("releases?per_page="):
+            return [self.existing] if self.existing else []
         if endpoint.startswith("git/ref/tags/"):
             return None
         if method == "POST":
@@ -96,7 +99,7 @@ class ReleaseTests(unittest.TestCase):
 
     def test_existing_tag_must_match_the_release_commit(self):
         client = FakeGitHub()
-        with patch.object(client, "api", side_effect=[{"sha": "sha"}, None,
+        with patch.object(client, "api", side_effect=[{"sha": "sha"}, None, [],
                                                       {"object": {"type": "commit", "sha": "other"}}]):
             with self.assertRaisesRegex(release.ReleaseError, "different commit"):
                 release.publish(client, "v0.1.0+2", [], "notes", "sha")
@@ -134,6 +137,23 @@ class ReleaseTests(unittest.TestCase):
                 with self.assertRaisesRegex(release.ReleaseError, "complete upload"):
                     release.publish(client, "v1.0.0+1", [file], "notes", "sha")
             self.assertNotIn("PATCH", [event[0] for event in client.events])
+
+    def test_draft_without_a_published_tag_is_reused(self):
+        draft = {"id": 12, "tag_name": "v1.0.0+1", "draft": True, "target_commitish": "sha"}
+        client = FakeGitHub(existing=draft, tag_lookup_missing=True)
+        with tempfile.TemporaryDirectory() as directory:
+            file = Path(directory) / release.APK_NAME
+            file.write_bytes(b"APK fixture")
+            with patch("builtins.print"):
+                release.publish(client, "v1.0.0+1", [file], "notes", "sha")
+        self.assertNotIn("POST", [event[0] for event in client.events])
+        self.assertIn(("UPLOAD", release.APK_NAME, None), client.events)
+
+    def test_duplicate_drafts_are_not_modified(self):
+        client = FakeGitHub()
+        with patch.object(client, "api", side_effect=[None, [{"tag_name": "v1.0.0+1"}] * 2]):
+            with self.assertRaisesRegex(release.ReleaseError, "Multiple releases"):
+                release.find_release(client, "v1.0.0+1")
 
 
 if __name__ == "__main__":

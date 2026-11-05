@@ -152,10 +152,28 @@ def inspect_apk(apk, tools, version_name, build_number):
             "signingCertificateSha256": certificate[1]}
 
 
+def find_release(client, tag):
+    release = client.api("GET", f"releases/tags/{urllib.parse.quote(tag, safe='')}", missing_ok=True)
+    if release:
+        return release
+    # A draft may not have a Git tag yet, so the tag endpoint can return 404.
+    drafts = []
+    page = 1
+    while True:
+        releases = client.api("GET", f"releases?per_page=100&page={page}")
+        drafts.extend(item for item in releases if item["tag_name"] == tag)
+        if len(releases) < 100:
+            break
+        page += 1
+    if len(drafts) > 1:
+        raise ReleaseError(f"Multiple releases use {tag}; resolve the duplicate drafts before retrying.")
+    return drafts[0] if drafts else None
+
+
 def publish(client, tag, files, notes, source_commit):
     # Release tags always identify the exact source used to build this APK.
     release_commit = client.api("GET", f"commits/{source_commit}")["sha"]
-    release = client.api("GET", f"releases/tags/{urllib.parse.quote(tag, safe='')}", missing_ok=True)
+    release = find_release(client, tag)
     if release and not release["draft"]:
         raise ReleaseError(f"{tag} is already published. Increase the build number; published APKs are never replaced.")
     if release and release["target_commitish"] != release_commit:
@@ -229,7 +247,7 @@ def main():
         token = github_token()
         client = GitHub(token)
         client.api("GET", f"commits/{source_commit}")  # Require the exact built source on GitHub.
-        existing = client.api("GET", f"releases/tags/{urllib.parse.quote(tag, safe='')}", missing_ok=True)
+        existing = find_release(client, tag)
         if existing and not existing["draft"]:
             raise ReleaseError(f"{tag} is already published; increase BUILD for the next update.")
         latest = client.api("GET", "releases/latest", missing_ok=True)

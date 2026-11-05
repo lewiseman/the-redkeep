@@ -4,6 +4,7 @@ import 'package:redkeep/features/diary/domain/diary_period.dart';
 
 import 'dart:async';
 
+import 'package:redkeep/features/diary/domain/diary_day_details.dart';
 import 'package:redkeep/features/diary/domain/diary_document.dart';
 import 'package:redkeep/features/diary/domain/diary_repository.dart';
 
@@ -20,6 +21,16 @@ class ControlledDiaryRepository implements DiaryRepository {
   Stream<Set<DiaryPeriod>> watchSavedPeriods() => failRead
       ? Stream.error(StateError('synthetic read failure'))
       : inner.watchSavedPeriods();
+
+  @override
+  Stream<Map<DiaryPeriod, DiaryMood>> watchMoods() => failRead
+      ? Stream.error(StateError('synthetic read failure'))
+      : inner.watchMoods();
+
+  @override
+  Stream<Map<DiaryPeriod, String>> watchHeadings() => failRead
+      ? Stream.error(StateError('synthetic read failure'))
+      : inner.watchHeadings();
 
   @override
   Future<DiaryEntry> save({

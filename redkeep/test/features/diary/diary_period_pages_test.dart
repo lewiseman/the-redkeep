@@ -52,6 +52,10 @@ void main() {
             diary: repo,
             initialLocation: diaryCalendarLocation(_today),
           );
+          await _tap(
+            tester,
+            find.byKey(ValueKey('calendar-lens-${period.kind.name}')),
+          );
           final button = find
               .byKey(ValueKey('calendar-period-${period.key}'))
               .first;
@@ -273,6 +277,10 @@ void main() {
               diary: repo,
               repository: appearance,
               initialLocation: diaryCalendarLocation(_today),
+            );
+            await _tap(
+              tester,
+              find.byKey(const ValueKey('calendar-lens-week')),
             );
             await _tap(
               tester,

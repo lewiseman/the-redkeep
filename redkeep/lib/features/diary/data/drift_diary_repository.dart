@@ -44,6 +44,38 @@ class DriftDiaryRepository implements DiaryRepository {
       );
 
   @override
+  Stream<Map<DiaryPeriod, String>> watchHeadings() => _db
+      .customSelect(
+        'SELECT period_key, heading FROM diary_days '
+        'WHERE length(trim(heading)) > 0',
+        readsFrom: {_db.diaryDays},
+      )
+      .watch()
+      .map(
+        (rows) => {
+          for (final row in rows)
+            ?DiaryPeriod.tryParse(row.read<String>('period_key')): row
+                .read<String>('heading')
+                .trim(),
+        },
+      );
+
+  @override
+  Stream<Map<DiaryPeriod, DiaryMood>> watchMoods() => _db
+      .customSelect(
+        'SELECT period_key, mood FROM diary_days WHERE mood IS NOT NULL',
+        readsFrom: {_db.diaryDays},
+      )
+      .watch()
+      .map(
+        (rows) => {
+          for (final row in rows)
+            ?DiaryPeriod.tryParse(row.read<String>('period_key')):
+                ?DiaryMood.tryParse(row.read<String>('mood')),
+        },
+      );
+
+  @override
   Stream<List<DiaryListing>> watchEntries({
     DiaryPeriod? date,
     String search = '',

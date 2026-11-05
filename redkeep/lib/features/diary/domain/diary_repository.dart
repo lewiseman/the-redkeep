@@ -1,10 +1,17 @@
 import 'diary_period.dart';
 import 'diary_photo.dart';
 import 'diary_ai_conversation.dart';
+import 'diary_day_details.dart';
 import 'diary_document.dart';
 
 abstract interface class DiaryRepository {
   Stream<Set<DiaryPeriod>> watchSavedPeriods();
+
+  /// Every saved mood in one stream, so calendars never open a query per day.
+  Stream<Map<DiaryPeriod, DiaryMood>> watchMoods();
+
+  /// Every non-empty page title, for calendar overviews.
+  Stream<Map<DiaryPeriod, String>> watchHeadings();
   Stream<List<DiaryListing>> watchEntries({
     DiaryPeriod? date,
     String search = '',

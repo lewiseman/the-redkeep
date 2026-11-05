@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/storage_providers.dart';
 import '../data/drift_diary_repository.dart';
+import '../domain/diary_day_details.dart';
 import '../domain/diary_period.dart';
 import '../domain/diary_document.dart';
 import '../domain/diary_repository.dart';
@@ -22,6 +23,16 @@ final diaryRepositoryProvider = Provider<DiaryRepository>(
     clock: ref.watch(diaryClockProvider),
   ),
 );
+final diaryCalendarMoodsProvider =
+    StreamProvider.autoDispose<Map<DiaryPeriod, DiaryMood>>(
+      (ref) => ref.watch(diaryRepositoryProvider).watchMoods(),
+      retry: (_, _) => null,
+    );
+final diaryCalendarHeadingsProvider =
+    StreamProvider.autoDispose<Map<DiaryPeriod, String>>(
+      (ref) => ref.watch(diaryRepositoryProvider).watchHeadings(),
+      retry: (_, _) => null,
+    );
 final diaryEntriesProvider = StreamProvider.autoDispose
     .family<List<DiaryListing>, DiaryPeriod>(
       (ref, date) =>

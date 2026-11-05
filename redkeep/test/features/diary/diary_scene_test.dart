@@ -378,7 +378,10 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.textContaining('summary'), findsNothing);
-      await tester.tap(find.byKey(const ValueKey('calendar-today')));
+      await tester.tap(find.byKey(ValueKey('calendar-year-tab-${today.year}')));
+      await tester.pumpAndSettle();
+      // Tapping the selected current year returns to today's month.
+      await tester.tap(find.byKey(ValueKey('calendar-year-tab-${today.year}')));
       await tester.pumpAndSettle();
       expect(day(today), findsOneWidget);
       await tester.ensureVisible(day(today));

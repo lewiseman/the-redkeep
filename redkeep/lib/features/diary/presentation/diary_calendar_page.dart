@@ -6,16 +6,13 @@ import 'package:go_router/go_router.dart';
 import '../../../core/presentation/rendering_policy.dart';
 import '../application/diary_providers.dart';
 import '../application/diary_paper_providers.dart';
+import '../domain/diary_day_details.dart';
 import '../domain/diary_period.dart';
 import 'diary_style.dart';
 import 'diary_artwork.dart';
+import 'diary_calendar_overview.dart';
 import 'diary_paper_stamp.dart';
 import 'diary_day_page.dart';
-
-class DiaryCalendarDay {
-  const DiaryCalendarDay({required this.hasEntry});
-  final bool hasEntry;
-}
 
 DateTime _month(DateTime date) => DateTime(date.year, date.month);
 int _monthIndex(DateTime date) => date.year * 12 + date.month - 1;
@@ -33,10 +30,14 @@ class _DiaryCalendarPageState extends ConsumerState<DiaryCalendarPage> {
   late final PageController _pages;
   late int _year;
   late final DateTime _lastDate;
+  late DiaryCalendarLens _lens = DiaryCalendarLens.of(widget.selected?.kind);
   final _yearOffsets = <int, double>{};
   final _yearMonths = <int, DateTime>{};
   final _currentYear = GlobalKey<_CalendarYearState>();
   bool _returning = false;
+  (Set<DiaryPeriod>?, Map<DiaryPeriod, DiaryMood>?, Map<DiaryPeriod, String>?)?
+  _marksSource;
+  DiaryCalendarMarks _marks = DiaryCalendarMarks.empty;
 
   DateTime get _firstDate => DateTime(1);
   DateTime get _selectedDate {
@@ -46,6 +47,10 @@ class _DiaryCalendarPageState extends ConsumerState<DiaryCalendarPage> {
         : DateTime(selected.year, selected.month, selected.day);
     return value.isAfter(_lastDate) ? _lastDate : value;
   }
+
+  /// Only a day selection pins a date; a week or month is outlined instead.
+  DateTime? get _selectedDay =>
+      widget.selected?.isDay ?? true ? _selectedDate : null;
 
   bool get _reduced => !RenderingPolicyScope.of(context).animate;
 
@@ -86,6 +91,7 @@ class _DiaryCalendarPageState extends ConsumerState<DiaryCalendarPage> {
     _yearMonths[_lastDate.year] = _month(_lastDate);
     _yearOffsets[_lastDate.year] = 0;
     _showYear(_lastDate.year, animate: false);
+    if (!_lens.isGrid) return;
     final current = _currentYear.currentState;
     if (current != null) {
       current.showMonth(_month(_lastDate));
@@ -94,6 +100,26 @@ class _DiaryCalendarPageState extends ConsumerState<DiaryCalendarPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _currentYear.currentState?.showMonth(_month(_lastDate));
     });
+  }
+
+  DiaryCalendarMarks _marksFor(
+    Set<DiaryPeriod>? saved,
+    Map<DiaryPeriod, DiaryMood>? moods,
+    Map<DiaryPeriod, String>? headings,
+  ) {
+    final source = _marksSource;
+    if (source == null ||
+        !identical(source.$1, saved) ||
+        !identical(source.$2, moods) ||
+        !identical(source.$3, headings)) {
+      _marksSource = (saved, moods, headings);
+      _marks = DiaryCalendarMarks(
+        saved ?? const {},
+        moods ?? const {},
+        headings ?? const {},
+      );
+    }
+    return _marks;
   }
 
   @override
@@ -105,7 +131,9 @@ class _DiaryCalendarPageState extends ConsumerState<DiaryCalendarPage> {
   @override
   Widget build(BuildContext context) {
     final dates = ref.watch(diaryCalendarDatesProvider);
-    final locale = Localizations.localeOf(context).toString();
+    final moods = ref.watch(diaryCalendarMoodsProvider);
+    final headings = ref.watch(diaryCalendarHeadingsProvider);
+    final marks = _marksFor(dates.value, moods.value, headings.value);
     final colors = context.colors;
     return Scaffold(
       backgroundColor: colors.surface,
@@ -153,67 +181,40 @@ class _DiaryCalendarPageState extends ConsumerState<DiaryCalendarPage> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 _header(context, inset),
-                                if (dates.hasError)
+                                if (dates.hasError ||
+                                    moods.hasError ||
+                                    headings.hasError)
                                   TextButton(
-                                    onPressed: () => ref.invalidate(
-                                      diaryCalendarDatesProvider,
-                                    ),
+                                    onPressed: () {
+                                      ref.invalidate(
+                                        diaryCalendarDatesProvider,
+                                      );
+                                      ref.invalidate(
+                                        diaryCalendarMoodsProvider,
+                                      );
+                                      ref.invalidate(
+                                        diaryCalendarHeadingsProvider,
+                                      );
+                                    },
                                     child: const Text(
                                       'Could not load entry markers. Retry',
                                     ),
                                   ),
-                                _CalendarYearTabs(
-                                  firstYear: _firstDate.year,
-                                  lastYear: _lastDate.year,
-                                  year: _year,
-                                  onSelected: _showYear,
-                                ),
-                                Padding(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: inset + 8,
-                                  ),
-                                  child: Align(
-                                    alignment: AlignmentDirectional.centerEnd,
-                                    child: _PeriodButton(
-                                      period: DiaryPeriod.year(_year),
-                                      saved: dates.value ?? const {},
-                                      onSelect: _select,
-                                    ),
-                                  ),
-                                ),
                                 Padding(
                                   padding: EdgeInsets.fromLTRB(
-                                    inset,
-                                    12,
-                                    inset,
-                                    10,
+                                    inset + 4,
+                                    8,
+                                    inset + 4,
+                                    0,
                                   ),
-                                  child: ExcludeSemantics(
-                                    child: Row(
-                                      children: [
-                                        for (var day = 0; day < 7; day++)
-                                          Expanded(
-                                            child: Text(
-                                              TimeHelper.format(
-                                                DateTime(2024, 1, 1 + day),
-                                                pattern:
-                                                    TimeFormat.shortWeekday,
-                                                locale: locale,
-                                                toLocal: false,
-                                              ),
-                                              textAlign: TextAlign.center,
-                                              style: TextStyle(
-                                                fontSize: 10,
-                                                fontWeight: FontWeight.w600,
-                                                color: colors.onSurfaceVariant
-                                                    .withValues(alpha: .7),
-                                              ),
-                                            ),
-                                          ),
-                                      ],
-                                    ),
+                                  child: DiaryCalendarLensBar(
+                                    lens: _lens,
+                                    onChanged: (lens) =>
+                                        setState(() => _lens = lens),
                                   ),
                                 ),
+                                if (_lens == DiaryCalendarLens.day)
+                                  _weekdays(context, inset),
                               ],
                             ),
                           ),
@@ -225,44 +226,16 @@ class _DiaryCalendarPageState extends ConsumerState<DiaryCalendarPage> {
                             itemCount: _lastDate.year - _firstDate.year + 1,
                             onPageChanged: (index) =>
                                 setState(() => _year = _firstDate.year + index),
-                            itemBuilder: (context, index) {
-                              final year = _firstDate.year + index;
-                              final initial = year == _selectedDate.year
-                                  ? _selectedDate
-                                  : year == _lastDate.year
-                                  ? _lastDate
-                                  : DateTime(
-                                      year,
-                                      year == _firstDate.year
-                                          ? _firstDate.month
-                                          : 1,
-                                    );
-                              return _CalendarYear(
-                                key: year == _lastDate.year
-                                    ? _currentYear
-                                    : ValueKey('calendar-year-page-$year'),
-                                initialMonth:
-                                    _yearMonths[year] ?? _month(initial),
-                                firstDate: _firstDate,
-                                lastDate: _lastDate,
-                                selectedDate: _selectedDate,
-                                inset: inset,
-                                offset: _yearOffsets[year] ?? 0,
-                                onOffset: (offset) =>
-                                    _yearOffsets[year] = offset,
-                                dayData: (date) => DiaryCalendarDay(
-                                  hasEntry:
-                                      dates.value?.contains(
-                                        DiaryPeriod.fromComponents(date),
-                                      ) ??
-                                      false,
-                                ),
-                                onSelect: (date) =>
-                                    _select(DiaryPeriod.fromComponents(date)),
-                                saved: dates.value ?? const {},
-                                onPeriodSelect: _select,
-                              );
-                            },
+                            itemBuilder: (context, index) => DiaryCalendarFadeIn(
+                              key: ValueKey(
+                                'calendar-lens-page-${_lens.isGrid ? 'grid' : _lens.name}',
+                              ),
+                              child: _yearPage(
+                                _firstDate.year + index,
+                                inset,
+                                marks,
+                              ),
+                            ),
                           ),
                         ),
                       ],
@@ -277,36 +250,118 @@ class _DiaryCalendarPageState extends ConsumerState<DiaryCalendarPage> {
     );
   }
 
+  Widget _yearPage(int year, double inset, DiaryCalendarMarks marks) {
+    switch (_lens) {
+      case DiaryCalendarLens.month:
+        return DiaryCalendarMonths(
+          year: year,
+          lastDate: _lastDate,
+          marks: marks,
+          selected: widget.selected,
+          inset: inset,
+          onSelect: _select,
+        );
+      case DiaryCalendarLens.year:
+        return DiaryCalendarYearOverview(
+          year: year,
+          lastDate: _lastDate,
+          marks: marks,
+          selected: widget.selected,
+          inset: inset,
+          onSelect: _select,
+        );
+      case DiaryCalendarLens.day:
+      case DiaryCalendarLens.week:
+        final initial = year == _selectedDate.year
+            ? _selectedDate
+            : year == _lastDate.year
+            ? _lastDate
+            : DateTime(year, year == _firstDate.year ? _firstDate.month : 1);
+        return _CalendarYear(
+          key: year == _lastDate.year
+              ? _currentYear
+              : ValueKey('calendar-year-page-$year'),
+          initialMonth: _yearMonths[year] ?? _month(initial),
+          firstDate: _firstDate,
+          lastDate: _lastDate,
+          selectedDay: _selectedDay,
+          selected: widget.selected,
+          weeks: _lens == DiaryCalendarLens.week,
+          inset: inset,
+          offset: _yearOffsets[year] ?? 0,
+          onOffset: (offset) => _yearOffsets[year] = offset,
+          marks: marks,
+          onSelect: _select,
+        );
+    }
+  }
+
+  Widget _weekdays(BuildContext context, double inset) {
+    final locale = Localizations.localeOf(context).toString();
+    final colors = context.colors;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(inset, 12, inset, 6),
+      child: ExcludeSemantics(
+        child: Row(
+          children: [
+            for (var day = 0; day < 7; day++)
+              Expanded(
+                child: Text(
+                  TimeHelper.format(
+                    DateTime(2024, 1, 1 + day),
+                    pattern: TimeFormat.shortWeekday,
+                    locale: locale,
+                  ),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: colors.onSurfaceVariant.withValues(alpha: .8),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// The year strip is the app bar: the current year sits at the trailing
+  /// edge and earlier years fade away under the back button.
   Widget _header(BuildContext context, double inset) {
-    final largeType = MediaQuery.textScalerOf(context).scale(12) > 18;
+    final colors = context.colors;
+    final direction = Directionality.of(context);
     return Padding(
       padding: EdgeInsets.fromLTRB(inset, 6, inset, 0),
-      child: Column(
+      child: Stack(
+        alignment: AlignmentDirectional.centerStart,
         children: [
-          Row(
-            children: [
-              BackButton(
-                onPressed: () =>
-                    context.canPop() ? context.pop() : context.go('/diary'),
-              ),
-              const SizedBox(width: 6),
-              const Spacer(),
-              if (largeType)
-                IconButton(
-                  key: const ValueKey('calendar-today'),
-                  onPressed: _today,
-                  tooltip: 'Go to today',
-                  icon: const Icon(Icons.today_outlined),
-                )
-              else
-                TextButton.icon(
-                  key: const ValueKey('calendar-today'),
-                  onPressed: _today,
-                  icon: const Icon(Icons.today_outlined, size: 17),
-                  label: const Text('Today'),
-                  style: TextButton.styleFrom(minimumSize: const Size(44, 44)),
-                ),
-            ],
+          ShaderMask(
+            blendMode: BlendMode.dstIn,
+            shaderCallback: (bounds) => LinearGradient(
+              begin: AlignmentDirectional.centerStart,
+              end: AlignmentDirectional.centerEnd,
+              colors: const [Colors.transparent, Colors.white, Colors.white],
+              stops: [0, math.min(.45, 120 / bounds.width), 1],
+            ).createShader(bounds, textDirection: direction),
+            child: _CalendarYearTabs(
+              firstYear: _firstDate.year,
+              lastYear: _lastDate.year,
+              year: _year,
+              onSelected: (year) => year == _year && year == _lastDate.year
+                  ? _today()
+                  : _showYear(year),
+            ),
+          ),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: colors.surface.withValues(alpha: .7),
+            ),
+            child: BackButton(
+              onPressed: () =>
+                  context.canPop() ? context.pop() : context.go('/diary'),
+            ),
           ),
         ],
       ),
@@ -333,10 +388,15 @@ class _CalendarYearTabsState extends State<_CalendarYearTabs> {
   ScrollController? _scroll;
   double _extent = 76;
 
+  /// The selected year sits at the trailing edge, followed by up to two later
+  /// years, so the newest years are never hidden off screen.
+  double _offsetFor(int year) =>
+      (year - widget.firstYear + math.min(2, widget.lastYear - year)) * _extent;
+
   void _centerYear() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !(_scroll?.hasClients ?? false)) return;
-      final offset = (widget.year - widget.firstYear) * _extent;
+      final offset = _offsetFor(widget.year);
       final reduced = !RenderingPolicyScope.of(context).animate;
       if (reduced) {
         _scroll!.jumpTo(offset);
@@ -370,9 +430,7 @@ class _CalendarYearTabsState extends State<_CalendarYearTabs> {
       _extent = extent;
       _centerYear();
     }
-    _scroll ??= ScrollController(
-      initialScrollOffset: (widget.year - widget.firstYear) * _extent,
-    );
+    _scroll ??= ScrollController(initialScrollOffset: _offsetFor(widget.year));
     return SizedBox(
       height: math.max(52.0, scaler.scale(16) * 1.25 + 24),
       child: LayoutBuilder(
@@ -382,8 +440,9 @@ class _CalendarYearTabsState extends State<_CalendarYearTabs> {
           scrollDirection: Axis.horizontal,
           itemExtent: _extent,
           itemCount: widget.lastYear - widget.firstYear + 1,
-          padding: EdgeInsets.symmetric(
-            horizontal: math.max(0, (constraints.maxWidth - _extent) / 2),
+          padding: EdgeInsetsDirectional.only(
+            start: math.max(0, constraints.maxWidth - _extent - 4),
+            end: 4,
           ),
           itemBuilder: (context, index) {
             final year = widget.firstYear + index;
@@ -393,6 +452,7 @@ class _CalendarYearTabsState extends State<_CalendarYearTabs> {
               selected: selected,
               button: true,
               label: 'Year $year',
+              hint: selected && year == widget.lastYear ? 'Go to today' : null,
               onTap: () => widget.onSelected(year),
               excludeSemantics: true,
               child: Padding(
@@ -447,23 +507,24 @@ class _CalendarYear extends StatefulWidget {
     required this.initialMonth,
     required this.firstDate,
     required this.lastDate,
-    required this.selectedDate,
+    required this.selectedDay,
+    required this.selected,
+    required this.weeks,
     required this.inset,
     required this.offset,
     required this.onOffset,
-    required this.dayData,
+    required this.marks,
     required this.onSelect,
-    required this.saved,
-    required this.onPeriodSelect,
   });
 
-  final DateTime initialMonth, firstDate, lastDate, selectedDate;
+  final DateTime initialMonth, firstDate, lastDate;
+  final DateTime? selectedDay;
+  final DiaryPeriod? selected;
+  final bool weeks;
   final double inset, offset;
   final ValueChanged<double> onOffset;
-  final DiaryCalendarDay Function(DateTime) dayData;
-  final ValueChanged<DateTime> onSelect;
-  final Set<DiaryPeriod> saved;
-  final ValueChanged<DiaryPeriod> onPeriodSelect;
+  final DiaryCalendarMarks marks;
+  final ValueChanged<DiaryPeriod> onSelect;
 
   @override
   State<_CalendarYear> createState() => _CalendarYearState();
@@ -504,12 +565,12 @@ class _CalendarYearState extends State<_CalendarYear> {
     month: month,
     firstDate: widget.firstDate,
     lastDate: widget.lastDate,
-    selectedDate: widget.selectedDate,
+    selectedDay: widget.selectedDay,
+    selected: widget.selected,
+    weeks: widget.weeks,
     inset: widget.inset,
-    dayData: widget.dayData,
+    marks: widget.marks,
     onSelect: widget.onSelect,
-    saved: widget.saved,
-    onPeriodSelect: widget.onPeriodSelect,
   );
 
   @override
@@ -548,20 +609,21 @@ class _CalendarMonth extends StatelessWidget {
     required this.month,
     required this.firstDate,
     required this.lastDate,
-    required this.selectedDate,
+    required this.selectedDay,
+    required this.selected,
+    required this.weeks,
     required this.inset,
-    required this.dayData,
+    required this.marks,
     required this.onSelect,
-    required this.saved,
-    required this.onPeriodSelect,
   });
 
-  final DateTime month, firstDate, lastDate, selectedDate;
+  final DateTime month, firstDate, lastDate;
+  final DateTime? selectedDay;
+  final DiaryPeriod? selected;
+  final bool weeks;
   final double inset;
-  final DiaryCalendarDay Function(DateTime) dayData;
-  final ValueChanged<DateTime> onSelect;
-  final Set<DiaryPeriod> saved;
-  final ValueChanged<DiaryPeriod> onPeriodSelect;
+  final DiaryCalendarMarks marks;
+  final ValueChanged<DiaryPeriod> onSelect;
 
   @override
   Widget build(BuildContext context) {
@@ -572,130 +634,157 @@ class _CalendarMonth extends StatelessWidget {
         ? lastDate
         : TimeHelper.addDays(nextMonth, -1);
     final monday = TimeHelper.addDays(month, 1 - month.weekday);
-    final weeks = (TimeHelper.daysBetween(monday, end) + 1 + 6) ~/ 7;
+    final weekCount = (TimeHelper.daysBetween(monday, end) + 1 + 6) ~/ 7;
     // The lower inset keeps the sticker's overhang inside the day's tap area.
     final dayHeight =
         math.max(54.0, MediaQuery.textScalerOf(context).scale(16) * 1.25 + 34) +
         16;
+    final ownedWeeks = weeks ? _ownedWeeks(end) : const <DateTime>[];
+    final written = weeks
+        ? ownedWeeks
+              .where(
+                (start) => marks.hasPage(
+                  DiaryPeriod.week(DiaryPeriod.fromComponents(start).start),
+                ),
+              )
+              .length
+        : marks.daysInMonth(month.year, month.month);
+    final elapsed = weeks ? ownedWeeks.length : end.day;
+    final monthPage = DiaryPeriod.month(month.year, month.month);
     return RepaintBoundary(
       child: Padding(
-        padding: EdgeInsets.fromLTRB(inset, 0, inset, 18),
+        padding: EdgeInsets.fromLTRB(inset, 0, inset, 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (month.month == 1) ...[
               Padding(
                 padding: const EdgeInsets.fromLTRB(8, 22, 8, 12),
-                child: Wrap(
-                  alignment: WrapAlignment.spaceBetween,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 12,
-                  children: [
-                    Text(
-                      '${month.year}',
-                      style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.w300,
-                        color: colors.primary,
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  '${month.year}',
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w300,
+                    color: colors.primary,
+                  ),
                 ),
               ),
               Divider(color: colors.primary.withValues(alpha: .14), height: 1),
             ],
             Padding(
-              padding: const EdgeInsets.fromLTRB(8, 20, 8, 14),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final title = Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${month.year}',
-                        style: TextStyle(
-                          fontSize: 10,
-                          letterSpacing: 1.8,
-                          color: colors.onSurfaceVariant,
+              padding: const EdgeInsets.fromLTRB(8, 20, 8, 12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          TimeHelper.format(
+                            month,
+                            pattern: TimeFormat.month,
+                            locale: locale,
+                          ),
+                          style: const TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: -.9,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (marks.hasPage(monthPage))
+                    Padding(
+                      padding: const EdgeInsetsDirectional.only(end: 12),
+                      child: Tooltip(
+                        message: 'This month has its own page',
+                        child: Icon(
+                          Icons.bookmark_rounded,
+                          size: 20,
+                          color: colors.primary,
+                          semanticLabel: 'Month page written',
                         ),
                       ),
-                      const SizedBox(height: 3),
-                      Text(
-                        TimeHelper.format(
-                          month,
-                          pattern: TimeFormat.month,
-                          locale: locale,
-                          toLocal: false,
-                        ),
-                        style: const TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: -.9,
-                        ),
-                      ),
-                    ],
-                  );
-                  return Wrap(
-                    alignment: WrapAlignment.spaceBetween,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: 12,
-                    runSpacing: 8,
-                    children: [
-                      title,
-                      _PeriodButton(
-                        period: DiaryPeriod.month(month.year, month.month),
-                        saved: saved,
-                        onSelect: onPeriodSelect,
-                      ),
-                    ],
-                  );
-                },
+                    ),
+                  _MonthTally(
+                    written: written,
+                    elapsed: elapsed,
+                    unit: weeks ? 'week' : 'day',
+                  ),
+                ],
               ),
             ),
-            for (var week = 0; week < weeks; week++) ...[
-              SizedBox(
-                height: dayHeight,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    for (var day = 0; day < 7; day++)
-                      Expanded(
-                        child: _day(
-                          context,
-                          TimeHelper.addDays(monday, week * 7 + day),
-                        ),
-                      ),
-                  ],
+            if (weeks)
+              for (final start in ownedWeeks)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: DiaryCalendarWeekCard(
+                    monday: start,
+                    month: month,
+                    lastDate: lastDate,
+                    marks: marks,
+                    selected: selected,
+                    onSelect: onSelect,
+                  ),
+                )
+            else
+              for (var week = 0; week < weekCount; week++)
+                _week(
+                  context,
+                  TimeHelper.addDays(monday, week * 7),
+                  dayHeight,
+                  locale,
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                child: Wrap(
-                  alignment: WrapAlignment.spaceBetween,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 8,
-                  runSpacing: 4,
-                  children: [
-                    Text(
-                      '${TimeHelper.format(TimeHelper.addDays(monday, week * 7), pattern: TimeFormat.localizedMonthDay, locale: locale)} – ${TimeHelper.format(TimeHelper.addDays(monday, week * 7 + 6), pattern: TimeFormat.localizedMonthDay, locale: locale)}',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: colors.onSurfaceVariant,
-                      ),
-                    ),
-                    _PeriodButton(
-                      period: DiaryPeriod.week(
-                        DiaryPeriod.fromComponents(
-                          TimeHelper.addDays(monday, week * 7),
-                        ).start,
-                      ),
-                      saved: saved,
-                      onSelect: onPeriodSelect,
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Each week is listed once, under the month holding its Thursday (the
+  /// ISO rule), so a week spanning two months is never shown twice. The
+  /// current week always belongs to the current month.
+  List<DateTime> _ownedWeeks(DateTime end) {
+    final lastMonth = _month(lastDate);
+    final result = <DateTime>[];
+    for (
+      var start = TimeHelper.addDays(month, 1 - month.weekday);
+      !start.isAfter(end);
+      start = TimeHelper.addDays(start, 7)
+    ) {
+      final thursday = _month(TimeHelper.addDays(start, 3));
+      final owner = thursday.isAfter(lastMonth) ? lastMonth : thursday;
+      if (owner == month && !start.isBefore(firstDate)) result.add(start);
+    }
+    return result;
+  }
+
+  Widget _week(
+    BuildContext context,
+    DateTime start,
+    double dayHeight,
+    String locale,
+  ) {
+    final colors = context.colors;
+    final period = DiaryPeriod.week(DiaryPeriod.fromComponents(start).start);
+    // Weeks with their own page keep a quiet band in the day lens.
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4),
+      decoration: BoxDecoration(
+        color: marks.hasPage(period)
+            ? colors.primary.withValues(alpha: context.isDark ? .09 : .05)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: SizedBox(
+        height: dayHeight,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var day = 0; day < 7; day++)
+              Expanded(child: _day(context, TimeHelper.addDays(start, day))),
           ],
         ),
       ),
@@ -711,48 +800,122 @@ class _CalendarMonth extends StatelessWidget {
     return _CalendarDate(
       key: ValueKey('calendar-day-${_dateKey(date)}'),
       date: date,
-      data: dayData(date),
-      selected: date == selectedDate,
+      hasEntry: marks.hasEntry(date),
+      mood: marks.mood(date),
+      selected: date == selectedDay,
       today: date == lastDate,
-      onTap: () => onSelect(date),
+      onTap: () => onSelect(DiaryPeriod.fromComponents(date)),
     );
   }
 }
 
-class _CalendarDate extends ConsumerStatefulWidget {
+/// "9 / 30" with a hairline meter: how much of the month has been written.
+class _MonthTally extends StatelessWidget {
+  const _MonthTally({
+    required this.written,
+    required this.elapsed,
+    required this.unit,
+  });
+  final int written, elapsed;
+  final String unit;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final fraction = elapsed == 0 ? 0.0 : (written / elapsed).clamp(0.0, 1.0);
+    return Semantics(
+      label: '${plural(written, unit)} written of $elapsed',
+      excludeSemantics: true,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minWidth: 64),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: '$written',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w400,
+                      color: written > 0
+                          ? colors.primary
+                          : colors.onSurfaceVariant,
+                    ),
+                  ),
+                  TextSpan(
+                    text: ' / $elapsed',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: colors.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 5),
+            SizedBox(
+              width: 64,
+              height: 3,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(2),
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: ColoredBox(
+                        color: colors.onSurfaceVariant.withValues(alpha: .14),
+                      ),
+                    ),
+                    FractionallySizedBox(
+                      widthFactor: fraction,
+                      heightFactor: 1,
+                      child: ColoredBox(color: colors.primary),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CalendarDate extends StatefulWidget {
   const _CalendarDate({
     super.key,
     required this.date,
-    required this.data,
+    required this.hasEntry,
+    required this.mood,
     required this.selected,
     required this.today,
     required this.onTap,
   });
 
   final DateTime date;
-  final DiaryCalendarDay data;
+  final bool hasEntry;
+  final DiaryMood? mood;
   final bool selected, today;
   final VoidCallback onTap;
 
   @override
-  ConsumerState<_CalendarDate> createState() => _CalendarDateState();
+  State<_CalendarDate> createState() => _CalendarDateState();
 }
 
-class _CalendarDateState extends ConsumerState<_CalendarDate> {
+class _CalendarDateState extends State<_CalendarDate> {
   bool _pressed = false;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final data = widget.data;
-    final mood = data.hasEntry
-        ? ref
-              .watch(diaryDayProvider(DiaryPeriod.fromComponents(widget.date)))
-              .value
-              ?.mood
-        : null;
-    final reduced = !RenderingPolicyScope.of(context).animate;
-    final simple = RenderingPolicyScope.of(context).simplerEffects;
+    final mood = widget.mood;
+    final hasEntry = widget.hasEntry;
+    final policy = RenderingPolicyScope.of(context);
+    final reduced = !policy.animate;
+    final simple = policy.simplerEffects;
     final ink = widget.selected ? colors.primary : colors.onSurface;
     final paper = widget.selected
         ? colors.primaryContainer
@@ -763,7 +926,7 @@ class _CalendarDateState extends ConsumerState<_CalendarDate> {
     final label = [
       MaterialLocalizations.of(context).formatFullDate(widget.date),
       if (widget.today) 'Today',
-      data.hasEntry ? 'Journal entry' : 'No journal entry',
+      hasEntry ? 'Journal entry' : 'No journal entry',
       if (mood != null) '${mood.label} mood',
     ].join(', ');
     final tilt =
@@ -773,6 +936,123 @@ class _CalendarDateState extends ConsumerState<_CalendarDate> {
     final dateDiameter = math.max(
       25.0,
       MediaQuery.textScalerOf(context).scale(15) * 1.25 + 4,
+    );
+    final face = Padding(
+      padding: const EdgeInsets.fromLTRB(2, 3, 2, 13),
+      child: Center(
+        child: AnimatedScale(
+          scale: _pressed && !reduced ? .94 : 1,
+          duration: reduced
+              ? Duration.zero
+              : Duration(milliseconds: _pressed ? 70 : 180),
+          curve: _pressed ? Curves.easeOut : Curves.easeOutBack,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 64),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                if (hasEntry || widget.selected)
+                  Positioned.fill(
+                    child: CustomPaint(
+                      painter: DiaryPaperStamp(
+                        paper: paper,
+                        ink: ink,
+                        shadowColor: colors.shadow,
+                        variant: widget.date.day,
+                        edgeScale: simple ? 0 : .5,
+                        shadow: !simple,
+                      ),
+                    ),
+                  ),
+                Positioned.fill(
+                  child: Center(
+                    child: Container(
+                      width: dateDiameter,
+                      height: dateDiameter,
+                      decoration: widget.today
+                          ? BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: hasEntry
+                                  ? null
+                                  : colors.primary.withValues(alpha: .1),
+                              border: Border.all(
+                                color: colors.primary.withValues(alpha: .8),
+                              ),
+                            )
+                          : null,
+                      alignment: Alignment.center,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          '${widget.date.day}',
+                          maxLines: 1,
+                          softWrap: false,
+                          style: TextStyle(
+                            fontSize: 15,
+                            height: 1.25,
+                            fontWeight: widget.selected || widget.today
+                                ? FontWeight.w600
+                                : FontWeight.w500,
+                            color: hasEntry || widget.selected || widget.today
+                                ? ink
+                                : colors.onSurfaceVariant.withValues(
+                                    alpha: .65,
+                                  ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                if (mood != null)
+                  Positioned(
+                    bottom: -8,
+                    left: 2,
+                    width: 22,
+                    height: 22,
+                    child: Transform.rotate(
+                      angle: tilt,
+                      child: Text(
+                        mood.emoji,
+                        textAlign: TextAlign.center,
+                        textScaler: TextScaler.noScaling,
+                        style: TextStyle(
+                          fontSize: 22,
+                          height: 1,
+                          shadows: simple
+                              ? null
+                              : [
+                                  Shadow(
+                                    color: colors.shadow.withValues(
+                                      alpha: context.isDark ? .4 : .2,
+                                    ),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                          fontFamilyFallback: const [
+                            'Apple Color Emoji',
+                            'Noto Color Emoji',
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                if (widget.selected)
+                  Positioned(
+                    right: -3,
+                    top: -6,
+                    child: DiaryArtwork(
+                      assetKey: 'diary.calendar.pin',
+                      width: 20,
+                      height: 20,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
     return Semantics(
       label: label,
@@ -789,171 +1069,9 @@ class _CalendarDateState extends ConsumerState<_CalendarDate> {
           borderRadius: BorderRadius.circular(10),
           splashColor: colors.primary.withValues(alpha: .08),
           highlightColor: colors.primary.withValues(alpha: .04),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(2, 3, 2, 13),
-            child: Center(
-              child: AnimatedScale(
-                scale: _pressed && !reduced ? .94 : 1,
-                duration: reduced
-                    ? Duration.zero
-                    : Duration(milliseconds: _pressed ? 70 : 180),
-                curve: _pressed ? Curves.easeOut : Curves.easeOutBack,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 64),
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      if (data.hasEntry || widget.selected)
-                        Positioned.fill(
-                          child: CustomPaint(
-                            painter: DiaryPaperStamp(
-                              paper: paper,
-                              ink: ink,
-                              shadowColor: colors.shadow,
-                              variant: widget.date.day,
-                              edgeScale: simple ? 0 : .5,
-                              shadow: !simple,
-                            ),
-                          ),
-                        ),
-                      Positioned.fill(
-                        child: Center(
-                          child: Container(
-                            width: dateDiameter,
-                            height: dateDiameter,
-                            decoration: widget.today
-                                ? BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: colors.primary.withValues(
-                                        alpha: .8,
-                                      ),
-                                    ),
-                                  )
-                                : null,
-                            alignment: Alignment.center,
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: Text(
-                                '${widget.date.day}',
-                                maxLines: 1,
-                                softWrap: false,
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  height: 1.25,
-                                  fontWeight: widget.selected || widget.today
-                                      ? FontWeight.w600
-                                      : FontWeight.w500,
-                                  color:
-                                      data.hasEntry ||
-                                          widget.selected ||
-                                          widget.today
-                                      ? ink
-                                      : colors.onSurfaceVariant.withValues(
-                                          alpha: .65,
-                                        ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      if (mood != null)
-                        Positioned(
-                          bottom: -8,
-                          left: 2,
-                          width: 22,
-                          height: 22,
-                          child: Transform.rotate(
-                            angle: tilt,
-                            child: Text(
-                              mood.emoji,
-                              textAlign: TextAlign.center,
-                              textScaler: TextScaler.noScaling,
-                              style: TextStyle(
-                                fontSize: 22,
-                                height: 1,
-                                shadows: simple
-                                    ? null
-                                    : [
-                                        Shadow(
-                                          color: colors.shadow.withValues(
-                                            alpha: context.isDark ? .4 : .2,
-                                          ),
-                                          blurRadius: 4,
-                                          offset: const Offset(0, 2),
-                                        ),
-                                      ],
-                                fontFamilyFallback: const [
-                                  'Apple Color Emoji',
-                                  'Noto Color Emoji',
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      if (widget.selected)
-                        Positioned(
-                          right: -3,
-                          top: -6,
-                          child: DiaryArtwork(
-                            assetKey: 'diary.calendar.pin',
-                            width: 20,
-                            height: 20,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
+          child: face,
         ),
       ),
-    );
-  }
-}
-
-/// The inked state and icon distinguish saved pages without relying on color.
-class _PeriodButton extends StatelessWidget {
-  const _PeriodButton({
-    required this.period,
-    required this.saved,
-    required this.onSelect,
-  });
-  final DiaryPeriod period;
-  final Set<DiaryPeriod> saved;
-  final ValueChanged<DiaryPeriod> onSelect;
-  @override
-  Widget build(BuildContext context) {
-    final exists = saved.contains(period);
-    final label = '${exists ? 'Open' : 'Add'} ${period.kind.name}';
-    final child = Text(label);
-    final icon = Icon(
-      exists ? Icons.edit_note_rounded : Icons.add_rounded,
-      size: 18,
-    );
-    return Semantics(
-      label:
-          '$label, ${period.label(Localizations.localeOf(context).toString())}',
-      button: true,
-      excludeSemantics: true,
-      onTap: () => onSelect(period),
-      child: exists
-          ? FilledButton.tonalIcon(
-              style: FilledButton.styleFrom(minimumSize: const Size(44, 44)),
-              key: ValueKey('calendar-period-${period.key}'),
-              onPressed: () => onSelect(period),
-              icon: icon,
-              label: child,
-            )
-          : TextButton.icon(
-              style: TextButton.styleFrom(minimumSize: const Size(44, 44)),
-              key: ValueKey('calendar-period-${period.key}'),
-              onPressed: () => onSelect(period),
-              icon: icon,
-              label: child,
-            ),
     );
   }
 }

@@ -476,7 +476,8 @@ void main() {
       await tap(tester, 'Calendar for this month');
       expect(find.byType(DiaryCalendarPage), findsOneWidget);
       expect(find.text('February'), findsOneWidget);
-      await tap(tester, 'Today');
+      await tester.tap(find.byKey(const ValueKey('calendar-year-tab-2026')));
+      await tester.pumpAndSettle();
       await tester.ensureVisible(
         find.byKey(
           ValueKey('calendar-day-${DateTime(2026, 11, 2).toIso8601String()}'),

@@ -1,6 +1,7 @@
 import 'package:redkeep/features/diary/domain/diary_photo.dart';
 import 'package:redkeep/features/diary/domain/diary_ai_conversation.dart';
 import 'package:redkeep/features/diary/domain/diary_period.dart';
+import 'package:redkeep/features/diary/domain/diary_day_details.dart';
 import 'package:redkeep/features/diary/domain/diary_document.dart';
 import 'package:redkeep/features/diary/domain/diary_repository.dart';
 
@@ -9,6 +10,10 @@ import 'package:redkeep/features/diary/domain/diary_repository.dart';
 class EmptyDiaryRepository implements DiaryRepository {
   @override
   Stream<Set<DiaryPeriod>> watchSavedPeriods() => Stream.value(const {});
+  @override
+  Stream<Map<DiaryPeriod, DiaryMood>> watchMoods() => Stream.value(const {});
+  @override
+  Stream<Map<DiaryPeriod, String>> watchHeadings() => Stream.value(const {});
   @override
   Stream<List<DiaryListing>> watchEntries({
     DiaryPeriod? date,

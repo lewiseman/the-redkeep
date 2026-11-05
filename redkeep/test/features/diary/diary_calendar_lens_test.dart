@@ -144,7 +144,16 @@ void main() {
       database: db,
     );
     final card = _key('calendar-period-${split.key}');
-    await tester.ensureVisible(card);
+    await tester.scrollUntilVisible(
+      card,
+      200,
+      scrollable: find
+          .descendant(
+            of: _key('diary-calendar-scroll'),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
     await tester.pumpAndSettle();
     expect(card, findsOneWidget);
     expect(

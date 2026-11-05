@@ -1155,14 +1155,18 @@ class _WeekMeter extends StatelessWidget {
     final colors = context.colors;
     return Row(
       children: [
-        Text(
-          elapsed == 0
-              ? 'Not started'
-              : '$written of $elapsed ${elapsed == 1 ? 'day' : 'days'} written',
-          style: TextStyle(fontSize: 11, color: colors.onSurfaceVariant),
+        Flexible(
+          flex: 3,
+          child: Text(
+            elapsed == 0
+                ? 'Not started'
+                : '$written of $elapsed ${elapsed == 1 ? 'day' : 'days'} written',
+            style: TextStyle(fontSize: 11, color: colors.onSurfaceVariant),
+          ),
         ),
         const SizedBox(width: 10),
         Expanded(
+          flex: 2,
           child: SizedBox(
             height: 3,
             child: ClipRRect(

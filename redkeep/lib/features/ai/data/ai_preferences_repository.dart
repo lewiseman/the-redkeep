@@ -125,6 +125,25 @@ class AiPreferencesRepository {
     );
   }
 
+  /// Routes a whole group in one write. A null [route] follows the default.
+  Future<void> setTaskRoutes(
+    Iterable<AiOperation> operations,
+    AiRoute? route,
+  ) async {
+    final previous = await read();
+    final overrides = {...previous.overrides};
+    for (final op in operations) {
+      route == null ? overrides.remove(op) : overrides[op] = route;
+    }
+    await _writeRoutes(
+      AiPreferences(
+        defaultRoute: previous.defaultRoute,
+        overrides: overrides,
+        dailyQuestionOptIn: previous.dailyQuestionOptIn,
+      ),
+    );
+  }
+
   /// Passing the provider ID allows automatic daily questions; null revokes.
   Future<void> setDailyQuestionOptIn(String? providerId) async {
     final previous = await read();

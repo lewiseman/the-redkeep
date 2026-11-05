@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../ai/application/ai_jobs.dart';
 import '../../ai/domain/ai_operation.dart';
+import '../../ai/presentation/ai_route_board.dart';
 import '../../voice/application/phone_voice.dart';
 import '../application/companion_controller.dart';
 import '../data/companion_protocol.dart';
@@ -190,40 +191,22 @@ class _CompanionPageState extends ConsumerState<CompanionPage>
       children: [
         const CompanionDetailHeading(
           icon: Icons.auto_awesome_outlined,
-          title: 'Your AI, your choice',
-          description: 'Use your own computer or an AI provider, task by task.',
+          title: 'Where your writing goes',
+          description: 'Solid lines stay on your network. Dashed lines go over the internet.',
         ),
-        const AiStudioSectionHeading(label: 'Writing AI'),
-        AiStudioCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              ListTile(
-                key: const ValueKey('ai-providers-link'),
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.cloud_outlined),
-                title: const Text('AI providers'),
-                subtitle: const Text('Connect a provider with your own token.'),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () {
-                  unawaited(_voice?.stop());
-                  context.push('/settings/brain/providers');
-                },
-              ),
-              ListTile(
-                key: const ValueKey('ai-tasks-link'),
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.checklist_rounded),
-                title: const Text('Tasks'),
-                subtitle: const Text('Choose what runs each writing task.'),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () {
-                  unawaited(_voice?.stop());
-                  context.push('/settings/brain/tasks');
-                },
-              ),
-            ],
-          ),
+        AiRouteMap(
+          onOpenTasks: () {
+            unawaited(_voice?.stop());
+            context.push('/settings/brain/tasks');
+          },
+          onOpenProviders: () {
+            unawaited(_voice?.stop());
+            context.push('/settings/brain/providers');
+          },
+          onOpenProvider: (id) {
+            unawaited(_voice?.stop());
+            context.push('/settings/brain/providers/$id');
+          },
         ),
         const SizedBox(height: 16),
         TextButton.icon(

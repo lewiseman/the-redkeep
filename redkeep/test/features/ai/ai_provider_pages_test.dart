@@ -76,7 +76,7 @@ void main() {
     expect(tester.widget<TextField>(token).obscureText, isTrue);
     expect(find.textContaining(testAiProvider.token), findsNothing);
     await tap(tester, find.byKey(const ValueKey('ai-provider-test')));
-    expect(find.text('Connected. 1 models available.'), findsOneWidget);
+    expect(find.text('Connected. 1 model available.'), findsOneWidget);
     aiProvider.failure = const AiProviderFailure(
       AiProviderFailureKind.badToken,
     );
@@ -95,12 +95,13 @@ void main() {
       database: db,
     );
     await tester.pumpAndSettle();
+    await tap(tester, find.byKey(const ValueKey('ai-provider-advanced')));
     final url = tester.widget<TextField>(
       find.byKey(const ValueKey('ai-provider-url')),
     );
     expect(url.controller!.text, 'https://api.openai.com/v1');
-    await tap(tester, find.byKey(const ValueKey('ai-provider-save')));
-    expect(find.textContaining('Enter the token'), findsOneWidget);
+    await tap(tester, find.byKey(const ValueKey('ai-provider-connect')));
+    expect(find.textContaining('Enter the key'), findsOneWidget);
     await tester.enterText(
       find.byKey(const ValueKey('ai-provider-token')),
       'typed-token',
@@ -109,7 +110,7 @@ void main() {
       find.byKey(const ValueKey('ai-provider-url')),
       'http://insecure.example',
     );
-    await tap(tester, find.byKey(const ValueKey('ai-provider-save')));
+    await tap(tester, find.byKey(const ValueKey('ai-provider-connect')));
     expect(find.textContaining('https://'), findsWidgets);
     expect(find.textContaining('plain https'), findsOneWidget);
     await finish(tester);
@@ -147,6 +148,7 @@ void main() {
       find.byKey(const ValueKey('ai-route-model')),
       'typed-model',
     );
+    await tester.pumpAndSettle();
     await tap(tester, find.byKey(const ValueKey('ai-route-model-use')));
     expect(find.textContaining('Let Test AI ask'), findsOneWidget);
     await tap(tester, find.byKey(const ValueKey('daily-opt-in-decline')));
@@ -159,6 +161,98 @@ void main() {
     await tap(tester, find.byKey(const ValueKey('daily-opt-in-allow')));
     stored = (await tester.runAsync(prefs.read))!;
     expect(stored.dailyQuestionMayRunAutomatically, isTrue);
+    await finish(tester);
+  });
+
+  testWidgets('connecting checks first, then offers what to do next', (
+    tester,
+  ) async {
+    useSize(tester);
+    final aiProvider = FakeAiProviderClient()
+      ..failure = const AiProviderFailure(AiProviderFailureKind.badToken);
+    await pumpApp(
+      tester,
+      initialLocation: '/settings/brain/providers/add/groq',
+      database: db,
+      aiProvider: aiProvider,
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('ai-provider-token')),
+      'typed-key',
+    );
+    await tap(tester, find.byKey(const ValueKey('ai-provider-connect')));
+    expect(find.textContaining('rejected this token'), findsOneWidget);
+    expect(find.byKey(const ValueKey('ai-provider-connected')), findsNothing);
+    expect(find.byKey(const ValueKey('ai-provider-save')), findsOneWidget);
+
+    aiProvider.failure = null;
+    await tap(tester, find.byKey(const ValueKey('ai-provider-connect')));
+    expect(find.byKey(const ValueKey('ai-provider-connected')), findsOneWidget);
+    expect(find.text('Groq is connected'), findsOneWidget);
+    expect(find.textContaining('typed-key'), findsNothing);
+
+    await tap(tester, find.byKey(const ValueKey('ai-connected-all')));
+    await tap(tester, find.text('test-model'));
+    expect(find.textContaining('Let Groq ask'), findsOneWidget);
+    await tap(tester, find.byKey(const ValueKey('daily-opt-in-decline')));
+    final stored = (await tester.runAsync(prefs.read))!;
+    expect(stored.defaultRoute.model, 'test-model');
+    expect(stored.dailyQuestionMayRunAutomatically, isFalse);
+    await finish(tester);
+  });
+
+  testWidgets('route all moves a whole group and the model list is searchable', (
+    tester,
+  ) async {
+    useSize(tester);
+    final aiProvider = FakeAiProviderClient()
+      ..models = const ['alpha-large', 'beta-small', 'gamma-large'];
+    await pumpApp(
+      tester,
+      initialLocation: '/settings/brain/tasks',
+      database: db,
+      aiProvider: aiProvider,
+    );
+    await tester.pumpAndSettle();
+    await tap(tester, find.byKey(const ValueKey('ai-group-notes')));
+    await tap(
+      tester,
+      find.byKey(ValueKey('ai-route-provider-${testAiProvider.id}')),
+    );
+    expect(find.text('beta-small'), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const ValueKey('ai-route-model')),
+      'LARGE',
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('alpha-large'), findsOneWidget);
+    expect(find.text('gamma-large'), findsOneWidget);
+    expect(find.text('beta-small'), findsNothing);
+    await tap(tester, find.text('gamma-large'));
+    await tap(tester, find.byKey(const ValueKey('ai-task-noteTone')));
+    await tap(
+      tester,
+      find.byKey(ValueKey('ai-route-provider-${testAiProvider.id}')),
+    );
+    expect(
+      tester.getTopLeft(find.text('gamma-large')).dy,
+      lessThan(tester.getTopLeft(find.text('alpha-large')).dy),
+      reason: 'The model in use is pinned first.',
+    );
+    await tester.tapAt(const Offset(200, 20));
+    await tester.pumpAndSettle();
+    final stored = (await tester.runAsync(prefs.read))!;
+    for (final operation in AiOperation.values.where((o) => o.isNote)) {
+      expect(
+        stored.routeFor(operation).model,
+        operation.supportsProvider ? 'gamma-large' : isNull,
+        reason: operation.name,
+      );
+    }
+    expect(stored.routeFor(AiOperation.diaryDetails).isCompanion, isTrue);
+    expect(find.text('On your network · 4 tasks'), findsOneWidget);
+    expect(find.text('Over the internet · 10 tasks'), findsOneWidget);
     await finish(tester);
   });
 

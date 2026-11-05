@@ -55,6 +55,9 @@ class AiProviderConnection {
   final String id, presetId, name, baseUrl, token, tokenLimitParameter;
   final AiProviderFormat format;
 
+  /// Keeps one provider's color on every page. Each custom server gets its own.
+  String get stationKey => presetId == 'custom' ? id : presetId;
+
   AiProviderConnection copyWith({
     String? name,
     String? baseUrl,

@@ -88,6 +88,19 @@ void main() {
     expect((await prefs.read()).dailyQuestionMayRunAutomatically, isFalse);
   });
 
+  test('a group route moves only that group and can be undone', () async {
+    const notes = [AiOperation.noteRewrite, AiOperation.noteTone];
+    await prefs.setTaskRoute(AiOperation.diaryDetails, other);
+    await prefs.setTaskRoutes(notes, main);
+    var stored = await prefs.read();
+    expect(stored.overrides[AiOperation.noteRewrite], main);
+    expect(stored.overrides[AiOperation.noteTone], main);
+    expect(stored.overrides[AiOperation.diaryDetails], other);
+    await prefs.setTaskRoutes(notes, null);
+    stored = await prefs.read();
+    expect(stored.overrides.keys, [AiOperation.diaryDetails]);
+  });
+
   test('removing a provider clears its routes and opt-in', () async {
     await prefs.setDefaultRoute(main);
     await prefs.setDailyQuestionOptIn('a');

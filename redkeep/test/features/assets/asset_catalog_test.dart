@@ -11,7 +11,6 @@ void main() {
     final catalog = testCatalog();
     expect(catalog.asset('test.one').revision, 'v1');
     expect(catalog.asset('test.one').sourcePath, 'art/one.png');
-    expect(catalog.asset('test.one').license, isNotEmpty);
     expect(() => catalog.asset('absent.key'), throwsA(isA<AssetException>()));
   });
 
@@ -55,7 +54,6 @@ void main() {
         (j) => (j['assets'] as List).first['sha256'] = 'bad',
         (j) => (j['assets'] as List).first['bytes'] = 0,
         (j) => (j['assets'] as List).first['bytes'] = 11 * 1024 * 1024,
-        (j) => (j['assets'] as List).first['license'] = '',
         (j) => (j['assets'] as List).first['provenance'] = '',
         (j) => (j['assets'] as List).first['key'] = 'Bad Key',
       ]) {

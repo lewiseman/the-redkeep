@@ -1,7 +1,7 @@
 /// Hand-built looks for themed note websites. The model only chooses one;
 /// every page shares [_base] and layers a theme's variables and signature
-/// rules on top. Fonts are system stacks, except the bundled Caveat and Lora
-/// that the view embeds when a theme names them.
+/// rules on top. Fonts are system stacks, except the Google Fonts Caveat and
+/// Lora that the view embeds when a theme names them.
 class WebsiteTheme {
   const WebsiteTheme({
     required this.id,
@@ -16,15 +16,12 @@ class WebsiteTheme {
   final (int, int) swatch;
   final String css;
 
-  /// Bundled font families this theme uses, embedded at view time.
+  /// Google Font families this theme uses, embedded at view time.
   final List<String> fonts;
 }
 
-/// Bundled fonts a theme may embed: family and asset path.
-const websiteFontAssets = {
-  'Caveat': 'assets/fonts/Caveat-Medium.ttf',
-  'Lora': 'assets/fonts/Lora-Regular.ttf',
-};
+/// Google Fonts a theme may embed: family and weight.
+const websiteFonts = {'Caveat': 500, 'Lora': 400};
 
 const _base = '''
 *,*::before,*::after{box-sizing:border-box}

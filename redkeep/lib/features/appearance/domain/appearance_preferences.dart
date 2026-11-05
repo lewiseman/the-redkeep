@@ -15,7 +15,7 @@ class AppearancePreferences {
 
   static const defaultFontFamily = 'Poppins';
   static const defaultDiaryTitleFontFamily = 'Caveat';
-  static const defaultDiaryBodyFontFamily = 'Lora';
+  static const defaultDiaryBodyFontFamily = 'Literata';
 
   final AppTheme theme;
   final AppAccent accent;

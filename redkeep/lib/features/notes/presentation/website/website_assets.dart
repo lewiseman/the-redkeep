@@ -1,12 +1,13 @@
 import 'dart:convert';
 import 'dart:ui' as ui;
 
-import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:html/dom.dart' as dom;
 import 'package:html/parser.dart' as html;
 
 import '../../domain/note_details.dart';
 import '../../data/note_media_store.dart';
+import '../../data/website_font_store.dart';
 
 import '../../domain/website/website_themes.dart';
 
@@ -59,12 +60,13 @@ final _cache = <String, String>{};
 void clearNoteWebsiteCache() => _cache.clear();
 
 /// Fills a sanitized page's `data-photo` placeholders with [photos] and
-/// embeds the bundled fonts its theme names. Placeholders without a photo on
+/// embeds the Google Fonts its theme names. Placeholders without a photo on
 /// this device are removed. Nothing here is stored or synced.
 Future<String> withWebsiteAssets(
   String safe,
   List<NoteAttachment> photos, {
-  AssetBundle? bundle,
+  Future<Uint8List> Function(String family, int weight) fontBytes =
+      loadWebsiteFont,
   required NoteMediaStore store,
 }) async {
   final document = html.parse(safe);
@@ -96,18 +98,20 @@ Future<String> withWebsiteAssets(
   }
 
   final faces = StringBuffer();
+  var fontsComplete = true;
   for (final family in theme?.fonts ?? const <String>[]) {
-    final asset = websiteFontAssets[family];
-    if (asset == null) continue;
+    final weight = websiteFonts[family];
+    if (weight == null) continue;
     try {
-      final data = await (bundle ?? rootBundle).load(asset);
+      final data = await fontBytes(family, weight);
       faces.write(
         '@font-face{font-family:"$family";font-display:swap;'
         'src:url(data:font/ttf;base64,'
-        '${base64Encode(Uint8List.sublistView(data))}) format("truetype")}',
+        '${base64Encode(data)}) format("truetype")}',
       );
     } catch (_) {
-      // The theme's fallback stack still applies.
+      // The theme's fallback stack still applies; try again on the next view.
+      fontsComplete = false;
     }
   }
   if (faces.isNotEmpty) {
@@ -115,6 +119,7 @@ Future<String> withWebsiteAssets(
   }
 
   final result = '<!doctype html>\n${document.documentElement!.outerHtml}';
+  if (!fontsComplete) return result;
   if (_cache.length >= 4) _cache.remove(_cache.keys.first);
   return _cache[key] = result;
 }

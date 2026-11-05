@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts_lite.dart';
 import '../../../core/presentation/diary_typography.dart';
 import '../../../core/presentation/redkeep_theme.dart';
 import '../data/font_download_client.dart';
+import '../data/font_preview_loader.dart';
 import 'appearance_controller.dart';
 
 enum FontRole { journal, diaryTitle, diaryBody }
@@ -76,6 +77,11 @@ Future<ResolvedFont> _load(String family, FontRole role) async {
 final appearanceFontLoaderProvider = Provider<AppearanceFontLoader>(
   (ref) => _load,
 );
+final fontPreviewLoaderProvider = Provider<FontPreviewLoader>((ref) {
+  final loader = FontPreviewLoader();
+  ref.onDispose(loader.dispose);
+  return loader;
+});
 final appearanceFontProvider = FutureProvider.family<ResolvedFont, FontRole>((
   ref,
   role,

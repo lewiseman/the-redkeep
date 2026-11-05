@@ -571,8 +571,8 @@ class AppearanceSettings extends Table with TableInfo {
         false,
         type: DriftSqlType.string,
         requiredDuringInsert: false,
-        $customConstraints: 'NOT NULL DEFAULT \'Lora\'',
-        defaultValue: const CustomExpression('\'Lora\''),
+        $customConstraints: 'NOT NULL DEFAULT \'Literata\'',
+        defaultValue: const CustomExpression('\'Literata\''),
       );
   late final GeneratedColumn<int> reduceMotion = GeneratedColumn<int>(
     'reduce_motion',

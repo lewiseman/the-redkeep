@@ -92,6 +92,7 @@ Future<GoRouter> pumpApp(
         syncEnabledProvider.overrideWithValue(false),
         aiEnabledProvider.overrideWithValue(aiEnabled),
         appearanceFontLoaderProvider.overrideWithValue(fontLoader),
+        fontPreviewLoaderProvider.overrideWithValue(FakeFontPreviewLoader()),
         appearanceRepositoryProvider.overrideWithValue(preferences),
         onboardingRepositoryProvider.overrideWithValue(
           onboarding ?? FakeOnboardingRepository(),

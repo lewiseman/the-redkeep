@@ -9,7 +9,7 @@ class AppearanceSettings extends Table {
   TextColumn get diaryTitleFontFamily =>
       text().withDefault(const Constant('Caveat'))();
   TextColumn get diaryBodyFontFamily =>
-      text().withDefault(const Constant('Lora'))();
+      text().withDefault(const Constant('Literata'))();
   BoolColumn get reduceMotion => boolean().withDefault(const Constant(false))();
   BoolColumn get simplerEffects =>
       boolean().withDefault(const Constant(false))();

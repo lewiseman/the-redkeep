@@ -6,7 +6,6 @@ import '../../../core/presentation/paper_surface.dart';
 import '../../../core/presentation/rendering_policy.dart';
 import '../application/appearance_controller.dart';
 import '../application/appearance_typography.dart';
-import '../../../core/presentation/diary_typography.dart';
 import 'font_picker.dart';
 import '../domain/appearance_preferences.dart';
 import '../../assets/presentation/local_artwork.dart';
@@ -191,19 +190,9 @@ class AppearancePage extends ConsumerWidget {
                 Text('Typography', style: text.titleLarge),
                 const SizedBox(height: 12),
                 for (final role in FontRole.values) ...[
+                  if (role != FontRole.values.first) const SizedBox(height: 10),
                   _FontButton(role: role, state: state),
-                  const SizedBox(height: 10),
                 ],
-                const Divider(),
-                Text(
-                  'A little room to breathe.',
-                  style: DiaryTypography.of(context).title,
-                ),
-                const SizedBox(height: 9),
-                Text(
-                  'Coffee by the window, and nowhere to rush. I want to remember the small things.',
-                  style: DiaryTypography.of(context).body,
-                ),
               ],
             ),
           ),

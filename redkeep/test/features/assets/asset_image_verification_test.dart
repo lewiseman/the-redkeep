@@ -75,7 +75,6 @@ void main() {
           'path': 'onboarding/$name',
           'bytes': bytes.length,
           'sha256': sha256.convert(bytes).toString(),
-          'license': 'LicenseRef-Test',
           'provenance': 'actual local reference',
         };
         final catalog = AssetCatalog.parse(

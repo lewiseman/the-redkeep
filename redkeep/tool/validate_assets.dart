@@ -30,13 +30,9 @@ Future<String> validateAssetSources(
   final catalog = AssetCatalog.parse(await File(catalogPath).readAsString());
   final root = Directory(await Directory(sourcePath).resolveSymbolicLinks());
   for (final asset in catalog.assets) {
-    if (!{
-          'LicenseRef-Project-Generated',
-          'LicenseRef-Project-Supplied',
-        }.contains(asset.license) ||
-        asset.provenance != 'tool/assets/PROVENANCE.md' ||
+    if (asset.provenance != 'tool/assets/PROVENANCE.md' ||
         !await File(asset.provenance).exists()) {
-      throw const FormatException('Missing reviewed license/provenance.');
+      throw const FormatException('Missing reviewed provenance.');
     }
     var directory = root;
     final parts = asset.sourcePath.split('/');

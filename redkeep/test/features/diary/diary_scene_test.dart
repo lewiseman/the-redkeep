@@ -46,7 +46,8 @@ void main() {
     if (!const bool.fromEnvironment('DIARY_CAPTURES')) return;
     for (final font in <(String, String)>[
       ('Caveat', '../assets/reference/website/fonts/Caveat-Medium.ttf'),
-      ('Lora', '../assets/reference/website/fonts/Lora-Regular.ttf'),
+      // Fonts aren't in the repo; a similar serif keeps captures realistic.
+      ('Literata', '../assets/reference/website/fonts/Lora-Regular.ttf'),
       (
         'Poppins',
         File.fromUri(

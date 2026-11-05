@@ -571,7 +571,7 @@
             "moor_type": "string",
             "nullable": false,
             "customConstraints": null,
-            "default_dart": "const CustomExpression('\\'Lora\\'')",
+            "default_dart": "const CustomExpression('\\'Literata\\'')",
             "default_client_dart": null,
             "dsl_features": []
           },
@@ -1800,7 +1800,7 @@
       "sql": [
         {
           "dialect": "sqlite",
-          "sql": "CREATE TABLE IF NOT EXISTS \"appearance_settings\" (\"id\" INTEGER NOT NULL, \"theme\" TEXT NOT NULL DEFAULT 'system', \"accent\" TEXT NOT NULL DEFAULT 'indigo', \"font_family\" TEXT NOT NULL DEFAULT 'Poppins', \"diary_title_font_family\" TEXT NOT NULL DEFAULT 'Caveat', \"diary_body_font_family\" TEXT NOT NULL DEFAULT 'Lora', \"reduce_motion\" INTEGER NOT NULL DEFAULT 0 CHECK (\"reduce_motion\" IN (0, 1)), \"simpler_effects\" INTEGER NOT NULL DEFAULT 0 CHECK (\"simpler_effects\" IN (0, 1)), PRIMARY KEY (\"id\"), CHECK (id = 1), CHECK (theme IN ('system', 'light', 'dark')));"
+          "sql": "CREATE TABLE IF NOT EXISTS \"appearance_settings\" (\"id\" INTEGER NOT NULL, \"theme\" TEXT NOT NULL DEFAULT 'system', \"accent\" TEXT NOT NULL DEFAULT 'indigo', \"font_family\" TEXT NOT NULL DEFAULT 'Poppins', \"diary_title_font_family\" TEXT NOT NULL DEFAULT 'Caveat', \"diary_body_font_family\" TEXT NOT NULL DEFAULT 'Literata', \"reduce_motion\" INTEGER NOT NULL DEFAULT 0 CHECK (\"reduce_motion\" IN (0, 1)), \"simpler_effects\" INTEGER NOT NULL DEFAULT 0 CHECK (\"simpler_effects\" IN (0, 1)), PRIMARY KEY (\"id\"), CHECK (id = 1), CHECK (theme IN ('system', 'light', 'dark')));"
         }
       ]
     },

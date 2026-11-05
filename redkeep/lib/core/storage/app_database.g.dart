@@ -2484,7 +2484,7 @@ class $AppearanceSettingsTable extends AppearanceSettings
         false,
         type: DriftSqlType.string,
         requiredDuringInsert: false,
-        defaultValue: const Constant('Lora'),
+        defaultValue: const Constant('Literata'),
       );
   static const VerificationMeta _reduceMotionMeta = const VerificationMeta(
     'reduceMotion',

@@ -20,7 +20,6 @@ Map<String, dynamic> testCatalogJson() => {
         'path': entry.key,
         'bytes': entry.value.length,
         'sha256': sha256.convert(entry.value).toString(),
-        'license': 'LicenseRef-Test',
         'provenance': 'synthetic deterministic bytes, never production media',
       },
   ],

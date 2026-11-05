@@ -145,7 +145,7 @@ void main() {
         expect(Theme.of(context).colorScheme.primary, AppAccent.teal.seed);
         expect(Theme.of(context).textTheme.bodyMedium!.fontFamily, 'Lora');
         expect(DiaryTypography.of(context).title.fontFamily, 'Caveat');
-        expect(DiaryTypography.of(context).body.fontFamily, 'Lora');
+        expect(DiaryTypography.of(context).body.fontFamily, 'Literata');
       }
       repository.emit(repository.value.copyWith(theme: AppTheme.dark));
       await tester.pumpAndSettle();

@@ -31,7 +31,6 @@ class AssetCatalog {
             final sourcePath = row['sourcePath'] as String? ?? path;
             final bytes = row['bytes'] as int;
             final hash = row['sha256'] as String;
-            final license = row['license'] as String;
             final provenance = row['provenance'] as String;
             if (!RegExp(r'^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)+$').hasMatch(key) ||
                 !_identifier(revision) ||
@@ -44,7 +43,6 @@ class AssetCatalog {
                 bytes <= 0 ||
                 bytes > 10 * 1024 * 1024 ||
                 !RegExp(r'^[a-f0-9]{64}$').hasMatch(hash) ||
-                license.trim().isEmpty ||
                 provenance.trim().isEmpty) {
               throw const FormatException();
             }
@@ -55,7 +53,6 @@ class AssetCatalog {
               sourcePath: sourcePath,
               bytes: bytes,
               sha256: hash,
-              license: license,
               provenance: provenance,
             );
           })
@@ -97,7 +94,6 @@ class PresentationAsset {
     required this.sourcePath,
     required this.bytes,
     required this.sha256,
-    required this.license,
     required this.provenance,
   });
   final String key;
@@ -108,7 +104,6 @@ class PresentationAsset {
   final String sourcePath;
   final int bytes;
   final String sha256;
-  final String license;
   final String provenance;
 }
 

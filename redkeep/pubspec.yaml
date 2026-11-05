@@ -58,8 +58,3 @@ flutter:
     - assets/catalog/presentation-v1.json
     - assets/branding/grand_maestar.png
     - assets/branding/ink-paper.webp
-    - assets/licenses/Allura-OFL.txt
-    - assets/fonts/Caveat-Medium.ttf
-    - assets/fonts/Lora-Regular.ttf
-    - assets/licenses/Caveat-OFL.txt
-    - assets/licenses/Lora-OFL.txt

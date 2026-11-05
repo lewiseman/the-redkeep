@@ -1,5 +1,11 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
 
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/presentation/rendering_policy.dart';
+import '../application/appearance_typography.dart';
+import '../data/font_preview_loader.dart';
 import '../domain/appearance_fonts.dart';
 
 Future<void> showFontPicker(
@@ -126,6 +132,7 @@ class _FontPickerState extends State<_FontPicker> {
                 return ListTile(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 24),
                   title: Text(font),
+                  subtitle: _FontPreview(key: ValueKey(font), font: font),
                   selected: font == _selected,
                   trailing: _loading == font
                       ? const SizedBox.square(
@@ -140,6 +147,85 @@ class _FontPickerState extends State<_FontPicker> {
               },
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// Fetches its preview only once the row has stayed built for a moment, so a
+/// fling through the list requests nothing for the rows it passes.
+class _FontPreview extends ConsumerStatefulWidget {
+  const _FontPreview({super.key, required this.font});
+  final String font;
+
+  @override
+  ConsumerState<_FontPreview> createState() => _FontPreviewState();
+}
+
+class _FontPreviewState extends ConsumerState<_FontPreview> {
+  static const _settleDelay = Duration(milliseconds: 150);
+
+  late final FontPreviewLoader _loader = ref.read(fontPreviewLoaderProvider);
+  Timer? _settle;
+  String? _family;
+  var _finished = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _family = _loader.readyFamily(widget.font);
+    _finished = _family != null;
+    if (!_finished) _settle = Timer(_settleDelay, _load);
+  }
+
+  Future<void> _load() async {
+    final family = await _loader.load(widget.font);
+    if (!mounted) return;
+    setState(() {
+      _family = family;
+      _finished = true;
+    });
+  }
+
+  @override
+  void dispose() {
+    _settle?.cancel();
+    _loader.cancel(widget.font);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final family = _family;
+    // Without a loaded preview the text stays hidden or says so; showing the
+    // sample in the app font would misrepresent the font on this row.
+    return ExcludeSemantics(
+      child: AnimatedOpacity(
+        opacity: _finished ? 1 : 0,
+        duration: RenderingPolicyScope.of(context).duration,
+        child: Text(
+          family != null || !_finished
+              ? fontPreviewSample
+              : 'Preview unavailable',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          // Every font gets the same line box, so rows never shift on load.
+          strutStyle: const StrutStyle(
+            fontSize: 20,
+            height: 1.4,
+            forceStrutHeight: true,
+          ),
+          style: family != null
+              ? TextStyle(
+                  fontFamily: family,
+                  fontSize: 20,
+                  color: theme.colorScheme.onSurface,
+                )
+              : theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+        ),
       ),
     );
   }

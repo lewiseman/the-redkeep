@@ -9,7 +9,11 @@ class DiaryTypography extends ThemeExtension<DiaryTypography> {
       height: 1.16,
       fontWeight: FontWeight.w500,
     ),
-    this.body = const TextStyle(fontFamily: 'Lora', fontSize: 17, height: 1.75),
+    this.body = const TextStyle(
+      fontFamily: 'Literata',
+      fontSize: 17,
+      height: 1.75,
+    ),
   });
 
   final TextStyle title, body;

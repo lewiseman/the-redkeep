@@ -199,8 +199,8 @@ The unused original J mascot app/reference copies are removed.
 The user also selected the old app's Google Fonts approach instead of asset
 fonts. Pinned `google_fonts` 9.0.0 uses `GoogleFontsLite.getFont('Allura')` for
 both caption layouts, matching the old app's API and typography. The former
-bundled TTF and `flutter.fonts` declaration are removed. Only the OFL notice
-remains at `assets/licenses/Allura-OFL.txt` and in Flutter's license registry.
+bundled TTF and `flutter.fonts` declaration are removed. The app now bundles no
+fonts or font license files; every family comes from Google Fonts at runtime.
 The package owns runtime fetching/caching; no font fetch joins bootstrap or
 required-artwork verification. The local reference TTF remains outside bundles,
 tagged `test-reference`, to preload the exact font in offline test isolates.

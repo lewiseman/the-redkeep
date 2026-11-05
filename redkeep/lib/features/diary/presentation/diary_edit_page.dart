@@ -15,8 +15,11 @@ import 'diary_writing_paper.dart';
 /// A pinned page of the diary to write on. Save is the only commit, and leaving
 /// without saving asks first only when there is writing to lose.
 class DiaryEditPage extends ConsumerStatefulWidget {
-  const DiaryEditPage({super.key, required this.address});
+  const DiaryEditPage({super.key, required this.address, this.question});
   final DiaryAddress address;
+
+  /// Today's question, shown in place of the usual placeholder.
+  final String? question;
   @override
   ConsumerState<DiaryEditPage> createState() => _DiaryEditPageState();
 }
@@ -254,6 +257,7 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
                     textCapitalization: TextCapitalization.sentences,
                     decoration: InputDecoration(
                       hintText:
+                          widget.question ??
                           'Start writing about your ${widget.address.date.kind.name}…',
                       hintStyle: typography.copyWith(
                         color: colors.onSurfaceVariant,

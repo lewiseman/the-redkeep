@@ -719,7 +719,7 @@ class _CalendarMonth extends StatelessWidget {
   }
 }
 
-class _CalendarDate extends StatefulWidget {
+class _CalendarDate extends ConsumerStatefulWidget {
   const _CalendarDate({
     super.key,
     required this.date,
@@ -735,16 +735,22 @@ class _CalendarDate extends StatefulWidget {
   final VoidCallback onTap;
 
   @override
-  State<_CalendarDate> createState() => _CalendarDateState();
+  ConsumerState<_CalendarDate> createState() => _CalendarDateState();
 }
 
-class _CalendarDateState extends State<_CalendarDate> {
+class _CalendarDateState extends ConsumerState<_CalendarDate> {
   bool _pressed = false;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     final data = widget.data;
+    final mood = data.hasEntry
+        ? ref
+              .watch(diaryDayProvider(DiaryPeriod.fromComponents(widget.date)))
+              .value
+              ?.mood
+        : null;
     final reduced = !RenderingPolicyScope.of(context).animate;
     final simple = RenderingPolicyScope.of(context).simplerEffects;
     final ink = widget.selected ? colors.primary : colors.onSurface;
@@ -758,7 +764,12 @@ class _CalendarDateState extends State<_CalendarDate> {
       MaterialLocalizations.of(context).formatFullDate(widget.date),
       if (widget.today) 'Today',
       data.hasEntry ? 'Journal entry' : 'No journal entry',
+      if (mood != null) '${mood.label} mood',
     ].join(', ');
+    final tilt =
+        (-8 + (widget.date.day * 13 + widget.date.month * 7) % 5 - 2) *
+        math.pi /
+        180;
     final dateDiameter = math.max(
       25.0,
       MediaQuery.textScalerOf(context).scale(15) * 1.25 + 4,
@@ -847,6 +858,40 @@ class _CalendarDateState extends State<_CalendarDate> {
                           ),
                         ),
                       ),
+                      if (mood != null)
+                        Positioned(
+                          bottom: -8,
+                          left: 2,
+                          width: 22,
+                          height: 22,
+                          child: Transform.rotate(
+                            angle: tilt,
+                            child: Text(
+                              mood.emoji,
+                              textAlign: TextAlign.center,
+                              textScaler: TextScaler.noScaling,
+                              style: TextStyle(
+                                fontSize: 22,
+                                height: 1,
+                                shadows: simple
+                                    ? null
+                                    : [
+                                        Shadow(
+                                          color: colors.shadow.withValues(
+                                            alpha: context.isDark ? .4 : .2,
+                                          ),
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                fontFamilyFallback: const [
+                                  'Apple Color Emoji',
+                                  'Noto Color Emoji',
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
                       if (widget.selected)
                         Positioned(
                           right: -3,

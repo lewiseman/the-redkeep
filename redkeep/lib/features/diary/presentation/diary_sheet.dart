@@ -192,7 +192,7 @@ class _DiaryDayContentState extends ConsumerState<DiaryDayContent> {
     ].join(' · ');
     final canCreate =
         day.date.hasStarted(today) && (canEdit || day.date.isCurrent(today));
-    Future<void> write() async {
+    Future<void> write(String? question) async {
       if (_openingEditor) return;
       _openingEditor = true;
       try {
@@ -201,7 +201,10 @@ class _DiaryDayContentState extends ConsumerState<DiaryDayContent> {
             .create(day.date);
         if (context.mounted) {
           // Held until the editor closes, so a double tap opens one editor.
-          await context.push(diaryEntryLocation(day.date, id, edit: true));
+          await context.push(
+            diaryEntryLocation(day.date, id, edit: true),
+            extra: question,
+          );
         }
       } catch (_) {
         if (context.mounted) {

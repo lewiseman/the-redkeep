@@ -58,7 +58,7 @@ void main() {
       '${period.kind.name} live and preview prompts offer plain writing without questions',
       (tester) async {
         var builds = 0;
-        var writes = 0;
+        final writes = <String?>[];
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
@@ -82,7 +82,7 @@ void main() {
                       DailyDiaryPrompt(
                         date: period,
                         active: active,
-                        onWrite: () => writes++,
+                        onWrite: writes.add,
                       ),
                   ],
                 ),
@@ -100,11 +100,8 @@ void main() {
           everyElement(isNull),
         );
         expect(find.text(initialQuestion.question!.text), findsNothing);
-        expect(find.text('Ask for a question'), findsNothing);
-        expect(find.text('Another question'), findsNothing);
-        expect(find.text('Skip'), findsNothing);
         await tester.tap(find.byType(DiaryWritingPrompt).first);
-        expect(writes, 1);
+        expect(writes, [null]);
         await tester.pumpWidget(const SizedBox());
       },
     );
@@ -116,7 +113,7 @@ void main() {
     (true, 3.0),
   ]) {
     testWidgets(
-      'today question and controls stay on the folding paper; entries=$hasEntries, text=$textScale',
+      'today question stays on the folding paper; entries=$hasEntries, text=$textScale',
       (tester) async {
         tester.view.physicalSize = const Size(390, 844);
         tester.view.devicePixelRatio = 1;
@@ -155,6 +152,17 @@ void main() {
                   ),
                 ),
               ),
+              routes: [
+                GoRoute(
+                  path: 'entries/:id/edit',
+                  builder: (context, state) => Scaffold(
+                    body: Text(
+                      'Editor: ${state.extra}',
+                      key: const ValueKey('editor-question'),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         );
@@ -200,20 +208,31 @@ void main() {
           final controller = questions.single;
           final face = find.byKey(ValueKey('diary-face-${today.key}'));
           final live = find.byKey(const ValueKey('diary-live-content'));
-          void expectMatchingPrompts(String question, String message) {
+          void expectMatchingPrompts(String question) {
             for (final surface in [live, face]) {
-              for (final text in [
-                question,
-                message,
-                'A general question to help you start.',
-                'Another question',
-                'Skip',
-              ]) {
-                expect(
-                  find.descendant(of: surface, matching: find.text(text)),
-                  findsOneWidget,
-                );
-              }
+              expect(
+                find.descendant(of: surface, matching: find.text(question)),
+                findsOneWidget,
+              );
+              // Only the question: its hint and old controls stay off the page.
+              expect(
+                find.descendant(of: surface, matching: find.byType(TextButton)),
+                findsNothing,
+              );
+              expect(
+                find.descendant(
+                  of: surface,
+                  matching: find.text(initialQuestion.message!),
+                ),
+                findsNothing,
+              );
+              expect(
+                find.descendant(
+                  of: surface,
+                  matching: find.text('A general question to help you start.'),
+                ),
+                findsNothing,
+              );
               if (hasEntries) {
                 final conversation = tester.widget<RawChip>(
                   find.descendant(of: surface, matching: find.byType(RawChip)),
@@ -223,10 +242,7 @@ void main() {
             }
           }
 
-          expectMatchingPrompts(
-            initialQuestion.question!.text,
-            initialQuestion.message!,
-          );
+          expectMatchingPrompts(initialQuestion.question!.text);
           final curl = tester.renderObject<RenderDiaryCurl>(
             find.descendant(of: face, matching: find.byType(DiaryPaperCurl)),
           );
@@ -243,10 +259,7 @@ void main() {
           for (var frame = 0; frame < 30; frame++) {
             await gesture.moveBy(const Offset(3, 0));
             await tester.pump(const Duration(milliseconds: 24));
-            expectMatchingPrompts(
-              initialQuestion.question!.text,
-              initialQuestion.message!,
-            );
+            expectMatchingPrompts(initialQuestion.question!.text);
             expect((
               curl.debugFrontCaptures,
               curl.debugBackCaptures,
@@ -265,19 +278,35 @@ void main() {
           );
           const replacement = DailyQuestionView(
             question: DailyQuestion(text: 'What surprised you today?'),
-            message: 'An updated hint.',
           );
           controller.show(replacement);
           await tester.pumpAndSettle();
           await warmDiaryFaces(tester);
-          expectMatchingPrompts(
-            replacement.question!.text,
-            replacement.message!,
-          );
+          expectMatchingPrompts(replacement.question!.text);
           expect(curl.debugFrontCaptures, captures.$1 + 1);
           expect(controller.activations, everyElement(isTrue));
           expect(controller.requests, 0);
           expect(tester.takeException(), isNull);
+          await tester.ensureVisible(
+            find.descendant(
+              of: live,
+              matching: find.byType(DiaryWritingPrompt),
+            ),
+          );
+          await tester.pumpAndSettle();
+          await tester.tap(
+            find.descendant(
+              of: live,
+              matching: find.byType(DiaryWritingPrompt),
+            ),
+          );
+          await tester.pumpAndSettle();
+          expect(
+            tester
+                .widget<Text>(find.byKey(const ValueKey('editor-question')))
+                .data,
+            'Editor: ${replacement.question!.text}',
+          );
         } finally {
           await tester.pumpWidget(const SizedBox());
           await tester.pumpAndSettle();
@@ -312,7 +341,7 @@ void main() {
               child: DailyDiaryPrompt(
                 key: const ValueKey('live'),
                 date: today,
-                onWrite: () {},
+                onWrite: (_) {},
                 active: true,
               ),
               builder: (context, visible, child) => Column(
@@ -322,7 +351,7 @@ void main() {
                     DailyDiaryPrompt(
                       key: const ValueKey('preview'),
                       date: today,
-                      onWrite: () {},
+                      onWrite: (_) {},
                       active: false,
                     ),
                 ],
@@ -342,28 +371,21 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text(initialQuestion.question!.text), findsNWidgets(2));
       expect(controller.activations, activations);
-      controller.show(
-        const DailyQuestionView(busy: true, message: 'Asking for a question.'),
-      );
-      await tester.pumpAndSettle();
-      expect(find.text('Thinking…'), findsNWidgets(2));
-      expect(find.text('Asking for a question.'), findsNWidgets(2));
-      for (final button in tester.widgetList<TextButton>(
-        find.byType(TextButton),
-      )) {
-        expect(button.onPressed, isNull);
+      // Not ready yet, or unavailable: only the blank writing lines remain.
+      for (final state in const [
+        DailyQuestionView(busy: true, message: 'Asking for a question.'),
+        DailyQuestionView(message: 'Questions are temporarily unavailable.'),
+      ]) {
+        controller.show(state);
+        await tester.pumpAndSettle();
+        expect(find.byType(DiaryWritingPrompt), findsNWidgets(2));
+        expect(find.byType(TextButton), findsNothing);
+        expect(find.text(state.message!), findsNothing);
+        expect(
+          find.byKey(const ValueKey('diary-prompt-question')),
+          findsNothing,
+        );
       }
-      controller.show(
-        const DailyQuestionView(
-          message: 'Questions are temporarily unavailable.',
-        ),
-      );
-      await tester.pumpAndSettle();
-      expect(find.text('Ask for a question'), findsNWidgets(2));
-      expect(
-        find.text('Questions are temporarily unavailable.'),
-        findsNWidgets(2),
-      );
       expect(controller.activations, everyElement(isTrue));
       expect(controller.requests, 0);
       await tester.pumpWidget(const SizedBox());

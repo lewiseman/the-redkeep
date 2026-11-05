@@ -157,6 +157,9 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
                               )!,
                               id: state.pathParameters['id']!,
                             ),
+                            question: state.extra is String
+                                ? state.extra as String
+                                : null,
                           ),
                         ),
                       ),

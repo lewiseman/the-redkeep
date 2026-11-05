@@ -143,6 +143,23 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
                           ),
                         ),
                       ),
+                      // A sibling of the reader, so back from the editor returns
+                      // to the day even when the editor was reached with `go`.
+                      GoRoute(
+                        path: 'entries/:id/edit',
+                        pageBuilder: (context, state) => _page(
+                          state,
+                          DiaryEditPage(
+                            key: ValueKey(state.uri.path),
+                            address: (
+                              date: DiaryPeriod.tryParse(
+                                state.pathParameters['date']!,
+                              )!,
+                              id: state.pathParameters['id']!,
+                            ),
+                          ),
+                        ),
+                      ),
                       GoRoute(
                         path: 'entries/:id',
                         pageBuilder: (context, state) => _page(
@@ -177,21 +194,6 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
                             pageBuilder: (context, state) => _page(
                               state,
                               DiaryConversationPage(
-                                address: (
-                                  date: DiaryPeriod.tryParse(
-                                    state.pathParameters['date']!,
-                                  )!,
-                                  id: state.pathParameters['id']!,
-                                ),
-                              ),
-                            ),
-                          ),
-                          GoRoute(
-                            path: 'edit',
-                            pageBuilder: (context, state) => _page(
-                              state,
-                              DiaryEditPage(
-                                key: ValueKey(state.uri.path),
                                 address: (
                                   date: DiaryPeriod.tryParse(
                                     state.pathParameters['date']!,

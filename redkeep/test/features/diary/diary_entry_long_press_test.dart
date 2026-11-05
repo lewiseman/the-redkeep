@@ -128,8 +128,7 @@ void main() {
         await tester.enterText(body, 'Second entry revised.');
         FocusManager.instance.primaryFocus?.unfocus();
         await tester.pumpAndSettle();
-        await tester.ensureVisible(find.text('Save entry'));
-        await tester.tap(find.text('Save entry'));
+        await tester.tap(find.text('Save'));
         await tester.pumpAndSettle();
         expect(
           (await repo.openDocument(_first)).entry!.text.body,
@@ -139,8 +138,7 @@ void main() {
           (await repo.openDocument(_second)).entry!.text.body,
           'Second entry revised.',
         );
-        await tester.pageBack();
-        await tester.pumpAndSettle();
+        // Saving returned to the day, still scrolled to where it was.
         expect(
           router.routeInformationProvider.value.uri.path,
           diaryDayLocation(_today),

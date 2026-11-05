@@ -96,7 +96,7 @@ class DiaryEditorController extends AsyncNotifier<DiaryEditorState> {
       ref.read(diaryNewIdsProvider.notifier).remove(id);
       _saved = _text;
       _unavailable = false;
-      _publish(message: 'Saved revision ${saved.revision} on this device.');
+      _publish();
       return true;
     } on DiaryException catch (_) {
       _unavailable = true;

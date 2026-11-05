@@ -11,6 +11,9 @@ import 'package:redkeep/features/appearance/domain/appearance_preferences.dart';
 import 'package:redkeep/features/diary/application/diary_editor_controller.dart';
 import 'package:redkeep/features/diary/presentation/diary_scene.dart';
 import 'package:redkeep/features/diary/presentation/diary_calendar_page.dart';
+import 'package:redkeep/features/diary/presentation/diary_edit_page.dart';
+import 'package:redkeep/features/diary/presentation/diary_entry_page.dart';
+import 'package:redkeep/features/diary/presentation/diary_widgets.dart';
 import 'package:redkeep/features/diary/presentation/diary_writing_prompt.dart';
 import 'package:redkeep/features/diary/data/drift_diary_repository.dart';
 import 'package:redkeep/features/diary/domain/diary_period.dart';
@@ -190,10 +193,7 @@ void main() {
         findsOneWidget,
       );
       await tap(tester, 'Write an entry');
-      expect(
-        router.routeInformationProvider.value.uri.path,
-        diaryEntryLocation(date, id, edit: true),
-      );
+      expect(find.byType(DiaryEditPage), findsOneWidget);
       expect(find.byType(TextField), findsOneWidget);
       expect(find.byKey(const ValueKey('diary-title')), findsNothing);
       await tester.enterText(
@@ -201,9 +201,14 @@ void main() {
         'Hello 👩🏽‍💻\nHabari • 中文',
       );
       await tester.pumpAndSettle();
-      await tap(tester, 'Save entry');
-      expect(find.text('Saved revision 1 on this device.'), findsOneWidget);
-      await tap(tester, 'Read committed entry');
+      await tap(tester, 'Save');
+      expect(
+        router.routeInformationProvider.value.uri.path,
+        diaryDayLocation(date),
+      );
+      expect(liveText('Hello 👩🏽‍💻\nHabari • 中文'), findsOneWidget);
+      router.go(diaryEntryLocation(date, id));
+      await tester.pumpAndSettle();
       expect(find.text('Hello 👩🏽‍💻\nHabari • 中文'), findsOneWidget);
       await tap(tester, 'Edit entry');
       await tester.enterText(
@@ -211,14 +216,14 @@ void main() {
         'Revised writing',
       );
       await tester.pumpAndSettle();
-      await tap(tester, 'Save entry');
-      expect(find.text('Saved revision 2 on this device.'), findsOneWidget);
-      await tap(tester, 'Read committed entry');
+      await tap(tester, 'Save');
+      expect((await repo.openDocument(id)).entry!.revision, 2);
+      expect(find.text('Revised writing'), findsOneWidget);
       await tap(tester, 'Delete entry');
       await tap(tester, 'Keep entry');
       expect((await repo.openDocument(id)).available, isTrue);
       await tap(tester, 'Delete entry');
-      await tap(tester, 'Delete committed entry');
+      await tap(tester, 'Delete');
       expect(
         router.routeInformationProvider.value.uri.path,
         diaryDayLocation(date),
@@ -504,6 +509,155 @@ void main() {
     },
   );
 
+  diaryTest('back from a new entry returns to the day', (tester) async {
+    final router = await pumpApp(
+      tester,
+      initialLocation: diaryDayLocation(date),
+      diary: repo,
+      diaryId: () => id,
+    );
+    await tap(tester, 'Write an entry');
+    expect(find.byType(DiaryEditPage), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('Discard changes?'), findsNothing);
+    expect(find.byType(DiaryEditPage), findsNothing);
+    expect(find.byType(DiaryEntryPage), findsNothing);
+    expect(
+      router.routeInformationProvider.value.uri.path,
+      diaryDayLocation(date),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  diaryTest('a double tap on the prompt opens one editor', (tester) async {
+    await pumpApp(
+      tester,
+      initialLocation: diaryDayLocation(date),
+      diary: repo,
+      diaryId: () => id,
+    );
+    final prompt = find.byType(DiaryWritingPrompt).hitTestable();
+    await tester.ensureVisible(prompt);
+    await tester.tap(prompt);
+    await tester.tap(prompt);
+    await tester.pumpAndSettle();
+    expect(find.byType(DiaryEditPage, skipOffstage: false), findsOneWidget);
+  });
+
+  diaryTest('saving a new entry returns to the day with its text', (
+    tester,
+  ) async {
+    final router = await pumpApp(
+      tester,
+      initialLocation: diaryDayLocation(date),
+      diary: repo,
+      diaryId: () => id,
+    );
+    await tap(tester, 'Write an entry');
+    expect(find.text('Save'), findsOneWidget);
+    expect(find.text('Save entry'), findsNothing);
+    expect(find.text('Discard changes'), findsNothing);
+    expect(find.byType(NotebookSurface), findsNothing);
+    await tester.enterText(
+      find.byKey(const ValueKey('diary-body')),
+      'A new page',
+    );
+    await tester.pumpAndSettle();
+    await tap(tester, 'Save');
+    expect(find.text('Discard changes?'), findsNothing);
+    expect(find.byType(DiaryEditPage), findsNothing);
+    expect(
+      router.routeInformationProvider.value.uri.path,
+      diaryDayLocation(date),
+    );
+    expect(liveText('A new page'), findsOneWidget);
+  });
+
+  diaryTest('back with unsaved writing asks before leaving', (tester) async {
+    final router = await pumpApp(
+      tester,
+      initialLocation: diaryDayLocation(date),
+      diary: repo,
+      diaryId: () => id,
+    );
+    await tap(tester, 'Write an entry');
+    await tester.enterText(
+      find.byKey(const ValueKey('diary-body')),
+      'Maybe keep this',
+    );
+    await tester.pumpAndSettle();
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('Discard changes?'), findsOneWidget);
+    await tap(tester, 'Keep writing');
+    expect(find.byType(DiaryEditPage), findsOneWidget);
+    expect(find.text('Maybe keep this'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tap(tester, 'Discard');
+    expect(find.byType(DiaryEditPage), findsNothing);
+    expect(
+      router.routeInformationProvider.value.uri.path,
+      diaryDayLocation(date),
+    );
+    expect((await repo.openDocument(id)).entry, isNull);
+  });
+
+  diaryTest('a direct link to the editor still goes back to the day', (
+    tester,
+  ) async {
+    await seed();
+    await pumpApp(
+      tester,
+      initialLocation: diaryEntryLocation(date, id, edit: true),
+      diary: repo,
+    );
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.byType(DiaryEditPage), findsNothing);
+    expect(find.byType(DiaryEntryPage), findsNothing);
+  });
+
+  diaryTest('editing from the reader goes back to the reader', (tester) async {
+    await seed();
+    await pumpApp(
+      tester,
+      initialLocation: diaryEntryLocation(date, id),
+      diary: repo,
+    );
+    await tap(tester, 'Edit entry');
+    expect(find.byType(DiaryEditPage), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.byType(DiaryEditPage), findsNothing);
+    expect(find.byType(DiaryEntryPage), findsOneWidget);
+  });
+
+  diaryTest('a saved entry is deleted from the editor menu', (tester) async {
+    await seed();
+    final router = await pumpApp(
+      tester,
+      initialLocation: diaryEntryLocation(date, id, edit: true),
+      diary: repo,
+    );
+    await tester.tap(find.byTooltip('Entry options'));
+    await tester.pumpAndSettle();
+    await tap(tester, 'Delete entry');
+    await tap(tester, 'Keep entry');
+    expect(find.byType(DiaryEditPage), findsOneWidget);
+    expect((await repo.openDocument(id)).available, isTrue);
+    await tester.tap(find.byTooltip('Entry options'));
+    await tester.pumpAndSettle();
+    await tap(tester, 'Delete entry');
+    await tap(tester, 'Delete');
+    expect((await repo.openDocument(id)).available, isFalse);
+    expect(
+      router.routeInformationProvider.value.uri.path,
+      diaryDayLocation(date),
+    );
+  });
+
   diaryTest('save failure retains buffer; retry waits for storage', (
     tester,
   ) async {
@@ -520,7 +674,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     repo.failCommit = true;
-    await tap(tester, 'Save entry');
+    await tap(tester, 'Save');
     expect(find.textContaining('Save failed.'), findsOneWidget);
     expect((await repo.openDocument(id)).entry, isNull);
     repo.failCommit = false;
@@ -530,11 +684,11 @@ void main() {
         .read(diaryEditorProvider(address).notifier)
         .save();
     await tester.pump();
-    expect(find.text('Saving…'), findsNWidgets(2));
+    expect(find.text('Saving…'), findsOneWidget);
     repo.commitGate!.complete();
     await saving;
     await tester.pumpAndSettle();
-    expect(find.text('Saved revision 1 on this device.'), findsOneWidget);
+    expect(find.textContaining('Save failed.'), findsNothing);
     expect(
       (await repo.openDocument(id)).entry!.text.body,
       'Retain this buffer',
@@ -572,7 +726,13 @@ void main() {
             .text,
         'Exact writing 👩🏽‍💻 中文 e\u0301',
       );
-      await tap(tester, 'Discard changes');
+      await tester.enterText(
+        find.byKey(const ValueKey('diary-body')),
+        'Thrown away',
+      );
+      await tester.pumpAndSettle();
+      await tester.pageBack();
+      await tester.pumpAndSettle();
       await tap(tester, 'Discard');
       expect((await repo.openDocument(id)).entry!.revision, 1);
       // Use the new scope's router, never the disposed one.
@@ -685,10 +845,19 @@ void main() {
             'Large text diary',
           );
           await tester.pumpAndSettle();
-          await tap(tester, 'Save entry');
-          expect(find.text('Saved revision 2 on this device.'), findsOneWidget);
-          await tap(tester, 'Discard changes');
+          await tap(tester, 'Save');
+          expect((await repo.openDocument(id)).entry!.revision, 2);
+          router.go(diaryEntryLocation(date, id, edit: true));
+          await tester.pumpAndSettle();
+          await tester.enterText(
+            find.byKey(const ValueKey('diary-body')),
+            'Large text unsaved',
+          );
+          await tester.pumpAndSettle();
+          await tester.pageBack();
+          await tester.pumpAndSettle();
           await tap(tester, 'Keep writing');
+          expect(tester.takeException(), isNull);
           router.go('/diary/search');
           await tester.pumpAndSettle();
           await tester.scrollUntilVisible(

@@ -122,10 +122,8 @@ void main() {
           find.byKey(const ValueKey('diary-body')),
           'The garden grew this week 🌿',
         );
-        await _tap(tester, find.text('Save entry'));
-        await _tap(tester, find.text('Read committed entry'));
+        await _tap(tester, find.text('Save'));
         expect((await repo.openDocument('a' * 32)).entry!.date, week);
-        await _tap(tester, find.text('Return to week'));
         expect(_selected(tester), week);
         router.go(diaryDayLocation(_today));
         await tester.pumpAndSettle();

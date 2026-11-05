@@ -129,6 +129,7 @@ class DiaryDayContent extends ConsumerStatefulWidget {
 class _DiaryDayContentState extends ConsumerState<DiaryDayContent> {
   Widget? _content;
   Object? _contentKey;
+  bool _openingEditor = false;
 
   @override
   void didChangeDependencies() {
@@ -192,17 +193,22 @@ class _DiaryDayContentState extends ConsumerState<DiaryDayContent> {
     final canCreate =
         day.date.hasStarted(today) && (canEdit || day.date.isCurrent(today));
     Future<void> write() async {
+      if (_openingEditor) return;
+      _openingEditor = true;
       try {
         final id = await ref
             .read(diaryActionsProvider.notifier)
             .create(day.date);
         if (context.mounted) {
-          context.go(diaryEntryLocation(day.date, id, edit: true));
+          // Held until the editor closes, so a double tap opens one editor.
+          await context.push(diaryEntryLocation(day.date, id, edit: true));
         }
       } catch (_) {
         if (context.mounted) {
           diaryMessage(context, 'Could not open the editor. Retry.');
         }
+      } finally {
+        _openingEditor = false;
       }
     }
 

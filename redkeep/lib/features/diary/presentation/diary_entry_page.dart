@@ -73,13 +73,16 @@ class DiaryEntryPage extends ConsumerWidget {
                       OutlinedButton(
                         onPressed: !ref.watch(syncCanEditProvider)
                             ? null
-                            : () => context.go(
+                            : entry.photos.isEmpty
+                            ? () => context.push(
                                 diaryEntryLocation(
-                                      address.date,
-                                      address.id,
-                                      edit: entry.photos.isEmpty,
-                                    ) +
-                                    (entry.photos.isNotEmpty ? '/photos' : ''),
+                                  address.date,
+                                  address.id,
+                                  edit: true,
+                                ),
+                              )
+                            : () => context.go(
+                                '${diaryEntryLocation(address.date, address.id)}/photos',
                               ),
                         child: const Text('Edit entry'),
                       ),
@@ -88,7 +91,17 @@ class DiaryEntryPage extends ConsumerWidget {
                             !ref.watch(syncCanEditProvider) ||
                                 ref.watch(diaryActionsProvider)
                             ? null
-                            : () => _delete(context, ref, entry),
+                            : () async {
+                                final deleted = await deleteDiaryEntry(
+                                  context,
+                                  ref,
+                                  id: entry.id,
+                                  revision: entry.revision,
+                                );
+                                if (deleted && context.mounted) {
+                                  context.go(diaryDayLocation(address.date));
+                                }
+                              },
                         child: const Text('Delete entry'),
                       ),
                     ],
@@ -104,47 +117,50 @@ class DiaryEntryPage extends ConsumerWidget {
           ),
     );
   }
+}
 
-  Future<void> _delete(
-    BuildContext context,
-    WidgetRef ref,
-    DiaryEntry entry,
-  ) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      animationStyle: AnimationStyle.noAnimation,
-      builder: (context) => DiaryDialog(
-        children: [
-          Text(
-            'Delete this entry?',
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          const Text('The saved text will be removed. This cannot be undone.'),
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Keep entry'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete committed entry'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !context.mounted) return;
-    try {
-      await ref
-          .read(diaryActionsProvider.notifier)
-          .run((repo) => repo.deleteEntry(entry.id, entry.revision));
-      if (context.mounted) context.go(diaryDayLocation(address.date));
-    } catch (_) {
-      if (context.mounted) {
-        diaryMessage(
-          context,
-          'Entry could not be deleted. Reload the entry and retry.',
-        );
-      }
-      ref.invalidate(diaryDocumentProvider(address.id));
+/// Confirms, then deletes a saved entry. Returns whether it was deleted.
+Future<bool> deleteDiaryEntry(
+  BuildContext context,
+  WidgetRef ref, {
+  required String id,
+  required int revision,
+}) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    animationStyle: AnimationStyle.noAnimation,
+    builder: (context) => DiaryDialog(
+      children: [
+        Text(
+          'Delete this entry?',
+          style: Theme.of(context).textTheme.headlineSmall,
+        ),
+        const Text('The saved text will be removed. This cannot be undone.'),
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Keep entry'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text('Delete'),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true || !context.mounted) return false;
+  try {
+    await ref
+        .read(diaryActionsProvider.notifier)
+        .run((repo) => repo.deleteEntry(id, revision));
+    return true;
+  } catch (_) {
+    if (context.mounted) {
+      diaryMessage(
+        context,
+        'Entry could not be deleted. Reload the entry and retry.',
+      );
     }
+    ref.invalidate(diaryDocumentProvider(id));
+    return false;
   }
 }

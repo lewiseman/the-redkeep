@@ -22,7 +22,7 @@ void main() {
   }
 
   testWidgets(
-    'legacy inline Terms and Privacy links expose real tap actions and exact destinations',
+    'inline Terms and Privacy links open the exact Redkeep destinations',
     (tester) async {
       final semantics = tester.ensureSemantics();
       try {
@@ -36,8 +36,8 @@ void main() {
         tester.semantics.tap(find.semantics.byLabel('Privacy policy'));
         await tester.pumpAndSettle();
         expect(opened.map((u) => u.toString()), [
-          'https://journal.lewiseman.com/terms.html',
-          'https://journal.lewiseman.com/privacy.html',
+          'https://redkeep.lewiseman.com/terms.html',
+          'https://redkeep.lewiseman.com/privacy.html',
         ]);
         expect(
           find.text('Could not open this page. Please try again.'),
@@ -50,7 +50,7 @@ void main() {
   );
   for (final throws in [false, true]) {
     testWidgets(
-      'link ${throws ? 'exception' : 'failure'} shows the legacy safe message',
+      'link ${throws ? 'exception' : 'failure'} shows a safe message',
       (tester) async {
         final semantics = tester.ensureSemantics();
         try {

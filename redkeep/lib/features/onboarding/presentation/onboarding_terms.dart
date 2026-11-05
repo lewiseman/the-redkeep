@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-/// Only these existing, user-selected legacy links can leave onboarding.
+/// Opens Redkeep's legal pages in an external browser.
 final onboardingLegalLinkLauncherProvider =
     Provider<Future<bool> Function(Uri)>(
       (ref) =>
@@ -21,10 +21,10 @@ class OnboardingTerms extends ConsumerStatefulWidget {
 class _OnboardingTermsState extends ConsumerState<OnboardingTerms> {
   late final _terms = TapGestureRecognizer()
     ..onTap = () =>
-        unawaited(_open('https://journal.lewiseman.com/terms.html'));
+        unawaited(_open('https://redkeep.lewiseman.com/terms.html'));
   late final _privacy = TapGestureRecognizer()
     ..onTap = () =>
-        unawaited(_open('https://journal.lewiseman.com/privacy.html'));
+        unawaited(_open('https://redkeep.lewiseman.com/privacy.html'));
 
   Future<void> _open(String url) async {
     try {

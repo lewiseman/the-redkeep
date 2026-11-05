@@ -29,15 +29,6 @@ class SyncAccountBinding {
       }
       return;
     }
-    // Journal's previous Google-only binding remains authoritative on upgrade.
-    final legacy = File(p.join(root.path, 'sync_account.id'));
-    if (await legacy.exists() &&
-        (backendId != 'google_drive' ||
-            (await legacy.readAsString()).trim() != accountId)) {
-      throw StateError(
-        'This local data belongs to a different Google account. Reconnect the original account to sync.',
-      );
-    }
     final temporary = File('${binding.path}.tmp');
     await temporary.writeAsString(
       jsonEncode({'backend_id': backendId, 'account_id': accountId}),
@@ -49,12 +40,7 @@ class SyncAccountBinding {
   /// Call only after the app has cleared the old account's local data.
   Future<void> clear() async {
     final root = await directory();
-    for (final name in [
-      'sync_account.json',
-      'sync_account.json.tmp',
-      'sync_account.id',
-      'sync_account.id.tmp',
-    ]) {
+    for (final name in ['sync_account.json', 'sync_account.json.tmp']) {
       final file = File(p.join(root.path, name));
       if (await file.exists()) await file.delete();
     }

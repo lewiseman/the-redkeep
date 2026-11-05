@@ -25,7 +25,7 @@ class DriftOnboardingRepository implements OnboardingRepository {
         .insertOnConflictUpdate(
           OnboardingCompletionCompanion.insert(
             id: const Value(1),
-            name: Value(savedName),
+            name: savedName,
           ),
         );
   }

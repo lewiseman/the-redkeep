@@ -49,7 +49,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 17;
+  int get schemaVersion => 1;
 
   // Reset changes this generation before disposing editors. Old repositories
   // cannot write after cleanup, even when an async continuation finishes late.
@@ -63,120 +63,6 @@ class AppDatabase extends _$AppDatabase {
       await installFlowReflectionCleanup(this);
       await installSyncTriggers(this);
       await installRecallTriggers(this);
-    },
-    onUpgrade: (migrator, from, to) async {
-      if (from >= 5 && from < 17 && to >= 17) {
-        await customStatement(
-          'ALTER TABLE diary_entries RENAME COLUMN date_key TO period_key',
-        );
-        await customStatement(
-          'ALTER TABLE diary_days RENAME COLUMN date_key TO period_key',
-        );
-      }
-      if (from >= 5 && from < 16 && to >= 16) {
-        await customStatement('ALTER TABLE diary_entries DROP COLUMN title');
-      }
-      if (from < 15 && to >= 15) {
-        await migrator.createTable(flowReflections);
-        if (from >= 12) {
-          await migrator.addColumn(aiJobReceipts, aiJobReceipts.resultConsumed);
-        }
-      }
-      if (from < 14 && to >= 14) {
-        if (from >= 3) {
-          await migrator.addColumn(notes, notes.details);
-          await migrator.addColumn(noteDrafts, noteDrafts.details);
-        }
-        await migrator.createTable(noteAiRecoveries);
-        await migrator.createTable(noteMediaOps);
-      }
-      if (from < 13 && to >= 13) {
-        if (from >= 5) {
-          await migrator.addColumn(diaryEntries, diaryEntries.photos);
-          await migrator.addColumn(diaryEntries, diaryEntries.conversation);
-        }
-        await migrator.createTable(diaryMediaOps);
-        await migrator.createTable(photoQuestionCache);
-      }
-      if (from < 12 && to >= 12) {
-        await migrator.createTable(aiPreferencesTable);
-        await migrator.createTable(aiJobReceipts);
-        await migrator.createTable(recallQueue);
-        await migrator.createTable(recallManifests);
-        await migrator.createTable(dailyQuestions);
-      }
-      if (from < 2 && to >= 2) {
-        await migrator.createTable(onboardingCompletion);
-      }
-      if (from < 3 && to >= 3) {
-        await migrator.createTable(notes);
-        await migrator.createTable(noteDrafts);
-      }
-      if (from < 4 && to >= 4) {
-        if (from >= 3) await migrator.addColumn(notes, notes.pinned);
-        await migrator.createTable(noteTags);
-      }
-      if (from < 5 && to >= 5) {
-        await migrator.createTable(diaryEntries);
-        await migrator.createTable(diaryDays);
-        await migrator.createIndex(diaryEntriesDayOrder);
-      }
-      if (from < 6 && to >= 6) {
-        await migrator.createTable(flowThoughts);
-        await migrator.createIndex(flowThoughtsOrder);
-      }
-      if (from < 7 && to >= 7) {
-        await migrator.createTable(brainAssignmentsTable);
-      }
-      if (from < 9 && to >= 9) {
-        await migrator.createTable(syncOperations);
-        await migrator.createTable(syncValues);
-        await migrator.createTable(syncRecords);
-        await installSyncTriggers(this);
-        await seedSyncRecords(this);
-      }
-      if (from < 10 && to >= 10) {
-        await migrator.addColumn(appearanceSettings, appearanceSettings.accent);
-        await migrator.addColumn(
-          appearanceSettings,
-          appearanceSettings.fontFamily,
-        );
-        await migrator.addColumn(
-          appearanceSettings,
-          appearanceSettings.diaryTitleFontFamily,
-        );
-        await migrator.addColumn(
-          appearanceSettings,
-          appearanceSettings.diaryBodyFontFamily,
-        );
-      }
-      // Earlier upgrades create diary_days with the current columns already.
-      if (from >= 5 && from < 11 && to >= 11) {
-        await migrator.addColumn(diaryDays, diaryDays.mood);
-        await migrator.addColumn(diaryDays, diaryDays.themes);
-      }
-      if (from < 12 && to >= 12) {
-        if (from >= 7) {
-          await customStatement(
-            'ALTER TABLE brain_assignments RENAME TO brain_assignments_old',
-          );
-          await migrator.createTable(brainAssignmentsTable);
-          await customStatement(
-            'INSERT INTO brain_assignments SELECT * FROM brain_assignments_old',
-          );
-          await customStatement('DROP TABLE brain_assignments_old');
-        }
-        await installRecallTriggers(this);
-        await seedRecallQueue(this);
-      }
-      if (from < 15 && to >= 15) await installFlowReflectionCleanup(this);
-      // createTable above already uses the current columns for version 1.
-      if (from >= 2 && from < 8 && to >= 8) {
-        await migrator.addColumn(
-          onboardingCompletion,
-          onboardingCompletion.name,
-        );
-      }
     },
   );
 }

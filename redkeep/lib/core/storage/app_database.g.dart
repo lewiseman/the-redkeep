@@ -2954,11 +2954,10 @@ class $OnboardingCompletionTable extends OnboardingCompletion
   late final GeneratedColumn<String> name = GeneratedColumn<String>(
     'name',
     aliasedName,
-    true,
+    false,
     type: DriftSqlType.string,
-    requiredDuringInsert: false,
-    $customConstraints:
-        'CHECK (name IS NULL OR length(trim(name)) BETWEEN 1 AND 160)',
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL CHECK (length(trim(name)) BETWEEN 1 AND 160)',
   );
   @override
   List<GeneratedColumn> get $columns => [id, name];
@@ -2982,6 +2981,8 @@ class $OnboardingCompletionTable extends OnboardingCompletion
         _nameMeta,
         name.isAcceptableOrUnknown(data['name']!, _nameMeta),
       );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
     }
     return context;
   }
@@ -3002,7 +3003,7 @@ class $OnboardingCompletionTable extends OnboardingCompletion
       name: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}name'],
-      ),
+      )!,
     );
   }
 
@@ -3015,23 +3016,18 @@ class $OnboardingCompletionTable extends OnboardingCompletion
 class OnboardingCompletionRow extends DataClass
     implements Insertable<OnboardingCompletionRow> {
   final int id;
-  final String? name;
-  const OnboardingCompletionRow({required this.id, this.name});
+  final String name;
+  const OnboardingCompletionRow({required this.id, required this.name});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
-    if (!nullToAbsent || name != null) {
-      map['name'] = Variable<String>(name);
-    }
+    map['name'] = Variable<String>(name);
     return map;
   }
 
   OnboardingCompletionCompanion toCompanion(bool nullToAbsent) {
-    return OnboardingCompletionCompanion(
-      id: Value(id),
-      name: name == null && nullToAbsent ? const Value.absent() : Value(name),
-    );
+    return OnboardingCompletionCompanion(id: Value(id), name: Value(name));
   }
 
   factory OnboardingCompletionRow.fromJson(
@@ -3041,7 +3037,7 @@ class OnboardingCompletionRow extends DataClass
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return OnboardingCompletionRow(
       id: serializer.fromJson<int>(json['id']),
-      name: serializer.fromJson<String?>(json['name']),
+      name: serializer.fromJson<String>(json['name']),
     );
   }
   @override
@@ -3049,17 +3045,12 @@ class OnboardingCompletionRow extends DataClass
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
-      'name': serializer.toJson<String?>(name),
+      'name': serializer.toJson<String>(name),
     };
   }
 
-  OnboardingCompletionRow copyWith({
-    int? id,
-    Value<String?> name = const Value.absent(),
-  }) => OnboardingCompletionRow(
-    id: id ?? this.id,
-    name: name.present ? name.value : this.name,
-  );
+  OnboardingCompletionRow copyWith({int? id, String? name}) =>
+      OnboardingCompletionRow(id: id ?? this.id, name: name ?? this.name);
   OnboardingCompletionRow copyWithCompanion(
     OnboardingCompletionCompanion data,
   ) {
@@ -3091,15 +3082,15 @@ class OnboardingCompletionRow extends DataClass
 class OnboardingCompletionCompanion
     extends UpdateCompanion<OnboardingCompletionRow> {
   final Value<int> id;
-  final Value<String?> name;
+  final Value<String> name;
   const OnboardingCompletionCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
   });
   OnboardingCompletionCompanion.insert({
     this.id = const Value.absent(),
-    this.name = const Value.absent(),
-  });
+    required String name,
+  }) : name = Value(name);
   static Insertable<OnboardingCompletionRow> custom({
     Expression<int>? id,
     Expression<String>? name,
@@ -3112,7 +3103,7 @@ class OnboardingCompletionCompanion
 
   OnboardingCompletionCompanion copyWith({
     Value<int>? id,
-    Value<String?>? name,
+    Value<String>? name,
   }) {
     return OnboardingCompletionCompanion(
       id: id ?? this.id,
@@ -10177,13 +10168,10 @@ typedef $$AppearanceSettingsTableProcessedTableManager =
 typedef $$OnboardingCompletionTableCreateCompanionBuilder =
     OnboardingCompletionCompanion Function({
       Value<int> id,
-      Value<String?> name,
+      required String name,
     });
 typedef $$OnboardingCompletionTableUpdateCompanionBuilder =
-    OnboardingCompletionCompanion Function({
-      Value<int> id,
-      Value<String?> name,
-    });
+    OnboardingCompletionCompanion Function({Value<int> id, Value<String> name});
 
 class $$OnboardingCompletionTableFilterComposer
     extends Composer<_$AppDatabase, $OnboardingCompletionTable> {
@@ -10284,11 +10272,11 @@ class $$OnboardingCompletionTableTableManager
               ),
           updateCompanionCallback: ({
             Value<int> id = const Value.absent(),
-            Value<String?> name = const Value.absent(),
+            Value<String> name = const Value.absent(),
           }) => OnboardingCompletionCompanion(id: id, name: name),
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
-            Value<String?> name = const Value.absent(),
+            required String name,
           }) => OnboardingCompletionCompanion.insert(id: id, name: name),
           withReferenceMapper: (p0) => p0
               .map(

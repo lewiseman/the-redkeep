@@ -14,24 +14,32 @@ void main() {
   tearDown(() => directory.delete(recursive: true));
 
   test(
-    'migrates the existing Google owner without accepting a different account',
+    'ignores Journal account files when binding and clearing Redkeep accounts',
     () async {
-      await File('${directory.path}/sync_account.id').writeAsString('original');
-      await expectLater(
-        binding.verify(backendId: 'google_drive', accountId: 'other'),
-        throwsStateError,
+      final journalBinding = File('${directory.path}/sync_account.id');
+      final journalTemporary = File('${directory.path}/sync_account.id.tmp');
+      await journalBinding.writeAsString('journal-owner');
+      await journalTemporary.writeAsString('journal-pending');
+      await binding.verify(
+        backendId: 'google_drive',
+        accountId: 'redkeep-owner',
       );
-      await expectLater(
-        binding.verify(backendId: 'native', accountId: 'original'),
-        throwsStateError,
-      );
-      await binding.verify(backendId: 'google_drive', accountId: 'original');
       expect(
         jsonDecode(
           await File('${directory.path}/sync_account.json').readAsString(),
         ),
-        {'backend_id': 'google_drive', 'account_id': 'original'},
+        {'backend_id': 'google_drive', 'account_id': 'redkeep-owner'},
       );
+      final temporary = File('${directory.path}/sync_account.json.tmp');
+      await temporary.writeAsString('interrupted');
+      await binding.clear();
+      expect(
+        await File('${directory.path}/sync_account.json').exists(),
+        isFalse,
+      );
+      expect(await temporary.exists(), isFalse);
+      expect(await journalBinding.readAsString(), 'journal-owner');
+      expect(await journalTemporary.readAsString(), 'journal-pending');
     },
   );
 

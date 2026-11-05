@@ -32,7 +32,7 @@ final assetResolverProvider = Provider<Future<AssetResolver>>(
 final bootstrapCoordinatorProvider = Provider<BootstrapCoordinator>((ref) {
   final preferences = ref.watch(appearanceRepositoryProvider);
   return BootstrapCoordinator(
-    // Opens/migrates the same background database and checks saved preferences.
+    // Opens the background database and checks saved preferences.
     localChecks: () async {
       await preferences.watch().first;
       await ref.read(onboardingControllerProvider.notifier).load();

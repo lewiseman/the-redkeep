@@ -16,8 +16,12 @@ Tests use local assets, fakes, and disposable databases; no accounts or download
 Run `flutter test` when a full regression check is needed. The sync package has
 its own tests under `redkeep/packages/sync_wise/test/`.
 
-After changing Drift tables, bump the schema version, add the migration, and run
-from `redkeep/`:
+The initial database schema is version 1 and creates the complete current schema
+for fresh installs. Earlier development schemas have no upgrade path. This reset
+does not delete or convert existing local databases.
+
+For schema changes after the initial release, bump the schema version, add the
+migration, and run from `redkeep/`:
 
 ```sh
 dart run build_runner build

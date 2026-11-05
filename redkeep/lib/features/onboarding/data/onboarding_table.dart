@@ -1,11 +1,10 @@
 import 'package:drift/drift.dart';
 
-/// Older completion-only rows retain a null name until the user supplies it.
 @DataClassName('OnboardingCompletionRow')
 class OnboardingCompletion extends Table {
   IntColumn get id => integer()();
-  TextColumn get name => text().nullable().customConstraint(
-    'CHECK (name IS NULL OR length(trim(name)) BETWEEN 1 AND 160)',
+  TextColumn get name => text().customConstraint(
+    'NOT NULL CHECK (length(trim(name)) BETWEEN 1 AND 160)',
   )();
 
   @override

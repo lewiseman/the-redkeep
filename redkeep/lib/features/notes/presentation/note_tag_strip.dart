@@ -2,7 +2,9 @@ import '../../../core/presentation/rendering_policy.dart';
 
 import 'package:flutter/material.dart';
 
-/// Centers All on initial load, then preserves manual scrolling.
+/// Places All in the middle of the strip with the other chips alternating to
+/// its right and left, centers the selected chip on initial load, then
+/// preserves manual scrolling.
 class NoteTagStrip extends StatefulWidget {
   const NoteTagStrip({
     super.key,
@@ -12,7 +14,33 @@ class NoteTagStrip extends StatefulWidget {
     this.isLoading = false,
   });
 
+  /// Values for the built-in collections. The NUL prefix keeps them from
+  /// colliding with user tags of the same name.
+  static const all = 'All';
+  static const drafts = '\u0000drafts';
+  static const pinned = '\u0000pinned';
+  static const trash = '\u0000trash';
+
   final List<({String emoji, String name, String value})> tags;
+
+  /// [tags] in display order: All in the middle, the rest alternating right,
+  /// left, right… outward from it so the earliest chips sit nearest All.
+  static List<T> arrange<T extends ({String emoji, String name, String value})>(
+    List<T> tags,
+  ) {
+    final left = <T>[];
+    final right = <T>[];
+    final others = tags.where((tag) => tag.value != all).toList();
+    for (final (index, tag) in others.indexed) {
+      (index.isEven ? right : left).add(tag);
+    }
+    return [
+      ...left.reversed,
+      ...tags.where((tag) => tag.value == all),
+      ...right,
+    ];
+  }
+
   final String selectedTag;
   final ValueChanged<String> onSelected;
   final bool isLoading;
@@ -23,7 +51,7 @@ class NoteTagStrip extends StatefulWidget {
 
 class _NoteTagStripState extends State<NoteTagStrip> {
   final _scroll = ScrollController();
-  final _allTagKey = GlobalKey();
+  final _selectedTagKey = GlobalKey();
   bool _initialTagCentered = false;
   bool _tagCenterScheduled = false;
   static const _fadeWidth = 48.0;
@@ -40,16 +68,12 @@ class _NoteTagStripState extends State<NoteTagStrip> {
   }
 
   void _centerInitialTag() {
-    if (_initialTagCentered ||
-        _tagCenterScheduled ||
-        widget.selectedTag != 'All') {
-      return;
-    }
+    if (_initialTagCentered || _tagCenterScheduled) return;
     _tagCenterScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _tagCenterScheduled = false;
       if (!mounted || _initialTagCentered || !_scroll.hasClients) return;
-      final target = _allTagKey.currentContext?.findRenderObject();
+      final target = _selectedTagKey.currentContext?.findRenderObject();
       if (target == null || !target.attached) return;
       _initialTagCentered = true;
       _scroll.position.ensureVisible(target, alignment: .5);
@@ -122,57 +146,76 @@ class _NoteTagStripState extends State<NoteTagStrip> {
                   },
                   child: child,
                 ),
-          child: SingleChildScrollView(
-            controller: _scroll,
-            scrollDirection: Axis.horizontal,
-            padding: EdgeInsets.only(left: 20, top: 4, right: 20, bottom: 6),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (final tag in widget.tags)
-                  Padding(
-                    key: ValueKey(
-                      tag.value == 'All'
-                          ? 'notes-all'
-                          : tag.value == '\u0000drafts'
-                          ? 'notes-drafts'
-                          : 'notes-tag-${tag.value}',
-                    ),
-                    padding: const EdgeInsets.only(right: 6),
-                    child: ChoiceChip(
-                      key: tag.name == 'All' ? _allTagKey : null,
-                      selected: widget.selectedTag == tag.value,
-                      showCheckmark: false,
-                      avatar: Text(tag.emoji),
-                      label: Text(tag.name),
-                      labelStyle: TextStyle(
-                        color: widget.selectedTag == tag.value
-                            ? colors.onPrimary
-                            : colors.onSurfaceVariant,
-                        fontSize: 12,
-                        fontWeight: widget.selectedTag == tag.value
-                            ? FontWeight.w600
-                            : FontWeight.w400,
-                      ),
-                      backgroundColor: Colors.transparent,
-                      selectedColor: colors.primary,
-                      side: BorderSide(
-                        color: widget.selectedTag == tag.value
-                            ? colors.primary.withValues(alpha: .5)
-                            : colors.outlineVariant,
-                      ),
-                      shape: const StadiumBorder(),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
-                      ),
-                      onSelected: (_) {
-                        _initialTagCentered = true;
-                        widget.onSelected(tag.value);
-                      },
-                    ),
+          child: LayoutBuilder(
+            builder: (context, constraints) => SingleChildScrollView(
+              controller: _scroll,
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.only(
+                left: 17,
+                top: 4,
+                right: 17,
+                bottom: 6,
+              ),
+              // When every chip fits, keep the row centered on screen.
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minWidth: (constraints.maxWidth - 34).clamp(
+                    0.0,
+                    double.infinity,
                   ),
-              ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    for (final tag in NoteTagStrip.arrange(widget.tags))
+                      Padding(
+                        key: ValueKey(switch (tag.value) {
+                          NoteTagStrip.all => 'notes-all',
+                          NoteTagStrip.drafts => 'notes-drafts',
+                          NoteTagStrip.pinned => 'notes-pinned',
+                          NoteTagStrip.trash => 'notes-trash',
+                          _ => 'notes-tag-${tag.value}',
+                        }),
+                        padding: const EdgeInsets.symmetric(horizontal: 3),
+                        child: ChoiceChip(
+                          key: widget.selectedTag == tag.value
+                              ? _selectedTagKey
+                              : null,
+                          selected: widget.selectedTag == tag.value,
+                          showCheckmark: false,
+                          avatar: Text(tag.emoji),
+                          label: Text(tag.name),
+                          labelStyle: TextStyle(
+                            color: widget.selectedTag == tag.value
+                                ? colors.onPrimary
+                                : colors.onSurfaceVariant,
+                            fontSize: 12,
+                            fontWeight: widget.selectedTag == tag.value
+                                ? FontWeight.w600
+                                : FontWeight.w400,
+                          ),
+                          backgroundColor: Colors.transparent,
+                          selectedColor: colors.primary,
+                          side: BorderSide(
+                            color: widget.selectedTag == tag.value
+                                ? colors.primary.withValues(alpha: .5)
+                                : colors.outlineVariant,
+                          ),
+                          shape: const StadiumBorder(),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          onSelected: (_) {
+                            _initialTagCentered = true;
+                            widget.onSelected(tag.value);
+                          },
+                        ),
+                      ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),

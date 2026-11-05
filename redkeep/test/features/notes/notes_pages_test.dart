@@ -76,14 +76,8 @@ void main() {
       'Show plain text',
       'Delete note',
     };
-    final collectionActions = {'Pinned only', 'Trash', 'Clear filters'};
     if (noteActions.contains(text) && find.text(text).evaluate().isEmpty) {
       await tester.tap(find.byTooltip('Note actions'));
-      await tester.pumpAndSettle();
-    }
-    if (collectionActions.contains(text) &&
-        find.text(text).evaluate().isEmpty) {
-      await tester.tap(find.byTooltip('Collection options'));
       await tester.pumpAndSettle();
     }
     var control = find.text(text);
@@ -699,10 +693,13 @@ void main() {
         find.byKey(const ValueKey('notes-search')),
         'synthetic',
       );
-      await tap(tester, 'Pinned only');
+      await tester.tap(find.byKey(const ValueKey('notes-pinned')));
+      await tester.pumpAndSettle();
+      expect(tester.container().read(notesFilterProvider).pinnedOnly, isTrue);
       await tester.tap(find.byKey(const ValueKey('notes-tag-🏷️#travel')));
       await tester.pumpAndSettle();
       expect(tester.container().read(notesFilterProvider).tag, '🏷️#travel');
+      expect(tester.container().read(notesFilterProvider).pinnedOnly, isFalse);
       await tester.scrollUntilVisible(
         find.text('Synthetic note'),
         200,
@@ -780,6 +777,8 @@ void main() {
       }
     });
     await pumpApp(tester, initialLocation: '/notes', notes: repo);
+    // The add button draws its artwork twice (shadow and face); both must
+    // decode at the bounded size.
     final art = tester
         .widgetList<Image>(
           find.descendant(
@@ -790,9 +789,12 @@ void main() {
             matching: find.byType(Image),
           ),
         )
-        .single;
-    expect(art.image, isA<ResizeImage>());
-    expect((art.image as ResizeImage).width, 120);
+        .toList();
+    expect(art, hasLength(2));
+    for (final image in art) {
+      expect(image.image, isA<ResizeImage>());
+      expect((image.image as ResizeImage).width, 120);
+    }
     expect(find.byType(NoteCard).evaluate().length, lessThan(20));
     await tester.drag(find.byType(CustomScrollView), const Offset(0, -700));
     await tester.pumpAndSettle();

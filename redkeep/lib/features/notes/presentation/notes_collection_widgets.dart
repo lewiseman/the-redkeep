@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 
 import '../../../core/presentation/rendering_policy.dart';
@@ -17,7 +19,9 @@ class NoteAddButtonState extends State<NoteAddButton> {
 
   @override
   Widget build(BuildContext context) {
-    final reducedMotion = !RenderingPolicyScope.of(context).animate;
+    final policy = RenderingPolicyScope.of(context);
+    final reducedMotion = !policy.animate;
+    final simple = policy.simplerEffects;
     return Tooltip(
       message: 'Create note',
       excludeFromSemantics: true,
@@ -49,9 +53,30 @@ class NoteAddButtonState extends State<NoteAddButton> {
                       ? Duration.zero
                       : Duration(milliseconds: _pressed ? 70 : 140),
                   curve: Curves.easeOutCubic,
-                  child: const LocalArtwork(
-                    assetKey: 'notes.add',
-                    dimension: 64,
+                  // A blurred, darkened copy of the artwork sits just below
+                  // it, so the button reads as lifted off the page.
+                  child: Stack(
+                    children: [
+                      Transform.translate(
+                        offset: const Offset(0, 3),
+                        child: ImageFiltered(
+                          enabled: !simple,
+                          imageFilter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+                          child: ColorFiltered(
+                            colorFilter: ColorFilter.mode(
+                              Theme.of(context).colorScheme.shadow
+                                  .withValues(alpha: simple ? .08 : .16),
+                              BlendMode.srcIn,
+                            ),
+                            child: const LocalArtwork(
+                              assetKey: 'notes.add',
+                              dimension: 64,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const LocalArtwork(assetKey: 'notes.add', dimension: 64),
+                    ],
                   ),
                 ),
               ),

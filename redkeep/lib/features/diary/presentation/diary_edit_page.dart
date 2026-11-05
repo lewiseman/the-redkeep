@@ -3,16 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/navigation_destination.dart';
-import '../../../core/presentation/confirm_discard_changes.dart';
 import '../../../core/presentation/diary_typography.dart';
 import '../../sync/application/sync_providers.dart';
 import '../application/diary_editor_controller.dart';
 import '../application/diary_providers.dart';
 import '../domain/diary_document.dart';
+import 'diary_discard_dialog.dart';
 import 'diary_entry_page.dart';
+import 'diary_writing_paper.dart';
 
-/// A plain page for writing. Save is the only commit, and leaving without
-/// saving asks first only when there is writing to lose.
+/// A pinned page of the diary to write on. Save is the only commit, and leaving
+/// without saving asks first only when there is writing to lose.
 class DiaryEditPage extends ConsumerStatefulWidget {
   const DiaryEditPage({super.key, required this.address});
   final DiaryAddress address;
@@ -21,10 +22,15 @@ class DiaryEditPage extends ConsumerStatefulWidget {
 }
 
 class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
-  /// The width of the day sheet's text, so writing keeps its line lengths.
-  static const _maxWidth = 608.0;
+  static const _rulesInset = 18.0;
+
+  /// Blank paper above the first line, which the scroll fade sits over. At
+  /// rest it hides nothing; scrolled, text melts away beneath the date.
+  static const _fadeHeight = 22.0;
+  static const _textPadding = EdgeInsets.fromLTRB(28, _fadeHeight, 28, 24);
 
   final _body = TextEditingController();
+  final _scroll = ScrollController();
   bool _loaded = false;
   bool _leaving = false;
   bool _openingMedia = false;
@@ -32,9 +38,11 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
   @override
   void dispose() {
     _body.dispose();
+    _scroll.dispose();
     super.dispose();
   }
 
+  @override
   @override
   Widget build(BuildContext context) {
     final editor = ref.watch(diaryEditorProvider(widget.address));
@@ -48,27 +56,27 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop || _leaving || value == null || value.saving) return;
         _leaving = true;
-        final discarded = await confirmDiscardChanges(context);
+        final discarded = await confirmDiscardWriting(
+          context,
+          newEntry: value.baseRevision == 0,
+        );
         if (discarded) await controller.discard();
         if (mounted && discarded) await _leave();
         _leaving = false;
       },
       child: Scaffold(
         backgroundColor: colors.surface,
+        extendBodyBehindAppBar: true,
+        // The paper stays put under the keyboard; only the text area shrinks.
+        resizeToAvoidBottomInset: false,
         appBar: AppBar(
           titleSpacing: 0,
-          title: Text(
-            widget.address.date.label(
+          title: _CompactDateTitle(
+            label: widget.address.date.label(
               Localizations.localeOf(context).toString(),
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.titleMedium,
           ),
-          backgroundColor: colors.surface,
-          surfaceTintColor: Colors.transparent,
-          elevation: 0,
-          scrolledUnderElevation: 0,
+          forceMaterialTransparency: true,
           actions: [
             if (!saved) ...[
               IconButton(
@@ -103,13 +111,28 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
               const SizedBox(width: 8),
           ],
         ),
-        body: SafeArea(
-          top: false,
-          child: editor.when(
-            loading: () => const SizedBox.shrink(),
-            error: (_, _) => _unavailable(context),
-            data: (state) => _editor(context, state, controller, canEdit),
-          ),
+        body: Stack(
+          children: [
+            Positioned.fill(
+              child: DiaryWritingBackdrop(
+                variant: widget.address.date.weekday,
+                pinned:
+                    widget.address.date.isDay &&
+                    widget.address.date.isCurrent(
+                      ref.read(diaryClockProvider)(),
+                    ),
+              ),
+            ),
+            Positioned.fill(
+              child: DiaryWritingArea(
+                child: editor.when(
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, _) => _unavailable(context),
+                  data: (state) => _editor(context, state, controller, canEdit),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -128,35 +151,25 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
         value.text.isEmpty ||
         (value.baseRevision > 0 && !canEdit) ||
         (!copy && !value.changed);
-    // Flexible with a scaled label: at large text on a narrow screen the whole
-    // word stays readable and the app bar's other actions stay on screen.
-    return Flexible(
-      child: Padding(
-        padding: const EdgeInsetsDirectional.only(start: 4),
-        child: FilledButton(
-          style: FilledButton.styleFrom(
-            visualDensity: VisualDensity.compact,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-          ),
-          onPressed: blocked
-              ? null
-              : copy
-              ? () => _saveCopy(controller)
-              : () => _save(controller),
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              value?.saving == true
-                  ? 'Saving…'
-                  : copy
-                  ? 'Save a copy'
-                  : 'Save',
-            ),
-          ),
-        ),
-      ),
+    return DiaryPaperSaveButton(
+      label: value?.saving == true
+          ? 'Saving…'
+          : copy
+          ? 'Save a copy'
+          : 'Save',
+      onPressed: blocked
+          ? null
+          : copy
+          ? () => _saveCopy(controller)
+          : () => _save(controller),
     );
   }
+
+  String _heading(BuildContext context) => diaryPageDate(
+    widget.address.date,
+    ref.read(diaryClockProvider)(),
+    Localizations.localeOf(context).toString(),
+  );
 
   Widget _editor(
     BuildContext context,
@@ -170,80 +183,120 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
     }
     final colors = Theme.of(context).colorScheme;
     final typography = DiaryTypography.of(context).body;
+    // Forced, so emoji or a mixed font can't push a line off its rule.
+    final strut = StrutStyle.fromTextStyle(typography, forceStrutHeight: true);
     final notice =
         state.message ??
         (state.sourceUnavailable
             ? 'The original entry was deleted. Save a copy to keep this writing as a new entry.'
             : null);
-    return Align(
-      alignment: Alignment.topCenter,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: _maxWidth),
-        child: LayoutBuilder(
-          builder: (context, constraints) => Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (notice != null)
-                // Scrolls rather than crowding out the writing at large text.
-                ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxHeight: constraints.maxHeight * .4,
-                  ),
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: colors.errorContainer,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Semantics(
-                          liveRegion: true,
-                          child: Text(
-                            notice,
-                            style: TextStyle(color: colors.onErrorContainer),
-                          ),
-                        ),
-                      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _DateHeading(text: _heading(context)),
+        if (notice != null)
+          // Scrolls rather than crowding out the writing at large text.
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(context).height * .25,
+            ),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: colors.errorContainer,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Semantics(
+                    liveRegion: true,
+                    child: Text(
+                      notice,
+                      style: TextStyle(color: colors.onErrorContainer),
                     ),
                   ),
                 ),
-              Expanded(
-                child: TextField(
-                  key: const ValueKey('diary-body'),
+              ),
+            ),
+          ),
+        Expanded(
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: DiaryRuledLines(
+                  scroll: _scroll,
                   style: typography,
-                  controller: _body,
-                  autofocus: state.baseRevision == 0,
-                  // Read-only rather than disabled while saving, so the
-                  // keyboard stays up if the save fails.
-                  readOnly: state.saving,
-                  enabled: state.baseRevision == 0 || canEdit,
-                  expands: true,
-                  minLines: null,
-                  maxLines: null,
-                  textAlignVertical: TextAlignVertical.top,
-                  keyboardType: TextInputType.multiline,
-                  textCapitalization: TextCapitalization.sentences,
-                  decoration: InputDecoration(
-                    hintText:
-                        'Start writing about your ${widget.address.date.kind.name}…',
-                    hintStyle: typography.copyWith(
-                      color: colors.onSurfaceVariant,
+                  strut: strut,
+                  top: _textPadding.top,
+                  inset: _rulesInset,
+                ),
+              ),
+              // Typing and the caret repaint this layer only, never the rules.
+              Positioned.fill(
+                child: RepaintBoundary(
+                  child: TextField(
+                    key: const ValueKey('diary-body'),
+                    style: typography,
+                    strutStyle: strut,
+                    controller: _body,
+                    scrollController: _scroll,
+                    autofocus: state.baseRevision == 0,
+                    // Read-only rather than disabled while saving, so the
+                    // keyboard stays up if the save fails.
+                    readOnly: state.saving,
+                    enabled: state.baseRevision == 0 || canEdit,
+                    expands: true,
+                    minLines: null,
+                    maxLines: null,
+                    textAlignVertical: TextAlignVertical.top,
+                    keyboardType: TextInputType.multiline,
+                    textCapitalization: TextCapitalization.sentences,
+                    decoration: InputDecoration(
+                      hintText:
+                          'Start writing about your ${widget.address.date.kind.name}…',
+                      hintStyle: typography.copyWith(
+                        color: colors.onSurfaceVariant,
+                      ),
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      disabledBorder: InputBorder.none,
+                      contentPadding: _textPadding,
                     ),
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    disabledBorder: InputBorder.none,
-                    contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+                    onChanged: (_) => _edit(controller),
                   ),
-                  onChanged: (_) => _edit(controller),
+                ),
+              ),
+              // Writing slips away under the date rather than being cut off.
+              // A flat gradient, so no layer or mask has to be composited.
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: _fadeHeight,
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        stops: const [0, .3, .65, 1],
+                        colors: [
+                          colors.surface,
+                          colors.surface.withValues(alpha: .86),
+                          colors.surface.withValues(alpha: .4),
+                          colors.surface.withValues(alpha: 0),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ],
           ),
         ),
-      ),
+      ],
     );
   }
 
@@ -336,5 +389,61 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
     } else {
       context.go(diaryDayLocation(widget.address.date));
     }
+  }
+}
+
+/// Too little room for the handwritten date: with the keyboard up on a small
+/// screen, or at large text. The date moves to the app bar instead.
+bool _compactWriting(BuildContext context) =>
+    MediaQuery.sizeOf(context).height -
+        MediaQuery.viewInsetsOf(context).bottom <
+    440;
+
+/// The date written at the top of the page, in the diary's title hand.
+class _DateHeading extends StatelessWidget {
+  const _DateHeading({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    if (_compactWriting(context)) return const SizedBox(height: 4);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(28, 24, 28, 0),
+      child: Semantics(
+        header: true,
+        child: MediaQuery.withClampedTextScaling(
+          maxScaleFactor: 1.4,
+          child: FittedBox(
+            alignment: AlignmentDirectional.centerStart,
+            fit: BoxFit.scaleDown,
+            child: Text(
+              text,
+              key: const ValueKey('diary-writing-date'),
+              maxLines: 1,
+              style: DiaryTypography.of(context).title
+                  .copyWith(color: Theme.of(context).colorScheme.onSurface),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CompactDateTitle extends StatelessWidget {
+  const _CompactDateTitle({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_compactWriting(context)) return const SizedBox.shrink();
+    return Text(
+      label,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: Theme.of(context).textTheme.titleMedium,
+    );
   }
 }

@@ -120,7 +120,8 @@ class _OnboardingContentState extends State<OnboardingContent> {
       builder: (context, constraints) {
         final compact = constraints.maxHeight < 260;
         final showMascot = !naming && constraints.maxHeight >= 200;
-        final mascotHeight = math.min(100.0, constraints.maxHeight * .18);
+        final mascotHeight = math.min(125.0, constraints.maxHeight * .25);
+        print(mascotHeight);
         return Center(
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
@@ -141,7 +142,6 @@ class _OnboardingContentState extends State<OnboardingContent> {
                     ),
                   ),
                   // Keep the logo with the book as the viewport grows.
-                  const SizedBox(height: 8),
                 ],
                 Flexible(
                   key: const ValueKey('onboarding-book-frame'),
@@ -232,7 +232,7 @@ class _OnboardingContentState extends State<OnboardingContent> {
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 460),
                 child: const Text(
-                  'Your space for notes, diary and passing thoughts, with local AI support.',
+                  'Your space for notes, diary and passing thoughts, with AI support.',
                   key: ValueKey('onboarding-description'),
                   textAlign: TextAlign.center,
                   style: TextStyle(

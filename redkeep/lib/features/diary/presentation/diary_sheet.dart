@@ -265,7 +265,15 @@ class _DiaryDayContentState extends ConsumerState<DiaryDayContent> {
                 title: day.heading,
                 periodName: day.date.kind.name,
                 onTap: interactive && canEdit && !busy
-                    ? () => context.go(diaryTitleLocation(day.date))
+                    ? () async {
+                        if (_openingEditor) return;
+                        _openingEditor = true;
+                        try {
+                          await context.push(diaryTitleLocation(day.date));
+                        } finally {
+                          _openingEditor = false;
+                        }
+                      }
                     : null,
               ),
               SizedBox(height: details.isEmpty ? 26 : 10),

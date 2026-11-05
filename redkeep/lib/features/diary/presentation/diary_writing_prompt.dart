@@ -49,7 +49,7 @@ class _DiaryWritingPromptState extends State<DiaryWritingPrompt> {
       probe.dispose();
       _lines = [
         for (var index = 0; index < DiaryWritingPrompt.blankLines; index++)
-          _stroke(
+          diaryPenStroke(
             1 + index % 2,
             width - 1 - (index.isOdd ? 3 : 0),
             lineHeight * (index + 1) - 2,
@@ -71,14 +71,14 @@ class _DiaryWritingPromptState extends State<DiaryWritingPrompt> {
     final lineHeight = text.preferredLineHeight;
     _lines = [
       for (final (index, line) in metrics.indexed)
-        _stroke(
+        diaryPenStroke(
           line.left,
           math.min(width, line.left + line.width),
           line.baseline + line.descent - 2,
           index,
         ),
       for (var index = 0; index < 2; index++)
-        _stroke(
+        diaryPenStroke(
           1 + index % 2,
           width - 1 - (index == 1 ? 3 : 0),
           text.height + lineHeight * (index + 1) - 2,
@@ -229,13 +229,13 @@ class DiaryTitlePrompt extends StatelessWidget {
                       return CustomPaint(
                         painter: _WritingLinesPainter(
                           lines: [
-                            _stroke(
+                            diaryPenStroke(
                               1,
                               constraints.maxWidth - 1,
                               spacing - 2,
                               0,
                             ),
-                            _stroke(
+                            diaryPenStroke(
                               2,
                               constraints.maxWidth / 2,
                               spacing * 2 - 2,
@@ -261,7 +261,7 @@ class DiaryTitlePrompt extends StatelessWidget {
 
 // Bake a drifting centerline and uneven pen pressure into one filled shape.
 // The seed keeps the imperfections still across repaints and page turns.
-Path _stroke(double left, double right, double y, int index) {
+Path diaryPenStroke(double left, double right, double y, int index) {
   final width = math.max(0.0, right - left);
   final random = math.Random(104729 + index * 7919);
   final inset = math.min(1.5, width * .01);

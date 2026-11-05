@@ -97,12 +97,15 @@ void main() {
         (await tester.runAsync(() => diary.watchDay(date).first))!.heading,
         isEmpty,
       );
+      final suggested = find.text('Suggested by the Grand Maestar');
+      expect(suggested, findsNWidgets(2));
       await tester.enterText(
         find.byKey(const ValueKey('diary-day-title-field')),
         'My own title',
       );
       FocusManager.instance.primaryFocus?.unfocus();
       await tester.pumpAndSettle();
+      expect(suggested, findsOneWidget, reason: 'Edited by hand, so not his.');
       await tap(tester, find.text('Save day'));
       final saved = (await tester.runAsync(() => diary.watchDay(date).first))!;
       expect(saved.heading, 'My own title');
@@ -112,6 +115,102 @@ void main() {
       await tester.pumpAndSettle();
     },
   );
+  testWidgets('the sheet speaks plainly and shows its evidence and portrait', (
+    tester,
+  ) async {
+    await open(tester);
+    expect(find.text('Here\'s what I found'), findsOneWidget);
+    expect(find.text('“felt calm”'), findsOneWidget);
+    expect(find.textContaining('AI task:'), findsNothing);
+    final portrait = tester.widget<Image>(
+      find.byKey(const ValueKey('diary-ai-maestar')),
+    );
+    final source = (portrait.image as ResizeImage).imageProvider as AssetImage;
+    expect(source.assetName, 'assets/branding/grand_maestar.png');
+    expect(find.text('Tick what to keep'), findsOneWidget);
+    await tap(tester, find.byKey(const ValueKey('diary-ai-title')));
+    expect(find.text('Use what I ticked'), findsOneWidget);
+    await tap(tester, find.byKey(const ValueKey('diary-ai-title')));
+    expect(find.text('Tick what to keep'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+  });
+  testWidgets('a failed task explains itself without technical words', (
+    tester,
+  ) async {
+    final old = AiJob.fromJson(
+      jsonDecode(tasks.value!) as Map<String, dynamic>,
+    );
+    tasks.value = jsonEncode(old.copy(phase: 'failed').json());
+    await pumpApp(
+      tester,
+      initialLocation: '/diary/${date.key}/title',
+      aiEnabled: true,
+      database: db,
+      diary: diary,
+      tasks: tasks,
+    );
+    await tap(tester, find.byKey(const ValueKey('diary-day-ai')));
+    expect(find.text('I couldn’t finish'), findsOneWidget);
+    expect(find.textContaining('Your details are unchanged.'), findsOneWidget);
+    expect(find.text('Generate again'), findsOneWidget);
+    expect(find.textContaining('failed'), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+  });
+  testWidgets('the sheet stays usable on a small screen with large text', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 480);
+    tester.view.devicePixelRatio = 1;
+    tester.platformDispatcher.textScaleFactorTestValue = 3;
+    addTearDown(tester.view.reset);
+    addTearDown(tester.platformDispatcher.clearAllTestValues);
+    await open(tester);
+    await tap(tester, find.byKey(const ValueKey('diary-ai-title')));
+    await tap(tester, find.byKey(const ValueKey('diary-ai-apply')));
+    expect(
+      tester
+          .widget<TextField>(
+            find.byKey(const ValueKey('diary-day-title-field')),
+          )
+          .controller!
+          .text,
+      'Garden morning',
+    );
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+  });
+  testWidgets('closing the sheet does not raise the keyboard again', (
+    tester,
+  ) async {
+    await pumpApp(
+      tester,
+      initialLocation: '/diary/${date.key}/title',
+      aiEnabled: true,
+      database: db,
+      diary: diary,
+      tasks: tasks,
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+    final themes = find.byKey(const ValueKey('diary-day-themes-field'));
+    await tester.showKeyboard(themes);
+    await tester.pumpAndSettle();
+    bool focused() => tester
+        .state<EditableTextState>(
+          find.descendant(of: themes, matching: find.byType(EditableText)),
+        )
+        .widget
+        .focusNode
+        .hasFocus;
+    expect(focused(), isTrue);
+    await tap(tester, find.byKey(const ValueKey('diary-day-ai')));
+    await tap(tester, find.text('Close'));
+    expect(focused(), isFalse);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+  });
   testWidgets('a source change rejects acceptance without changing the form', (
     tester,
   ) async {

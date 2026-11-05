@@ -16,6 +16,7 @@ const _rasterScale = 2.0;
 const _border = 20.0;
 final _textures = <_StampKey, ui.Image>{};
 int _textureBuilds = 0;
+int _paints = 0;
 
 /// A reusable imitation of paper for UI chrome and non-active sheets.
 ///
@@ -45,10 +46,17 @@ class DiaryPaperStamp extends CustomPainter {
   @visibleForTesting
   static int get debugCachedTextures => _textures.length;
 
+  @visibleForTesting
+  static int get debugPaints => _paints;
+
   @override
   void paint(Canvas canvas, Size size) => paintRect(canvas, Offset.zero & size);
 
   void paintRect(Canvas canvas, Rect rect) {
+    assert(() {
+      _paints++;
+      return true;
+    }());
     final alpha = opacity.clamp(0.0, 1.0);
     if (rect.isEmpty || alpha == 0) return;
     final scale = math.min(

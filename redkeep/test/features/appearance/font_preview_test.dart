@@ -147,6 +147,23 @@ void main() {
       },
     );
 
+    test(
+      'a queued request survives while another row still wants it',
+      () async {
+        final gate = Completer<http.Response>();
+        final subject = loader(maxConcurrent: 1, respond: (_) => gate.future);
+        final running = subject.load('Abel');
+        final first = subject.load('Lora');
+        final second = subject.load('Lora');
+        subject.cancel('Lora');
+        gate.complete(http.Response('', 404));
+        await running;
+        await first;
+        await second;
+        expect(requests, hasLength(2));
+      },
+    );
+
     test('names a real style for families without an upright regular', () {
       expect(fontPreviewApiFamily('Literata'), 'Literata:wght@400');
       expect(fontPreviewApiFamily('Buda'), 'Buda:wght@300');
@@ -156,8 +173,14 @@ void main() {
   });
 
   group('font picker', () {
-    Future<FakeFontPreviewLoader> open(WidgetTester tester) async {
-      final previews = FakeFontPreviewLoader();
+    Future<FakeFontPreviewLoader> open(
+      WidgetTester tester, {
+      FontRole role = FontRole.diaryBody,
+      String selectedFont = 'Literata',
+      Future<void> Function(String)? onSelected,
+      Map<String, String> ready = const {},
+    }) async {
+      final previews = FakeFontPreviewLoader()..ready.addAll(ready);
       await tester.pumpWidget(
         ProviderScope(
           overrides: [fontPreviewLoaderProvider.overrideWithValue(previews)],
@@ -173,8 +196,10 @@ void main() {
               builder: (context) => TextButton(
                 onPressed: () => showFontPicker(
                   context,
-                  selectedFont: 'Literata',
-                  onSelected: (_) async {},
+                  title: 'Diary body font',
+                  role: role,
+                  selectedFont: selectedFont,
+                  onSelected: onSelected ?? (_) async {},
                 ),
                 child: const Text('open'),
               ),
@@ -186,6 +211,82 @@ void main() {
       await tester.pumpAndSettle();
       return previews;
     }
+
+    testWidgets('suggestions lead with the font in use, then all fonts', (
+      tester,
+    ) async {
+      await open(tester, selectedFont: 'Abel');
+      expect(find.text('Using Abel'), findsOneWidget);
+      expect(find.text('Suggested'), findsOneWidget);
+      final rows = tester
+          .widgetList<ListTile>(find.byType(ListTile))
+          .map((row) => (row.title! as Text).data!)
+          .toList();
+      expect(rows.take(3), ['Abel', 'Literata', 'Lora']);
+    });
+
+    test('every suggestion is a font the catalog can load', () {
+      for (final role in FontRole.values) {
+        expect(fontSuggestions[role], isNotEmpty);
+        for (final font in fontSuggestions[role]!) {
+          expect(AppearanceFonts.supports(font), isTrue, reason: font);
+        }
+      }
+    });
+
+    testWidgets('search ranks name starts first and ignores spaces', (
+      tester,
+    ) async {
+      await open(tester);
+      await tester.enterText(find.byType(TextField), 'lora');
+      await tester.pump();
+      expect(find.text('Suggested'), findsNothing);
+      final first = tester.widget<ListTile>(find.byType(ListTile).first);
+      expect((first.title! as Text).data, 'Lora');
+
+      await tester.enterText(find.byType(TextField), 'sourceserif4');
+      await tester.pump();
+      expect(find.widgetWithText(ListTile, 'Source Serif 4'), findsOneWidget);
+      expect(find.text('1 font'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField), 'no-such-font');
+      await tester.pump();
+      expect(find.text('No fonts found'), findsOneWidget);
+      await tester.tap(find.widgetWithText(TextButton, 'Clear search'));
+      await tester.pump();
+      expect(find.text('Suggested'), findsOneWidget);
+    });
+
+    testWidgets('a failed font says so on its row, which can be retried', (
+      tester,
+    ) async {
+      var fail = true;
+      final picked = <String>[];
+      await open(
+        tester,
+        onSelected: (font) async {
+          if (fail) throw StateError('offline');
+          picked.add(font);
+        },
+      );
+      final lora = find.widgetWithText(ListTile, 'Lora').first;
+      await tester.tap(lora);
+      await tester.pump();
+      expect(
+        find.descendant(
+          of: lora,
+          matching: find.textContaining('couldn’t be loaded'),
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Using Literata'), findsOneWidget);
+      fail = false;
+      await tester.tap(lora);
+      await tester.pump();
+      expect(picked, ['Lora']);
+      expect(find.text('Using Lora'), findsOneWidget);
+      expect(find.textContaining('couldn’t be loaded'), findsNothing);
+    });
 
     testWidgets('loads previews only for the rows on screen', (tester) async {
       final previews = await open(tester);
@@ -212,8 +313,7 @@ void main() {
     testWidgets('a row renders in its preview family, or says it has none', (
       tester,
     ) async {
-      final previews = await open(tester);
-      previews.ready['Literata'] = 'preview-literata';
+      await open(tester, ready: const {'Literata': 'preview-literata'});
       await tester.enterText(find.byType(TextField), 'Literata');
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200));

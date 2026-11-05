@@ -2,6 +2,10 @@
 
 The Flutter mobile app is in `redkeep/`. It uses Riverpod, go_router, and Drift.
 
+Android releases use a signed ARM64 APK on GitHub. See the
+[release guide](redkeep/docs/android-release.md) to build and publish a release
+and refresh the website download metadata.
+
 Copy `redkeep/env.example.json` to ignored `redkeep/env.json` and fill in the
 asset base URL and Google OAuth client ID. From `redkeep/`:
 

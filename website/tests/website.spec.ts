@@ -5,7 +5,7 @@ const evidence = 'test-results/evidence';
 test.beforeEach(async ({ page }) => {
   await page.route('**/*', route => new URL(route.request().url()).hostname === '127.0.0.1' ? route.continue() : route.abort());
 });
-test('initial content, local resources, disabled downloads and metadata', async ({ page }) => {
+test('initial content, local resources, release downloads and metadata', async ({ page }) => {
   const errors: string[] = []; const external: string[] = [];
   page.on('pageerror', e => errors.push(e.message));
   page.on('request', r => { if (new URL(r.url()).hostname !== '127.0.0.1') external.push(r.url()); });
@@ -15,9 +15,15 @@ test('initial content, local resources, disabled downloads and metadata', async 
   await expect(page.getByRole('button', {name:'Simpler view'})).toHaveCount(0);
   await expect(page).toHaveTitle('Redkeep · A little space for your days');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Every daydeserves a page.');
-  await expect(page.getByRole('button', { name: 'Download', exact: true }).first()).toBeDisabled();
+  const download = page.getByRole('link', { name: /^Download Redkeep/, includeHidden: true });
+  await expect(download).toHaveCount(2);
+  for (const link of await download.all()) {
+    await expect(link).toHaveAttribute('href', 'https://github.com/lewiseman/the-redkeep/releases/latest/download/redkeep-arm64-v8a.apk');
+    await expect(link).toHaveAttribute('aria-label', /Download Redkeep \d+\.\d+\.\d+ APK, [\d.]+ MB\. Android 11\+ · ARM64/);
+  }
+  await expect(page.getByRole('link', { name: 'Releases & installation' })).toHaveAttribute('href', 'https://github.com/lewiseman/the-redkeep/releases/latest');
   await expect(page.locator('.nav__actions small, .download-state')).toHaveCount(0);
-  await expect(page.locator('a[href*="download"], a[href*="releases"], input:not(.cover-name), textarea')).toHaveCount(0);
+  await expect(page.locator('input:not(.cover-name), textarea')).toHaveCount(0);
   await expect(page.locator('.gallery-note')).toContainText('Original Journal screenshots');
   await expect(page.locator('.book__controls')).toHaveCount(0);
   await expect(page.locator('meta[name="description"]')).toHaveAttribute('content', /Redkeep/);
@@ -48,6 +54,7 @@ test('book controls, rail and arrow keys navigate every chapter', async ({ page 
   await expect(page.locator('.book__caption h3')).toHaveText('Let your thoughts flow.');
   await page.getByRole('button', { name: 'Your words', exact: true }).click();
   await expect(page.locator('.book__caption .eyebrow')).toHaveText('Your words');
+  await expect(page.locator('[data-page="end"]').getByRole('link', { name: /^Download Redkeep/ })).toHaveAttribute('href', 'https://github.com/lewiseman/the-redkeep/releases/latest/download/redkeep-arm64-v8a.apk');
   await expect(page.getByRole('group', { name: 'Turn the book pages' })).toHaveCount(0);
   await page.screenshot({ path: `${evidence}/desktop-book.png` });
 });
@@ -104,6 +111,7 @@ for (const path of ['/', '/privacy.html', '/terms.html']) test(`accessibility ${
 test('production content is readable without JavaScript', async ({ browser }) => {
   const context = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 390, height: 844 } }); const page = await context.newPage();
   await page.goto('/'); await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  await expect(page.getByRole('link', { name: /^Download Redkeep/ }).first()).toHaveAttribute('href', 'https://github.com/lewiseman/the-redkeep/releases/latest/download/redkeep-arm64-v8a.apk');
   await page.getByRole('link', { name: 'Skip to product information' }).focus(); await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Catch a thought.' })).toBeInViewport();
   await page.getByRole('link', { name: 'Privacy policy' }).click(); await expect(page.getByRole('heading', { level: 1 })).toHaveText('Your journal is yours.');

@@ -141,7 +141,12 @@ void main() {
       for (final path in ['/diary', '/notes', '/flow', '/more', '/settings']) {
         router.go(path);
         await tester.pumpAndSettle();
-        final context = tester.element(find.byType(RedkeepBottomNavbar));
+        // Settings covers the shell, so its bar is offstage there.
+        final context = tester.element(
+          find.byType(
+            path == '/settings' ? AppearancePage : RedkeepBottomNavbar,
+          ),
+        );
         expect(Theme.of(context).colorScheme.primary, AppAccent.teal.seed);
         expect(Theme.of(context).textTheme.bodyMedium!.fontFamily, 'Lora');
         expect(DiaryTypography.of(context).title.fontFamily, 'Caveat');
@@ -209,7 +214,7 @@ void main() {
       addTearDown(repository.close);
       final router = await pumpApp(
         tester,
-        initialLocation: '/settings',
+        initialLocation: '/more',
         repository: repository,
       );
       final bar = find.byType(RedkeepBottomNavbar);

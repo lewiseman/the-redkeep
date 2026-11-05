@@ -292,6 +292,8 @@ class _FontButton extends ConsumerWidget {
             enabled: state.canEdit,
             onTap: () => showFontPicker(
               context,
+              title: label,
+              role: role,
               selectedFont: family,
               onSelected: (font) => ref
                   .read(appearanceControllerProvider.notifier)

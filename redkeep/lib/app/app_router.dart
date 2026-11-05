@@ -61,7 +61,12 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
   final refresh = ValueNotifier(0);
   ref.listen(bootstrapControllerProvider, (_, _) => refresh.value++);
   ref.listen(onboardingControllerProvider, (_, _) => refresh.value++);
+  // Routes on this navigator cover the shell, so they show no bottom bar. Every
+  // descendant must name it too, or it would render on the shell's navigator,
+  // underneath its own parent.
+  final fullPage = GlobalKey<NavigatorState>();
   final router = GoRouter(
+    navigatorKey: fullPage,
     initialLocation: validatedNavigationLocation(
       initialLocation ??
           WidgetsBinding.instance.platformDispatcher.defaultRouteName,
@@ -268,6 +273,7 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
                   ),
                   GoRoute(
                     path: ':id',
+                    parentNavigatorKey: fullPage,
                     pageBuilder: (context, state) => _page(
                       state,
                       ThoughtReadPage(
@@ -278,6 +284,7 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
                     routes: [
                       GoRoute(
                         path: 'edit',
+                        parentNavigatorKey: fullPage,
                         pageBuilder: (context, state) => _page(
                           state,
                           ThoughtEditPage(
@@ -292,21 +299,25 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
               ),
               GoRoute(
                 path: 'settings',
+                parentNavigatorKey: fullPage,
                 pageBuilder: (context, state) =>
                     _page(state, const AppearancePage()),
                 routes: [
                   GoRoute(
                     path: 'brain',
+                    parentNavigatorKey: fullPage,
                     pageBuilder: (context, state) =>
                         _page(state, const CompanionPage()),
                     routes: [
                       GoRoute(
                         path: 'history',
+                        parentNavigatorKey: fullPage,
                         pageBuilder: (context, state) =>
                             _page(state, const AiHistoryPage()),
                         routes: [
                           GoRoute(
                             path: ':id',
+                            parentNavigatorKey: fullPage,
                             pageBuilder: (context, state) => _page(
                               state,
                               AiHistoryTaskPage(
@@ -319,36 +330,43 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
                       ),
                       GoRoute(
                         path: 'phone',
+                        parentNavigatorKey: fullPage,
                         pageBuilder: (context, state) =>
                             _page(state, const BrainPage()),
                       ),
                       GoRoute(
                         path: 'scan',
+                        parentNavigatorKey: fullPage,
                         pageBuilder: (context, state) =>
                             _page(state, const CompanionScannerPage()),
                       ),
                       GoRoute(
                         path: 'computers',
+                        parentNavigatorKey: fullPage,
                         pageBuilder: (context, state) =>
                             _page(state, const CompanionComputersPage()),
                       ),
                       GoRoute(
                         path: 'preferences',
+                        parentNavigatorKey: fullPage,
                         pageBuilder: (context, state) =>
                             _page(state, const CompanionPreferencesPage()),
                       ),
                       GoRoute(
                         path: 'voices',
+                        parentNavigatorKey: fullPage,
                         pageBuilder: (context, state) =>
                             _page(state, const ReplyVoicePage()),
                       ),
                       GoRoute(
                         path: 'help',
+                        parentNavigatorKey: fullPage,
                         pageBuilder: (context, state) =>
                             _page(state, const CompanionHelpPage()),
                       ),
                       GoRoute(
                         path: 'details',
+                        parentNavigatorKey: fullPage,
                         pageBuilder: (context, state) =>
                             _page(state, const CompanionPrivacyPage()),
                       ),
@@ -389,4 +407,22 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
 }
 
 MaterialPage<void> _page(GoRouterState state, Widget child) =>
-    MaterialPage<void>(key: state.pageKey, child: child);
+    MaterialPage<void>(
+      key: state.pageKey,
+      child: _CoveredPageGuard(child: child),
+    );
+
+/// Android's predictive back gesture reaches every navigator's current page.
+/// While a full page covers the shell, the shell's own page must refuse it, or
+/// one gesture pops both and skips the page the reader came from.
+class _CoveredPageGuard extends StatelessWidget {
+  const _CoveredPageGuard({required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final navigator = Navigator.of(context).context;
+    final covered = !(ModalRoute.isCurrentOf(navigator) ?? true);
+    return PopScope(canPop: !covered, child: child);
+  }
+}

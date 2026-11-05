@@ -7,6 +7,7 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:redkeep/app/bottom_navbar.dart';
 import 'package:redkeep/app/navigation_destination.dart';
 import 'package:redkeep/core/storage/app_database.dart';
 import 'package:redkeep/features/appearance/domain/appearance_preferences.dart';
@@ -135,6 +136,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Thought unavailable'), findsOneWidget);
       expect(find.text('Revised thought'), findsNothing);
+      expect(find.byType(RedkeepBottomNavbar), findsNothing);
       router.go(thoughtLocation(saved.id, edit: true));
       await tester.pumpAndSettle();
       expect(find.textContaining('Editor unavailable'), findsOneWidget);

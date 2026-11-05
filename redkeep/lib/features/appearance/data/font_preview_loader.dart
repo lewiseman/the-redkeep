@@ -46,6 +46,7 @@ class FontPreviewLoader {
   final _ready = <String, String>{};
   final _unavailable = <String>{};
   final _requests = <String, Completer<String?>>{};
+  final _waiters = <String, int>{};
   // Newest last: the rows the reader has just scrolled to load first.
   final _queue = ListQueue<String>();
   var _active = 0;
@@ -57,7 +58,11 @@ class FontPreviewLoader {
   Future<String?> load(String family) {
     if (_ready[family] case final ready?) return SynchronousFuture(ready);
     if (_unavailable.contains(family)) return SynchronousFuture(null);
-    if (_requests[family] case final pending?) return pending.future;
+    if (_requests[family] case final pending?) {
+      _waiters[family] = (_waiters[family] ?? 0) + 1;
+      return pending.future;
+    }
+    _waiters[family] = 1;
     final request = Completer<String?>();
     _requests[family] = request;
     _queue.addLast(family);
@@ -65,8 +70,15 @@ class FontPreviewLoader {
     return request.future;
   }
 
-  /// Drops a request that hasn't started, for a row that has left the screen.
+  /// Withdraws one [load] call, for a row that has left the screen. A request
+  /// that hasn't started is dropped once nothing else is waiting for it.
   void cancel(String family) {
+    final waiters = (_waiters[family] ?? 0) - 1;
+    if (waiters > 0) {
+      _waiters[family] = waiters;
+      return;
+    }
+    _waiters.remove(family);
     if (_queue.remove(family)) _requests.remove(family)?.complete(null);
   }
 
@@ -92,6 +104,7 @@ class FontPreviewLoader {
       // Offline or interrupted: the row may try again when it next appears.
     } finally {
       _active--;
+      _waiters.remove(family);
       _requests.remove(family)?.complete(result);
       _startNext();
     }

@@ -1,4 +1,15 @@
-export const LINKS = { github: 'https://github.com/lewiseman/the-redkeep' };
+import release from './release.json';
+
+export const LINKS = {
+  github: 'https://github.com/lewiseman/the-redkeep',
+  apk: release.downloadUrl,
+  releases: 'https://github.com/lewiseman/the-redkeep/releases/latest',
+};
+export const APK = {
+  version: release.version,
+  size: `${(release.sizeBytes / 1_000_000).toFixed(1)} MB`,
+  requirements: 'Android 11+ · ARM64',
+};
 export const art = (name: string) => `/art/${name}`;
 export const BOOK_PAPERS = [
   { id: 'notes', label: 'Notes', artwork: 'notes.webp', title: 'Catch a thought.', text: 'Write plain-text notes, organize with tags and pins, search by keyword, and preview Markdown. Deleted notes go to Trash.', scene: 'Illustrated paper note cards.' },
@@ -11,5 +22,5 @@ export const CHAPTERS = [
   { id: 'cover', label: 'Cover', title: "A journal that's yours alone.", text: 'Write your name on the cover. Your cover name stays in this browser. Then scroll to explore the app.' },
   { id: 'contents', label: 'Contents', title: 'Five chapters. One quiet place.', text: 'Notes, Diary, Grand Maester, Flow and Appearance. The artwork is decorative; the descriptions explain the current mobile build.' },
   ...BOOK_PAPERS,
-  { id: 'writing', label: 'Your words', title: 'A little space for you.', text: 'Keep your days, ideas and passing thoughts together. Redkeep is in development; downloads are not available yet.' },
+  { id: 'writing', label: 'Your words', title: 'A little space for you.', text: `Keep your days, ideas and passing thoughts together. Download Redkeep ${APK.version} for ${APK.requirements}.` },
 ];

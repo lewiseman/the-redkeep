@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { art, BOOK_PAPERS } from '../site';
+import { art, APK, BOOK_PAPERS, LINKS } from '../site';
 import { useCoverName } from '../cover-name';
 const Sheet = ({ className = '', children }: { className?: string; children: ReactNode }) => <div className={`page__inner ${className}`}>{children}</div>;
 export function CoverArt() { return <div className="cover-art" role="img" aria-label="The Redkeep: lavender linen cover with a gold castle emblem" />; }
@@ -16,5 +16,5 @@ export const Leaf = ({ paper, side }: { paper: typeof BOOK_PAPERS[number]; side:
 export const MoreBack = () => <Sheet className="justify-center gap-[4cqw]"><p className="font-serif text-[3cqw] uppercase">Your words, on your device</p><h3 className="display text-[9cqw]">Room to<br />write.</h3><p className="text-[4cqw] leading-relaxed">Notes, Diary and Flow keep writing locally. Optional assistance starts only after model setup.</p><p className="text-[3.5cqw] leading-relaxed">This website is a product tour. It does not store journal entries.</p></Sheet>;
 export function EndFront() {
   const { name } = useCoverName();
-  return <Sheet className="items-center justify-center gap-[4cqw] text-center"><img src={art('j.png')} alt="" className="w-[30cqw]" /><h3 className="display text-[9cqw]">Start your<br />first page{name ? `, ${name}` : ''}.</h3><p className="text-[4cqw]">Public downloads are not available yet.</p><button className="book-download text-[4cqw]" disabled>Download</button></Sheet>;
+  return <Sheet className="items-center justify-center gap-[4cqw] text-center"><img src={art('j.png')} alt="" className="w-[30cqw]" /><h3 className="display text-[9cqw]">Start your<br />first page{name ? `, ${name}` : ''}.</h3><p className="text-[4cqw]">Redkeep {APK.version} · {APK.size}<br />{APK.requirements}</p><a className="book-download text-[4cqw]" href={LINKS.apk} aria-label={`Download Redkeep ${APK.version} APK, ${APK.size}. ${APK.requirements}`}>Download APK</a></Sheet>;
 }

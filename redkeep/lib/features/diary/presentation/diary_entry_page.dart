@@ -11,6 +11,7 @@ import '../../../app/navigation_destination.dart';
 import '../application/diary_providers.dart';
 import '../domain/diary_document.dart';
 import 'diary_widgets.dart';
+import 'diary_day_page.dart';
 
 class DiaryEntryPage extends ConsumerWidget {
   const DiaryEntryPage({super.key, required this.address});
@@ -99,15 +100,14 @@ class DiaryEntryPage extends ConsumerWidget {
                                   revision: entry.revision,
                                 );
                                 if (deleted && context.mounted) {
-                                  context.go(diaryDayLocation(address.date));
+                                  openDiaryDay(context, address.date);
                                 }
                               },
                         child: const Text('Delete entry'),
                       ),
                     ],
                     OutlinedButton(
-                      onPressed: () =>
-                          context.go(diaryDayLocation(address.date)),
+                      onPressed: () => openDiaryDay(context, address.date),
                       child: Text('Return to ${address.date.kind.name}'),
                     ),
                   ],

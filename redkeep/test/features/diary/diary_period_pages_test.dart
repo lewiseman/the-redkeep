@@ -14,6 +14,7 @@ import 'package:redkeep/features/diary/presentation/diary_writing_prompt.dart';
 import '../../support/fake_appearance_repository.dart';
 import '../../support/pump_app.dart';
 import '../../support/warm_diary_faces.dart';
+import '../../support/diary_reader.dart';
 
 final _today = DiaryPeriod(2026, 11, 2);
 final _periods = [
@@ -56,10 +57,7 @@ void main() {
               .first;
           await _tap(tester, button);
           expect(_selected(tester), period);
-          expect(
-            router.routeInformationProvider.value.uri.path,
-            diaryDayLocation(period),
-          );
+          expectDiaryDay(tester, router, period);
           expect(await repo.watchSavedPeriods().first, isEmpty);
           final title = find
               .byKey(const ValueKey('diary-day-title'))
@@ -114,7 +112,8 @@ void main() {
           database: db,
           diary: repo,
           diaryId: () => 'a' * 32,
-          initialLocation: diaryDayLocation(week),
+          initialLocation: '/diary',
+          diaryDay: week,
         );
         await _tap(tester, find.byType(DiaryWritingPrompt).hitTestable());
         expect(find.byType(TextField), findsOneWidget);
@@ -125,7 +124,7 @@ void main() {
         await _tap(tester, find.text('Save'));
         expect((await repo.openDocument('a' * 32)).entry!.date, week);
         expect(_selected(tester), week);
-        router.go(diaryDayLocation(_today));
+        goDiaryDay(tester, router, _today);
         await tester.pumpAndSettle();
         final nested = tester.state<NestedScrollViewState>(
           find.byType(NestedScrollView),
@@ -171,7 +170,8 @@ void main() {
           tester,
           database: db,
           diary: repo,
-          initialLocation: diaryDayLocation(_periods.first),
+          initialLocation: '/diary',
+          diaryDay: _periods.first,
         );
         await tester.drag(
           find.byKey(const ValueKey('diary-active-paper')),
@@ -209,7 +209,8 @@ void main() {
           tester,
           database: db,
           diary: repo,
-          initialLocation: diaryDayLocation(_today),
+          initialLocation: '/diary',
+          diaryDay: _today,
         );
         await warmDiaryFaces(tester);
         DiaryScene scene() =>
@@ -281,7 +282,7 @@ void main() {
             );
             expect(_selected(tester), _periods.first);
             for (final period in _periods) {
-              router.go(diaryDayLocation(period));
+              goDiaryDay(tester, router, period);
               await tester.pumpAndSettle();
               expect(_selected(tester), period);
             }

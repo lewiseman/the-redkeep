@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../features/diary/application/diary_reader_day.dart';
 import 'bottom_navbar.dart';
 
-class WritingShell extends StatelessWidget {
+class WritingShell extends ConsumerWidget {
   const WritingShell({super.key, required this.child, required this.location});
   final Widget child;
   final String location;
@@ -11,7 +13,7 @@ class WritingShell extends StatelessWidget {
   static const _paths = ['/diary', '/notes', '/flow', '/more'];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final selected = location.startsWith('/notes')
         ? 1
         : location.startsWith('/flow')
@@ -35,7 +37,13 @@ class WritingShell extends StatelessWidget {
           ? null
           : RedkeepBottomNavbar(
               selectedIndex: selected,
-              onSelected: (index) => context.go(_paths[index]),
+              onSelected: (index) {
+                // The diary tab opens today, as the reader's own address.
+                if (index == 0) {
+                  ref.read(diaryReaderDayProvider.notifier).showToday();
+                }
+                context.go(_paths[index]);
+              },
             ),
     );
   }

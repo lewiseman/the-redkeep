@@ -28,6 +28,7 @@ import 'package:redkeep/features/sync/application/sync_providers.dart';
 
 import '../../support/fake_appearance_repository.dart';
 import '../../support/pump_app.dart';
+import '../../support/diary_reader.dart';
 
 const _first = '11111111111111111111111111111111';
 const _second = '22222222222222222222222222222222';
@@ -79,7 +80,8 @@ void main() {
           tester,
           database: db,
           diary: repo,
-          initialLocation: diaryDayLocation(_today),
+          initialLocation: '/diary',
+          diaryDay: _today,
         );
         expect(
           tester
@@ -90,10 +92,7 @@ void main() {
         );
         await tester.longPress(_entry(_first));
         await tester.pumpAndSettle();
-        expect(
-          router.routeInformationProvider.value.uri.path,
-          diaryDayLocation(_today),
-        );
+        expectDiaryDay(tester, router, _today);
         final nested = tester.state<NestedScrollViewState>(
           find.byType(NestedScrollView),
         );
@@ -102,10 +101,7 @@ void main() {
         await tester.pumpAndSettle();
         await tester.longPress(_entry(_first));
         await tester.pumpAndSettle();
-        expect(
-          router.routeInformationProvider.value.uri.path,
-          diaryDayLocation(_today),
-        );
+        expectDiaryDay(tester, router, _today);
         await _immerse(tester);
         expect(
           tester
@@ -139,10 +135,7 @@ void main() {
           'Second entry revised.',
         );
         // Saving returned to the day, still scrolled to where it was.
-        expect(
-          router.routeInformationProvider.value.uri.path,
-          diaryDayLocation(_today),
-        );
+        expectDiaryDay(tester, router, _today);
         expect(tester.widget<DiaryScene>(find.byType(DiaryScene)).collapse, 1);
         await tester.longPress(_entry(_first));
         await tester.pumpAndSettle();
@@ -187,7 +180,8 @@ void main() {
             database: db,
             diary: repo,
             repository: appearance,
-            initialLocation: diaryDayLocation(period),
+            initialLocation: '/diary',
+            diaryDay: period,
           );
           await _immerse(tester);
           await tester.longPress(_entry(_first));

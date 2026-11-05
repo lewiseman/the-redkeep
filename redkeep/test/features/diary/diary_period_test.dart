@@ -22,9 +22,10 @@ void main() {
       ]);
       for (final period in periods) {
         expect(DiaryPeriod.tryParse(period.key), period);
+        // A day is reader state at /diary, not an address.
         expect(
-          validatedNavigationLocation(diaryDayLocation(period)),
-          diaryDayLocation(period),
+          validatedNavigationLocation('/diary/${period.key}'),
+          AppDestination.unavailable.location,
         );
         expect(
           validatedNavigationLocation(

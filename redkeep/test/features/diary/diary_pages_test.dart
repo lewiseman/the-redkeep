@@ -30,6 +30,7 @@ import 'package:redkeep/features/diary/domain/diary_day_details.dart';
 import '../../support/controlled_diary_repository.dart';
 import '../../support/fake_appearance_repository.dart';
 import '../../support/pump_app.dart';
+import '../../support/diary_reader.dart';
 
 const id = '11111111111111111111111111111111';
 final date = DiaryPeriod(2026, 11, 2);
@@ -192,7 +193,7 @@ void main() {
             .text,
         'Exact writing stays unchanged',
       );
-      router.go(diaryDayLocation(date));
+      goDiaryDay(tester, router, date);
       await tester.pumpAndSettle();
       expect(
         tester.widget<Text>(liveText('A quiet day')).style!.fontFamily,
@@ -214,14 +215,15 @@ void main() {
     const question = 'Which moment would you like to remember?';
     final router = await pumpApp(
       tester,
-      initialLocation: diaryDayLocation(date),
+      initialLocation: '/diary',
+      diaryDay: date,
       diary: repo,
       diaryId: () => id,
     );
     await tap(tester, 'Write an entry');
     expect(find.text('Start writing about your day…'), findsOneWidget);
     expect(find.text(question), findsNothing);
-    router.go(diaryDayLocation(date));
+    goDiaryDay(tester, router, date);
     await tester.pumpAndSettle();
     unawaited(
       router.push(diaryEntryLocation(date, id, edit: true), extra: question),
@@ -236,7 +238,8 @@ void main() {
     (tester) async {
       final router = await pumpApp(
         tester,
-        initialLocation: diaryDayLocation(date),
+        initialLocation: '/diary',
+        diaryDay: date,
         diary: repo,
         diaryId: () => id,
       );
@@ -257,10 +260,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       await tap(tester, 'Save');
-      expect(
-        router.routeInformationProvider.value.uri.path,
-        diaryDayLocation(date),
-      );
+      expectDiaryDay(tester, router, date);
       expect(liveText('Hello 👩🏽‍💻\nHabari • 中文'), findsOneWidget);
       router.go(diaryEntryLocation(date, id));
       await tester.pumpAndSettle();
@@ -279,10 +279,7 @@ void main() {
       expect((await repo.openDocument(id)).available, isTrue);
       await tap(tester, 'Delete entry');
       await tap(tester, 'Delete');
-      expect(
-        router.routeInformationProvider.value.uri.path,
-        diaryDayLocation(date),
-      );
+      expectDiaryDay(tester, router, date);
       expect((await repo.openDocument(id)).entry!.text.body, '');
       router.go(diaryEntryLocation(date, id));
       await tester.pumpAndSettle();
@@ -299,7 +296,8 @@ void main() {
       final original = (await repo.openDocument(id)).entry!;
       final router = await pumpApp(
         tester,
-        initialLocation: diaryDayLocation(date),
+        initialLocation: '/diary',
+        diaryDay: date,
         diary: repo,
       );
       await tap(tester, 'Name this day');
@@ -315,10 +313,7 @@ void main() {
         'Work, Family',
       );
       await tap(tester, 'Save day');
-      expect(
-        router.routeInformationProvider.value.uri.path,
-        diaryDayLocation(date),
-      );
+      expectDiaryDay(tester, router, date);
       expect(liveText('A day to remember'), findsOneWidget);
       expect((await storedDay(tester)).heading, 'A day to remember');
       expect((await storedDay(tester)).mood, DiaryMood.calm);
@@ -392,10 +387,7 @@ void main() {
       );
       await tester.enterText(themes, ' Work, work, Family ');
       await tap(tester, 'Save day');
-      expect(
-        router.routeInformationProvider.value.uri.path,
-        diaryDayLocation(date),
-      );
+      expectDiaryDay(tester, router, date);
       expect((await storedDay(tester)).heading, '');
       expect((await storedDay(tester)).mood, DiaryMood.happy);
       expect((await storedDay(tester)).themes, ['Work', 'Family']);
@@ -408,7 +400,8 @@ void main() {
     (tester) async {
       final router = await pumpApp(
         tester,
-        initialLocation: diaryDayLocation(date),
+        initialLocation: '/diary',
+        diaryDay: date,
         diary: repo,
       );
       await tap(tester, 'Name this day');
@@ -441,10 +434,7 @@ void main() {
       await tester.pageBack();
       await tester.pumpAndSettle();
       await tap(tester, 'Discard');
-      expect(
-        router.routeInformationProvider.value.uri.path,
-        diaryDayLocation(date),
-      );
+      expectDiaryDay(tester, router, date);
       expect(liveText('Newer title'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
@@ -472,15 +462,9 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(
-        router.routeInformationProvider.value.uri.path,
-        diaryDayLocation(leap),
-      );
+      expectDiaryDay(tester, router, leap);
       await tap(tester, 'Next day');
-      expect(
-        router.routeInformationProvider.value.uri.path,
-        '/diary/2024-03-01',
-      );
+      expectDiaryDay(tester, router, DiaryPeriod(2024, 3, 1));
       await tap(tester, 'Previous day');
       await tap(tester, 'Name this day');
       await tester.enterText(
@@ -505,10 +489,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(
-        router.routeInformationProvider.value.uri.path,
-        diaryDayLocation(date),
-      );
+      expectDiaryDay(tester, router, date);
       expect(tester.takeException(), isNull);
     },
   );
@@ -537,10 +518,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(
-        router.routeInformationProvider.value.uri.path,
-        '/diary/2024-02-29',
-      );
+      expectDiaryDay(tester, router, DiaryPeriod(2024, 2, 29));
       handle.dispose();
     },
   );
@@ -548,7 +526,8 @@ void main() {
   diaryTest('back from a new entry returns to the day', (tester) async {
     final router = await pumpApp(
       tester,
-      initialLocation: diaryDayLocation(date),
+      initialLocation: '/diary',
+      diaryDay: date,
       diary: repo,
       diaryId: () => id,
     );
@@ -559,17 +538,32 @@ void main() {
     expect(find.text('Discard this writing?'), findsNothing);
     expect(find.byType(DiaryEditPage), findsNothing);
     expect(find.byType(DiaryEntryPage), findsNothing);
-    expect(
-      router.routeInformationProvider.value.uri.path,
-      diaryDayLocation(date),
-    );
+    expectDiaryDay(tester, router, date);
     expect(tester.takeException(), isNull);
+  });
+
+  diaryTest('turning days keeps the reader on one /diary page', (tester) async {
+    final router = await pumpApp(
+      tester,
+      initialLocation: '/diary',
+      diary: repo,
+    );
+    final page = tester.state(find.byType(DiaryDayPage));
+    await tap(tester, 'Previous day');
+    expectDiaryDay(tester, router, date.shift(-1)!);
+    // A new route page would replay a page transition over a fresh state.
+    expect(find.byType(DiaryDayPage), findsOneWidget);
+    expect(tester.state(find.byType(DiaryDayPage)), same(page));
+    await tap(tester, 'Next day');
+    expectDiaryDay(tester, router, date);
+    expect(tester.state(find.byType(DiaryDayPage)), same(page));
   });
 
   diaryTest('a double tap on the prompt opens one editor', (tester) async {
     await pumpApp(
       tester,
-      initialLocation: diaryDayLocation(date),
+      initialLocation: '/diary',
+      diaryDay: date,
       diary: repo,
       diaryId: () => id,
     );
@@ -586,7 +580,8 @@ void main() {
   ) async {
     final router = await pumpApp(
       tester,
-      initialLocation: diaryDayLocation(date),
+      initialLocation: '/diary',
+      diaryDay: date,
       diary: repo,
       diaryId: () => id,
     );
@@ -603,17 +598,15 @@ void main() {
     await tap(tester, 'Save');
     expect(find.text('Discard this writing?'), findsNothing);
     expect(find.byType(DiaryEditPage), findsNothing);
-    expect(
-      router.routeInformationProvider.value.uri.path,
-      diaryDayLocation(date),
-    );
+    expectDiaryDay(tester, router, date);
     expect(liveText('A new page'), findsOneWidget);
   });
 
   diaryTest('back with unsaved writing asks before leaving', (tester) async {
     final router = await pumpApp(
       tester,
-      initialLocation: diaryDayLocation(date),
+      initialLocation: '/diary',
+      diaryDay: date,
       diary: repo,
       diaryId: () => id,
     );
@@ -634,10 +627,7 @@ void main() {
     await tester.pumpAndSettle();
     await tap(tester, 'Discard');
     expect(find.byType(DiaryEditPage), findsNothing);
-    expect(
-      router.routeInformationProvider.value.uri.path,
-      diaryDayLocation(date),
-    );
+    expectDiaryDay(tester, router, date);
     expect((await repo.openDocument(id)).entry, isNull);
   });
 
@@ -647,7 +637,8 @@ void main() {
     final semantics = tester.ensureSemantics();
     await pumpApp(
       tester,
-      initialLocation: diaryDayLocation(date),
+      initialLocation: '/diary',
+      diaryDay: date,
       diary: repo,
       diaryId: () => id,
     );
@@ -737,16 +728,18 @@ void main() {
     await tap(tester, 'Delete entry');
     await tap(tester, 'Delete');
     expect((await repo.openDocument(id)).available, isFalse);
-    expect(
-      router.routeInformationProvider.value.uri.path,
-      diaryDayLocation(date),
-    );
+    expectDiaryDay(tester, router, date);
   });
 
   diaryTest('back from day details returns to the diary it came from', (
     tester,
   ) async {
-    await pumpApp(tester, initialLocation: diaryDayLocation(date), diary: repo);
+    await pumpApp(
+      tester,
+      initialLocation: '/diary',
+      diaryDay: date,
+      diary: repo,
+    );
     final diary = tester.state(find.byType(DiaryDayPage));
     await tap(tester, 'Name this day');
     expect(find.byType(DiaryTitlePage), findsOneWidget);
@@ -879,7 +872,8 @@ void main() {
   diaryTest('typing leaves the paper and rules alone', (tester) async {
     await pumpApp(
       tester,
-      initialLocation: diaryDayLocation(date),
+      initialLocation: '/diary',
+      diaryDay: date,
       diary: repo,
       diaryId: () => id,
     );
@@ -981,7 +975,8 @@ void main() {
   ) async {
     await pumpApp(
       tester,
-      initialLocation: diaryDayLocation(date),
+      initialLocation: '/diary',
+      diaryDay: date,
       diary: repo,
       diaryId: () => id,
     );
@@ -1097,10 +1092,7 @@ void main() {
       );
       await tester.tap(match);
       await tester.pumpAndSettle();
-      expect(
-        router.routeInformationProvider.value.uri.path,
-        diaryDayLocation(date),
-      );
+      expectDiaryDay(tester, router, date);
       await repo.deleteEntry(id, 1);
       router.go('/diary/search');
       await tester.pumpAndSettle();
@@ -1146,7 +1138,7 @@ void main() {
             findsOneWidget,
           );
           expect(tester.takeException(), isNull);
-          router.go(diaryDayLocation(date));
+          goDiaryDay(tester, router, date);
           await tester.pumpAndSettle();
           await tap(tester, 'Name this day');
           await tester.enterText(

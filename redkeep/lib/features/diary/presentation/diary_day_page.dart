@@ -10,6 +10,7 @@ import '../../../core/presentation/diary_typography.dart';
 import '../../../core/presentation/rendering_policy.dart';
 import '../application/diary_providers.dart';
 import '../application/diary_paper_providers.dart';
+import '../application/diary_reader_day.dart';
 import '../domain/diary_period.dart';
 import '../domain/diary_timeline.dart';
 import 'diary_style.dart';
@@ -17,13 +18,28 @@ import 'diary_artwork.dart';
 import 'diary_header.dart';
 import 'diary_scene.dart';
 
-/// A fresh search selection also reopens the beginning of the current day.
-class DiaryDaySelection {}
+export '../application/diary_reader_day.dart' show DiaryDaySelection;
 
+/// Opens the reader at `/diary` on [date]. The day is reader state, not part
+/// of the route, so the reader keeps one page while its days change.
+/// With [push], back returns to the caller.
+void openDiaryDay(
+  BuildContext context,
+  DiaryPeriod date, {
+  DiaryDaySelection? selection,
+  bool push = false,
+}) {
+  ProviderScope.containerOf(
+    context,
+    listen: false,
+  ).read(diaryReaderDayProvider.notifier).show(date, selection: selection);
+  final location = AppDestination.diary.location;
+  push ? context.push(location) : context.go(location);
+}
+
+/// The reader shows [diaryReaderDayProvider]'s day.
 class DiaryDayPage extends ConsumerStatefulWidget {
-  const DiaryDayPage({super.key, this.date, this.selection});
-  final DiaryPeriod? date;
-  final DiaryDaySelection? selection;
+  const DiaryDayPage({super.key});
   @override
   ConsumerState<DiaryDayPage> createState() => _DiaryPageState();
 }
@@ -45,8 +61,9 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
     value: 1,
     duration: const Duration(milliseconds: 150),
   );
-  late DiaryPeriod _selectedDate =
-      widget.date ?? DiaryPeriod.fromComponents(_today);
+  late DiaryPeriod _selectedDate = _requestedDate(
+    ref.read(diaryReaderDayProvider),
+  );
   late DiaryTimeline _timeline = DiaryTimeline(today: _today);
   late DiaryPaperDay _day = _dayFor(_selectedDate);
   late DiaryPaperDay _previous = _dayFor(
@@ -64,6 +81,8 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
   bool _readingTurn = false;
 
   DateTime get _today => TimeHelper.dateOnly(ref.read(diaryClockProvider)());
+  DiaryPeriod _requestedDate(DiaryReaderDay request) =>
+      request.date ?? DiaryPeriod.fromComponents(_today);
   DiaryPaperDay _dayFor(DiaryPeriod date) =>
       ref.read(diaryPaperDayProvider(date));
 
@@ -106,20 +125,20 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
     }
   }
 
-  @override
-  void didUpdateWidget(covariant DiaryDayPage oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    final date = widget.date ?? DiaryPeriod.fromComponents(_today);
+  /// Days chosen elsewhere (calendar, search, entries) arrive as reader state.
+  /// This reader's own turns publish first, so they arrive already selected.
+  void _readerDayChanged(DiaryReaderDay? previous, DiaryReaderDay next) {
+    final date = _requestedDate(next);
     if (date != _selectedDate ||
-        (widget.selection != null && widget.selection != oldWidget.selection)) {
-      _replaceDate(date, fade: true, navigate: false);
+        (next.selection != null && next.selection != previous?.selection)) {
+      _replaceDate(date, fade: true, publish: false);
     }
   }
 
   void _replaceDate(
     DiaryPeriod date, {
     bool fade = false,
-    bool navigate = true,
+    bool publish = true,
   }) {
     final crossfade = fade && !_reduced;
     final oldDay = _day;
@@ -132,7 +151,8 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
     // The outer nested controller resets the inner offset while retaining
     // exactly the current header expansion. Jumping the inner one would also
     // collapse the header, even for a short replacement day.
-    if (_outer.hasClients) {
+    // Readers covered by another page also follow the day, unlaid out.
+    if (_outer.hasClients && _outer.position.hasContentDimensions) {
       _outer.jumpTo(_outerOffset.clamp(0, _collapseExtent));
     }
     setState(() {
@@ -144,9 +164,11 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
       _fadingFrom = crossfade ? oldDay : null;
       _fadingOffset = oldOffset;
     });
-    HapticFeedback.selectionClick();
+    if (ModalRoute.isCurrentOf(context) ?? true) {
+      HapticFeedback.selectionClick();
+    }
     if (crossfade) _fade.forward(from: 0);
-    if (navigate) context.go(diaryDayLocation(date));
+    if (publish) ref.read(diaryReaderDayProvider.notifier).show(date);
   }
 
   void _selectDate(DiaryPeriod date) {
@@ -275,6 +297,7 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(diaryReaderDayProvider, _readerDayChanged);
     final saved = ref.watch(diaryCalendarDatesProvider);
     if (!_busy) {
       _timeline = DiaryTimeline(today: _today, saved: saved.value ?? const {});

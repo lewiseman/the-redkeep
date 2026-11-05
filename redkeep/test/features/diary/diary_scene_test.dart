@@ -25,6 +25,7 @@ import '../../support/controlled_diary_repository.dart';
 import '../../support/fake_appearance_repository.dart';
 import '../../support/pump_app.dart';
 import '../../support/warm_diary_faces.dart';
+import '../../support/diary_reader.dart';
 
 final today = DiaryPeriod(2026, 11, 2);
 const id = '11111111111111111111111111111111';
@@ -159,10 +160,7 @@ void main() {
       await tester.dragFrom(start, Offset(tester.getSize(paper).width * .6, 0));
       await tester.pumpAndSettle();
       expect(scene(tester).day.date, today.shift(-1));
-      expect(
-        router.routeInformationProvider.value.uri.path,
-        diaryDayLocation(today.shift(-1)!),
-      );
+      expectDiaryDay(tester, router, today.shift(-1)!);
       await tester.dragFrom(
         tester.getRect(paper).center,
         Offset(-tester.getSize(paper).width * .6, 0),
@@ -189,7 +187,8 @@ void main() {
       await seed();
       await pumpApp(
         tester,
-        initialLocation: diaryDayLocation(today),
+        initialLocation: '/diary',
+        diaryDay: today,
         diary: repo,
       );
       final paper = find.byKey(const ValueKey('diary-active-paper'));
@@ -312,10 +311,10 @@ void main() {
       scene(tester).onDateChanged(DiaryPeriod(2026, 10, 31));
       await tester.pumpAndSettle();
       expectTodayPinned();
-      router.go(diaryDayLocation(today.shift(-10)!));
+      goDiaryDay(tester, router, today.shift(-10)!);
       await tester.pumpAndSettle();
       expect(pin, findsNothing);
-      router.go(diaryDayLocation(today));
+      goDiaryDay(tester, router, today);
       await tester.pumpAndSettle();
       expectTodayPinned();
       expect(tester.takeException(), isNull);
@@ -386,10 +385,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(day(today));
       await tester.pumpAndSettle();
-      expect(
-        router.routeInformationProvider.value.uri.path,
-        diaryDayLocation(today),
-      );
+      expectDiaryDay(tester, router, today);
       expect(tester.takeException(), isNull);
     },
   );
@@ -442,7 +438,8 @@ void main() {
       await seed(body: List.filled(80, 'coffee by the window').join('\n'));
       await pumpApp(
         tester,
-        initialLocation: diaryDayLocation(today),
+        initialLocation: '/diary',
+        diaryDay: today,
         diary: repo,
       );
       final nested = tester.state<NestedScrollViewState>(
@@ -492,7 +489,8 @@ void main() {
     final first = DiaryPeriod(1, 1, 1);
     await pumpApp(
       tester,
-      initialLocation: diaryDayLocation(first),
+      initialLocation: '/diary',
+      diaryDay: first,
       diary: repo,
     );
     expect(scene(tester).day.date, first);
@@ -550,10 +548,7 @@ void main() {
     expect(day(leap).hitTestable(), findsOneWidget);
     await tester.tap(day(leap));
     await tester.pumpAndSettle();
-    expect(
-      router.routeInformationProvider.value.uri.path,
-      diaryDayLocation(leap),
-    );
+    expectDiaryDay(tester, router, leap);
     expect(tester.takeException(), isNull);
   });
 

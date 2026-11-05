@@ -11,6 +11,7 @@ import '../domain/diary_document.dart';
 import 'diary_discard_dialog.dart';
 import 'diary_entry_page.dart';
 import 'diary_writing_paper.dart';
+import 'diary_day_page.dart';
 
 /// A pinned page of the diary to write on. Save is the only commit, and leaving
 /// without saving asks first only when there is writing to lose.
@@ -317,7 +318,7 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
         ),
         const SizedBox(height: 8),
         FilledButton(
-          onPressed: () => context.go(diaryDayLocation(widget.address.date)),
+          onPressed: () => openDiaryDay(context, widget.address.date),
           child: Text('Return to ${widget.address.date.kind.name}'),
         ),
       ],
@@ -342,7 +343,7 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
       FocusScope.of(context).unfocus();
       final saved = await context.push<bool>(
         kind == 'talk'
-            ? '${diaryDayLocation(widget.address.date)}/talk'
+            ? diaryTalkLocation(widget.address.date)
             : '${diaryEntryLocation(widget.address.date, widget.address.id)}/photos',
       );
       if (!mounted || saved != true) return;
@@ -380,7 +381,7 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
     if (!deleted || !mounted) return;
     await controller.discard();
     // Not a pop: the reader this may have opened from no longer has an entry.
-    if (mounted) context.go(diaryDayLocation(widget.address.date));
+    if (mounted) openDiaryDay(context, widget.address.date);
   }
 
   /// Returns to wherever the editor was opened from.
@@ -391,7 +392,7 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
     if (context.canPop()) {
       context.pop();
     } else {
-      context.go(diaryDayLocation(widget.address.date));
+      openDiaryDay(context, widget.address.date);
     }
   }
 }

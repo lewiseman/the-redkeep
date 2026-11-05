@@ -3,7 +3,6 @@ import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../app/navigation_destination.dart';
 import '../../../core/presentation/rendering_policy.dart';
 import '../application/diary_providers.dart';
 import '../application/diary_paper_providers.dart';
@@ -11,6 +10,7 @@ import '../domain/diary_period.dart';
 import 'diary_style.dart';
 import 'diary_artwork.dart';
 import 'diary_paper_stamp.dart';
+import 'diary_day_page.dart';
 
 class DiaryCalendarDay {
   const DiaryCalendarDay({required this.hasEntry});
@@ -65,7 +65,7 @@ class _DiaryCalendarPageState extends ConsumerState<DiaryCalendarPage> {
     if (GoRouterState.of(context).extra == true) {
       context.pop(date);
     } else {
-      context.go(diaryDayLocation(date));
+      openDiaryDay(context, date);
     }
   }
 

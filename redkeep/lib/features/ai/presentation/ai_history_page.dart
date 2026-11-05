@@ -23,6 +23,7 @@ import '../../notes/presentation/note_ai_sheet.dart';
 import '../application/ai_jobs.dart';
 import '../domain/ai_job.dart';
 import '../domain/ai_operation.dart';
+import '../../diary/presentation/diary_day_page.dart';
 
 final aiHistoryProvider = StreamProvider.autoDispose<List<AiJob>>(
   (ref) => ref.watch(aiJobStoreProvider).watchHistory(),
@@ -247,9 +248,9 @@ class _AiHistoryTaskPageState extends ConsumerState<AiHistoryTaskPage> {
                     ),
                     if (retained != null) AiTaskControls(id: widget.id),
                   ],
-                  if (_sourceLocation(job) case final location?)
+                  if (_sourceOpener(job) case final open?)
                     TextButton(
-                      onPressed: () => context.push(location),
+                      onPressed: () => open(context),
                       child: Text(
                         job.operation.isNote
                             ? 'Review note task'
@@ -266,13 +267,24 @@ class _AiHistoryTaskPageState extends ConsumerState<AiHistoryTaskPage> {
   }
 }
 
-String? _sourceLocation(AiJob job) {
-  if (job.operation.isNote) return job.source.isEmpty ? null : '/notes/ai-task';
+typedef _SourceOpener = void Function(BuildContext context);
+
+_SourceOpener _push(String location) =>
+    (context) => context.push(location);
+
+// Diary days are reader state at /diary rather than addresses.
+_SourceOpener _day(DiaryPeriod date) =>
+    (context) => openDiaryDay(context, date, push: true);
+
+_SourceOpener? _sourceOpener(AiJob job) {
+  if (job.operation.isNote) {
+    return job.source.isEmpty ? null : _push('/notes/ai-task');
+  }
   if (job.operation == AiOperation.thoughtQuestion) {
-    return job.source.isEmpty ? null : '/flow/search';
+    return job.source.isEmpty ? null : _push('/flow/search');
   }
   if (job.operation == AiOperation.thoughtReflection) {
-    return thoughtLocation(job.key);
+    return _push(thoughtLocation(job.key));
   }
   if (job.operation == AiOperation.diaryDetails ||
       job.operation == AiOperation.dailyQuestion) {
@@ -280,8 +292,8 @@ String? _sourceLocation(AiJob job) {
     return date == null
         ? null
         : job.operation == AiOperation.diaryDetails
-        ? diaryTitleLocation(date)
-        : diaryDayLocation(date);
+        ? _push(diaryTitleLocation(date))
+        : _day(date);
   }
   try {
     final source = jsonDecode(job.source) as Map;
@@ -289,8 +301,8 @@ String? _sourceLocation(AiJob job) {
     if (date == null) return null;
     final id = source['id'];
     return id is String
-        ? '${diaryEntryLocation(date, id)}/conversation'
-        : diaryDayLocation(date);
+        ? _push('${diaryEntryLocation(date, id)}/conversation')
+        : _day(date);
   } catch (_) {
     return null;
   }

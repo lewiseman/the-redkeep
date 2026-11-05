@@ -11,6 +11,7 @@ import 'package:redkeep/features/diary/domain/diary_period.dart';
 
 import '../../support/fake_appearance_repository.dart';
 import '../../support/pump_app.dart';
+import '../../support/diary_reader.dart';
 
 Finder _day(DiaryPeriod date) =>
     find.byKey(ValueKey('calendar-day-${date.calendarDate.toIso8601String()}'));
@@ -117,10 +118,7 @@ void main() {
     expect(_emoji(date, DiaryMood.calm).hitTestable(), findsOneWidget);
     await tester.tap(_emoji(date, DiaryMood.calm));
     await tester.pumpAndSettle();
-    expect(
-      router.routeInformationProvider.value.uri.path,
-      diaryDayLocation(date),
-    );
+    expectDiaryDay(tester, router, date);
     expect(tester.takeException(), isNull);
   });
 }

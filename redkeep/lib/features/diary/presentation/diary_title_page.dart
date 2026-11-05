@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../app/navigation_destination.dart';
 import '../../../core/presentation/diary_typography.dart';
 import '../../ai/application/ai_lifecycle.dart';
 import '../../sync/application/sync_providers.dart';
@@ -16,6 +15,7 @@ import 'diary_day_details_widgets.dart';
 import 'diary_discard_dialog.dart';
 import 'diary_widgets.dart';
 import 'diary_writing_paper.dart';
+import 'diary_day_page.dart';
 
 /// The cover of a day: what to call it, how it felt and what it was about.
 class DiaryTitlePage extends ConsumerStatefulWidget {
@@ -221,7 +221,7 @@ class _DiaryTitlePageState extends ConsumerState<DiaryTitlePage> {
     if (context.canPop()) {
       context.pop();
     } else {
-      context.go(diaryDayLocation(widget.date));
+      openDiaryDay(context, widget.date);
     }
   }
 

@@ -146,11 +146,8 @@ void main() {
               path: '/diary/:date',
               pageBuilder: (context, state) => NoTransitionPage(
                 key: const ValueKey('diary-day'),
-                child: Scaffold(
-                  body: DiaryDayPage(
-                    date: DiaryPeriod.tryParse(state.pathParameters['date']!),
-                  ),
-                ),
+                // Today is the reader's default day.
+                child: const Scaffold(body: DiaryDayPage()),
               ),
               routes: [
                 GoRoute(

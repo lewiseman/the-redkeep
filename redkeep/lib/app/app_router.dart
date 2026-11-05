@@ -116,66 +116,66 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
                     ),
                   ),
                   GoRoute(
-                    path: ':date',
+                    path: ':date/talk',
+                    pageBuilder: (context, state) {
+                      final date = DiaryPeriod.tryParse(
+                        state.pathParameters['date']!,
+                      )!;
+                      return _page(state, DiaryTalkPage(date: date));
+                    },
+                  ),
+                  GoRoute(
+                    path: ':date/title',
                     pageBuilder: (context, state) => _page(
                       state,
-                      DiaryDayPage(
-                        selection: state.extra is DiaryDaySelection
-                            ? state.extra as DiaryDaySelection
-                            : null,
+                      DiaryTitlePage(
+                        key: ValueKey(state.uri.path),
                         date: DiaryPeriod.tryParse(
                           state.pathParameters['date']!,
                         )!,
                       ),
                     ),
+                  ),
+                  // Days are reader state at /diary, not routes, so back from
+                  // these pages returns to the one reader page.
+                  GoRoute(
+                    path: ':date/entries/:id/edit',
+                    pageBuilder: (context, state) => _page(
+                      state,
+                      DiaryEditPage(
+                        key: ValueKey(state.uri.path),
+                        address: (
+                          date: DiaryPeriod.tryParse(
+                            state.pathParameters['date']!,
+                          )!,
+                          id: state.pathParameters['id']!,
+                        ),
+                        question: state.extra is String
+                            ? state.extra as String
+                            : null,
+                      ),
+                    ),
+                  ),
+                  GoRoute(
+                    path: ':date/entries/:id',
+                    pageBuilder: (context, state) => _page(
+                      state,
+                      DiaryEntryPage(
+                        key: ValueKey(state.uri.path),
+                        address: (
+                          date: DiaryPeriod.tryParse(
+                            state.pathParameters['date']!,
+                          )!,
+                          id: state.pathParameters['id']!,
+                        ),
+                      ),
+                    ),
                     routes: [
                       GoRoute(
-                        path: 'talk',
-                        pageBuilder: (context, state) {
-                          final date = DiaryPeriod.tryParse(
-                            state.pathParameters['date']!,
-                          )!;
-                          return _page(state, DiaryTalkPage(date: date));
-                        },
-                      ),
-                      GoRoute(
-                        path: 'title',
+                        path: 'photos',
                         pageBuilder: (context, state) => _page(
                           state,
-                          DiaryTitlePage(
-                            key: ValueKey(state.uri.path),
-                            date: DiaryPeriod.tryParse(
-                              state.pathParameters['date']!,
-                            )!,
-                          ),
-                        ),
-                      ),
-                      // A sibling of the reader, so back from the editor returns
-                      // to the day even when the editor was reached with `go`.
-                      GoRoute(
-                        path: 'entries/:id/edit',
-                        pageBuilder: (context, state) => _page(
-                          state,
-                          DiaryEditPage(
-                            key: ValueKey(state.uri.path),
-                            address: (
-                              date: DiaryPeriod.tryParse(
-                                state.pathParameters['date']!,
-                              )!,
-                              id: state.pathParameters['id']!,
-                            ),
-                            question: state.extra is String
-                                ? state.extra as String
-                                : null,
-                          ),
-                        ),
-                      ),
-                      GoRoute(
-                        path: 'entries/:id',
-                        pageBuilder: (context, state) => _page(
-                          state,
-                          DiaryEntryPage(
-                            key: ValueKey(state.uri.path),
+                          DiaryPhotosPage(
                             address: (
                               date: DiaryPeriod.tryParse(
                                 state.pathParameters['date']!,
@@ -184,36 +184,20 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
                             ),
                           ),
                         ),
-                        routes: [
-                          GoRoute(
-                            path: 'photos',
-                            pageBuilder: (context, state) => _page(
-                              state,
-                              DiaryPhotosPage(
-                                address: (
-                                  date: DiaryPeriod.tryParse(
-                                    state.pathParameters['date']!,
-                                  )!,
-                                  id: state.pathParameters['id']!,
-                                ),
-                              ),
+                      ),
+                      GoRoute(
+                        path: 'conversation',
+                        pageBuilder: (context, state) => _page(
+                          state,
+                          DiaryConversationPage(
+                            address: (
+                              date: DiaryPeriod.tryParse(
+                                state.pathParameters['date']!,
+                              )!,
+                              id: state.pathParameters['id']!,
                             ),
                           ),
-                          GoRoute(
-                            path: 'conversation',
-                            pageBuilder: (context, state) => _page(
-                              state,
-                              DiaryConversationPage(
-                                address: (
-                                  date: DiaryPeriod.tryParse(
-                                    state.pathParameters['date']!,
-                                  )!,
-                                  id: state.pathParameters['id']!,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                     ],
                   ),

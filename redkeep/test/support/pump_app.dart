@@ -41,6 +41,8 @@ import 'fake_required_assets.dart';
 import 'fake_onboarding_repository.dart';
 
 import 'package:redkeep/features/ai/application/ai_providers.dart';
+import 'package:redkeep/features/diary/application/diary_reader_day.dart';
+import 'package:redkeep/features/diary/domain/diary_period.dart';
 
 Future<GoRouter> pumpApp(
   WidgetTester tester, {
@@ -56,6 +58,7 @@ Future<GoRouter> pumpApp(
   String Function()? noteId,
   DiaryRepository? diary,
   String Function()? diaryId,
+  DiaryPeriod? diaryDay,
   FakeAiProviderClient? aiProvider,
   bool aiEnabled = false,
   AppDatabase? database,
@@ -102,6 +105,10 @@ Future<GoRouter> pumpApp(
         ),
         diaryClockProvider.overrideWithValue(() => DateTime(2026, 11, 2, 12)),
         if (diaryId != null) diaryIdProvider.overrideWithValue(diaryId),
+        if (diaryDay != null)
+          diaryReaderDayProvider.overrideWithBuild(
+            (ref, notifier) => DiaryReaderDay(diaryDay),
+          ),
         if (flow != null) flowRepositoryProvider.overrideWithValue(flow),
         if (flowId != null) flowIdProvider.overrideWithValue(flowId),
         notesAmbientMotionProvider.overrideWithValue(false),

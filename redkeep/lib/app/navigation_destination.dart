@@ -89,12 +89,11 @@ String _destination(String location) {
   if (diaryTitle != null && DiaryPeriod.tryParse(diaryTitle[1]!) != null) {
     return location;
   }
+  // A diary day itself is reader state at /diary, never an address.
   final diary = RegExp(
-    r'^/diary/(?:calendar/)?([a-z0-9-]+)(?:/entries/([0-9a-f]{32})(/(?:edit|photos|conversation))?)?$',
+    r'^/diary/(?:calendar/([a-z0-9-]+)|([a-z0-9-]+)/entries/[0-9a-f]{32}(?:/(?:edit|photos|conversation))?)$',
   ).firstMatch(location);
-  if (diary != null &&
-      DiaryPeriod.tryParse(diary[1]!) != null &&
-      !(location.startsWith('/diary/calendar/') && diary[2] != null)) {
+  if (diary != null && DiaryPeriod.tryParse((diary[1] ?? diary[2])!) != null) {
     return location;
   }
   final flow = RegExp(r'^/flow/([0-9a-f]{32})(/edit)?$').firstMatch(location);
@@ -131,8 +130,8 @@ String _requestedDestination(Uri requested) {
 String _gate(String path, String destination) =>
     Uri(path: path, queryParameters: {'continue': destination}).toString();
 
-String diaryDayLocation(DiaryPeriod date) => '/diary/${date.key}';
 String diaryTitleLocation(DiaryPeriod date) => '/diary/${date.key}/title';
+String diaryTalkLocation(DiaryPeriod date) => '/diary/${date.key}/talk';
 String diaryCalendarLocation(DiaryPeriod date) => '/diary/calendar/${date.key}';
 String diaryEntryLocation(DiaryPeriod date, String id, {bool edit = false}) =>
     isDiaryId(id)

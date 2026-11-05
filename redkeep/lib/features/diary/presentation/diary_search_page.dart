@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../app/navigation_destination.dart';
 import '../../../core/presentation/rendering_policy.dart';
 import '../application/diary_providers.dart';
 import '../domain/diary_period.dart';
@@ -91,7 +90,7 @@ class _DiarySearchPageState extends ConsumerState<DiarySearchPage> {
     if (_returning) return;
     _returning = true;
     _focus.unfocus();
-    context.go(diaryDayLocation(match.date), extra: DiaryDaySelection());
+    openDiaryDay(context, match.date, selection: DiaryDaySelection());
   }
 
   @override

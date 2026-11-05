@@ -208,6 +208,15 @@
       "sha256": "329082a440f8212a45a896077338ac2e009df29223a72d488bca844a2d1cf75b",
       "provenance": "tool/assets/PROVENANCE.md",
       "sourcePath": "more_appearance.png"
+    },
+    {
+      "key": "flow.reflect",
+      "revision": "v1",
+      "path": "flow/reflect-v1.png",
+      "sourcePath": "flow_reflect.png",
+      "bytes": 201799,
+      "sha256": "c9a7d0c754143a2c607e4d8c7602969feab0450dd795c5d6d811eb919522f5ba",
+      "provenance": "tool/assets/PROVENANCE.md"
     }
   ]
 }

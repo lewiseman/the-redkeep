@@ -321,3 +321,23 @@ in use. Simpler effects omits the decorative wash.
 Release order: publish `more_appearance.png` through the website hosting
 process before releasing the updated mobile catalog. Preparing this canonical
 source and validating it offline do not publish it.
+
+## Single thought page migration — 5 November 2026
+
+The user requested the previous app's single thought UI and reflection image.
+`website/public/art/flow_reflect.png` is an unchanged copy of
+`journal/assets/images/flow_reflect.png`: 201,799 bytes, SHA-256
+`c9a7d0c754143a2c607e4d8c7602969feab0450dd795c5d6d811eb919522f5ba`.
+This existing project-supplied artwork is registered as `flow.reflect`, revision
+`v1`, installed at `flow/reflect-v1.png` through the existing verified download
+flow. The reflection control loads the verified local file; the image is not
+added to the Flutter bundle.
+
+The paper palette, back control, date, reader typography and reflection styling
+are adapted from the read-only Journal reference. Redkeep's document streams,
+editing, deletion confirmation, sync edit guards, reflection review and AI task
+controls remain in use.
+
+Release order: publish `flow_reflect.png` through the website hosting process
+before releasing the updated mobile catalog. Preparing and validating the
+canonical source offline does not publish it.

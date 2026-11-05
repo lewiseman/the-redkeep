@@ -1,70 +1,163 @@
-import '../../ai/application/ai_lifecycle.dart';
-import 'flow_reflection.dart';
-import '../../sync/application/sync_providers.dart';
-
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
-import '../../../app/app_shell.dart';
-import '../../../core/presentation/paper_surface.dart';
 import '../../../app/navigation_destination.dart';
+import '../../ai/application/ai_lifecycle.dart';
+import '../../sync/application/sync_providers.dart';
 import '../application/flow_providers.dart';
 import '../domain/thought.dart';
+import 'flow_reflection.dart';
+import 'flow_thought_card.dart';
 
 class ThoughtReadPage extends ConsumerWidget {
   const ThoughtReadPage({super.key, required this.id});
   final String id;
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) => AppShell(
-    child: ref
-        .watch(thoughtDocumentProvider(id))
-        .when(
-          loading: () => const Text('Loading thought…'),
-          error: (_, _) => TextButton(
-            onPressed: () => ref.invalidate(thoughtDocumentProvider(id)),
-            child: const Text('Could not load thought. Retry'),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final paper = flowThoughtColors(id, Theme.of(context).colorScheme);
+    final quiet = TextStyle(color: paper.secondary, fontSize: 12, height: 1.4);
+    final button = TextButton.styleFrom(foregroundColor: paper.foreground);
+    final canEdit = ref.watch(syncCanEditProvider);
+    return Scaffold(
+      backgroundColor: paper.background,
+      appBar: AppBar(
+        backgroundColor: paper.background,
+        foregroundColor: paper.foreground,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        systemOverlayStyle:
+            (ThemeData.estimateBrightnessForColor(paper.background) ==
+                        Brightness.dark
+                    ? SystemUiOverlayStyle.light
+                    : SystemUiOverlayStyle.dark)
+                .copyWith(statusBarColor: Colors.transparent),
+        toolbarHeight: 64,
+        leading: Center(
+          child: IconButton(
+            tooltip: 'Back',
+            onPressed: () =>
+                context.canPop() ? context.pop() : context.go('/flow'),
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+            style: IconButton.styleFrom(
+              backgroundColor: paper.foreground.withValues(alpha: .08),
+              foregroundColor: paper.foreground,
+            ),
           ),
-          data: (opened) {
-            final entry = opened.thought;
-            final available = opened.available;
-            return PaperSurface(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    available ? 'Thought' : 'Thought unavailable',
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                  if (available) ...[
-                    Text('Revision ${entry!.revision} • saved on this device'),
-                    const SizedBox(height: 16),
-                    SelectableText(entry.body),
-                    if (ref.watch(aiEnabledProvider)) FlowReflection(id: id),
-                    const SizedBox(height: 16),
-                    OutlinedButton(
-                      onPressed: !ref.watch(syncCanEditProvider)
-                          ? null
-                          : () => context.go(thoughtLocation(id, edit: true)),
-                      child: const Text('Edit thought'),
-                    ),
-                    OutlinedButton(
-                      onPressed: !ref.watch(syncCanEditProvider)
-                          ? null
-                          : () => _delete(context, ref, entry),
-                      child: const Text('Delete thought'),
-                    ),
-                  ],
-                  OutlinedButton(
-                    onPressed: () => context.go('/flow'),
-                    child: const Text('Return to Flow'),
-                  ),
-                ],
-              ),
-            );
-          },
         ),
-  );
+      ),
+      body: SafeArea(
+        top: false,
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 640),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(28, 8, 28, 28),
+              child: ref
+                  .watch(thoughtDocumentProvider(id))
+                  .when(
+                    loading: () => Text('Loading thought…', style: quiet),
+                    error: (_, _) => TextButton(
+                      style: button,
+                      onPressed: () =>
+                          ref.invalidate(thoughtDocumentProvider(id)),
+                      child: const Text('Could not load thought. Retry'),
+                    ),
+                    data: (opened) => Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (opened.available) ...[
+                          Text(
+                            'YOUR THOUGHT',
+                            style: TextStyle(
+                              color: paper.secondary,
+                              fontSize: 10,
+                              letterSpacing: 1.8,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            DateFormat('EEEE, MMMM d · h:mm a')
+                                .format(opened.thought!.createdAt.toLocal()),
+                            style: quiet,
+                          ),
+                          const SizedBox(height: 24),
+                          SelectableText(
+                            opened.thought!.body,
+                            style: TextStyle(
+                              fontSize: 23,
+                              height: 1.5,
+                              letterSpacing: -.4,
+                              color: paper.foreground,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          if (ref.watch(aiEnabledProvider))
+                            FlowReflection(id: id, paper: paper),
+                          const SizedBox(height: 24),
+                          Text(
+                            'Revision ${opened.thought!.revision} • saved on this device',
+                            style: quiet,
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            children: [
+                              TextButton.icon(
+                                style: button,
+                                onPressed: !canEdit
+                                    ? null
+                                    : () => context.go(
+                                        thoughtLocation(id, edit: true),
+                                      ),
+                                icon: const Icon(Icons.edit_outlined, size: 18),
+                                label: const Text('Edit thought'),
+                              ),
+                              TextButton.icon(
+                                style: button,
+                                onPressed: !canEdit
+                                    ? null
+                                    : () => _delete(
+                                        context,
+                                        ref,
+                                        opened.thought!,
+                                      ),
+                                icon: const Icon(
+                                  Icons.delete_outline_rounded,
+                                  size: 18,
+                                ),
+                                label: const Text('Delete thought'),
+                              ),
+                            ],
+                          ),
+                        ] else
+                          Text(
+                            'Thought unavailable',
+                            style: Theme.of(context).textTheme.headlineSmall
+                                ?.copyWith(color: paper.foreground),
+                          ),
+                        Align(
+                          alignment: AlignmentDirectional.centerStart,
+                          child: TextButton(
+                            style: button,
+                            onPressed: () => context.go('/flow'),
+                            child: const Text('Return to Flow'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   Future<void> _delete(
     BuildContext context,

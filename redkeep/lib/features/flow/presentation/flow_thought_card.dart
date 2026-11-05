@@ -16,14 +16,17 @@ const _papers = [
   (Color(0xfff4f0e8), Color(0xff33312c)),
 ];
 
-int _paperIndex(ThoughtListing thought) =>
-    thought.id.codeUnits.fold(0, (sum, unit) => (sum + unit) % _papers.length);
+int _paperIndex(String id) =>
+    id.codeUnits.fold(0, (sum, unit) => (sum + unit) % _papers.length);
 
-({Color background, Color foreground, Color secondary}) flowThoughtColors(
-  ThoughtListing thought,
-  ColorScheme colors,
-) {
-  final paper = _papers[_paperIndex(thought)];
+typedef FlowThoughtPaper = ({
+  Color background,
+  Color foreground,
+  Color secondary,
+});
+
+FlowThoughtPaper flowThoughtColors(String id, ColorScheme colors) {
+  final paper = _papers[_paperIndex(id)];
   final background = colors.brightness == Brightness.dark ? paper.$2 : paper.$1;
   final foreground =
       ThemeData.estimateBrightnessForColor(background) == Brightness.dark
@@ -59,14 +62,14 @@ class FlowThoughtCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = flowThoughtColors(thought, Theme.of(context).colorScheme);
+    final colors = flowThoughtColors(thought.id, Theme.of(context).colorScheme);
     final background = Color.lerp(
       colors.background,
       Theme.of(context).colorScheme.surface,
       .16,
     )!;
     final shape = FlowCloudBorder(
-      alternate: _paperIndex(thought).isOdd,
+      alternate: _paperIndex(thought.id).isOdd,
       side: BorderSide(
         // Preserve a visible seam when clouds with identical fills overlap.
         color: colors.foreground.withValues(

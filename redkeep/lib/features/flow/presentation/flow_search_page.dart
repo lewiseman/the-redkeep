@@ -220,7 +220,7 @@ class _FlowSearchPageState extends ConsumerState<FlowSearchPage> {
                       children: [
                         const SizedBox(height: 12),
                         Text(
-                          'AI can answer using these thoughts. Excerpts go to your chosen phone model or paired computer only when you ask.',
+                          'AI can answer using these thoughts. Excerpts go to your paired computer or chosen provider only when you ask.',
                         ),
                         Text(
                           '${selection.searched} thoughts searched · ${selection.sources.length} excerpts selected${selection.scope == null ? '' : ' · ${selection.scope!.label}'}',

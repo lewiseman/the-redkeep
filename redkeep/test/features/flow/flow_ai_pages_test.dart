@@ -7,7 +7,8 @@ import 'package:redkeep/core/storage/app_database.dart';
 import 'package:redkeep/features/ai/domain/ai_job.dart';
 import 'package:redkeep/features/ai/domain/ai_operation.dart';
 import 'package:redkeep/features/appearance/domain/appearance_preferences.dart';
-import 'package:redkeep/features/brain/domain/brain.dart';
+import 'package:redkeep/features/ai/data/ai_preferences_repository.dart';
+import 'package:redkeep/features/ai/domain/ai_route.dart';
 import 'package:redkeep/features/flow/data/drift_flow_repository.dart';
 import 'package:redkeep/features/flow/data/drift_thought_reflections.dart';
 import 'package:redkeep/features/flow/domain/thought_reflection_contract.dart';
@@ -15,8 +16,7 @@ import 'package:redkeep/features/recall/domain/recall_question_contract.dart';
 
 import '../../support/fake_ai.dart';
 import '../../support/fake_appearance_repository.dart';
-import '../../support/fake_brain.dart';
-import '../../support/notes_ai_harness.dart' show ReplyModel;
+import '../../support/fake_ai_provider.dart';
 import '../../support/pump_app.dart';
 
 const id = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
@@ -83,9 +83,12 @@ void main() {
           ThoughtReflectionSource.fromThought(thought),
           reflection,
         );
-        final assignments = FakeBrainAssignments()
-          ..values[BrainCapability.rewrite] = qualifiedBrainModel.id;
-        var generations = 0;
+        await tester.runAsync(
+          () => AiPreferencesRepository(db).setDefaultRoute(
+            AiRoute.provider(testAiProvider.id, 'test-model'),
+          ),
+        );
+        final aiProvider = FakeAiProviderClient(answer);
         final router = await pumpApp(
           tester,
           initialLocation: '/flow/$id',
@@ -94,11 +97,7 @@ void main() {
           tasks: tasks,
           aiEnabled: true,
           repository: appearance,
-          brainAssignments: assignments,
-          brainLoader: (_, settings) async {
-            generations++;
-            return ReplyModel(answer, settings);
-          },
+          aiProvider: aiProvider,
         );
         try {
           await tap(tester, find.text('Keep reflection'));
@@ -115,7 +114,7 @@ void main() {
             'Where are the tulips?',
           );
           await settleQuestion(tester);
-          expect(generations, 0);
+          expect(aiProvider.requests, isEmpty);
           await tester.scrollUntilVisible(
             find.byKey(const ValueKey('flow-ask-ai')),
             200,
@@ -141,7 +140,7 @@ void main() {
             scrollable: find.byType(Scrollable).first,
           );
           expect(find.text(answerText), findsOneWidget);
-          expect(generations, 1);
+          expect(aiProvider.requests, hasLength(1));
           await tester.scrollUntilVisible(
             find.byKey(const ValueKey('flow-search-field')),
             -200,
@@ -162,7 +161,7 @@ void main() {
           );
           expect(find.text('“Where are the tulips?”'), findsOneWidget);
           expect(find.text(answerText), findsOneWidget);
-          expect(generations, 1);
+          expect(aiProvider.requests, hasLength(1));
           FocusManager.instance.primaryFocus?.unfocus();
           await tester.pumpAndSettle();
           await tester.tap(find.byTooltip('AI task history'));
@@ -175,7 +174,7 @@ void main() {
             scrollable: find.byType(Scrollable).first,
           );
           expect(find.text(answerText), findsOneWidget);
-          expect(generations, 1);
+          expect(aiProvider.requests, hasLength(1));
           await tap(tester, find.text('Clear task'));
           expect(
             find.textContaining('preview is no longer retained'),

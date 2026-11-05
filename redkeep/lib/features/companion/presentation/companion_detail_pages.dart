@@ -284,12 +284,17 @@ class CompanionPrivacyPage extends ConsumerWidget {
         const CompanionDetailHeading(
           icon: Icons.shield_outlined,
           title: 'Your devices. Your control.',
-          description: 'AI runs on the computer you connect.',
+          description: 'AI runs on the computer you connect or the provider you choose.',
         ),
         const _DetailNote(
           icon: Icons.router_outlined,
           title: 'A private connection',
           text: 'Your phone connects directly to your computer on the local network. After setup, the connection works without internet or Google sign-in.',
+        ),
+        const _DetailNote(
+          icon: Icons.cloud_outlined,
+          title: 'If you add a provider',
+          text: 'Tasks you assign to a provider send their text over the internet to that provider, under your own account and its terms. Tokens stay in protected storage on this phone, outside journal sync.',
         ),
         const _DetailNote(
           icon: Icons.touch_app_outlined,

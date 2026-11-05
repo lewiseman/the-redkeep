@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../ai/application/ai_jobs.dart';
-import '../../ai/application/ai_preferences.dart';
 import '../../ai/domain/ai_operation.dart';
 import '../../voice/application/phone_voice.dart';
 import '../application/companion_controller.dart';
@@ -104,13 +103,8 @@ class _CompanionPageState extends ConsumerState<CompanionPage>
       unawaited(_voice?.stop());
     }
     final connection = ref.watch(companionControllerProvider);
-    final prefs = ref.watch(aiPreferencesProvider);
-    final repository = ref.read(aiPreferencesRepositoryProvider);
     final controller = ref.read(companionControllerProvider.notifier);
-    final mode = prefs.value?.mode ?? AiMode.auto;
     final connected = connection.phase == CompanionPhase.connected;
-    final phoneFirst =
-        mode == AiMode.device || mode == AiMode.auto && !connected;
     final computer = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -191,134 +185,55 @@ class _CompanionPageState extends ConsumerState<CompanionPage>
         ),
       ],
     );
-    final phone = AiStudioCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text('AI on this phone', style: studioTitle(context, size: 21)),
-          const Text(
-            'Use Redkeep’s existing phone models for writing while away. Search by meaning still needs the computer.',
-          ),
-          TextButton.icon(
-            onPressed: () {
-              unawaited(_voice?.stop());
-              context.push('/settings/brain/phone');
-            },
-            icon: const Icon(Icons.phone_android),
-            label: const Text('Manage phone models'),
-          ),
-        ],
-      ),
-    );
     return CompanionDetailLayout(
       title: 'Grand Maestar',
       children: [
         const CompanionDetailHeading(
           icon: Icons.auto_awesome_outlined,
-          title: 'Your AI, on your devices',
-          description: 'Choose where AI runs and manage your setup.',
+          title: 'Your AI, your choice',
+          description: 'Use your own computer or an AI provider, task by task.',
         ),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final choice in AiMode.values)
-              ChoiceChip(
-                key: ValueKey('ai-mode-${choice.name}'),
-                label: Text(switch (choice) {
-                  AiMode.auto => 'Auto',
-                  AiMode.companion => 'Computer',
-                  AiMode.device => 'Phone',
-                }),
-                selected: mode == choice,
-                onSelected: prefs.hasValue
-                    ? (_) async {
-                        try {
-                          await repository.mode(choice);
-                        } catch (_) {
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Could not save your AI mode.'),
-                              ),
-                            );
-                          }
-                        }
-                      }
-                    : null,
+        const AiStudioSectionHeading(label: 'Writing AI'),
+        AiStudioCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ListTile(
+                key: const ValueKey('ai-providers-link'),
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.cloud_outlined),
+                title: const Text('AI providers'),
+                subtitle: const Text('Connect a provider with your own token.'),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () {
+                  unawaited(_voice?.stop());
+                  context.push('/settings/brain/providers');
+                },
               ),
-          ],
+              ListTile(
+                key: const ValueKey('ai-tasks-link'),
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.checklist_rounded),
+                title: const Text('Tasks'),
+                subtitle: const Text('Choose what runs each writing task.'),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () {
+                  unawaited(_voice?.stop());
+                  context.push('/settings/brain/tasks');
+                },
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 16),
-        if (mode == AiMode.auto)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: Text(
-              connected
-                  ? 'Auto uses your connected computer for new requests.'
-                  : 'Auto uses assigned phone models while your computer is away.',
-            ),
-          ),
         TextButton.icon(
           onPressed: () => context.push('/settings/brain/history'),
           icon: const Icon(Icons.history_rounded),
           label: const Text('AI task history'),
         ),
         const AiTaskPanel(),
-        const AiStudioSectionHeading(label: 'Setup'),
-        if (phoneFirst) phone else computer,
-        const SizedBox(height: 16),
-        ExpansionTile(
-          title: Text(
-            phoneFirst ? 'Connect your computer' : 'Take AI with you',
-          ),
-          children: [phoneFirst ? computer : phone],
-        ),
-        ExpansionTile(
-          title: const Text('Advanced'),
-          subtitle: const Text(
-            'Choose a destination for individual diary operations',
-          ),
-          children: [
-            for (final operation in AiOperation.values.where(
-              (o) => o.supportsPhone,
-            ))
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                child: DropdownButtonFormField<AiMode>(
-                  key: ValueKey(
-                    'ai-override-${operation.name}-${prefs.value?.overrides[operation]}',
-                  ),
-                  initialValue:
-                      prefs.value?.overrides[operation] ?? AiMode.auto,
-                  isExpanded: true,
-                  itemHeight: null,
-                  decoration: InputDecoration(labelText: operation.label),
-                  items: const [
-                    DropdownMenuItem(
-                      value: AiMode.auto,
-                      child: Text('Follow choice above'),
-                    ),
-                    DropdownMenuItem(
-                      value: AiMode.companion,
-                      child: Text('Computer'),
-                    ),
-                    DropdownMenuItem(
-                      value: AiMode.device,
-                      child: Text('Phone'),
-                    ),
-                  ],
-                  onChanged: prefs.hasValue
-                      ? (value) async {
-                          if (value != null) {
-                            await repository.override(operation, value);
-                          }
-                        }
-                      : null,
-                ),
-              ),
-          ],
-        ),
+        const AiStudioSectionHeading(label: 'Your computer'),
+        computer,
         const AiStudioSectionHeading(label: 'Preferences'),
         CompanionShortcuts(
           onVoice: () {
@@ -363,7 +278,7 @@ class AiTaskPanel extends ConsumerWidget {
           children: [
             if (job != null)
               Text(
-                '${job.operation.label} · ${job.phase} · ${job.provider == 'companion' ? 'Computer' : 'Phone'}',
+                '${job.operation.label} · ${job.phase} · ${job.destinationLabel}',
               ),
             if (state.message != null) Text(state.message!),
             if (job?.operation.isNote == true)

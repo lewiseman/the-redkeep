@@ -125,7 +125,7 @@ void main() {
         await tester.pumpAndSettle();
         expect(
           find.bySemanticsLabel(
-            RegExp('Grand Maester.*Models are downloaded separately'),
+            RegExp('Grand Maester.*a provider you choose'),
           ),
           findsOneWidget,
         );
@@ -637,7 +637,7 @@ void main() {
             await navigateChapter(tester, 1);
             expect(find.text('Grand Maester'), findsOneWidget);
             expect(
-              find.textContaining('Models are downloaded separately'),
+              find.textContaining('a provider you choose'),
               findsOneWidget,
             );
             await navigateChapter(tester, -1);

@@ -11,9 +11,11 @@ import 'package:redkeep/app/storage_providers.dart';
 import 'package:redkeep/core/storage/app_database.dart';
 import 'package:redkeep/features/ai/application/ai_jobs.dart';
 import 'package:redkeep/features/ai/domain/ai_operation.dart';
-import 'package:redkeep/features/ai/domain/local_inference.dart';
-import 'package:redkeep/features/brain/application/brain_providers.dart';
-import 'package:redkeep/features/brain/domain/brain.dart';
+import 'package:redkeep/features/ai/application/ai_preferences.dart';
+import 'package:redkeep/features/ai/application/ai_providers.dart';
+import 'package:redkeep/features/ai/domain/ai_preferences.dart';
+import 'package:redkeep/features/ai/domain/ai_provider.dart';
+import 'package:redkeep/features/ai/domain/ai_route.dart';
 import 'package:redkeep/features/companion/application/companion_controller.dart';
 import 'package:redkeep/features/companion/data/companion_protocol.dart';
 import 'package:redkeep/features/diary/application/diary_ai_sources.dart';
@@ -23,37 +25,10 @@ import 'package:redkeep/features/diary/domain/diary_period.dart';
 import 'package:redkeep/features/diary/domain/diary_document.dart';
 
 import '../../support/fake_ai.dart';
-import '../../support/fake_brain.dart';
+import '../../support/fake_ai_provider.dart';
 
 const dayOutput =
     '{"title":"Garden morning","mood":{"value":"calm","evidence":"felt calm"},"themes":[{"label":"Gardening","evidence":"planting the garden"}]}';
-
-class JsonModel implements LocalModel {
-  JsonModel(this.text);
-  final String text;
-  int closed = 0;
-  @override
-  InferenceBackend get backend => InferenceBackend.cpu;
-  @override
-  Future<LocalSession> createSession() async => _JsonSession(text);
-  @override
-  Future<void> close() async {
-    closed++;
-  }
-}
-
-class _JsonSession implements LocalSession {
-  _JsonSession(this.text);
-  final String text;
-  @override
-  Future<void> addPrompt(String text) async {}
-  @override
-  Stream<String> stream() => Stream.value(text);
-  @override
-  Future<void> stop() async {}
-  @override
-  Future<void> close() async {}
-}
 
 class JobTransport implements CompanionTransport {
   int submissions = 0, reads = 0, acknowledgements = 0, cancels = 0;
@@ -118,12 +93,9 @@ void main() {
   late ProviderContainer scope;
   late MemoryAiTasks protected;
   late JobTransport remote;
-  late FakeBrainAssignments assignments;
+  late FakeAiProviderClient aiProvider;
   final date = DiaryPeriod(2026, 11, 4);
-  ProviderContainer container({
-    bool connected = true,
-    List<InferenceSettings>? settings,
-  }) => ProviderContainer(
+  ProviderContainer container({bool connected = true}) => ProviderContainer(
     overrides: [
       appDatabaseProvider.overrideWithValue(db),
       diaryRepositoryProvider.overrideWithValue(diary),
@@ -137,12 +109,10 @@ void main() {
               : const CompanionState(phase: CompanionPhase.idle),
         ),
       ),
-      brainAssignmentsProvider.overrideWithValue(assignments),
-      brainModelFilesProvider.overrideWith((ref) async => FakeBrainFiles()),
-      brainModelLoaderProvider.overrideWithValue((_, value) async {
-        settings?.add(value);
-        return JsonModel(dayOutput);
-      }),
+      protectedAiProvidersProvider.overrideWithValue(
+        MemoryAiProviders(saved: const [testAiProvider]),
+      ),
+      aiProviderClientProvider.overrideWithValue(aiProvider),
     ],
   );
   setUp(() async {
@@ -150,7 +120,7 @@ void main() {
     diary = DriftDiaryRepository(db, clock: () => DateTime.utc(2026, 11, 4));
     protected = MemoryAiTasks();
     remote = JobTransport();
-    assignments = FakeBrainAssignments();
+    aiProvider = FakeAiProviderClient(dayOutput);
     await diary.save(
       id: 'a' * 32,
       date: date,
@@ -163,6 +133,9 @@ void main() {
     scope.dispose();
     await db.close();
   });
+  Future<void> routeToProvider() => scope
+      .read(aiPreferencesRepositoryProvider)
+      .setDefaultRoute(AiRoute.provider(testAiProvider.id, 'test-model'));
   Future<void> start() async {
     final source = await scope.read(diaryAiSourcesProvider).day(date);
     await scope
@@ -230,15 +203,17 @@ void main() {
     lease.release(owner);
   });
   test(
-    'computer-only operations never choose a phone model when disconnected',
+    'computer-only operations never go to a provider when disconnected',
     () async {
       scope.dispose();
       scope = container(connected: false);
+      await routeToProvider();
       await scope
           .read(aiJobsProvider.notifier)
           .start(AiOperation.history, 'history:test', '{}', '{}');
       expect(scope.read(aiJobsProvider).job, isNull);
       expect(remote.submissions, 0);
+      expect(aiProvider.requests, isEmpty);
       expect(
         scope.read(aiJobsProvider).message,
         contains('needs your computer'),
@@ -246,43 +221,51 @@ void main() {
     },
   );
 
-  test(
-    'Auto chooses once; explicit unavailable destinations do not fall back',
-    () {
+  group('resolveAiRoute never falls back', () {
+    const onProvider = AiPreferences(
+      defaultRoute: AiRoute.provider('provider-test', 'default-model'),
+      overrides: {
+        AiOperation.noteRewrite: AiRoute.provider('provider-test', 'rewriter'),
+        AiOperation.noteSummary: AiRoute.companion(),
+      },
+    );
+    ({AiRoute route, AiProviderConnection? provider}) resolve(
+      AiOperation operation, {
+      AiPreferences preferences = onProvider,
+      bool connected = true,
+      List<AiProviderConnection> providers = const [testAiProvider],
+    }) => resolveAiRoute(
+      operation: operation,
+      preferences: preferences,
+      connected: connected,
+      providers: providers,
+    );
+
+    test('a task override wins over the default', () {
+      expect(resolve(AiOperation.noteRewrite).route.model, 'rewriter');
+      expect(resolve(AiOperation.noteExpand).route.model, 'default-model');
+      expect(resolve(AiOperation.noteSummary).route.isCompanion, isTrue);
+    });
+    test('computer-only tasks ignore provider routing', () {
+      expect(resolve(AiOperation.noteScan).provider, isNull);
       expect(
-        chooseAiDestination(
-          mode: AiMode.auto,
-          connected: true,
-          deviceReady: true,
-        ),
-        AiMode.companion,
-      );
-      expect(
-        chooseAiDestination(
-          mode: AiMode.auto,
-          connected: false,
-          deviceReady: true,
-        ),
-        AiMode.device,
-      );
-      expect(
-        () => chooseAiDestination(
-          mode: AiMode.companion,
-          connected: false,
-          deviceReady: true,
-        ),
+        () => resolve(AiOperation.noteScan, connected: false),
         throwsA(isA<CompanionFailure>()),
       );
+    });
+    test('a connected computer never replaces a removed provider', () {
       expect(
-        () => chooseAiDestination(
-          mode: AiMode.device,
-          connected: true,
-          deviceReady: false,
-        ),
+        () => resolve(AiOperation.noteExpand, providers: const []),
         throwsA(isA<CompanionFailure>()),
       );
-    },
-  );
+    });
+    test('a provider never replaces a disconnected computer', () {
+      expect(
+        () => resolve(AiOperation.noteSummary, connected: false),
+        throwsA(isA<CompanionFailure>()),
+      );
+    });
+  });
   test('companion results are protected before acknowledgement; receipts contain no writing', () async {
     await start();
     final job = scope.read(aiJobsProvider).job!;
@@ -302,47 +285,98 @@ void main() {
       contains('planting the garden'),
     );
   });
-  test(
-    'Auto uses assigned phone model away, with operation settings and cleanup',
-    () async {
-      scope.dispose();
-      final settings = <InferenceSettings>[];
-      assignments.values[BrainCapability.diaryDetails] = qualifiedBrainModel.id;
-      scope = container(connected: false, settings: settings);
-      await start();
-      expect(scope.read(aiJobsProvider).job!.phase, 'completed');
-      expect(scope.read(aiJobsProvider).job!.provider, 'device');
-      expect(remote.submissions, 0);
-      expect(settings.single.outputTokens, 320);
-      expect(settings.single.systemInstruction, contains('JSON schema'));
-      expect(settings.single.temperature, 0);
-    },
-  );
-  test('interrupted phone work is restored without generation and requires an explicit retry', () async {
-    scope.dispose();
-    assignments.values[BrainCapability.diaryDetails] = qualifiedBrainModel.id;
-    scope = container(connected: false);
+  test('a provider task sends its settings and previews the result', () async {
+    await routeToProvider();
+    aiProvider.reply = '```json\n$dayOutput\n```';
+    await start();
+    final job = scope.read(aiJobsProvider).job!;
+    expect(job.phase, 'completed');
+    expect(job.provider, 'provider');
+    expect(job.providerName, testAiProvider.name);
+    expect(job.modelId, 'test-model');
+    expect(job.text, dayOutput);
+    expect(remote.submissions, 0);
+    final request = aiProvider.requests.single;
+    expect(request.outputTokens, 320);
+    expect(request.system, contains('JSON schema'));
+    expect(request.temperature, 0);
+    final metadata = (await db.select(db.aiJobReceipts).getSingle()).metadata;
+    expect(metadata, isNot(contains('garden')));
+    expect(metadata, isNot(contains(testAiProvider.token)));
+    expect(protected.value, isNot(contains(testAiProvider.token)));
+  });
+  test('an invalid provider answer never reaches the preview', () async {
+    await routeToProvider();
+    aiProvider.reply = 'not json';
+    await start();
+    expect(scope.read(aiJobsProvider).job?.phase, isNot('completed'));
+    expect(scope.read(aiJobsProvider).job?.text, isNull);
+  });
+  test('provider failures show their own message and no token', () async {
+    await routeToProvider();
+    aiProvider.failure = const AiProviderFailure(
+      AiProviderFailureKind.rateLimited,
+    );
+    await start();
+    final message = scope.read(aiJobsProvider).message!;
+    expect(message, contains('rate limit'));
+    expect(message, isNot(contains(testAiProvider.token)));
+  });
+  test('cancelling aborts the provider request and fences its result', () async {
+    await routeToProvider();
+    aiProvider.gate = Completer<void>();
+    final running = start();
+    await until(() => aiProvider.requests.isNotEmpty);
+    await scope.read(aiJobsProvider.notifier).cancel();
+    await running;
+    expect(aiProvider.aborted, isTrue);
+    expect(scope.read(aiJobsProvider).job!.phase, 'cancelled');
+    expect(scope.read(aiJobsProvider).job!.text, isNull);
+  });
+  test('leaving the app aborts the provider request', () async {
+    await routeToProvider();
+    aiProvider.gate = Completer<void>();
+    final running = start();
+    await until(() => aiProvider.requests.isNotEmpty);
+    scope.read(aiJobsProvider.notifier).foreground(false);
+    await running;
+    expect(aiProvider.aborted, isTrue);
+  });
+  test('interrupted provider work is never resent without an explicit retry', () async {
+    await routeToProvider();
     await start();
     final job = scope.read(aiJobsProvider).job!;
     protected.value = jsonEncode(job.copy(phase: 'running').json());
     scope.dispose();
-    final settings = <InferenceSettings>[];
-    scope = container(connected: false, settings: settings);
+    aiProvider.requests.clear();
+    scope = container(connected: false);
     await scope.read(aiJobsProvider.notifier).restore();
     expect(scope.read(aiJobsProvider).job!.phase, 'interrupted');
-    expect(settings, isEmpty);
+    expect(aiProvider.requests, isEmpty);
     await scope.read(aiJobsProvider.notifier).retry();
     expect(scope.read(aiJobsProvider).job!.phase, 'completed');
-    expect(settings, hasLength(1));
+    expect(aiProvider.requests, hasLength(1));
+  });
+  test('a saved task from the removed phone backend still restores', () async {
+    await routeToProvider();
+    await start();
+    final saved = scope.read(aiJobsProvider).job!.copy(phase: 'running').json();
+    protected.value = jsonEncode({...saved, 'provider': 'device'});
+    scope.dispose();
+    scope = container(connected: false);
+    await scope.read(aiJobsProvider.notifier).restore();
+    expect(scope.read(aiJobsProvider).loaded, isTrue);
+    expect(scope.read(aiJobsProvider).job!.phase, 'interrupted');
+    expect(scope.read(aiJobsProvider).job!.destinationLabel, 'Phone');
   });
 
   test('connected computer without writing readiness reports failure without sending or falling back', () async {
     (scope.read(companionControllerProvider.notifier) as TestConnection).set(
       readyComputer(writingStatus: 'unloaded'),
     );
-    assignments.values[BrainCapability.diaryDetails] = qualifiedBrainModel.id;
     await start();
     expect(remote.submissions, 0);
+    expect(aiProvider.requests, isEmpty);
     expect(
       scope.read(aiJobsProvider).message,
       contains('Load a writing model'),

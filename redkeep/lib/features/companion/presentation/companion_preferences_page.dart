@@ -54,7 +54,7 @@ class CompanionPreferencesPage extends ConsumerWidget {
                       ),
               ),
               const Text(
-                'While today’s diary is open, AI can ask a gentle question using up to four entries from today, eight from the previous week, and your last five questions, within the request limit. Computer mode sends that selection only to your paired computer; Phone mode keeps it here. Turning this off clears this phone’s question history.',
+                'While today’s diary is open, AI can ask a gentle question using up to four entries from today, eight from the previous week, and your last five questions, within the request limit. It goes only to the computer or provider you chose for this task, and a provider asks only when you tap unless you allow it to ask automatically. Turning this off clears this phone’s question history.',
               ),
             ],
           ),

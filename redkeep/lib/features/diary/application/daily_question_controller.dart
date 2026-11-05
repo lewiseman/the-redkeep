@@ -232,10 +232,16 @@ class DailyQuestionController extends Notifier<DailyQuestionView> {
           .question(date, await _recent());
       if (!ref.mounted || !_canAuto || epoch != _epoch) return;
       if (automatic && _attempted.contains(source.contextKey)) return;
+      // Opening a diary never sends its text to a provider without opt-in.
+      if (automatic &&
+          !(await ref.read(aiPreferencesRepositoryProvider).read())
+              .dailyQuestionMayRunAutomatically) {
+        return;
+      }
       if (!await jobs.available(AiOperation.dailyQuestion)) {
         if (ref.mounted && !automatic) {
           state = const DailyQuestionView(
-            message: 'Choose a ready computer or assign a phone model in Grand Maestar to ask a question.',
+            message: 'Connect your computer or choose a provider in Grand Maestar to ask a question.',
           );
         }
         return;
@@ -294,9 +300,9 @@ class DailyQuestionController extends Notifier<DailyQuestionView> {
         await ref.read(aiJobsProvider.notifier).clear();
         return;
       }
-      if (task.phase == 'interrupted' && task.provider == 'device') {
+      if (task.phase == 'interrupted' && task.provider != 'companion') {
         state = const DailyQuestionView(
-          message: 'Phone generation was interrupted. Tap Ask for a question to retry explicitly.',
+          message: 'Generating the question was interrupted. Tap Ask for a question to retry explicitly.',
         );
         return;
       }

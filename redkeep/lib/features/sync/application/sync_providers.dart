@@ -9,7 +9,6 @@ import 'package:sync_wise/google_drive.dart';
 import 'package:sync_wise/sync_wise.dart';
 
 import '../../../app/storage_providers.dart';
-import '../../brain/application/brain_providers.dart';
 import '../../notes/application/notes_providers.dart';
 import '../../diary/application/diary_providers.dart';
 import '../../flow/application/flow_providers.dart';
@@ -123,7 +122,6 @@ final syncCoordinatorProvider = FutureProvider<void>((ref) async {
       db.writingGeneration++;
       resetGeneration++;
       ref.read(writingSessionEpochProvider.notifier).reset();
-      ref.invalidate(brainExecutorProvider);
     }
     if (!next.blocksDataAccess && previous?.blocksDataAccess == true) {
       db.writingBlocked = false;

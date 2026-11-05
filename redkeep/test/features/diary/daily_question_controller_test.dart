@@ -13,7 +13,11 @@ import 'package:redkeep/features/diary/data/drift_diary_repository.dart';
 import 'package:redkeep/features/diary/domain/diary_period.dart';
 import 'package:redkeep/features/diary/domain/diary_document.dart';
 
+import 'package:redkeep/features/ai/application/ai_providers.dart';
+import 'package:redkeep/features/ai/domain/ai_operation.dart';
+import 'package:redkeep/features/ai/domain/ai_route.dart';
 import '../../support/fake_ai.dart';
+import '../../support/fake_ai_provider.dart';
 import '../ai/ai_jobs_test.dart' show JobTransport, until;
 
 void main() {
@@ -73,6 +77,76 @@ void main() {
       },
     );
   }
+  group('on a provider', () {
+    late FakeAiProviderClient aiProvider;
+    setUp(() async {
+      scope.dispose();
+      aiProvider = FakeAiProviderClient(
+        '{"question":"What was one small thing you noticed?","source":"","evidence":""}',
+      );
+      scope = ProviderContainer(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(db),
+          diaryRepositoryProvider.overrideWithValue(
+            DriftDiaryRepository(db, clock: () => now),
+          ),
+          diaryClockProvider.overrideWithValue(() => now),
+          aiClockProvider.overrideWithValue(() => now),
+          companionControllerProvider.overrideWith(
+            () => TestConnection(readyComputer()),
+          ),
+          companionTransportProvider.overrideWithValue(transport),
+          protectedAiTasksProvider.overrideWithValue(MemoryAiTasks()),
+          protectedAiProvidersProvider.overrideWithValue(
+            MemoryAiProviders(saved: const [testAiProvider]),
+          ),
+          aiProviderClientProvider.overrideWithValue(aiProvider),
+        ],
+      );
+      await scope
+          .read(aiPreferencesRepositoryProvider)
+          .setTaskRoute(
+            AiOperation.dailyQuestion,
+            AiRoute.provider(testAiProvider.id, 'test-model'),
+          );
+      scope.listen(aiPreferencesProvider, (_, _) {});
+      await scope.read(aiPreferencesProvider.future);
+      scope.listen(dailyQuestionProvider(date), (_, _) {});
+    });
+
+    test('nothing is sent automatically without opt-in, but a tap works', () async {
+      final controller = scope.read(dailyQuestionProvider(date).notifier);
+      controller.activate(true);
+      await controller.request(automatic: true);
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+      expect(aiProvider.requests, isEmpty);
+      expect(transport.submissions, 0);
+      await controller.request();
+      expect(aiProvider.requests, hasLength(1));
+    });
+
+    test('opt-in for this provider allows automatic questions', () async {
+      await scope
+          .read(aiPreferencesRepositoryProvider)
+          .setDailyQuestionOptIn(testAiProvider.id);
+      scope.read(dailyQuestionProvider(date).notifier).activate(true);
+      await until(() => aiProvider.requests.isNotEmpty);
+      expect(aiProvider.requests, hasLength(1));
+    });
+
+    test('moving to another provider stops automatic questions', () async {
+      final prefs = scope.read(aiPreferencesRepositoryProvider);
+      await prefs.setDailyQuestionOptIn(testAiProvider.id);
+      await prefs.setTaskRoute(
+        AiOperation.dailyQuestion,
+        const AiRoute.provider('another', 'model'),
+      );
+      scope.read(dailyQuestionProvider(date).notifier).activate(true);
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+      expect(aiProvider.requests, isEmpty);
+    });
+  });
+
   test(
     'automatic daily questions wait for the voice session and resume afterward',
     () async {

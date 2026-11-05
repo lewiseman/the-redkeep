@@ -4,8 +4,6 @@ import 'voice_capture.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/storage_providers.dart';
-import '../../ai/application/ai_preferences.dart';
-import '../../ai/domain/ai_operation.dart';
 import '../../companion/application/companion_controller.dart';
 import '../../companion/data/companion_protocol.dart';
 
@@ -66,12 +64,6 @@ class VoiceActive extends Notifier<bool> {
 TrustedComputer requireVoiceComputer(Ref ref, {bool conversation = false}) {
   if (ref.read(appDatabaseProvider).writingBlocked) {
     throw const CompanionFailure('RESET', 'Account reset is in progress.');
-  }
-  if (ref.read(aiPreferencesProvider).value?.mode == AiMode.device) {
-    throw const CompanionFailure(
-      'UNSUPPORTED',
-      'Voice needs your computer. Choose Auto or Computer in Grand Maestar.',
-    );
   }
   final connection = ref.read(companionControllerProvider);
   final computer = connection.selected;

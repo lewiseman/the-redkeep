@@ -19,22 +19,10 @@ class $AiPreferencesTableTable extends AiPreferencesTable
     requiredDuringInsert: false,
     defaultValue: const Constant(1),
   );
-  static const VerificationMeta _modeMeta = const VerificationMeta('mode');
+  static const VerificationMeta _routesMeta = const VerificationMeta('routes');
   @override
-  late final GeneratedColumn<String> mode = GeneratedColumn<String>(
-    'mode',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-    defaultValue: const Constant('auto'),
-  );
-  static const VerificationMeta _overridesMeta = const VerificationMeta(
-    'overrides',
-  );
-  @override
-  late final GeneratedColumn<String> overrides = GeneratedColumn<String>(
-    'overrides',
+  late final GeneratedColumn<String> routes = GeneratedColumn<String>(
+    'routes',
     aliasedName,
     false,
     type: DriftSqlType.string,
@@ -145,8 +133,7 @@ class $AiPreferencesTableTable extends AiPreferencesTable
   @override
   List<GeneratedColumn> get $columns => [
     id,
-    mode,
-    overrides,
+    routes,
     dailyQuestions,
     recallNotes,
     recallDiary,
@@ -170,16 +157,10 @@ class $AiPreferencesTableTable extends AiPreferencesTable
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     }
-    if (data.containsKey('mode')) {
+    if (data.containsKey('routes')) {
       context.handle(
-        _modeMeta,
-        mode.isAcceptableOrUnknown(data['mode']!, _modeMeta),
-      );
-    }
-    if (data.containsKey('overrides')) {
-      context.handle(
-        _overridesMeta,
-        overrides.isAcceptableOrUnknown(data['overrides']!, _overridesMeta),
+        _routesMeta,
+        routes.isAcceptableOrUnknown(data['routes']!, _routesMeta),
       );
     }
     if (data.containsKey('daily_questions')) {
@@ -252,13 +233,9 @@ class $AiPreferencesTableTable extends AiPreferencesTable
         DriftSqlType.int,
         data['${effectivePrefix}id'],
       )!,
-      mode: attachedDatabase.typeMapping.read(
+      routes: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}mode'],
-      )!,
-      overrides: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}overrides'],
+        data['${effectivePrefix}routes'],
       )!,
       dailyQuestions: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
@@ -299,8 +276,9 @@ class $AiPreferencesTableTable extends AiPreferencesTable
 
 class AiPreferenceRow extends DataClass implements Insertable<AiPreferenceRow> {
   final int id;
-  final String mode;
-  final String overrides;
+
+  /// Default and per-task routes. Holds provider IDs and model names, no tokens.
+  final String routes;
   final bool dailyQuestions;
   final bool recallNotes;
   final bool recallDiary;
@@ -310,8 +288,7 @@ class AiPreferenceRow extends DataClass implements Insertable<AiPreferenceRow> {
   final String? replyVoice;
   const AiPreferenceRow({
     required this.id,
-    required this.mode,
-    required this.overrides,
+    required this.routes,
     required this.dailyQuestions,
     required this.recallNotes,
     required this.recallDiary,
@@ -324,8 +301,7 @@ class AiPreferenceRow extends DataClass implements Insertable<AiPreferenceRow> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
-    map['mode'] = Variable<String>(mode);
-    map['overrides'] = Variable<String>(overrides);
+    map['routes'] = Variable<String>(routes);
     map['daily_questions'] = Variable<bool>(dailyQuestions);
     map['recall_notes'] = Variable<bool>(recallNotes);
     map['recall_diary'] = Variable<bool>(recallDiary);
@@ -341,8 +317,7 @@ class AiPreferenceRow extends DataClass implements Insertable<AiPreferenceRow> {
   AiPreferencesTableCompanion toCompanion(bool nullToAbsent) {
     return AiPreferencesTableCompanion(
       id: Value(id),
-      mode: Value(mode),
-      overrides: Value(overrides),
+      routes: Value(routes),
       dailyQuestions: Value(dailyQuestions),
       recallNotes: Value(recallNotes),
       recallDiary: Value(recallDiary),
@@ -362,8 +337,7 @@ class AiPreferenceRow extends DataClass implements Insertable<AiPreferenceRow> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return AiPreferenceRow(
       id: serializer.fromJson<int>(json['id']),
-      mode: serializer.fromJson<String>(json['mode']),
-      overrides: serializer.fromJson<String>(json['overrides']),
+      routes: serializer.fromJson<String>(json['routes']),
       dailyQuestions: serializer.fromJson<bool>(json['dailyQuestions']),
       recallNotes: serializer.fromJson<bool>(json['recallNotes']),
       recallDiary: serializer.fromJson<bool>(json['recallDiary']),
@@ -380,8 +354,7 @@ class AiPreferenceRow extends DataClass implements Insertable<AiPreferenceRow> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
-      'mode': serializer.toJson<String>(mode),
-      'overrides': serializer.toJson<String>(overrides),
+      'routes': serializer.toJson<String>(routes),
       'dailyQuestions': serializer.toJson<bool>(dailyQuestions),
       'recallNotes': serializer.toJson<bool>(recallNotes),
       'recallDiary': serializer.toJson<bool>(recallDiary),
@@ -394,8 +367,7 @@ class AiPreferenceRow extends DataClass implements Insertable<AiPreferenceRow> {
 
   AiPreferenceRow copyWith({
     int? id,
-    String? mode,
-    String? overrides,
+    String? routes,
     bool? dailyQuestions,
     bool? recallNotes,
     bool? recallDiary,
@@ -405,8 +377,7 @@ class AiPreferenceRow extends DataClass implements Insertable<AiPreferenceRow> {
     Value<String?> replyVoice = const Value.absent(),
   }) => AiPreferenceRow(
     id: id ?? this.id,
-    mode: mode ?? this.mode,
-    overrides: overrides ?? this.overrides,
+    routes: routes ?? this.routes,
     dailyQuestions: dailyQuestions ?? this.dailyQuestions,
     recallNotes: recallNotes ?? this.recallNotes,
     recallDiary: recallDiary ?? this.recallDiary,
@@ -418,8 +389,7 @@ class AiPreferenceRow extends DataClass implements Insertable<AiPreferenceRow> {
   AiPreferenceRow copyWithCompanion(AiPreferencesTableCompanion data) {
     return AiPreferenceRow(
       id: data.id.present ? data.id.value : this.id,
-      mode: data.mode.present ? data.mode.value : this.mode,
-      overrides: data.overrides.present ? data.overrides.value : this.overrides,
+      routes: data.routes.present ? data.routes.value : this.routes,
       dailyQuestions: data.dailyQuestions.present
           ? data.dailyQuestions.value
           : this.dailyQuestions,
@@ -448,8 +418,7 @@ class AiPreferenceRow extends DataClass implements Insertable<AiPreferenceRow> {
   String toString() {
     return (StringBuffer('AiPreferenceRow(')
           ..write('id: $id, ')
-          ..write('mode: $mode, ')
-          ..write('overrides: $overrides, ')
+          ..write('routes: $routes, ')
           ..write('dailyQuestions: $dailyQuestions, ')
           ..write('recallNotes: $recallNotes, ')
           ..write('recallDiary: $recallDiary, ')
@@ -464,8 +433,7 @@ class AiPreferenceRow extends DataClass implements Insertable<AiPreferenceRow> {
   @override
   int get hashCode => Object.hash(
     id,
-    mode,
-    overrides,
+    routes,
     dailyQuestions,
     recallNotes,
     recallDiary,
@@ -479,8 +447,7 @@ class AiPreferenceRow extends DataClass implements Insertable<AiPreferenceRow> {
       identical(this, other) ||
       (other is AiPreferenceRow &&
           other.id == this.id &&
-          other.mode == this.mode &&
-          other.overrides == this.overrides &&
+          other.routes == this.routes &&
           other.dailyQuestions == this.dailyQuestions &&
           other.recallNotes == this.recallNotes &&
           other.recallDiary == this.recallDiary &&
@@ -492,8 +459,7 @@ class AiPreferenceRow extends DataClass implements Insertable<AiPreferenceRow> {
 
 class AiPreferencesTableCompanion extends UpdateCompanion<AiPreferenceRow> {
   final Value<int> id;
-  final Value<String> mode;
-  final Value<String> overrides;
+  final Value<String> routes;
   final Value<bool> dailyQuestions;
   final Value<bool> recallNotes;
   final Value<bool> recallDiary;
@@ -503,8 +469,7 @@ class AiPreferencesTableCompanion extends UpdateCompanion<AiPreferenceRow> {
   final Value<String?> replyVoice;
   const AiPreferencesTableCompanion({
     this.id = const Value.absent(),
-    this.mode = const Value.absent(),
-    this.overrides = const Value.absent(),
+    this.routes = const Value.absent(),
     this.dailyQuestions = const Value.absent(),
     this.recallNotes = const Value.absent(),
     this.recallDiary = const Value.absent(),
@@ -515,8 +480,7 @@ class AiPreferencesTableCompanion extends UpdateCompanion<AiPreferenceRow> {
   });
   AiPreferencesTableCompanion.insert({
     this.id = const Value.absent(),
-    this.mode = const Value.absent(),
-    this.overrides = const Value.absent(),
+    this.routes = const Value.absent(),
     this.dailyQuestions = const Value.absent(),
     this.recallNotes = const Value.absent(),
     this.recallDiary = const Value.absent(),
@@ -527,8 +491,7 @@ class AiPreferencesTableCompanion extends UpdateCompanion<AiPreferenceRow> {
   });
   static Insertable<AiPreferenceRow> custom({
     Expression<int>? id,
-    Expression<String>? mode,
-    Expression<String>? overrides,
+    Expression<String>? routes,
     Expression<bool>? dailyQuestions,
     Expression<bool>? recallNotes,
     Expression<bool>? recallDiary,
@@ -539,8 +502,7 @@ class AiPreferencesTableCompanion extends UpdateCompanion<AiPreferenceRow> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
-      if (mode != null) 'mode': mode,
-      if (overrides != null) 'overrides': overrides,
+      if (routes != null) 'routes': routes,
       if (dailyQuestions != null) 'daily_questions': dailyQuestions,
       if (recallNotes != null) 'recall_notes': recallNotes,
       if (recallDiary != null) 'recall_diary': recallDiary,
@@ -554,8 +516,7 @@ class AiPreferencesTableCompanion extends UpdateCompanion<AiPreferenceRow> {
 
   AiPreferencesTableCompanion copyWith({
     Value<int>? id,
-    Value<String>? mode,
-    Value<String>? overrides,
+    Value<String>? routes,
     Value<bool>? dailyQuestions,
     Value<bool>? recallNotes,
     Value<bool>? recallDiary,
@@ -566,8 +527,7 @@ class AiPreferencesTableCompanion extends UpdateCompanion<AiPreferenceRow> {
   }) {
     return AiPreferencesTableCompanion(
       id: id ?? this.id,
-      mode: mode ?? this.mode,
-      overrides: overrides ?? this.overrides,
+      routes: routes ?? this.routes,
       dailyQuestions: dailyQuestions ?? this.dailyQuestions,
       recallNotes: recallNotes ?? this.recallNotes,
       recallDiary: recallDiary ?? this.recallDiary,
@@ -585,11 +545,8 @@ class AiPreferencesTableCompanion extends UpdateCompanion<AiPreferenceRow> {
     if (id.present) {
       map['id'] = Variable<int>(id.value);
     }
-    if (mode.present) {
-      map['mode'] = Variable<String>(mode.value);
-    }
-    if (overrides.present) {
-      map['overrides'] = Variable<String>(overrides.value);
+    if (routes.present) {
+      map['routes'] = Variable<String>(routes.value);
     }
     if (dailyQuestions.present) {
       map['daily_questions'] = Variable<bool>(dailyQuestions.value);
@@ -621,8 +578,7 @@ class AiPreferencesTableCompanion extends UpdateCompanion<AiPreferenceRow> {
   String toString() {
     return (StringBuffer('AiPreferencesTableCompanion(')
           ..write('id: $id, ')
-          ..write('mode: $mode, ')
-          ..write('overrides: $overrides, ')
+          ..write('routes: $routes, ')
           ..write('dailyQuestions: $dailyQuestions, ')
           ..write('recallNotes: $recallNotes, ')
           ..write('recallDiary: $recallDiary, ')
@@ -7446,275 +7402,6 @@ class FlowReflectionsCompanion extends UpdateCompanion<FlowReflectionRow> {
   }
 }
 
-class $BrainAssignmentsTableTable extends BrainAssignmentsTable
-    with TableInfo<$BrainAssignmentsTableTable, BrainAssignmentRow> {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $BrainAssignmentsTableTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _capabilityMeta = const VerificationMeta(
-    'capability',
-  );
-  @override
-  late final GeneratedColumn<String> capability = GeneratedColumn<String>(
-    'capability',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _modelIdMeta = const VerificationMeta(
-    'modelId',
-  );
-  @override
-  late final GeneratedColumn<String> modelId = GeneratedColumn<String>(
-    'model_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _sourceMeta = const VerificationMeta('source');
-  @override
-  late final GeneratedColumn<String> source = GeneratedColumn<String>(
-    'source',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-    defaultValue: const Constant('device'),
-  );
-  @override
-  List<GeneratedColumn> get $columns => [capability, modelId, source];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'brain_assignments';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<BrainAssignmentRow> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('capability')) {
-      context.handle(
-        _capabilityMeta,
-        capability.isAcceptableOrUnknown(data['capability']!, _capabilityMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_capabilityMeta);
-    }
-    if (data.containsKey('model_id')) {
-      context.handle(
-        _modelIdMeta,
-        modelId.isAcceptableOrUnknown(data['model_id']!, _modelIdMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_modelIdMeta);
-    }
-    if (data.containsKey('source')) {
-      context.handle(
-        _sourceMeta,
-        source.isAcceptableOrUnknown(data['source']!, _sourceMeta),
-      );
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {capability};
-  @override
-  BrainAssignmentRow map(Map<String, dynamic> data, {String? tablePrefix}) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return BrainAssignmentRow(
-      capability: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}capability'],
-      )!,
-      modelId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}model_id'],
-      )!,
-      source: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}source'],
-      )!,
-    );
-  }
-
-  @override
-  $BrainAssignmentsTableTable createAlias(String alias) {
-    return $BrainAssignmentsTableTable(attachedDatabase, alias);
-  }
-}
-
-class BrainAssignmentRow extends DataClass
-    implements Insertable<BrainAssignmentRow> {
-  final String capability;
-  final String modelId;
-  final String source;
-  const BrainAssignmentRow({
-    required this.capability,
-    required this.modelId,
-    required this.source,
-  });
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['capability'] = Variable<String>(capability);
-    map['model_id'] = Variable<String>(modelId);
-    map['source'] = Variable<String>(source);
-    return map;
-  }
-
-  BrainAssignmentsTableCompanion toCompanion(bool nullToAbsent) {
-    return BrainAssignmentsTableCompanion(
-      capability: Value(capability),
-      modelId: Value(modelId),
-      source: Value(source),
-    );
-  }
-
-  factory BrainAssignmentRow.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return BrainAssignmentRow(
-      capability: serializer.fromJson<String>(json['capability']),
-      modelId: serializer.fromJson<String>(json['modelId']),
-      source: serializer.fromJson<String>(json['source']),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'capability': serializer.toJson<String>(capability),
-      'modelId': serializer.toJson<String>(modelId),
-      'source': serializer.toJson<String>(source),
-    };
-  }
-
-  BrainAssignmentRow copyWith({
-    String? capability,
-    String? modelId,
-    String? source,
-  }) => BrainAssignmentRow(
-    capability: capability ?? this.capability,
-    modelId: modelId ?? this.modelId,
-    source: source ?? this.source,
-  );
-  BrainAssignmentRow copyWithCompanion(BrainAssignmentsTableCompanion data) {
-    return BrainAssignmentRow(
-      capability: data.capability.present
-          ? data.capability.value
-          : this.capability,
-      modelId: data.modelId.present ? data.modelId.value : this.modelId,
-      source: data.source.present ? data.source.value : this.source,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('BrainAssignmentRow(')
-          ..write('capability: $capability, ')
-          ..write('modelId: $modelId, ')
-          ..write('source: $source')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode => Object.hash(capability, modelId, source);
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is BrainAssignmentRow &&
-          other.capability == this.capability &&
-          other.modelId == this.modelId &&
-          other.source == this.source);
-}
-
-class BrainAssignmentsTableCompanion
-    extends UpdateCompanion<BrainAssignmentRow> {
-  final Value<String> capability;
-  final Value<String> modelId;
-  final Value<String> source;
-  final Value<int> rowid;
-  const BrainAssignmentsTableCompanion({
-    this.capability = const Value.absent(),
-    this.modelId = const Value.absent(),
-    this.source = const Value.absent(),
-    this.rowid = const Value.absent(),
-  });
-  BrainAssignmentsTableCompanion.insert({
-    required String capability,
-    required String modelId,
-    this.source = const Value.absent(),
-    this.rowid = const Value.absent(),
-  }) : capability = Value(capability),
-       modelId = Value(modelId);
-  static Insertable<BrainAssignmentRow> custom({
-    Expression<String>? capability,
-    Expression<String>? modelId,
-    Expression<String>? source,
-    Expression<int>? rowid,
-  }) {
-    return RawValuesInsertable({
-      if (capability != null) 'capability': capability,
-      if (modelId != null) 'model_id': modelId,
-      if (source != null) 'source': source,
-      if (rowid != null) 'rowid': rowid,
-    });
-  }
-
-  BrainAssignmentsTableCompanion copyWith({
-    Value<String>? capability,
-    Value<String>? modelId,
-    Value<String>? source,
-    Value<int>? rowid,
-  }) {
-    return BrainAssignmentsTableCompanion(
-      capability: capability ?? this.capability,
-      modelId: modelId ?? this.modelId,
-      source: source ?? this.source,
-      rowid: rowid ?? this.rowid,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (capability.present) {
-      map['capability'] = Variable<String>(capability.value);
-    }
-    if (modelId.present) {
-      map['model_id'] = Variable<String>(modelId.value);
-    }
-    if (source.present) {
-      map['source'] = Variable<String>(source.value);
-    }
-    if (rowid.present) {
-      map['rowid'] = Variable<int>(rowid.value);
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('BrainAssignmentsTableCompanion(')
-          ..write('capability: $capability, ')
-          ..write('modelId: $modelId, ')
-          ..write('source: $source, ')
-          ..write('rowid: $rowid')
-          ..write(')'))
-        .toString();
-  }
-}
-
 class $SyncOperationsTable extends SyncOperations
     with TableInfo<$SyncOperationsTable, SyncOperation> {
   @override
@@ -8527,8 +8214,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $FlowReflectionsTable flowReflections = $FlowReflectionsTable(
     this,
   );
-  late final $BrainAssignmentsTableTable brainAssignmentsTable =
-      $BrainAssignmentsTableTable(this);
   late final $SyncOperationsTable syncOperations = $SyncOperationsTable(this);
   late final $SyncValuesTable syncValues = $SyncValuesTable(this);
   late final $SyncRecordsTable syncRecords = $SyncRecordsTable(this);
@@ -8563,7 +8248,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     photoQuestionCache,
     flowThoughts,
     flowReflections,
-    brainAssignmentsTable,
     syncOperations,
     syncValues,
     syncRecords,
@@ -8575,8 +8259,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
 typedef $$AiPreferencesTableTableCreateCompanionBuilder =
     AiPreferencesTableCompanion Function({
       Value<int> id,
-      Value<String> mode,
-      Value<String> overrides,
+      Value<String> routes,
       Value<bool> dailyQuestions,
       Value<bool> recallNotes,
       Value<bool> recallDiary,
@@ -8588,8 +8271,7 @@ typedef $$AiPreferencesTableTableCreateCompanionBuilder =
 typedef $$AiPreferencesTableTableUpdateCompanionBuilder =
     AiPreferencesTableCompanion Function({
       Value<int> id,
-      Value<String> mode,
-      Value<String> overrides,
+      Value<String> routes,
       Value<bool> dailyQuestions,
       Value<bool> recallNotes,
       Value<bool> recallDiary,
@@ -8613,13 +8295,8 @@ class $$AiPreferencesTableTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get mode => $composableBuilder(
-    column: $table.mode,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get overrides => $composableBuilder(
-    column: $table.overrides,
+  ColumnFilters<String> get routes => $composableBuilder(
+    column: $table.routes,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -8673,13 +8350,8 @@ class $$AiPreferencesTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get mode => $composableBuilder(
-    column: $table.mode,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get overrides => $composableBuilder(
-    column: $table.overrides,
+  ColumnOrderings<String> get routes => $composableBuilder(
+    column: $table.routes,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -8731,11 +8403,8 @@ class $$AiPreferencesTableTableAnnotationComposer
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<String> get mode =>
-      $composableBuilder(column: $table.mode, builder: (column) => column);
-
-  GeneratedColumn<String> get overrides =>
-      $composableBuilder(column: $table.overrides, builder: (column) => column);
+  GeneratedColumn<String> get routes =>
+      $composableBuilder(column: $table.routes, builder: (column) => column);
 
   GeneratedColumn<bool> get dailyQuestions => $composableBuilder(
     column: $table.dailyQuestions,
@@ -8814,8 +8483,7 @@ class $$AiPreferencesTableTableTableManager
           updateCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
-                Value<String> mode = const Value.absent(),
-                Value<String> overrides = const Value.absent(),
+                Value<String> routes = const Value.absent(),
                 Value<bool> dailyQuestions = const Value.absent(),
                 Value<bool> recallNotes = const Value.absent(),
                 Value<bool> recallDiary = const Value.absent(),
@@ -8825,8 +8493,7 @@ class $$AiPreferencesTableTableTableManager
                 Value<String?> replyVoice = const Value.absent(),
               }) => AiPreferencesTableCompanion(
                 id: id,
-                mode: mode,
-                overrides: overrides,
+                routes: routes,
                 dailyQuestions: dailyQuestions,
                 recallNotes: recallNotes,
                 recallDiary: recallDiary,
@@ -8838,8 +8505,7 @@ class $$AiPreferencesTableTableTableManager
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
-                Value<String> mode = const Value.absent(),
-                Value<String> overrides = const Value.absent(),
+                Value<String> routes = const Value.absent(),
                 Value<bool> dailyQuestions = const Value.absent(),
                 Value<bool> recallNotes = const Value.absent(),
                 Value<bool> recallDiary = const Value.absent(),
@@ -8849,8 +8515,7 @@ class $$AiPreferencesTableTableTableManager
                 Value<String?> replyVoice = const Value.absent(),
               }) => AiPreferencesTableCompanion.insert(
                 id: id,
-                mode: mode,
-                overrides: overrides,
+                routes: routes,
                 dailyQuestions: dailyQuestions,
                 recallNotes: recallNotes,
                 recallDiary: recallDiary,
@@ -12956,200 +12621,6 @@ typedef $$FlowReflectionsTableProcessedTableManager =
       FlowReflectionRow,
       PrefetchHooks Function()
     >;
-typedef $$BrainAssignmentsTableTableCreateCompanionBuilder =
-    BrainAssignmentsTableCompanion Function({
-      required String capability,
-      required String modelId,
-      Value<String> source,
-      Value<int> rowid,
-    });
-typedef $$BrainAssignmentsTableTableUpdateCompanionBuilder =
-    BrainAssignmentsTableCompanion Function({
-      Value<String> capability,
-      Value<String> modelId,
-      Value<String> source,
-      Value<int> rowid,
-    });
-
-class $$BrainAssignmentsTableTableFilterComposer
-    extends Composer<_$AppDatabase, $BrainAssignmentsTableTable> {
-  $$BrainAssignmentsTableTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnFilters<String> get capability => $composableBuilder(
-    column: $table.capability,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get modelId => $composableBuilder(
-    column: $table.modelId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get source => $composableBuilder(
-    column: $table.source,
-    builder: (column) => ColumnFilters(column),
-  );
-}
-
-class $$BrainAssignmentsTableTableOrderingComposer
-    extends Composer<_$AppDatabase, $BrainAssignmentsTableTable> {
-  $$BrainAssignmentsTableTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<String> get capability => $composableBuilder(
-    column: $table.capability,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get modelId => $composableBuilder(
-    column: $table.modelId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get source => $composableBuilder(
-    column: $table.source,
-    builder: (column) => ColumnOrderings(column),
-  );
-}
-
-class $$BrainAssignmentsTableTableAnnotationComposer
-    extends Composer<_$AppDatabase, $BrainAssignmentsTableTable> {
-  $$BrainAssignmentsTableTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumn<String> get capability => $composableBuilder(
-    column: $table.capability,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<String> get modelId =>
-      $composableBuilder(column: $table.modelId, builder: (column) => column);
-
-  GeneratedColumn<String> get source =>
-      $composableBuilder(column: $table.source, builder: (column) => column);
-}
-
-class $$BrainAssignmentsTableTableTableManager
-    extends
-        RootTableManager<
-          _$AppDatabase,
-          $BrainAssignmentsTableTable,
-          BrainAssignmentRow,
-          $$BrainAssignmentsTableTableFilterComposer,
-          $$BrainAssignmentsTableTableOrderingComposer,
-          $$BrainAssignmentsTableTableAnnotationComposer,
-          $$BrainAssignmentsTableTableCreateCompanionBuilder,
-          $$BrainAssignmentsTableTableUpdateCompanionBuilder,
-          (
-            BrainAssignmentRow,
-            BaseReferences<
-              _$AppDatabase,
-              $BrainAssignmentsTableTable,
-              BrainAssignmentRow
-            >,
-          ),
-          BrainAssignmentRow,
-          PrefetchHooks Function()
-        > {
-  $$BrainAssignmentsTableTableTableManager(
-    _$AppDatabase db,
-    $BrainAssignmentsTableTable table,
-  ) : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$BrainAssignmentsTableTableFilterComposer(
-                $db: db,
-                $table: table,
-              ),
-          createOrderingComposer: () =>
-              $$BrainAssignmentsTableTableOrderingComposer(
-                $db: db,
-                $table: table,
-              ),
-          createComputedFieldComposer: () =>
-              $$BrainAssignmentsTableTableAnnotationComposer(
-                $db: db,
-                $table: table,
-              ),
-          updateCompanionCallback:
-              ({
-                Value<String> capability = const Value.absent(),
-                Value<String> modelId = const Value.absent(),
-                Value<String> source = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => BrainAssignmentsTableCompanion(
-                capability: capability,
-                modelId: modelId,
-                source: source,
-                rowid: rowid,
-              ),
-          createCompanionCallback:
-              ({
-                required String capability,
-                required String modelId,
-                Value<String> source = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => BrainAssignmentsTableCompanion.insert(
-                capability: capability,
-                modelId: modelId,
-                source: source,
-                rowid: rowid,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable<$BrainAssignmentsTableTable, BrainAssignmentRow>(
-                    table,
-                  ),
-                  BaseReferences<
-                    _$AppDatabase,
-                    $BrainAssignmentsTableTable,
-                    BrainAssignmentRow
-                  >(db, table, e),
-                ),
-              )
-              .toList(),
-          prefetchHooksCallback: null,
-        ),
-      );
-}
-
-typedef $$BrainAssignmentsTableTableProcessedTableManager =
-    ProcessedTableManager<
-      _$AppDatabase,
-      $BrainAssignmentsTableTable,
-      BrainAssignmentRow,
-      $$BrainAssignmentsTableTableFilterComposer,
-      $$BrainAssignmentsTableTableOrderingComposer,
-      $$BrainAssignmentsTableTableAnnotationComposer,
-      $$BrainAssignmentsTableTableCreateCompanionBuilder,
-      $$BrainAssignmentsTableTableUpdateCompanionBuilder,
-      (
-        BrainAssignmentRow,
-        BaseReferences<
-          _$AppDatabase,
-          $BrainAssignmentsTableTable,
-          BrainAssignmentRow
-        >,
-      ),
-      BrainAssignmentRow,
-      PrefetchHooks Function()
-    >;
 typedef $$SyncOperationsTableCreateCompanionBuilder =
     SyncOperationsCompanion Function({
       required String type,
@@ -13699,8 +13170,6 @@ class $AppDatabaseManager {
       $$FlowThoughtsTableTableManager(_db, _db.flowThoughts);
   $$FlowReflectionsTableTableManager get flowReflections =>
       $$FlowReflectionsTableTableManager(_db, _db.flowReflections);
-  $$BrainAssignmentsTableTableTableManager get brainAssignmentsTable =>
-      $$BrainAssignmentsTableTableTableManager(_db, _db.brainAssignmentsTable);
   $$SyncOperationsTableTableManager get syncOperations =>
       $$SyncOperationsTableTableManager(_db, _db.syncOperations);
   $$SyncValuesTableTableManager get syncValues =>

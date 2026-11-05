@@ -463,21 +463,13 @@ packages:
     source: sdk
     version: "0.0.0"
   flutter_edge_ai:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: flutter_edge_ai
       sha256: e768469f5bc6e59e40e9cc172327d2cbca9abf6b23cb4b154b7deebac1ff6c57
       url: "https://pub.dev"
     source: hosted
     version: "2.5.5"
-  flutter_edge_ai_litertlm:
-    dependency: "direct main"
-    description:
-      name: flutter_edge_ai_litertlm
-      sha256: "85bce0526a5d21bd6ddb7be452f6cf1df07c99f68187331023dab9157becf5d2"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.19.1"
   flutter_edge_ai_rag:
     dependency: "direct main"
     description:

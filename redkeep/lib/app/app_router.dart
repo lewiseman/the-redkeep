@@ -14,7 +14,9 @@ import '../features/ai/application/ai_lifecycle.dart';
 import '../features/sync/application/sync_providers.dart';
 import 'writing_shell.dart';
 import 'more_page.dart';
-import '../features/brain/presentation/brain_page.dart';
+import '../features/ai/presentation/ai_provider_detail_page.dart';
+import '../features/ai/presentation/ai_providers_page.dart';
+import '../features/ai/presentation/ai_tasks_page.dart';
 import '../features/flow/presentation/flow_page.dart';
 import '../features/flow/presentation/thought_read_page.dart';
 import '../features/flow/presentation/thought_edit_page.dart';
@@ -329,10 +331,40 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
                         ],
                       ),
                       GoRoute(
-                        path: 'phone',
+                        path: 'providers',
                         parentNavigatorKey: fullPage,
                         pageBuilder: (context, state) =>
-                            _page(state, const BrainPage()),
+                            _page(state, const AiProvidersPage()),
+                        routes: [
+                          GoRoute(
+                            path: 'add/:preset',
+                            parentNavigatorKey: fullPage,
+                            pageBuilder: (context, state) => _page(
+                              state,
+                              AiProviderDetailPage(
+                                key: ValueKey(state.uri.path),
+                                presetId: state.pathParameters['preset'],
+                              ),
+                            ),
+                          ),
+                          GoRoute(
+                            path: ':id',
+                            parentNavigatorKey: fullPage,
+                            pageBuilder: (context, state) => _page(
+                              state,
+                              AiProviderDetailPage(
+                                key: ValueKey(state.uri.path),
+                                id: state.pathParameters['id'],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      GoRoute(
+                        path: 'tasks',
+                        parentNavigatorKey: fullPage,
+                        pageBuilder: (context, state) =>
+                            _page(state, const AiTasksPage()),
                       ),
                       GoRoute(
                         path: 'scan',

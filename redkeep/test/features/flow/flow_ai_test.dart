@@ -9,8 +9,9 @@ import 'package:redkeep/core/storage/app_database.dart';
 import 'package:redkeep/features/ai/application/ai_jobs.dart';
 import 'package:redkeep/features/ai/domain/ai_job.dart';
 import 'package:redkeep/features/ai/domain/ai_operation.dart';
-import 'package:redkeep/features/brain/application/brain_providers.dart';
-import 'package:redkeep/features/brain/domain/brain.dart';
+import 'package:redkeep/features/ai/application/ai_preferences.dart';
+import 'package:redkeep/features/ai/application/ai_providers.dart';
+import 'package:redkeep/features/ai/domain/ai_route.dart';
 import 'package:redkeep/features/companion/application/companion_controller.dart';
 import 'package:redkeep/features/flow/application/flow_ai.dart';
 import 'package:redkeep/features/flow/application/flow_providers.dart';
@@ -25,8 +26,8 @@ import 'package:redkeep/features/sync/data/drift_account_reset_data.dart';
 import 'package:redkeep/features/sync/data/drift_sync_store.dart';
 
 import '../../support/fake_ai.dart';
-import '../../support/fake_brain.dart';
-import '../../support/notes_ai_harness.dart' show NotesTransport, ReplyModel;
+import '../../support/fake_ai_provider.dart';
+import '../../support/notes_ai_harness.dart' show NotesTransport;
 
 const thoughtId = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 const thoughtText =
@@ -49,9 +50,8 @@ void main() {
   late DriftThoughtReflections reflections;
   late MemoryAiTasks protected;
   late NotesTransport remote;
-  late FakeBrainAssignments assignments;
+  late FakeAiProviderClient aiProvider;
   late ProviderContainer scope;
-  final models = <ReplyModel>[];
   CompanionState connection({bool compatible = true}) => CompanionState(
     phase: CompanionPhase.connected,
     computers: [syntheticComputer()],
@@ -89,13 +89,10 @@ void main() {
       ),
       syncEnabledProvider.overrideWithValue(false),
       syncCanEditProvider.overrideWithValue(false),
-      brainAssignmentsProvider.overrideWithValue(assignments),
-      brainModelFilesProvider.overrideWith((_) async => FakeBrainFiles()),
-      brainModelLoaderProvider.overrideWithValue((_, settings) async {
-        final model = ReplyModel(remote.output, settings);
-        models.add(model);
-        return model;
-      }),
+      protectedAiProvidersProvider.overrideWithValue(
+        MemoryAiProviders(saved: const [testAiProvider]),
+      ),
+      aiProviderClientProvider.overrideWithValue(aiProvider),
       recallVectorsProvider.overrideWith((_) async => MemoryVectors()),
       recallEmbedderProvider.overrideWithValue(FakeEmbedder()),
     ],
@@ -108,8 +105,7 @@ void main() {
     reflections = DriftThoughtReflections(db, clock: () => now);
     protected = MemoryAiTasks();
     remote = NotesTransport()..output = reflectionText;
-    assignments = FakeBrainAssignments();
-    models.clear();
+    aiProvider = FakeAiProviderClient();
     scope = createScope();
   });
   tearDown(() async {
@@ -251,7 +247,7 @@ void main() {
     await scope.read(aiJobsProvider.notifier).restore();
     await drain(() => protected.value == null);
     expect(await db.select(db.flowReflections).get(), hasLength(1));
-    expect(models, isEmpty);
+    expect(aiProvider.requests, isEmpty);
     protected.value = jsonEncode(
       AiJob(
         id: 'interrupted-task',
@@ -268,7 +264,7 @@ void main() {
     scope = createScope(connected: false);
     await scope.read(aiJobsProvider.notifier).restore();
     expect(scope.read(aiJobsProvider).job!.phase, 'interrupted');
-    expect(models, isEmpty);
+    expect(aiProvider.requests, isEmpty);
   });
 
   test('secondary devices can keep local reflections while thought editing remains blocked', () async {
@@ -342,19 +338,23 @@ void main() {
   );
 
   test(
-    'phone reflection uses its own assigned capability and migrated prompt',
+    'provider reflection uses its chosen route and migrated prompt',
     () async {
       await save();
       scope.dispose();
       scope = createScope(connected: false);
-      assignments.values[BrainCapability.reflect] = qualifiedBrainModel.id;
+      aiProvider.reply = reflectionText;
+      await scope
+          .read(aiPreferencesRepositoryProvider)
+          .setTaskRoute(
+            AiOperation.thoughtReflection,
+            AiRoute.provider(testAiProvider.id, 'test-model'),
+          );
       await scope.read(flowAiProvider).reflect(thoughtId);
       expect(scope.read(aiJobsProvider).job!.phase, 'completed');
-      expect(
-        models.single.settings.systemInstruction,
-        contains('single plain sentence'),
-      );
-      expect(jsonDecode(models.single.prompt!), {'thought': thoughtText});
+      final request = aiProvider.requests.single;
+      expect(request.system, contains('single plain sentence'));
+      expect(jsonDecode(request.user), {'thought': thoughtText});
       expect(remote.submissions, isEmpty);
     },
   );
@@ -400,16 +400,19 @@ void main() {
     expect(scope.read(aiJobsProvider).message, contains('changed'));
   });
 
-  test('phone questions use writing capability; no matches, missing models, old companions and occupied slots send nothing', () async {
+  test('provider questions use their route; no matches, removed providers, old companions and occupied slots send nothing', () async {
     await save(body: 'Garden tulips by the fence.');
     scope.dispose();
     scope = createScope(connected: false);
-    assignments.values[BrainCapability.rewrite] = qualifiedBrainModel.id;
-    remote.output = '{"status":"insufficient","answer":"Do not display this invented explanation","citations":[]}';
+    final preferences = scope.read(aiPreferencesRepositoryProvider);
+    await preferences.setDefaultRoute(
+      AiRoute.provider(testAiProvider.id, 'test-model'),
+    );
+    aiProvider.reply = '{"status":"insufficient","answer":"Do not display this invented explanation","citations":[]}';
     final selection = await scope.read(flowAiProvider).select('garden');
     await scope.read(flowAiProvider).ask(selection);
     expect(scope.read(aiJobsProvider).job!.phase, 'completed');
-    expect(models.single.settings.systemInstruction, contains('Flow'));
+    expect(aiProvider.requests.single.system, contains('Flow'));
     expect(
       RecallQuestionAnswer.parse(
         scope.read(aiJobsProvider).job!.text!,
@@ -423,9 +426,10 @@ void main() {
     final empty = await scope.read(flowAiProvider).select('volcanoes');
     expect(() => scope.read(flowAiProvider).ask(empty), throwsFormatException);
     await scope.read(aiJobsProvider.notifier).clear();
-    assignments.values.clear();
+    await preferences.setDefaultRoute(const AiRoute.provider('gone', 'model'));
     await scope.read(flowAiProvider).reflect(thoughtId);
     expect(scope.read(aiJobsProvider).job, isNull);
+    await preferences.setDefaultRoute(const AiRoute.companion());
     scope.dispose();
     scope = createScope(compatible: false);
     await scope.read(flowAiProvider).reflect(thoughtId);

@@ -43,6 +43,9 @@ String aiPhaseLabel(String phase) => switch (phase) {
 
 String _provider(WidgetRef ref, AiJob job) {
   if (job.provider == 'device') return 'This phone';
+  if (job.provider == 'provider') {
+    return '${job.providerName} · ${job.modelId}';
+  }
   final computers = ref.watch(companionControllerProvider).computers;
   return computers.where((c) => c.id == job.computerId).firstOrNull?.name ??
       'Original computer unavailable';

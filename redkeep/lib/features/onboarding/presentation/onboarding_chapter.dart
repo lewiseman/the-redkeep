@@ -24,7 +24,7 @@ const onboardingFeatures = [
     artwork: 'onboarding.chapter.maester',
     scene: 'A fountain pen, lavender and paper writing prompts.',
     title: 'A little help with your words.',
-    detail: 'Optional on-device help to rewrite, summarize, and reflect. Models are downloaded separately.',
+    detail: 'Optional help to rewrite, summarize, and reflect, using your computer or a provider you choose.',
     accent: Color(0xFF8265B0),
   ),
   (

@@ -824,7 +824,7 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
     final complete = job.phase == 'completed' && job.text != null;
     return [
       Text(
-        '${job.operation.label} · ${job.phase} · ${job.provider == 'device' ? 'Phone' : 'Computer'}',
+        '${job.operation.label} · ${job.phase} · ${job.destinationLabel}',
         style: Theme.of(context).textTheme.labelSmall,
       ),
       if (job.operation == AiOperation.noteScan)

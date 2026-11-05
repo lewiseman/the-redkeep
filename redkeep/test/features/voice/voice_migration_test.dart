@@ -122,7 +122,7 @@ void main() {
       expect(scope.read(voiceActiveProvider), isFalse);
     },
   );
-  test('speech capture readiness works with no writing model; Phone mode is explicit', () async {
+  test('speech capture readiness works with no writing model', () async {
     final db = AppDatabase(NativeDatabase.memory());
     addTearDown(db.close);
     final computer = syntheticComputer();
@@ -158,13 +158,6 @@ void main() {
     expect(scope.read(voiceComputerProvider)().id, computer.id);
     expect(
       () => scope.read(voiceComputerProvider)(conversation: true),
-      throwsA(isA<CompanionFailure>()),
-    );
-    await scope.read(aiPreferencesRepositoryProvider).mode(AiMode.device);
-    await pumpEventQueue();
-    await scope.read(aiPreferencesProvider.future);
-    expect(
-      () => scope.read(voiceComputerProvider)(),
       throwsA(isA<CompanionFailure>()),
     );
   });

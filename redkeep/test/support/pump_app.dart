@@ -36,13 +36,11 @@ import 'package:redkeep/features/notes/application/notes_providers.dart';
 import 'package:redkeep/features/notes/domain/notes_repository.dart';
 
 import 'fake_appearance_repository.dart';
-import 'fake_brain.dart';
+import 'fake_ai_provider.dart';
 import 'fake_required_assets.dart';
 import 'fake_onboarding_repository.dart';
 
-import 'package:redkeep/features/brain/domain/brain.dart';
-import 'package:redkeep/features/brain/application/brain_executor.dart';
-import 'package:redkeep/features/brain/application/brain_providers.dart';
+import 'package:redkeep/features/ai/application/ai_providers.dart';
 
 Future<GoRouter> pumpApp(
   WidgetTester tester, {
@@ -58,9 +56,7 @@ Future<GoRouter> pumpApp(
   String Function()? noteId,
   DiaryRepository? diary,
   String Function()? diaryId,
-  BrainAssignments? brainAssignments,
-  BrainModelFiles? brainFiles,
-  BrainModelLoader? brainLoader,
+  FakeAiProviderClient? aiProvider,
   bool aiEnabled = false,
   AppDatabase? database,
   CompanionState? companion,
@@ -113,14 +109,12 @@ Future<GoRouter> pumpApp(
         if (noteMedia != null)
           noteMediaStoreProvider.overrideWithValue(noteMedia),
         if (noteId != null) noteIdProvider.overrideWithValue(noteId),
-        brainAssignmentsProvider.overrideWithValue(
-          brainAssignments ?? FakeBrainAssignments(),
+        protectedAiProvidersProvider.overrideWithValue(
+          MemoryAiProviders(saved: const [testAiProvider]),
         ),
-        brainModelFilesProvider.overrideWith(
-          (ref) async => brainFiles ?? FakeBrainFiles(),
+        aiProviderClientProvider.overrideWithValue(
+          aiProvider ?? FakeAiProviderClient(),
         ),
-        if (brainLoader != null)
-          brainModelLoaderProvider.overrideWithValue(brainLoader),
         if (initialLocation != null)
           appRouterProvider.overrideWith((ref) {
             return createAppRouter(ref, initialLocation: initialLocation);

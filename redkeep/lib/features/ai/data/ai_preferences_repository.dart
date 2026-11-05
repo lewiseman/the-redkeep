@@ -5,6 +5,7 @@ import 'package:drift/drift.dart';
 import '../../../core/storage/app_database.dart';
 import '../domain/ai_operation.dart';
 import '../domain/ai_preferences.dart';
+import '../domain/ai_route.dart';
 import 'recall_schema.dart';
 
 class AiPreferencesRepository {
@@ -20,19 +21,20 @@ class AiPreferencesRepository {
   );
   static AiPreferences decode(AiPreferenceRow? row) {
     if (row == null) return const AiPreferences();
-    final overrides = jsonDecode(row.overrides) as Map;
+    final routes = _routes(row.routes);
+    final tasks = routes['tasks'];
     return AiPreferences(
-      mode:
-          AiMode.values.where((v) => v.name == row.mode).firstOrNull ??
-          AiMode.auto,
+      defaultRoute:
+          AiRoute.tryParse(routes['default']) ?? const AiRoute.companion(),
       overrides: {
-        for (final op in AiOperation.values)
-          if (overrides[op.name] is String && overrides[op.name] != 'auto')
-            op: AiMode.values.firstWhere(
-              (m) => m.name == overrides[op.name],
-              orElse: () => AiMode.auto,
-            ),
+        if (tasks is Map)
+          for (final op in AiOperation.values)
+            if (op.supportsProvider && AiRoute.tryParse(tasks[op.name]) != null)
+              op: AiRoute.tryParse(tasks[op.name])!,
       },
+      dailyQuestionOptIn: routes['dailyOptIn'] is String
+          ? routes['dailyOptIn'] as String
+          : null,
       dailyQuestions: row.dailyQuestions,
       paused: row.recallPaused,
       collections: {
@@ -44,6 +46,15 @@ class AiPreferencesRepository {
           ? null
           : Map<String, String>.from(jsonDecode(row.replyVoice!) as Map),
     );
+  }
+
+  static Map<dynamic, dynamic> _routes(String raw) {
+    try {
+      final value = jsonDecode(raw);
+      return value is Map ? value : const {};
+    } on FormatException {
+      return const {};
+    }
   }
 
   Future<void> _write(AiPreferencesTableCompanion change) =>
@@ -68,18 +79,77 @@ class AiPreferencesRepository {
     const AiPreferencesTableCompanion(recallCleanupRequired: Value(false)),
   );
 
-  Future<void> mode(AiMode value) =>
-      _write(AiPreferencesTableCompanion(mode: Value(value.name)));
-  Future<void> override(AiOperation op, AiMode value) async {
+  Future<void> _writeRoutes(AiPreferences value) {
+    // Opt-in names one provider, so any other routing silently revokes it.
+    final route = value.routeFor(AiOperation.dailyQuestion);
+    final optIn = route.providerId == value.dailyQuestionOptIn
+        ? value.dailyQuestionOptIn
+        : null;
+    return _write(
+      AiPreferencesTableCompanion(
+        routes: Value(
+          jsonEncode({
+            'default': value.defaultRoute.toJson(),
+            'tasks': {
+              for (final entry in value.overrides.entries)
+                entry.key.name: entry.value.toJson(),
+            },
+            'dailyOptIn': ?optIn,
+          }),
+        ),
+      ),
+    );
+  }
+
+  Future<void> setDefaultRoute(AiRoute route) async {
     final previous = await read();
-    final values = {
-      for (final e in previous.overrides.entries) e.key.name: e.value.name,
-    };
-    value == AiMode.auto
-        ? values.remove(op.name)
-        : values[op.name] = value.name;
-    await _write(
-      AiPreferencesTableCompanion(overrides: Value(jsonEncode(values))),
+    await _writeRoutes(
+      AiPreferences(
+        defaultRoute: route,
+        overrides: previous.overrides,
+        dailyQuestionOptIn: previous.dailyQuestionOptIn,
+      ),
+    );
+  }
+
+  /// A null [route] makes the task follow the default again.
+  Future<void> setTaskRoute(AiOperation op, AiRoute? route) async {
+    final previous = await read();
+    await _writeRoutes(
+      AiPreferences(
+        defaultRoute: previous.defaultRoute,
+        overrides: {...previous.overrides, op: ?route}
+          ..removeWhere((key, _) => key == op && route == null),
+        dailyQuestionOptIn: previous.dailyQuestionOptIn,
+      ),
+    );
+  }
+
+  /// Passing the provider ID allows automatic daily questions; null revokes.
+  Future<void> setDailyQuestionOptIn(String? providerId) async {
+    final previous = await read();
+    await _writeRoutes(
+      AiPreferences(
+        defaultRoute: previous.defaultRoute,
+        overrides: previous.overrides,
+        dailyQuestionOptIn: providerId,
+      ),
+    );
+  }
+
+  /// Tasks using a removed provider return to the default, which itself
+  /// returns to the computer if it used that provider.
+  Future<void> removeProvider(String id) async {
+    final previous = await read();
+    await _writeRoutes(
+      AiPreferences(
+        defaultRoute: previous.defaultRoute.providerId == id
+            ? const AiRoute.companion()
+            : previous.defaultRoute,
+        overrides: {...previous.overrides}
+          ..removeWhere((_, route) => route.providerId == id),
+        dailyQuestionOptIn: previous.dailyQuestionOptIn,
+      ),
     );
   }
 

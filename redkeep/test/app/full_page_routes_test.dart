@@ -37,7 +37,10 @@ void main() {
     final router = await pumpApp(tester, initialLocation: '/more');
     for (final location in [
       '/settings/brain',
-      '/settings/brain/phone',
+      '/settings/brain/providers',
+      '/settings/brain/providers/add/openai',
+      '/settings/brain/providers/provider-test',
+      '/settings/brain/tasks',
       '/settings/brain/help',
       '/settings/brain/history/task_123-abc',
       '/flow/$thought',

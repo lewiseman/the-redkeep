@@ -1,31 +1,18 @@
 import 'package:redkeep/features/companion/presentation/companion_page.dart';
 
-import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:redkeep/features/appearance/domain/appearance_preferences.dart';
 import 'package:redkeep/features/appearance/presentation/appearance_page.dart';
 import 'package:redkeep/features/assets/presentation/local_artwork.dart';
-import 'package:redkeep/features/brain/application/brain_controller.dart';
-import 'package:redkeep/features/brain/domain/brain.dart';
 import 'package:redkeep/features/more/presentation/more_index_entry.dart';
 import 'package:redkeep/features/sync/presentation/sync_card.dart';
 
 import '../../support/fake_appearance_repository.dart';
-import '../../support/fake_brain.dart';
+import '../../support/fake_ai_provider.dart';
 import '../../support/pump_app.dart';
-
-class _CheckingFiles extends FakeBrainFiles {
-  final checked = Completer<void>();
-  @override
-  Future<ModelFileState> inspect(BrainModel model) async {
-    await checked.future;
-    return super.inspect(model);
-  }
-}
 
 void main() {
   Finder appearanceArtwork() => find.byWidgetPredicate(
@@ -35,25 +22,18 @@ void main() {
   testWidgets('More opens both existing settings destinations and returns', (
     tester,
   ) async {
-    final files = FakeBrainFiles();
-    var modelLoads = 0;
+    final aiProvider = FakeAiProviderClient();
     final router = await pumpApp(
       tester,
       initialLocation: '/more',
-      brainFiles: files,
-      brainLoader: (_, _) async {
-        modelLoads++;
-        throw StateError('More must not load AI');
-      },
+      aiProvider: aiProvider,
     );
     expect(find.text('Friends'), findsNothing);
     expect(find.text('Local QVAC'), findsNothing);
     expect(find.text('Brain'), findsNothing);
     expect(find.text('Colors, theme and fonts'), findsOneWidget);
     expect(find.byType(SyncAccountCard), findsNothing);
-    expect(files.checks, 1);
-    expect(files.installs, 0);
-    expect(modelLoads, 0);
+    expect(aiProvider.requests, isEmpty);
 
     await tester.tap(find.text('Appearance'));
     await tester.pumpAndSettle();
@@ -63,90 +43,15 @@ void main() {
     await tester.tap(find.text('Grand Maestar'));
     await tester.pumpAndSettle();
     expect(find.byType(CompanionPage), findsOneWidget);
-    expect(files.installs, 0);
-    expect(modelLoads, 0);
+    expect(find.text('Phone'), findsNothing);
+    expect(aiProvider.requests, isEmpty);
     router.pop();
     await tester.pumpAndSettle();
     expect(find.text('Grand Maestar'), findsOneWidget);
-    await tester.tap(find.text('Grand Maestar'));
-    await tester.pumpAndSettle();
-    router.push('/settings/brain/phone');
-    await tester.pumpAndSettle();
-    final assign = find.text('Assign ${qualifiedBrainModel.label}').first;
-    await tester.ensureVisible(assign);
-    await tester.pumpAndSettle();
-    await tester.tap(assign);
-    await tester.pumpAndSettle();
-    router.pop();
-    await tester.pumpAndSettle();
-    router.pop();
-    await tester.pumpAndSettle();
-    expect(find.text('Ready on this device'), findsOneWidget);
-    expect(files.installs, 0);
-    expect(modelLoads, 0);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
     await tester.pumpAndSettle();
   });
-
-  testWidgets(
-    'More follows local checking, readiness, progress and failure without automatic AI',
-    (tester) async {
-      final files = _CheckingFiles();
-      final assignments = FakeBrainAssignments();
-      var modelLoads = 0;
-      await pumpApp(
-        tester,
-        initialLocation: '/more',
-        brainAssignments: assignments,
-        brainFiles: files,
-        brainLoader: (_, _) async {
-          modelLoads++;
-          throw StateError('Status must not load AI');
-        },
-      );
-      expect(find.text('Checking model files'), findsOneWidget);
-      expect(files.installs, 0);
-      files.checked.complete();
-      await tester.pumpAndSettle();
-      expect(find.text('Set up on-device AI'), findsOneWidget);
-      final controller = tester.container().read(
-        brainControllerProvider.notifier,
-      );
-      await controller.assign(BrainCapability.rewrite, qualifiedBrainModel.id);
-      await tester.pumpAndSettle();
-      expect(find.text('Ready on this device'), findsOneWidget);
-
-      files.state = ModelFileState.missing;
-      await controller.refresh();
-      await tester.pumpAndSettle();
-      expect(find.text('Set up on-device AI'), findsOneWidget);
-      expect(files.installs, 0);
-      expect(modelLoads, 0);
-      files.installing = Completer<void>();
-      final installing = controller.install(qualifiedBrainModel.id);
-      await tester.pumpAndSettle();
-      expect(find.text('Downloading optional model'), findsOneWidget);
-      files.installing!.complete();
-      await installing;
-      await tester.pumpAndSettle();
-      expect(find.text('Ready on this device'), findsOneWidget);
-
-      files.failure = BrainFailure.storage;
-      await controller.refresh();
-      await tester.pumpAndSettle();
-      expect(find.text('Needs attention'), findsOneWidget);
-      files.failure = null;
-      await controller.refresh();
-      await tester.pumpAndSettle();
-      expect(find.text('Ready on this device'), findsOneWidget);
-      expect(files.installs, 1); // Only the explicit install above.
-      expect(modelLoads, 0);
-      expect(tester.takeException(), isNull);
-      await tester.pumpWidget(const SizedBox());
-      await tester.pumpAndSettle();
-    },
-  );
 
   testWidgets(
     'Appearance resolves local downloaded art; Grand Maestar uses bundled branding',

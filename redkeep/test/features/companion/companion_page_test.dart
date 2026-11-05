@@ -47,10 +47,15 @@ void main() {
       repository: appearance,
     );
     expect(tester.takeException(), isNull);
-    await tap(tester, find.byKey(const ValueKey('ai-mode-companion')));
-    await tap(tester, find.text('Advanced'));
-    expect(find.text('Follow choice above'), findsWidgets);
+    await tester.ensureVisible(find.byKey(const ValueKey('ai-tasks-link')));
+    await tester.pumpAndSettle();
+    expect(find.text('Follow choice above'), findsNothing);
+    router.push('/settings/brain/tasks');
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('ai-task-default')), findsOneWidget);
     expect(tester.takeException(), isNull);
+    router.pop();
+    await tester.pumpAndSettle();
     router.push('/settings/brain/preferences');
     await tester.pumpAndSettle();
     await tap(tester, find.byType(Switch).first);
@@ -67,7 +72,6 @@ void main() {
         initialLocation: '/settings/brain',
         guideVoice: voice,
       );
-      await tap(tester, find.byKey(const ValueKey('ai-mode-companion')));
       await tap(tester, find.text('Hear setup guide'));
       expect(voice.spoken, 1);
       router.push('/settings/brain/help');

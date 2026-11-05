@@ -5,7 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:redkeep/core/presentation/redkeep_theme.dart';
 import 'package:redkeep/core/presentation/rendering_policy.dart';
 import 'package:redkeep/app/bootstrap/bootstrap_providers.dart';
-import 'package:redkeep/features/brain/application/brain_providers.dart';
 import 'package:redkeep/features/appearance/domain/appearance_preferences.dart';
 import 'package:redkeep/features/onboarding/application/onboarding_controller.dart';
 import 'package:redkeep/features/sync/application/sync_providers.dart';
@@ -15,7 +14,6 @@ import 'package:redkeep/features/sync/presentation/reset_account_page.dart';
 import 'package:sync_wise/sync_wise.dart';
 
 import '../../../packages/sync_wise/test/support/memory_backend.dart';
-import '../../support/fake_brain.dart';
 import '../../support/fake_required_assets.dart';
 
 class FixedEngine extends SyncEngine {
@@ -60,8 +58,6 @@ void main() {
           requiredAssetsProvider.overrideWith(
             (ref) async => FakeRequiredAssets(),
           ),
-          brainAssignmentsProvider.overrideWithValue(FakeBrainAssignments()),
-          brainModelFilesProvider.overrideWith((ref) async => FakeBrainFiles()),
           syncBackendProvider.overrideWithValue(backend),
           syncConfigurationProvider.overrideWith(
             (ref) async => SyncEngineConfig(

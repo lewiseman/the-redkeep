@@ -6,6 +6,10 @@ void main() {
     for (final path in [
       '/settings/brain/history',
       '/settings/brain/history/task_123-abc',
+      '/settings/brain/providers',
+      '/settings/brain/providers/provider-test',
+      '/settings/brain/providers/add/openai',
+      '/settings/brain/tasks',
     ]) {
       expect(validatedNavigationLocation(path), path);
       final gated = navigationRedirect(
@@ -82,6 +86,8 @@ void main() {
       '/notes/abc',
       '/flow/a',
       '/settings/brain/unknown',
+      '/settings/brain/phone',
+      '/settings/brain/providers/add/Bad-Preset',
       '/tasks',
       '/settings?x=private',
       '/settings#private',

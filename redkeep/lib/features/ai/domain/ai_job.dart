@@ -12,6 +12,8 @@ class AiJob {
     this.computerId = '',
     this.deviceId = '',
     this.modelId = '',
+    this.providerId = '',
+    this.providerName = '',
     this.prompt = '',
     this.source = '',
     this.phase = 'submitting',
@@ -26,6 +28,8 @@ class AiJob {
       computerId,
       deviceId,
       modelId,
+      providerId,
+      providerName,
       prompt,
       source,
       phase;
@@ -40,6 +44,13 @@ class AiJob {
     'interrupted',
     'expired',
   }.contains(phase);
+
+  /// Old `device` tasks can still appear until their receipts age out.
+  String get destinationLabel => switch (provider) {
+    'companion' => 'Computer',
+    'provider' => providerName,
+    _ => 'Phone',
+  };
   int get expires => created + const Duration(hours: 24).inMilliseconds;
   AiJob copy({
     String? phase,
@@ -56,6 +67,8 @@ class AiJob {
     computerId: computerId,
     deviceId: deviceId,
     modelId: modelId,
+    providerId: providerId,
+    providerName: providerName,
     prompt: prompt,
     source: source,
     phase: phase ?? this.phase,
@@ -73,6 +86,8 @@ class AiJob {
     'computerId': computerId,
     'deviceId': deviceId,
     'modelId': modelId,
+    'providerId': providerId,
+    'providerName': providerName,
     'phase': phase,
     'accepted': accepted,
     'cancelWanted': cancelWanted,
@@ -82,7 +97,7 @@ class AiJob {
   factory AiJob.fromJson(Map<String, dynamic> j) {
     if (j['id'] is! String ||
         !RegExp(r'^[A-Za-z0-9_-]{8,80}$').hasMatch(j['id'] as String) ||
-        !{'device', 'companion'}.contains(j['provider']) ||
+        !{'device', 'companion', 'provider'}.contains(j['provider']) ||
         j['created'] is! int ||
         j['key'] is! String ||
         (j['source'] as String? ?? '').length > 131072 ||
@@ -99,6 +114,8 @@ class AiJob {
       computerId: j['computerId'] as String? ?? '',
       deviceId: j['deviceId'] as String? ?? '',
       modelId: j['modelId'] as String? ?? '',
+      providerId: j['providerId'] as String? ?? '',
+      providerName: j['providerName'] as String? ?? '',
       prompt: j['prompt'] as String? ?? '',
       source: j['source'] as String? ?? '',
       phase: j['phase'] as String? ?? 'interrupted',

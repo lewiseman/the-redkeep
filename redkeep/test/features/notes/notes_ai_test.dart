@@ -4,7 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:redkeep/features/ai/application/ai_jobs.dart';
 import 'package:redkeep/features/ai/domain/ai_job.dart';
 import 'package:redkeep/features/ai/domain/ai_operation.dart';
-import 'package:redkeep/features/brain/domain/brain.dart';
+import 'package:redkeep/features/ai/application/ai_preferences.dart';
+import 'package:redkeep/features/ai/domain/ai_route.dart';
 import 'package:redkeep/features/companion/application/companion_controller.dart';
 import 'package:redkeep/features/notes/application/note_ai_controller.dart';
 import 'package:redkeep/features/notes/application/note_ai_sources.dart';
@@ -18,6 +19,7 @@ import 'package:redkeep/features/notes/domain/website/website_render.dart';
 import 'package:redkeep/features/sync/data/drift_sync_store.dart';
 
 import '../../support/fake_ai.dart';
+import '../../support/fake_ai_provider.dart';
 import '../../support/notes_ai_harness.dart';
 
 void main() {
@@ -482,19 +484,21 @@ void main() {
     expect(h.remote.events.any((e) => e.endsWith('/cancel')), isTrue);
   });
 
-  test('compatible text tools use the assigned phone model with the migrated prompt', () async {
+  test('compatible text tools use the chosen provider with the migrated prompt', () async {
     h.scope.dispose();
     h.scope = h.createScope(connected: false);
-    h.assignments.values[BrainCapability.rewrite] = qualifiedBrainModel.id;
+    h.aiProvider.reply = h.remote.output;
+    await h.scope
+        .read(aiPreferencesRepositoryProvider)
+        .setTaskRoute(
+          AiOperation.noteRewrite,
+          AiRoute.provider(testAiProvider.id, 'test-model'),
+        );
     await actions().start(AiOperation.noteRewrite, notesTestId);
-    expect(job().provider, 'device');
+    expect(job().provider, 'provider');
     expect(job().phase, 'completed');
     expect(h.remote.submissions, isEmpty);
-    expect(
-      h.models.single.settings.systemInstruction,
-      contains('Preserve facts'),
-    );
-    expect(h.models.single.closed, isTrue);
+    expect(h.aiProvider.requests.single.system, contains('Preserve facts'));
   });
 
   test(

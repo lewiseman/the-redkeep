@@ -11,13 +11,11 @@ import 'package:redkeep/app/bootstrap/bootstrap_providers.dart';
 import 'package:redkeep/app/redkeep_app.dart';
 import 'package:redkeep/app/storage_providers.dart';
 import 'package:redkeep/core/storage/app_database.dart';
-import 'package:redkeep/features/brain/application/brain_providers.dart';
 import 'package:redkeep/features/sync/application/sync_providers.dart';
 import 'package:redkeep/features/sync/data/drift_sync_collection.dart';
 import 'package:sync_wise/sync_wise.dart';
 
 import '../../support/fake_appearance_repository.dart';
-import '../../support/fake_brain.dart';
 import '../../support/fake_onboarding_repository.dart';
 import '../../support/fake_required_assets.dart';
 import 'drift_sync_test.dart' show Harness;
@@ -37,9 +35,6 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            brainModelFilesProvider.overrideWith(
-              (ref) async => FakeBrainFiles(),
-            ),
             appearanceFontLoaderProvider.overrideWithValue(
               fakeAppearanceFontLoader,
             ),

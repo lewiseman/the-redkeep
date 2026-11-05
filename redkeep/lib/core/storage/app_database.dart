@@ -12,7 +12,6 @@ import '../../features/onboarding/data/onboarding_table.dart';
 import '../../features/notes/data/notes_tables.dart';
 import '../../features/diary/data/diary_tables.dart';
 import '../../features/flow/data/flow_tables.dart';
-import '../../features/brain/data/brain_tables.dart';
 
 import '../../features/sync/data/sync_tables.dart';
 import '../../features/sync/data/sync_schema.dart';
@@ -39,7 +38,6 @@ part 'app_database.g.dart';
     PhotoQuestionCache,
     FlowThoughts,
     FlowReflections,
-    BrainAssignmentsTable,
     SyncOperations,
     SyncValues,
     SyncRecords,
@@ -49,7 +47,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   // Reset changes this generation before disposing editors. Old repositories
   // cannot write after cleanup, even when an async continuation finishes late.
@@ -63,6 +61,20 @@ class AppDatabase extends _$AppDatabase {
       await installFlowReflectionCleanup(this);
       await installSyncTriggers(this);
       await installRecallTriggers(this);
+    },
+    onUpgrade: (migrator, from, to) async {
+      if (from < 2) {
+        // Phone AI is gone. Old Phone and Auto choices fall back to the
+        // computer, the default for an empty `routes`.
+        await customStatement('DROP TABLE IF EXISTS brain_assignments');
+        await migrator.addColumn(aiPreferencesTable, aiPreferencesTable.routes);
+        await customStatement(
+          'ALTER TABLE ai_preferences_table DROP COLUMN mode',
+        );
+        await customStatement(
+          'ALTER TABLE ai_preferences_table DROP COLUMN overrides',
+        );
+      }
     },
   );
 }

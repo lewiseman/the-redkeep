@@ -22,13 +22,16 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../../../app/storage_providers.dart';
 import '../../companion/application/companion_controller.dart';
 import '../../recall/application/recall_controller.dart';
 import '../domain/ai_operation.dart';
+import '../data/legacy_phone_ai_cleanup.dart';
 import 'ai_jobs.dart';
 import 'ai_preferences.dart';
+import 'ai_providers.dart';
 
 /// A consumed boundary for offline shell tests. Production starts only inside
 /// the writing shell, after startup and onboarding have completed.
@@ -54,6 +57,8 @@ final aiResetProvider = Provider<Future<void> Function()>(
     await ref.read(aiJobsProvider.notifier).stopForReset();
     await ref.read(recallControllerProvider.notifier).stopForReset();
     await ref.read(aiJobStoreProvider).clear();
+    await ref.read(aiProviderStoreProvider).clear();
+    ref.invalidate(aiProvidersProvider);
     await ref.read(voiceStoreProvider).clearAll();
     await DiaryPickerRecovery().reset();
     clearNoteWebsiteCache();
@@ -108,6 +113,11 @@ class _AiLifecycleHostState extends ConsumerState<AiLifecycleHost>
       if (mounted && ref.read(aiEnabledProvider)) {
         _foreground(ref.read(aiForegroundProvider));
         unawaited(ref.read(voiceStoreProvider).cleanup().catchError((_) {}));
+        unawaited(
+          getApplicationSupportDirectory()
+              .then(removeLegacyPhoneAiFiles)
+              .catchError((_) {}),
+        );
         unawaited(_recoverPicker().then((_) => _recoverNotePicker()));
         unawaited(
           ref.read(diaryPhotoStoreProvider).reconcile().catchError((_) {}),

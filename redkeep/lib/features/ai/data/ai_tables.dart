@@ -3,8 +3,9 @@ import 'package:drift/drift.dart';
 @DataClassName('AiPreferenceRow')
 class AiPreferencesTable extends Table {
   IntColumn get id => integer().withDefault(const Constant(1))();
-  TextColumn get mode => text().withDefault(const Constant('auto'))();
-  TextColumn get overrides => text().withDefault(const Constant('{}'))();
+
+  /// Default and per-task routes. Holds provider IDs and model names, no tokens.
+  TextColumn get routes => text().withDefault(const Constant('{}'))();
   BoolColumn get dailyQuestions =>
       boolean().withDefault(const Constant(true))();
   BoolColumn get recallNotes => boolean().withDefault(const Constant(true))();

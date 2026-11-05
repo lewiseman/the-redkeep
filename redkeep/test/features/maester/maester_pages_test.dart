@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:redkeep/app/navigation_destination.dart';
 import 'package:redkeep/core/storage/app_database.dart';
-import 'package:redkeep/features/brain/domain/brain.dart';
 import 'package:redkeep/features/diary/data/drift_diary_repository.dart';
 import 'package:redkeep/features/diary/domain/diary_period.dart';
 import 'package:redkeep/features/diary/domain/diary_document.dart';
@@ -11,7 +10,7 @@ import 'package:redkeep/features/flow/data/drift_flow_repository.dart';
 import 'package:redkeep/features/notes/data/drift_notes_repository.dart';
 import 'package:redkeep/features/notes/domain/note_document.dart';
 
-import '../../support/fake_brain.dart';
+import '../../support/fake_ai_provider.dart';
 import '../../support/pump_app.dart';
 
 const id = '11111111111111111111111111111111';
@@ -43,12 +42,7 @@ void main() {
       expectedRevision: 0,
     );
     await flow.save(id: id, body: writing, expectedRevision: 0);
-    final files = FakeBrainFiles();
-    final assignments = FakeBrainAssignments();
-    for (final capability in BrainCapability.values) {
-      assignments.values[capability] = qualifiedBrainModel.id;
-    }
-    var modelLoads = 0;
+    final aiProvider = FakeAiProviderClient();
     try {
       final router = await pumpApp(
         tester,
@@ -56,12 +50,7 @@ void main() {
         notes: notes,
         diary: diary,
         flow: flow,
-        brainAssignments: assignments,
-        brainFiles: files,
-        brainLoader: (_, _) async {
-          modelLoads++;
-          throw StateError('Writing pages must not load AI.');
-        },
+        aiProvider: aiProvider,
       );
       for (final location in [
         '/flow',
@@ -78,15 +67,8 @@ void main() {
         noteLocation(missingId),
         diaryEntryLocation(date, missingId),
       ]) {
-        final checksBefore = files.checks;
         router.go(location);
         await tester.pumpAndSettle();
-        if (location == '/more') {
-          expect(files.checks, greaterThan(checksBefore));
-        } else {
-          // Writing does not inspect models; only More reads local readiness.
-          expect(files.checks, checksBefore);
-        }
         expect(router.routeInformationProvider.value.uri.path, location);
         expect(
           find.byType(FloatingActionButton, skipOffstage: false),
@@ -100,8 +82,7 @@ void main() {
         );
         expect(tester.takeException(), isNull, reason: location);
       }
-      expect(files.installs, 0);
-      expect(modelLoads, 0);
+      expect(aiProvider.requests, isEmpty);
       expect((await notes.openDocument(id)).note!.text.body, writing);
       expect((await diary.openDocument(id)).entry!.text.body, writing);
       expect((await flow.openDocument(id)).thought!.body, writing);

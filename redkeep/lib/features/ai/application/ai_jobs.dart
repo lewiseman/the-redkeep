@@ -20,9 +20,6 @@ import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/storage_providers.dart';
-import '../../brain/application/brain_providers.dart';
-import '../../brain/application/brain_executor.dart';
-import '../../brain/domain/brain.dart';
 import '../../companion/application/companion_controller.dart';
 import '../../companion/data/companion_protocol.dart';
 import '../../diary/domain/diary_ai_contract.dart';
@@ -34,7 +31,11 @@ import '../../sync/application/sync_providers.dart'
 import '../data/ai_job_store.dart';
 import '../domain/ai_job.dart';
 import '../domain/ai_operation.dart';
+import '../domain/ai_preferences.dart';
+import '../domain/ai_provider.dart';
+import '../domain/ai_route.dart';
 import 'ai_preferences.dart';
+import 'ai_providers.dart';
 
 final protectedAiTasksProvider = Provider<ProtectedAiTasks>(
   (ref) => SecureAiTasks(),
@@ -58,27 +59,34 @@ final aiIdProvider = Provider<String Function()>(
 );
 final aiJobsProvider = NotifierProvider<AiJobs, AiJobState>(AiJobs.new);
 
-AiMode chooseAiDestination({
-  required AiMode mode,
+/// Picks one destination for this task. A failed or unready destination is
+/// reported, never replaced by another one.
+({AiRoute route, AiProviderConnection? provider}) resolveAiRoute({
+  required AiOperation operation,
+  required AiPreferences preferences,
   required bool connected,
-  required bool deviceReady,
+  required List<AiProviderConnection> providers,
 }) {
-  if (mode == AiMode.companion || mode == AiMode.auto && connected) {
+  final route = preferences.routeFor(operation);
+  if (route.isCompanion) {
     if (!connected) {
-      throw const CompanionFailure(
-        'UNAVAILABLE',
-        'Connect your trusted computer in Grand Maestar.',
+      throw CompanionFailure(
+        operation.supportsProvider ? 'UNAVAILABLE' : 'UNSUPPORTED',
+        operation.supportsProvider
+            ? 'Connect your computer or choose a provider in Grand Maestar.'
+            : 'This feature needs your computer. Connect it in Grand Maestar.',
       );
     }
-    return AiMode.companion;
+    return (route: route, provider: null);
   }
-  if (!deviceReady) {
+  final provider = providers.where((p) => p.id == route.providerId).firstOrNull;
+  if (provider == null) {
     throw const CompanionFailure(
       'NOT_READY',
-      'Download and assign a compatible phone model in Grand Maestar.',
+      'The provider for this task is gone. Choose another in Grand Maestar.',
     );
   }
-  return AiMode.device;
+  return (route: route, provider: provider);
 }
 
 class AiJobState {
@@ -98,8 +106,12 @@ class AiJobs extends Notifier<AiJobState> {
   late int _dataGeneration;
   bool _foreground = true;
   bool _working = false;
-  BrainExecutor? _executor;
-  final _owner = Object();
+  Completer<void>? _providerAbort;
+  void _abortProvider() {
+    final abort = _providerAbort;
+    if (abort != null && !abort.isCompleted) abort.complete();
+  }
+
   Future<void>? _restore;
   bool _alive(int epoch) =>
       ref.mounted &&
@@ -114,7 +126,7 @@ class AiJobs extends Notifier<AiJobState> {
     _dataGeneration = ref.read(appDatabaseProvider).writingGeneration;
     ref.onDispose(() {
       _epoch++;
-      unawaited(_executor?.cancel(owner: _owner));
+      _abortProvider();
     });
     return const AiJobState();
   }
@@ -137,14 +149,15 @@ class AiJobs extends Notifier<AiJobState> {
           'phase': 'expired',
         });
       }
-      if (job?.provider == 'device' && !job!.terminal) {
+      // Only the companion can resume work. Nothing is ever resent silently.
+      if (job != null && job.provider != 'companion' && !job.terminal) {
         job = job.copy(phase: 'interrupted');
       }
       state = AiJobState(job: job, loaded: true);
       if (job != null) {
         await _save(job, epoch);
         if (job.provider == 'companion' && (!job.terminal || job.ackPending)) {
-          await _remote(job, epoch, submit: false);
+          await _companion(job, epoch, submit: false);
         }
       }
       await _ackReceipts();
@@ -159,40 +172,31 @@ class AiJobs extends Notifier<AiJobState> {
 
   Future<bool> available(AiOperation operation) async {
     try {
-      final prefs = await ref.read(aiPreferencesRepositoryProvider).read();
-      final connection = ref.read(companionControllerProvider);
-      final mode = prefs.modeFor(operation);
-      if (mode == AiMode.companion ||
-          mode == AiMode.auto && connection.phase == CompanionPhase.connected) {
-        if (connection.phase != CompanionPhase.connected) return false;
-        _checkCapability(operation);
-        return true;
-      }
-      return await phoneModel(operation) != null;
+      final preferences = await ref
+          .read(aiPreferencesRepositoryProvider)
+          .read();
+      final target = resolveAiRoute(
+        operation: operation,
+        preferences: preferences,
+        connected:
+            ref.read(companionControllerProvider).phase ==
+            CompanionPhase.connected,
+        providers: await _providersFor(operation, preferences),
+      );
+      if (target.provider == null) _checkCapability(operation);
+      return true;
     } catch (_) {
       return false;
     }
   }
 
-  Future<BrainModel?> phoneModel(AiOperation operation) async {
-    if (!operation.supportsPhone) return null;
-    final assignments = await ref.read(brainAssignmentsProvider).read();
-    final id = assignments
-        .where((a) => a.capability == operation.capability)
-        .firstOrNull
-        ?.modelId;
-    final model = ref
-        .read(brainCatalogProvider)
-        .where(
-          (m) => m.id == id && m.capabilities.contains(operation.capability),
-        )
-        .firstOrNull;
-    if (model == null) return null;
-    final files = await ref.read(brainModelFilesProvider.future);
-    return await files.inspect(model) == ModelFileState.available
-        ? model
-        : null;
-  }
+  /// Companion tasks must keep working if protected storage is unavailable.
+  Future<List<AiProviderConnection>> _providersFor(
+    AiOperation operation,
+    AiPreferences preferences,
+  ) async => preferences.routeFor(operation).isCompanion
+      ? const []
+      : await ref.read(aiProvidersProvider.future);
 
   TrustedComputer _computer(AiJob job) {
     final connection = ref.read(companionControllerProvider);
@@ -273,39 +277,27 @@ class AiJobs extends Notifier<AiJobState> {
           .read();
       if (!_alive(epoch)) return;
       final connection = ref.read(companionControllerProvider);
-      final mode = preferences.modeFor(operation);
-      if (!operation.supportsPhone &&
-          (mode == AiMode.device ||
-              connection.phase != CompanionPhase.connected)) {
-        throw const CompanionFailure(
-          'UNSUPPORTED',
-          'This feature needs your computer. Choose Auto or Computer and connect in Grand Maestar.',
-        );
-      }
-      final phone =
-          mode == AiMode.companion ||
-              mode == AiMode.auto &&
-                  connection.phase == CompanionPhase.connected
-          ? null
-          : await phoneModel(operation);
+      final providers = await _providersFor(operation, preferences);
       if (!_alive(epoch)) return;
-      final target = chooseAiDestination(
-        mode: mode,
+      final target = resolveAiRoute(
+        operation: operation,
+        preferences: preferences,
         connected: connection.phase == CompanionPhase.connected,
-        deviceReady: phone != null,
+        providers: providers,
       );
-      if (target == AiMode.companion) _checkCapability(operation);
+      final provider = target.provider;
+      if (provider == null) _checkCapability(operation);
       final job = AiJob(
         id: ref.read(aiIdProvider)(),
         operation: operation,
         key: key,
         created: ref.read(aiClockProvider)().millisecondsSinceEpoch,
-        provider: target.name,
-        computerId: target == AiMode.companion ? connection.selected!.id : '',
-        deviceId: target == AiMode.companion
-            ? connection.selected!.deviceId
-            : '',
-        modelId: phone?.id ?? '',
+        provider: provider == null ? 'companion' : 'provider',
+        computerId: provider == null ? connection.selected!.id : '',
+        deviceId: provider == null ? connection.selected!.deviceId : '',
+        modelId: target.route.model ?? '',
+        providerId: provider?.id ?? '',
+        providerName: provider?.name ?? '',
         prompt: prompt,
         source: source,
       );
@@ -337,10 +329,10 @@ class AiJobs extends Notifier<AiJobState> {
       }
       await _save(job, epoch);
       if (!_alive(epoch)) return;
-      if (target == AiMode.companion) {
-        await _remote(job, epoch, submit: true);
+      if (provider == null) {
+        await _companion(job, epoch, submit: true);
       } else {
-        await _local(job, phone!, epoch);
+        await _provider(job, provider, epoch);
       }
     } catch (error) {
       if (_alive(epoch)) {
@@ -408,33 +400,45 @@ class AiJobs extends Notifier<AiJobState> {
     }
   }
 
-  Future<void> _local(AiJob job, BrainModel model, int epoch) async {
-    final executor = await ref.read(brainExecutorProvider.future);
-    if (!_alive(epoch)) return;
-    _executor = executor;
-    final buffer = StringBuffer();
-    await executor.execute(
-      model: model,
-      capability: job.operation.capability!,
-      text: job.prompt,
-      preparedPrompt: switch (job.operation) {
-        AiOperation.noteSummary => jsonEncode({'note': job.prompt}),
-        AiOperation.thoughtReflection => jsonEncode({'thought': job.prompt}),
-        _ => job.prompt,
-      },
-      owner: _owner,
-      settings: job.operation.phoneSettings(),
-      onChunk: (chunk) {
-        if (_alive(epoch)) buffer.write(chunk);
-      },
-    );
-    if (!_alive(epoch)) return;
-    final text = buffer.toString();
-    _validate(job, text);
-    await _save(job.copy(phase: 'completed', text: text), epoch);
+  Future<void> _provider(
+    AiJob job,
+    AiProviderConnection connection,
+    int epoch,
+  ) async {
+    final abort = Completer<void>();
+    _providerAbort = abort;
+    try {
+      final operation = job.operation;
+      final answer = await ref
+          .read(aiProviderClientProvider)
+          .complete(
+            connection,
+            AiCompletionRequest(
+              model: job.modelId,
+              system: operation.system,
+              user: switch (operation) {
+                AiOperation.noteSummary => jsonEncode({'note': job.prompt}),
+                AiOperation.thoughtReflection => jsonEncode({
+                  'thought': job.prompt,
+                }),
+                _ => job.prompt,
+              },
+              outputTokens: operation.outputTokens,
+              temperature: operation.temperature,
+              topP: operation.topP,
+            ),
+            abort: abort.future,
+          );
+      if (!_alive(epoch)) return;
+      final text = stripSurroundingCodeFence(answer);
+      _validate(job, text);
+      await _save(job.copy(phase: 'completed', text: text), epoch);
+    } finally {
+      if (identical(_providerAbort, abort)) _providerAbort = null;
+    }
   }
 
-  Future<void> _remote(AiJob job, int epoch, {required bool submit}) async {
+  Future<void> _companion(AiJob job, int epoch, {required bool submit}) async {
     final client = CompanionClient(ref.read(companionTransportProvider));
     final computer = _computer(job);
     if (job.terminal) {
@@ -626,14 +630,11 @@ class AiJobs extends Notifier<AiJobState> {
           'Another AI session is open. Finish it before asking about photos.',
         );
       }
-      final mode =
-          (await ref.read(aiPreferencesRepositoryProvider).read()).mode;
-      if (mode == AiMode.device ||
-          ref.read(companionControllerProvider).phase !=
-              CompanionPhase.connected) {
+      if (ref.read(companionControllerProvider).phase !=
+          CompanionPhase.connected) {
         throw const CompanionFailure(
           'UNSUPPORTED',
-          'Photo questions need your computer. Choose Auto or Computer and connect in Grand Maestar.',
+          'Photo questions need your computer. Connect it in Grand Maestar.',
         );
       }
       _checkCapability(AiOperation.photoQuestions);
@@ -745,7 +746,7 @@ class AiJobs extends Notifier<AiJobState> {
       final epoch = ++_epoch;
       _working = true;
       try {
-        await _remote(
+        await _companion(
           job,
           epoch,
           submit: !job.accepted && job.prompt.isNotEmpty,
@@ -772,7 +773,7 @@ class AiJobs extends Notifier<AiJobState> {
   Future<void> cancel() async {
     final job = state.job;
     final epoch = ++_epoch;
-    await _executor?.cancel(owner: _owner);
+    _abortProvider();
     if (job == null || !_alive(epoch)) return;
     var next = job.copy(cancelWanted: true);
     await _save(next, epoch);
@@ -854,7 +855,7 @@ class AiJobs extends Notifier<AiJobState> {
   Future<void> stopForReset() async {
     _foreground = false;
     _epoch++;
-    await _executor?.cancel(owner: _owner);
+    _abortProvider();
     if (ref.mounted) state = const AiJobState();
   }
 
@@ -862,7 +863,7 @@ class AiJobs extends Notifier<AiJobState> {
     _foreground = value;
     if (!value) {
       ++_epoch;
-      unawaited(_executor?.cancel(owner: _owner));
+      _abortProvider();
       if (ref.mounted) state = AiJobState(job: state.job, loaded: state.loaded);
     } else {
       unawaited(restore());
@@ -871,7 +872,7 @@ class AiJobs extends Notifier<AiJobState> {
 
   String _message(Object error) => switch (error) {
     CompanionFailure() => error.message,
-    BrainException() => error.message,
+    AiProviderFailure() => error.message,
     FormatException() => error.message,
     DailyQuestionRejected() => error.message,
     RecallAnswerRejected() => error.message,

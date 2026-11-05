@@ -24,7 +24,7 @@ bool validTransformOutput(String text) =>
     !RegExp(r'</?[a-z][^>]*>', caseSensitive: false).hasMatch(text) &&
     !RegExp(r'^\s*\{\s*"(?:text|content|replacement)"\s*:').hasMatch(text);
 
-/// Private local snapshot. Only {text, intent} goes to the computer.
+/// Private local snapshot. Only {text, intent} goes to the computer or provider.
 class TransformSource {
   const TransformSource({
     required this.content,

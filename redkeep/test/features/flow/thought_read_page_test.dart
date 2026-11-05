@@ -5,13 +5,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:redkeep/core/storage/app_database.dart';
 import 'package:redkeep/features/appearance/domain/appearance_preferences.dart';
 import 'package:redkeep/features/assets/presentation/local_artwork.dart';
-import 'package:redkeep/features/brain/domain/brain.dart';
+import 'package:redkeep/features/ai/data/ai_preferences_repository.dart';
+import 'package:redkeep/features/ai/domain/ai_route.dart';
 import 'package:redkeep/features/flow/data/drift_flow_repository.dart';
 
 import '../../support/fake_appearance_repository.dart';
-import '../../support/fake_brain.dart';
+import '../../support/fake_ai_provider.dart';
 import '../../support/fake_required_assets.dart';
-import '../../support/notes_ai_harness.dart' show ReplyModel;
 import '../../support/pump_app.dart';
 
 const _id = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
@@ -99,9 +99,12 @@ void main() {
         );
         addTearDown(appearance.close);
         final assets = _RecordingAssets();
-        final assignments = FakeBrainAssignments()
-          ..values[BrainCapability.reflect] = qualifiedBrainModel.id;
-        var generations = 0;
+        await tester.runAsync(
+          () => AiPreferencesRepository(db).setDefaultRoute(
+            AiRoute.provider(testAiProvider.id, 'test-model'),
+          ),
+        );
+        final aiProvider = FakeAiProviderClient(_reflection);
         final router = await pumpApp(
           tester,
           initialLocation: '/flow/$_id',
@@ -110,11 +113,7 @@ void main() {
           assets: assets,
           aiEnabled: true,
           repository: appearance,
-          brainAssignments: assignments,
-          brainLoader: (_, settings) async {
-            generations++;
-            return ReplyModel(_reflection, settings);
-          },
+          aiProvider: aiProvider,
         );
         try {
           final artwork = find.byWidgetPredicate(
@@ -171,7 +170,7 @@ void main() {
           );
           await tap(tester, find.text('Remove reflection'));
           expect(await db.select(db.flowReflections).get(), isEmpty);
-          expect(generations, 2);
+          expect(aiProvider.requests, hasLength(2));
           final thought = (await flow.openDocument(_id)).thought!;
           expect(thought.body, _body);
           expect(thought.revision, 1);

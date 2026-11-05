@@ -11,8 +11,7 @@ import 'package:redkeep/app/storage_providers.dart';
 import 'package:redkeep/core/storage/app_database.dart';
 import 'package:redkeep/features/ai/application/ai_jobs.dart';
 import 'package:redkeep/features/ai/domain/ai_operation.dart';
-import 'package:redkeep/features/ai/domain/local_inference.dart';
-import 'package:redkeep/features/brain/application/brain_providers.dart';
+import 'package:redkeep/features/ai/application/ai_providers.dart';
 import 'package:redkeep/features/companion/application/companion_controller.dart';
 import 'package:redkeep/features/companion/data/companion_protocol.dart';
 import 'package:redkeep/features/notes/application/notes_providers.dart';
@@ -23,7 +22,7 @@ import 'package:redkeep/features/recall/application/recall_controller.dart';
 import 'package:redkeep/features/sync/application/sync_providers.dart';
 
 import 'fake_ai.dart';
-import 'fake_brain.dart';
+import 'fake_ai_provider.dart';
 
 const notesTestId = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 const notesTestBody =
@@ -144,8 +143,7 @@ class NotesAiHarness {
   final Directory directory;
   final protected = MemoryAiTasks();
   final remote = NotesTransport();
-  final assignments = FakeBrainAssignments();
-  final models = <ReplyModel>[];
+  final aiProvider = FakeAiProviderClient();
   late final DriftNotesRepository repository;
   late final NoteMediaStore media;
   late ProviderContainer scope;
@@ -166,13 +164,10 @@ class NotesAiHarness {
           ),
           syncEnabledProvider.overrideWithValue(false),
           syncCanEditProvider.overrideWithValue(canEdit),
-          brainAssignmentsProvider.overrideWithValue(assignments),
-          brainModelFilesProvider.overrideWith((ref) async => FakeBrainFiles()),
-          brainModelLoaderProvider.overrideWithValue((_, settings) async {
-            final model = ReplyModel(remote.output, settings);
-            models.add(model);
-            return model;
-          }),
+          protectedAiProvidersProvider.overrideWithValue(
+            MemoryAiProviders(saved: const [testAiProvider]),
+          ),
+          aiProviderClientProvider.overrideWithValue(aiProvider),
           recallVectorsProvider.overrideWith((ref) async => MemoryVectors()),
           recallEmbedderProvider.overrideWithValue(FakeEmbedder()),
         ],
@@ -202,34 +197,3 @@ class NotesAiHarness {
   }
 }
 
-class ReplyModel implements LocalModel {
-  ReplyModel(this.text, this.settings);
-  final String text;
-  final InferenceSettings settings;
-  String? prompt;
-  bool closed = false;
-  @override
-  InferenceBackend get backend => InferenceBackend.cpu;
-  @override
-  Future<LocalSession> createSession() async => _ReplySession(this);
-  @override
-  Future<void> close() async {
-    closed = true;
-  }
-}
-
-class _ReplySession implements LocalSession {
-  _ReplySession(this.model);
-  final ReplyModel model;
-  @override
-  Future<void> addPrompt(String text) async {
-    model.prompt = text;
-  }
-
-  @override
-  Stream<String> stream() => Stream.value(model.text);
-  @override
-  Future<void> stop() async {}
-  @override
-  Future<void> close() async {}
-}

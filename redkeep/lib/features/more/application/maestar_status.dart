@@ -1,63 +1,39 @@
-import '../../ai/application/ai_lifecycle.dart';
-import '../../ai/application/ai_preferences.dart';
-import '../../ai/domain/ai_operation.dart';
-import '../../companion/application/companion_controller.dart';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../brain/application/brain_controller.dart';
-import '../../brain/application/brain_providers.dart';
-import '../../brain/domain/brain.dart';
+import '../../ai/application/ai_lifecycle.dart';
+import '../../ai/application/ai_preferences.dart';
+import '../../ai/application/ai_providers.dart';
+import '../../companion/application/companion_controller.dart';
 
-/// Reads local readiness only; neither inference nor downloads start here.
+/// Reads local readiness only; no AI task or network request starts here.
 final maestarStatusProvider =
     Provider.autoDispose<({String label, bool ready})>((ref) {
-      if (ref.watch(aiEnabledProvider)) {
-        final connection = ref.watch(companionControllerProvider);
-        final mode =
-            ref.watch(aiPreferencesProvider).value?.mode ?? AiMode.auto;
-        if (mode != AiMode.device &&
-            connection.phase == CompanionPhase.connected) {
-          final writing = (connection.status?['capabilities'] as List? ?? [])
-              .whereType<Map>()
-              .where((c) => c['id'] == 'text')
-              .firstOrNull;
-          return (
-            label: writing?['status'] == 'ready'
-                ? 'Computer connected · Writing ready'
-                : 'Computer connected · Check models',
-            ready: writing?['status'] == 'ready',
-          );
-        }
-        if (mode == AiMode.companion) {
-          return (label: 'Connect your computer', ready: false);
-        }
+      if (!ref.watch(aiEnabledProvider)) {
+        return (label: 'Set up AI', ready: false);
       }
-      final state = ref.watch(brainControllerProvider);
-      if (state.busy) {
-        return (
-          label: state.operation ?? 'Checking model files…',
-          ready: false,
-        );
+      final route = ref.watch(aiPreferencesProvider).value?.defaultRoute;
+      if (route != null && !route.isCompanion) {
+        final provider = ref
+            .watch(aiProvidersProvider)
+            .value
+            ?.where((p) => p.id == route.providerId)
+            .firstOrNull;
+        return provider == null
+            ? (label: 'Choose a provider', ready: false)
+            : (label: '${provider.name} · ${route.model}', ready: true);
       }
-      if (state.failure != null) {
-        return (label: 'Needs attention', ready: false);
+      final connection = ref.watch(companionControllerProvider);
+      if (connection.phase != CompanionPhase.connected) {
+        return (label: 'Connect a computer or add a provider', ready: false);
       }
-      if (!state.loaded) {
-        return (label: 'Checking model files…', ready: false);
-      }
-      final catalog = ref.watch(brainCatalogProvider);
-      final ready = catalog.any(
-        (model) =>
-            state.files[model.id] == ModelFileState.available &&
-            state.assignments.entries.any(
-              (assignment) =>
-                  assignment.value == model.id &&
-                  model.capabilities.contains(assignment.key),
-            ),
-      );
+      final writing = (connection.status?['capabilities'] as List? ?? [])
+          .whereType<Map>()
+          .where((c) => c['id'] == 'text')
+          .firstOrNull;
       return (
-        label: ready ? 'Ready on this device' : 'Set up on-device AI',
-        ready: ready,
+        label: writing?['status'] == 'ready'
+            ? 'Computer connected · Writing ready'
+            : 'Computer connected · Check models',
+        ready: writing?['status'] == 'ready',
       );
     });

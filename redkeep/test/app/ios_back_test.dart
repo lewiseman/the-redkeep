@@ -26,7 +26,9 @@ void main() {
                 as PageRoute;
         expect(route.popGestureEnabled, isTrue);
         final cancel = await tester.startGesture(const Offset(5, 240));
-        await cancel.moveBy(const Offset(80, 0));
+        // The first move claims the gesture; the next one drags the page.
+        await cancel.moveBy(const Offset(40, 0));
+        await cancel.moveBy(const Offset(40, 0));
         await tester.pump();
         expect(route.popGestureInProgress, isTrue);
         expect(

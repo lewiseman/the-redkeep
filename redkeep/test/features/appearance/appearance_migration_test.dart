@@ -115,11 +115,11 @@ void main() {
         initialLocation: '/settings',
         repository: repository,
       );
-      await tester.ensureVisible(find.text('Teal'));
+      await revealBelowAppBar(tester, find.text('Teal'));
       await tester.tap(find.text('Teal'));
       await tester.pumpAndSettle();
       expect(repository.value.accent, AppAccent.teal);
-      await tester.ensureVisible(find.text('Journal font'));
+      await revealBelowAppBar(tester, find.text('Journal font'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Journal font'));
       await tester.pumpAndSettle();
@@ -178,7 +178,7 @@ void main() {
           return fakeAppearanceFontLoader(family, role);
         },
       );
-      await tester.ensureVisible(find.text('Journal font'));
+      await revealBelowAppBar(tester, find.text('Journal font'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Journal font'));
       await tester.pumpAndSettle();
@@ -252,7 +252,7 @@ void main() {
         initialLocation: '/settings',
         repository: repository,
       );
-      await tester.ensureVisible(find.text('Journal font'));
+      await revealBelowAppBar(tester, find.text('Journal font'));
       await tester.pumpAndSettle();
       // At this scale the label spans more than the viewport; activate its visible first line.
       final title = tester.getRect(find.text('Journal font'));

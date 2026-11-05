@@ -5,6 +5,7 @@ import 'package:redkeep/core/presentation/redkeep_theme.dart';
 import 'package:redkeep/core/presentation/rendering_policy.dart';
 import 'package:redkeep/features/appearance/domain/appearance_preferences.dart';
 import 'package:redkeep/features/appearance/presentation/appearance_page.dart';
+import 'package:redkeep/features/appearance/presentation/appearance_sky.dart';
 
 import '../../support/fake_appearance_repository.dart';
 import '../../support/pump_app.dart';
@@ -62,12 +63,12 @@ void main() {
       expect(repository.value.theme, AppTheme.dark);
 
       final motion = find.widgetWithText(SwitchListTile, 'Reduce motion');
-      await tester.ensureVisible(motion);
+      await revealBelowAppBar(tester, motion);
       await tester.tap(motion);
       await tester.pumpAndSettle();
       context = tester.element(find.byType(AppearancePage));
       expect(RenderingPolicyScope.of(context).reducedMotion, isTrue);
-      expect(find.text('Flat paper is active.'), findsOneWidget);
+      expect(find.text('Simplified effects are active.'), findsOneWidget);
       expect(repository.value.reduceMotion, isTrue);
 
       // An independent repository update also reaches the visible UI immediately.
@@ -137,13 +138,13 @@ void main() {
           of: effects,
           matching: find.byType(Switch),
         );
-        await tester.ensureVisible(toggle);
+        await revealBelowAppBar(tester, toggle);
         await tester.tap(toggle);
         await tester.pumpAndSettle();
         expect(repository.value.simplerEffects, isTrue);
         expect(tester.getBottomRight(toggle).dy, lessThanOrEqualTo(300));
         expect(tester.getTopLeft(toggle).dy, greaterThanOrEqualTo(24));
-        await tester.ensureVisible(find.text('Light'));
+        await revealBelowAppBar(tester, find.text('Light'));
         expect(tester.takeException(), isNull);
       },
     );
@@ -178,6 +179,69 @@ void main() {
       expect(
         find.textContaining('Your change could not be saved.'),
         findsNothing,
+      );
+    },
+  );
+
+  testWidgets(
+    'the sky shows the chosen theme immediately under reduced motion',
+    (tester) async {
+      final repository = FakeAppearanceRepository(
+        const AppearancePreferences(theme: AppTheme.light, reduceMotion: true),
+      );
+      addTearDown(repository.close);
+      await pumpApp(
+        tester,
+        initialLocation: '/settings',
+        repository: repository,
+      );
+      double opacity(AppTheme theme) => tester
+          .widget<Opacity>(find.byKey(ValueKey('appearance-sky-${theme.name}')))
+          .opacity;
+      expect(opacity(AppTheme.light), 1);
+      expect(opacity(AppTheme.dark), 0);
+
+      await tester.tap(find.text('Dark'));
+      await tester.pump();
+      await tester.pump();
+      expect(opacity(AppTheme.dark), 1);
+      expect(opacity(AppTheme.light), 0);
+      expect(opacity(AppTheme.system), 0);
+      expect(repository.value.theme, AppTheme.dark);
+    },
+  );
+
+  testWidgets(
+    'the app bar shows the sky at rest and turns solid when scrolled',
+    (tester) async {
+      final repository = FakeAppearanceRepository(
+        const AppearancePreferences(theme: AppTheme.dark),
+      );
+      addTearDown(repository.close);
+      await pumpApp(
+        tester,
+        initialLocation: '/settings',
+        repository: repository,
+      );
+      final bar = find.byType(SliverAppBar);
+      final sky = find.byType(AppearanceSky);
+      expect(tester.widget<AppearanceSky>(sky).solid, 0);
+      expect(
+        tester.widget<SliverAppBar>(bar).foregroundColor,
+        SkyColors.foreground(1),
+      );
+
+      await tester.drag(find.text('Theme'), const Offset(0, -400));
+      await tester.pumpAndSettle();
+      expect(tester.widget<AppearanceSky>(sky).solid, 1);
+      final colors = Theme.of(tester.element(bar)).colorScheme;
+      expect(
+        tester.widget<SliverAppBar>(bar).foregroundColor,
+        colors.onSurface,
+      );
+      expect(
+        tester.getTopLeft(find.byTooltip('Back')).dy,
+        greaterThanOrEqualTo(0),
       );
     },
   );

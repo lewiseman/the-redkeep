@@ -132,3 +132,9 @@ Future<GoRouter> pumpApp(
   await tester.pumpAndSettle();
   return tester.container().read(appRouterProvider);
 }
+
+/// Scrolls [target] to mid-viewport, clear of the page's pinned app bar.
+Future<void> revealBelowAppBar(WidgetTester tester, Finder target) async {
+  await Scrollable.ensureVisible(tester.element(target), alignment: .5);
+  await tester.pump();
+}

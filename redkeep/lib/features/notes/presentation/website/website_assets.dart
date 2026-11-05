@@ -1,15 +1,10 @@
 import 'dart:convert';
 import 'dart:ui' as ui;
 
-import 'package:flutter/foundation.dart';
-import 'package:html/dom.dart' as dom;
 import 'package:html/parser.dart' as html;
 
 import '../../domain/note_details.dart';
 import '../../data/note_media_store.dart';
-import '../../data/website_font_store.dart';
-
-import '../../domain/website/website_themes.dart';
 
 /// The note's photos, in the order a themed website numbers them.
 List<NoteAttachment> websitePhotos(List<NoteAttachment> attachments) =>
@@ -59,23 +54,16 @@ Future<String?> _photoUri(NoteAttachment photo, NoteMediaStore store) async {
 final _cache = <String, String>{};
 void clearNoteWebsiteCache() => _cache.clear();
 
-/// Fills a sanitized page's `data-photo` placeholders with [photos] and
-/// embeds the Google Fonts its theme names. Placeholders without a photo on
-/// this device are removed. Nothing here is stored or synced.
+/// Fills a sanitized page's `data-photo` placeholders with [photos].
+/// Placeholders without a photo on this device are removed. Nothing here is stored or synced.
 Future<String> withWebsiteAssets(
   String safe,
   List<NoteAttachment> photos, {
-  Future<Uint8List> Function(String family, int weight) fontBytes =
-      loadWebsiteFont,
   required NoteMediaStore store,
 }) async {
   final document = html.parse(safe);
   final placeholders = document.querySelectorAll('img[data-photo]');
-  final theme = document.body?.classes
-      .where((c) => c.startsWith('t-'))
-      .map((c) => websiteTheme(c.substring(2)))
-      .firstOrNull;
-  if (placeholders.isEmpty && (theme?.fonts.isEmpty ?? true)) return safe;
+  if (placeholders.isEmpty) return safe;
   final key = Object.hashAll([safe, for (final p in photos) p.path]).toString();
   if (_cache[key] case final cached?) return cached;
 
@@ -97,29 +85,7 @@ Future<String> withWebsiteAssets(
     if (gallery.children.isEmpty) gallery.remove();
   }
 
-  final faces = StringBuffer();
-  var fontsComplete = true;
-  for (final family in theme?.fonts ?? const <String>[]) {
-    final weight = websiteFonts[family];
-    if (weight == null) continue;
-    try {
-      final data = await fontBytes(family, weight);
-      faces.write(
-        '@font-face{font-family:"$family";font-display:swap;'
-        'src:url(data:font/ttf;base64,'
-        '${base64Encode(data)}) format("truetype")}',
-      );
-    } catch (_) {
-      // The theme's fallback stack still applies; try again on the next view.
-      fontsComplete = false;
-    }
-  }
-  if (faces.isNotEmpty) {
-    document.head?.append(dom.Element.tag('style')..text = faces.toString());
-  }
-
   final result = '<!doctype html>\n${document.documentElement!.outerHtml}';
-  if (!fontsComplete) return result;
   if (_cache.length >= 4) _cache.remove(_cache.keys.first);
   return _cache[key] = result;
 }

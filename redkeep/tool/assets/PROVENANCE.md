@@ -1,8 +1,8 @@
 # Selected presentation media provenance
 
-`LicenseRef-Project-Generated` identifies original image_gen outputs created for
-the user's own legacy Journal project, reused under the user's M04 migration
-authorization. It is a project provenance notice, not a third-party open-source
+Catalog media are original image_gen outputs created for the user's own legacy
+Journal project, reused under the user's M04 migration authorization, unless
+noted below. This is a project provenance notice, not a third-party open-source
 license grant. These outputs carry no third-party license in the source project.
 No external stock images are included. The later UI01 correction deliberately
 retains the original printed artwork and mascot, as recorded below.
@@ -96,7 +96,7 @@ Use case: style-transfer. Asset type: one production transparent-background illu
 
 ## UI01 supplied onboarding originals — 3 November 2026
 
-`LicenseRef-Project-Supplied` records the user's explicit UI01 authorization to
+This section records the user's explicit UI01 authorization to
 reuse the supplied local onboarding originals. This is a project-use provenance
 record, not a claim that these files are newly generated, public domain, or
 licensed by Firebase. The input is the user's completed Firebase handoff,

@@ -58,7 +58,7 @@ class _NoteWebsiteViewState extends ConsumerState<NoteWebsiteView> {
     try {
       // Synced pages are checked again: another device may be older or wrong.
       safe = await sanitizeWebsiteBounded(html);
-      // Photos and fonts are added after the check and never stored.
+      // Photos are added after the check and never stored.
       safe = await withWebsiteAssets(
         safe,
         widget.photos,

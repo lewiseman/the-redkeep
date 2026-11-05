@@ -1,27 +1,19 @@
 /// Hand-built looks for themed note websites. The model only chooses one;
 /// every page shares [_base] and layers a theme's variables and signature
-/// rules on top. Fonts are system stacks, except the Google Fonts Caveat and
-/// Lora that the view embeds when a theme names them.
+/// rules on top. Fonts are system stacks.
 class WebsiteTheme {
   const WebsiteTheme({
     required this.id,
     required this.name,
     required this.swatch,
     required this.css,
-    this.fonts = const [],
   });
   final String id, name;
 
   /// Background and accent colours for the picker, as 0xAARRGGBB.
   final (int, int) swatch;
   final String css;
-
-  /// Google Font families this theme uses, embedded at view time.
-  final List<String> fonts;
 }
-
-/// Google Fonts a theme may embed: family and weight.
-const websiteFonts = {'Caveat': 500, 'Lora': 400};
 
 const _base = '''
 *,*::before,*::after{box-sizing:border-box}
@@ -74,9 +66,8 @@ const websiteThemes = [
     id: 'editorial',
     name: 'Editorial',
     swatch: (0xFFFBF8F3, 0xFF1F1D1A),
-    fonts: ['Lora'],
     css: '''
-body{--bg:#fbf8f3;--surface:#fff;--ink:#1f1d1a;--muted:#5f5a52;--line:#e6dfd3;--radius:4px;--shadow:none;--head:"Lora","Iowan Old Style","New York",Georgia,serif;--body:"Lora","Iowan Old Style",Georgia,serif;--head-weight:400}
+body{--bg:#fbf8f3;--surface:#fff;--ink:#1f1d1a;--muted:#5f5a52;--line:#e6dfd3;--radius:4px;--shadow:none;--head:"Iowan Old Style","New York",Georgia,serif;--body:"Iowan Old Style",Georgia,serif;--head-weight:400}
 .hero{text-align:center;border-bottom:1px solid var(--ink);margin-bottom:40px}
 .hero .tagline{margin-left:auto;margin-right:auto;font-style:italic}
 .s>h2{border-top:3px double var(--ink);padding-top:14px}
@@ -123,9 +114,8 @@ blockquote{border:0;background:var(--surface);border-radius:var(--radius);paddin
     id: 'notebook',
     name: 'Notebook',
     swatch: (0xFFFFFDF5, 0xFF1864AB),
-    fonts: ['Caveat'],
     css: '''
-body{--bg:#fffdf5;--surface:#fffef9;--ink:#26304a;--muted:#58607a;--line:#c9d6ea;--radius:3px;--shadow:0 1px 3px rgba(0,0,0,.12);--head:"Caveat","Bradley Hand","Segoe Print",cursive;--body:"Iowan Old Style",Georgia,serif;--head-weight:500}
+body{--bg:#fffdf5;--surface:#fffef9;--ink:#26304a;--muted:#58607a;--line:#c9d6ea;--radius:3px;--shadow:0 1px 3px rgba(0,0,0,.12);--head:"Bradley Hand","Segoe Print",cursive;--body:"Iowan Old Style",Georgia,serif;--head-weight:500}
 body{background-image:linear-gradient(90deg,transparent 30px,#f3b8b8 30px,#f3b8b8 32px,transparent 32px),repeating-linear-gradient(transparent 0,transparent 27px,#dbe5f3 27px,#dbe5f3 28px);background-attachment:local}
 .page{padding-left:48px}
 h1{font-size:clamp(46px,12vw,72px);letter-spacing:0}

@@ -31,5 +31,6 @@ separate built-in imagegen edit of the original lavender cover, with a centered
 “The” / “Redkeep” title and small gold castle. The prompt, exact master and
 JPEG derivative are indexed in the local reference library. The CSS cover-title
 patch was removed; live name text still uses the clear original writing area.
-The site wordmark is live text and chapter labels remain HTML/CSS overlays. The favicon is
-original inline SVG text, not a copied app icon. Publication is outside W01.
+The site wordmark is live text and chapter labels remain HTML/CSS overlays. The favicon
+uses a separate 48 × 48 PNG resized from the Grand Maester original (`j.png`) on every
+page. The full-size original remains unchanged. Publication is outside W01.

@@ -1,5 +1,3 @@
-import '../../../core/presentation/rendering_policy.dart';
-
 import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 
@@ -277,17 +275,7 @@ class SyncAccountCard extends ConsumerWidget {
                         InkWell(
                           key: const ValueKey('sync-card-status'),
                           onTap: isSignedIn
-                              ? () => showModalBottomSheet<void>(
-                                  context: context,
-                                  isScrollControlled: true,
-                                  sheetAnimationStyle:
-                                      RenderingPolicyScope.of(context)
-                                          .reducedMotion
-                                      ? AnimationStyle.noAnimation
-                                      : null,
-                                  showDragHandle: true,
-                                  builder: (_) => const SyncAccountSheet(),
-                                )
+                              ? () => SyncAccountSheet.show(context)
                               : null,
                           child: Ink(
                             padding: const EdgeInsets.symmetric(vertical: 12),

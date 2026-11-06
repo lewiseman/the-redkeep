@@ -44,6 +44,14 @@ void main() {
     double width = 390,
     double scale = 1,
     bool connected = true,
+    SyncEngineState state = const SyncEngineState(
+      role: SyncDeviceRole.secondary,
+      primary: PrimaryDevice(
+        deviceId: 'other',
+        deviceName: 'Other phone',
+        fileId: 'registry',
+      ),
+    ),
   }) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = Size(width, 844);
@@ -72,18 +80,7 @@ void main() {
               ),
             ),
           ),
-          syncEngineProvider.overrideWith(
-            () => FixedEngine(
-              const SyncEngineState(
-                role: SyncDeviceRole.secondary,
-                primary: PrimaryDevice(
-                  deviceId: 'other',
-                  deviceName: 'Other phone',
-                  fileId: 'registry',
-                ),
-              ),
-            ),
-          ),
+          syncEngineProvider.overrideWith(() => FixedEngine(state)),
           onboardingControllerProvider.overrideWith(NamedOnboarding.new),
           accountResetStorageProvider.overrideWithValue(MemoryResetStorage()),
         ],
@@ -106,6 +103,28 @@ void main() {
               child: Builder(
                 builder: (context) {
                   if (screen == 'more') return const MorePage();
+                  if (screen == 'nested') {
+                    return Navigator(
+                      key: const ValueKey('nested-navigator'),
+                      onGenerateRoute: (_) => MaterialPageRoute<void>(
+                        builder: (context) => Material(
+                          child: Align(
+                            alignment: Alignment.topCenter,
+                            child: SizedBox(
+                              height: SyncAccountCard.expandedHeight(
+                                context,
+                                isSignedIn: true,
+                              ),
+                              child: SyncAccountCard(
+                                collapseProgress: 0,
+                                onExpand: () {},
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }
                   if (screen == 'sheet') return const SyncAccountSheet();
                   if (screen == 'reset') {
                     return const ResetAccountPage(
@@ -145,6 +164,12 @@ void main() {
     expect(tester.takeException(), isNull);
   }
 
+  // Unmount inside the test so Drift's stream-close timers can run.
+  Future<void> unmount(WidgetTester tester) async {
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+  }
+
   for (final brightness in Brightness.values) {
     testWidgets(
       'scrolling collapses the sync card; tapping expands it ${brightness.name}',
@@ -169,8 +194,72 @@ void main() {
           84,
         );
         expect(tester.takeException(), isNull);
+        await unmount(tester);
       },
     );
+    testWidgets(
+      'account sheet opens above nested navigators ${brightness.name}',
+      (tester) async {
+        await pump(tester, brightness: brightness, screen: 'nested');
+        await tester.tap(find.byKey(const ValueKey('sync-card-status')));
+        await tester.pumpAndSettle();
+        expect(find.byType(SyncAccountSheet), findsOneWidget);
+        expect(
+          find.ancestor(
+            of: find.byType(SyncAccountSheet),
+            matching: find.byKey(const ValueKey('nested-navigator')),
+          ),
+          findsNothing,
+        );
+        expect(find.text('Other phone'), findsOneWidget);
+        expect(find.text('Add-only'), findsOneWidget);
+        expect(
+          find.byKey(const ValueKey('reclaim-primary-role')),
+          findsOneWidget,
+        );
+
+        // Scrolling the content keeps the sheet open…
+        final sheet = find.byType(SyncAccountSheet);
+        await tester.drag(sheet, const Offset(0, -300));
+        await tester.pumpAndSettle();
+        expect(sheet, findsOneWidget);
+        // …and pulling down past the top carries the sheet down and closes it.
+        await tester.fling(sheet, const Offset(0, 800), 2000);
+        await tester.pumpAndSettle();
+        expect(sheet, findsNothing);
+        expect(tester.takeException(), isNull);
+        await unmount(tester);
+      },
+    );
+    testWidgets('syncing shows one progress animation ${brightness.name}', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        brightness: brightness,
+        screen: 'sheet',
+        state: const SyncEngineState(
+          status: EngineSyncState.syncing,
+          activity: 'Uploading entries…',
+          role: SyncDeviceRole.primary,
+        ),
+      );
+      Finder inSheet(Finder finder) =>
+          find.descendant(of: find.byType(SyncAccountSheet), matching: finder);
+      expect(find.text('Uploading entries…'), findsOneWidget);
+      expect(inSheet(find.byType(LinearProgressIndicator)), findsNothing);
+      expect(inSheet(find.byType(CircularProgressIndicator)), findsNothing);
+      expect(inSheet(find.byType(RotationTransition)), findsNothing);
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.byKey(const ValueKey('account-sync-now')),
+            )
+            .onPressed,
+        isNull,
+      );
+      await unmount(tester);
+    });
     for (final screen in ['more', 'expanded', 'collapsed', 'sheet', 'reset']) {
       testWidgets('sync UI 320px 3x ${brightness.name} $screen', (
         tester,
@@ -194,9 +283,27 @@ void main() {
           );
           await tester.enterText(
             find.byKey(const ValueKey('reset-confirmation-input')),
-            'DELETE',
+            'DELX',
           );
           await tester.pumpAndSettle();
+          expect(
+            tester
+                .widget<FilledButton>(
+                  find.byKey(const ValueKey('confirm-reset-account')),
+                )
+                .onPressed,
+            isNull,
+          );
+          expect(find.text('ERASED'), findsNothing);
+          expect(find.textContaining('doesn’t match'), findsOneWidget);
+          await tester.enterText(
+            find.byKey(const ValueKey('reset-confirmation-input')),
+            'delete',
+          );
+          await tester.pumpAndSettle();
+          expect(find.text('DELETE'), findsOneWidget);
+          expect(find.text('ERASED'), findsOneWidget);
+          expect(find.text('Ready. This cannot be undone.'), findsOneWidget);
           expect(
             tester
                 .widget<FilledButton>(
@@ -207,6 +314,7 @@ void main() {
           );
         }
         expect(tester.takeException(), isNull);
+        await unmount(tester);
       });
     }
   }

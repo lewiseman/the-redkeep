@@ -22,7 +22,7 @@ enum EngineSyncState {
   String get statusLabel => switch (this) {
     idle => 'Connected',
     pending => 'Changes pending',
-    syncing => 'Syncing journal',
+    syncing => 'Syncing data',
     offline => 'Offline',
     unauthenticated => 'On this device',
     error => 'Sync needs attention',
@@ -54,7 +54,7 @@ class SyncEngineState {
   bool get isSyncing => status == EngineSyncState.syncing;
   String get statusLabel =>
       status == EngineSyncState.idle && lastSyncTime != null
-      ? 'Journal synced'
+      ? 'Data synced'
       : status.statusLabel;
   String descriptionFor(SyncBackend backend) => switch (status) {
     EngineSyncState.idle =>
@@ -68,7 +68,7 @@ class SyncEngineState {
     EngineSyncState.offline =>
       'Your changes are saved here and will retry when connected.',
     EngineSyncState.unauthenticated =>
-      'Connect ${backend.displayName} to sync your journal.',
+      'Connect ${backend.displayName} to sync your data.',
     EngineSyncState.error =>
       lastError ?? 'Sync could not finish. Your changes are saved here.',
   };

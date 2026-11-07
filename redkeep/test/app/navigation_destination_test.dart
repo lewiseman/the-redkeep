@@ -5,7 +5,7 @@ void main() {
   test(
     'Grand Maestar is addressable through gates; old AI sub-pages are not',
     () {
-      for (final path in ['/settings/brain']) {
+      for (final path in ['/settings/brain', '/settings/brain/library']) {
         expect(validatedNavigationLocation(path), path);
         final gated = navigationRedirect(
           Uri.parse(path),

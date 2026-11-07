@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:redkeep/app/bottom_navbar.dart';
 import 'package:redkeep/app/more_page.dart';
+import 'package:redkeep/features/ai/presentation/ai_settings_page.dart';
 import 'package:redkeep/features/appearance/presentation/appearance_page.dart';
 import 'package:redkeep/features/flow/presentation/flow_page.dart';
 import 'package:redkeep/features/flow/presentation/flow_search_page.dart';
@@ -36,6 +37,7 @@ void main() {
     final router = await pumpApp(tester, initialLocation: '/more');
     for (final location in [
       '/settings/brain',
+      '/settings/brain/library',
       '/flow/$thought',
       '/flow/$thought/edit',
     ]) {
@@ -63,6 +65,12 @@ void main() {
   final journeys = <(String, String, List<(String, bool)>, Type)>[
     ('Appearance from More', '/more', [('/settings', true)], MorePage),
     ('Grand Maestar from More', '/more', [('/settings/brain', true)], MorePage),
+    (
+      'the Library from Grand Maestar',
+      '/more',
+      [('/settings/brain', true), ('/settings/brain/library', true)],
+      AiSettingsPage,
+    ),
     ('a thought from Flow', '/flow', [('/flow/$thought', false)], FlowPage),
     (
       'a thought from search',

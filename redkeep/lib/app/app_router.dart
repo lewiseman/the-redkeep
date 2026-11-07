@@ -1,4 +1,5 @@
 import '../features/ai/presentation/ai_settings_page.dart';
+import '../features/recall/presentation/recall_library_page.dart';
 import '../features/notes/presentation/note_ai_sheet.dart';
 import '../features/notes/presentation/note_ai_widgets.dart';
 import '../features/diary/presentation/diary_photos_page.dart';
@@ -247,6 +248,14 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
                     parentNavigatorKey: fullPage,
                     pageBuilder: (context, state) =>
                         _page(state, const AiSettingsPage()),
+                    routes: [
+                      GoRoute(
+                        path: 'library',
+                        parentNavigatorKey: fullPage,
+                        pageBuilder: (context, state) =>
+                            _page(state, const RecallLibraryPage()),
+                      ),
+                    ],
                   ),
                 ],
               ),

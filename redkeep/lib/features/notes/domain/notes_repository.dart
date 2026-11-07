@@ -3,30 +3,24 @@ import 'note_collection_entry.dart';
 import 'notes_query.dart';
 
 abstract interface class NotesRepository {
-  /// Overlay recovery drafts before searching. Trash shows saved sources only.
   Stream<List<NoteCollectionEntry>> watchCollection({
     NotesQuery query = const NotesQuery(),
-    bool draftsOnly = false,
   });
   Stream<List<NoteListing>> watchNotes({NotesQuery query = const NotesQuery()});
   Stream<List<String>> watchTags({bool trash = false});
-  Stream<List<NoteListing>> watchDrafts();
   Stream<OpenNote> watchDocument(String id);
   Future<OpenNote> openDocument(String id);
 
-  /// Compare-and-swap protects recovery writing from another open editor.
-  /// Title and body cannot both be empty or whitespace-only.
-  Future<RecoveryDraft> putDraft({
+  /// Saves writing straight into the note with a compare-and-swap.
+  /// [expectedRevision] 0 creates the note and fails if it already exists;
+  /// otherwise the live note must still be at that revision. Title, body and
+  /// details cannot all be empty.
+  Future<NoteDocument> saveNote({
     required String id,
+    required int expectedRevision,
     required PlainTextDocument text,
-    required int baseRevision,
-    required int? expectedDraftRevision,
-    NoteDetails? details,
+    required NoteDetails details,
   });
-
-  /// Commit note and remove precisely this draft in one transaction.
-  /// Failure, including stale/deleted sources, must leave the draft intact.
-  Future<NoteDocument> commitDraft(String id, int expectedDraftRevision);
   Future<void> deleteNote(String id, int expectedRevision);
   Future<void> organize(
     String id,
@@ -36,15 +30,10 @@ abstract interface class NotesRepository {
   });
   Future<void> restoreNote(String id, int expectedRevision);
 
-  /// Only trashed notes. Atomically removes the source, tags and precisely the
-  /// recovery draft reviewed by the user. A changed draft blocks deletion.
-  Future<void> permanentlyDelete(
-    String id,
-    int expectedRevision, {
-    required int? expectedDraftRevision,
-  });
+  /// Only trashed notes. Atomically removes the source and its tags.
+  Future<void> permanentlyDelete(String id, int expectedRevision);
 
-  /// Applies a reviewed saved-note proposal atomically; a recovery draft blocks it.
+  /// Applies a reviewed saved-note proposal atomically.
   Future<NoteDocument> applyProposal(
     String id,
     int expectedRevision, {
@@ -61,5 +50,4 @@ abstract interface class NotesRepository {
     int expectedRevision,
   );
   Future<void> clearPriorContent(String id);
-  Future<void> discardDraft(String id, int expectedDraftRevision);
 }

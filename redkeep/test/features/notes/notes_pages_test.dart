@@ -11,6 +11,7 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:redkeep/app/navigation_destination.dart';
 import 'package:redkeep/app/app_router.dart';
 import 'package:redkeep/core/storage/app_database.dart';
@@ -24,6 +25,8 @@ import 'package:redkeep/features/notes/domain/notes_query.dart';
 import '../../support/controlled_notes_repository.dart';
 import '../../support/fake_appearance_repository.dart';
 import '../../support/pump_app.dart';
+
+import 'package:redkeep/features/notes/presentation/note_read_page.dart';
 
 const id = '11111111111111111111111111111111';
 
@@ -52,11 +55,14 @@ void main() {
   Future<void> tap(WidgetTester tester, String text) async {
     FocusManager.instance.primaryFocus?.unfocus();
     await tester.pumpAndSettle();
-    if (text == 'Save note') text = 'Save';
-    if (text == 'Save' &&
-        find.text('Save').evaluate().isEmpty &&
-        find.byTooltip('Save note').evaluate().isNotEmpty) {
-      await tester.tap(find.byTooltip('Save note'));
+    // Writing saves itself; leaving the editor is the only finish action.
+    if (text == 'Save note' || text == 'Save' || text == 'Done') {
+      await tester.tap(find.byTooltip('Close editor'));
+      await tester.pumpAndSettle();
+      return;
+    }
+    if (text == 'Close editor') {
+      await tester.tap(find.byTooltip('Close editor'));
       await tester.pumpAndSettle();
       return;
     }
@@ -107,17 +113,21 @@ void main() {
   }
 
   Future<void> seed({
-    bool committed = true,
+    String noteId = id,
+    String title = 'Synthetic note',
     String body = 'Synthetic writing 👩🏽‍💻 العربية e\u0301',
-  }) async {
-    final draft = await repo.putDraft(
-      id: id,
-      text: PlainTextDocument(title: 'Synthetic note', body: body),
-      baseRevision: 0,
-      expectedDraftRevision: null,
-    );
-    if (committed) await repo.commitDraft(id, draft.draftRevision);
-  }
+  }) => repo.saveNote(
+    id: noteId,
+    text: PlainTextDocument(title: title, body: body),
+    expectedRevision: 0,
+    details: const NoteDetails(),
+  );
+
+  Finder bodyField() => find.byKey(const ValueKey('note-body'));
+  String bodyText(WidgetTester tester) =>
+      tester.widget<TextField>(bodyField()).controller!.text;
+  String path(GoRouter router) =>
+      router.routeInformationProvider.value.uri.path;
 
   double paperFold(WidgetTester tester) =>
       (tester
@@ -134,27 +144,12 @@ void main() {
           .fold;
 
   noteTest(
-    'All overlays drafts, Drafts filters cards, and user draft tags stay distinct',
+    'there is no Drafts collection; a user tag named drafts is ordinary',
     (tester) async {
       await seed();
       await repo.organize(id, 1, pinned: true, tags: ['drafts']);
-      await repo.putDraft(
-        id: id,
-        text: const PlainTextDocument(
-          title: 'Working title',
-          body: 'Recovery writing',
-        ),
-        baseRevision: 2,
-        expectedDraftRevision: null,
-      );
       const other = '22222222222222222222222222222222';
-      final saved = await repo.putDraft(
-        id: other,
-        text: const PlainTextDocument(title: 'Other saved note'),
-        baseRevision: 0,
-        expectedDraftRevision: null,
-      );
-      await repo.commitDraft(other, saved.draftRevision);
+      await seed(noteId: other, title: 'Other saved note');
       final router = await pumpApp(
         tester,
         initialLocation: '/notes',
@@ -162,36 +157,22 @@ void main() {
       );
       expect(find.byType(RedkeepBottomNavbar), findsOneWidget);
       expect(find.byType(NoteCard), findsNWidgets(2));
-      expect(find.text('Synthetic note'), findsNothing);
-      expect(find.text('Working title'), findsOneWidget);
-      expect(find.text('Draft'), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('notes-drafts')));
-      await tester.pumpAndSettle();
-      expect(find.byType(NoteCard), findsOneWidget);
-      expect(tester.container().read(notesDraftsOnlyProvider), isTrue);
+      expect(find.byKey(const ValueKey('notes-drafts')), findsNothing);
+      expect(find.text('Draft'), findsNothing);
       await tester.tap(find.byKey(const ValueKey('notes-tag-drafts')));
       await tester.pumpAndSettle();
-      expect(tester.container().read(notesDraftsOnlyProvider), isFalse);
       expect(tester.container().read(notesFilterProvider).tag, 'drafts');
-      await tap(tester, 'Working title');
-      expect(
-        router.routeInformationProvider.value.uri.path,
-        noteLocation(id, edit: true),
-      );
+      expect(find.byType(NoteCard), findsOneWidget);
+      await tap(tester, 'Synthetic note');
+      expect(path(router), noteLocation(id));
       expect(find.byType(RedkeepBottomNavbar), findsNothing);
-      expect(
-        tester
-            .widget<TextField>(find.byKey(const ValueKey('note-body')))
-            .controller!
-            .text,
-        'Recovery writing',
-      );
+      expect(bodyField(), findsNothing, reason: 'notes open for reading');
     },
   );
 
   for (final reducedMotion in [false, true]) {
     noteTest(
-      'reading unfolds and Back collapses without creating a draft; reduced=$reducedMotion',
+      'reading unfolds, Back collapses, and editing stays on the page; reduced=$reducedMotion',
       (tester) async {
         await seed(
           body: List.filled(80, 'A long line of writing to unfold.').join('\n'),
@@ -217,32 +198,43 @@ void main() {
         );
         await tester.pumpAndSettle();
         expect(paperFold(tester), 0);
-        expect((await repo.openDocument(id)).draft, isNull);
-        expect(
-          router.routeInformationProvider.value.uri.path,
-          noteLocation(id),
-        );
+        expect((await repo.openDocument(id)).note!.revision, 1);
+        expect(path(router), noteLocation(id));
         await tap(tester, 'Back');
         expect(paperFold(tester), greaterThan(0));
         expect(
           router.routeInformationProvider.value.uri.path,
           noteLocation(id),
         );
+        final readingPaper = tester.state(find.byType(NotePaper));
         await tap(tester, 'Edit note');
         expect(paperFold(tester), 0);
-        await tester.enterText(
-          find.byKey(const ValueKey('note-body')),
-          'Changed writing',
+        // Editing is the same paper made editable: no navigation, no new page.
+        expect(path(router), noteLocation(id));
+        expect(tester.state(find.byType(NotePaper)), same(readingPaper));
+        // While editing, pulling down cannot fold the paper back to preview.
+        await tester.drag(
+          find.byType(CustomScrollView).last,
+          const Offset(0, 300),
         );
         await tester.pumpAndSettle();
-        await tap(tester, 'Save');
-        expect(
-          router.routeInformationProvider.value.uri.path,
-          noteLocation(id),
-        );
-        expect(paperFold(tester), greaterThan(0));
+        expect(paperFold(tester), 0);
+        await tester.enterText(bodyField(), 'Changed writing');
+        await tester.pumpAndSettle();
+        await tap(tester, 'Done');
+        expect(path(router), noteLocation(id));
+        expect(bodyField(), findsNothing);
+        // Done returns to immersive reading on the same paper.
+        expect(tester.state(find.byType(NotePaper)), same(readingPaper));
+        expect(paperFold(tester), 0);
         expect(find.text('Changed writing'), findsOneWidget);
-        expect((await repo.openDocument(id)).draft, isNull);
+        // Back folds the immersive paper before leaving the note.
+        await tap(tester, 'Back');
+        expect(paperFold(tester), greaterThan(0));
+        expect(
+          (await repo.openDocument(id)).note!.text.body,
+          'Changed writing',
+        );
         await tap(tester, 'Back');
         expect(router.routeInformationProvider.value.uri.path, '/notes');
         expect(find.byType(RedkeepBottomNavbar), findsOneWidget);
@@ -250,7 +242,7 @@ void main() {
     );
   }
 
-  noteTest('create, committed feedback, read, edit and confirmed deletion', (
+  noteTest('create, read, edit and confirmed deletion on one page', (
     tester,
   ) async {
     final router = await pumpApp(
@@ -261,18 +253,16 @@ void main() {
     );
     expect(find.text('Every idea\nstarts somewhere.'), findsOneWidget);
     await tap(tester, 'Create note');
-    expect(
-      router.routeInformationProvider.value.uri.path,
-      noteLocation(id, edit: true),
-    );
+    expect(router.routeInformationProvider.value.uri.path, noteLocation(id));
     await tester.enterText(find.byKey(const ValueKey('note-title')), 'My note');
     await tester.enterText(
       find.byKey(const ValueKey('note-body')),
       'Hello 👩🏽‍💻\nHabari • 中文',
     );
     await tester.pumpAndSettle();
-    await tap(tester, 'Save note');
-    expect(find.text('Saved revision 1 on this device.'), findsOneWidget);
+    await tap(tester, 'Done');
+    expect(bodyField(), findsNothing);
+    expect(find.text('Note unavailable'), findsNothing);
     expect(
       find.byWidgetPredicate(
         (widget) =>
@@ -291,8 +281,11 @@ void main() {
       'Revised writing',
     );
     await tester.pumpAndSettle();
-    await tap(tester, 'Save note');
-    expect(find.text('Saved revision 2 on this device.'), findsOneWidget);
+    await tap(tester, 'Done');
+    expect((await repo.openDocument(id)).note!.revision, 2);
+    // Immersive reading offers only AI and Edit; folding shows the actions.
+    expect(find.byTooltip('Note actions'), findsNothing);
+    await tap(tester, 'Back');
     await tap(tester, 'Delete note');
     await tap(tester, 'Keep note');
     expect((await repo.openDocument(id)).available, isTrue);
@@ -309,159 +302,141 @@ void main() {
   });
 
   noteTest(
-    'back retains draft, navigation reopens it and discard keeps committed note',
+    'back from a new note: empty returns to the list, writing shows the note',
     (tester) async {
-      await seed();
+      var next = 0;
+      final ids = [id, '22222222222222222222222222222222'];
       final router = await pumpApp(
         tester,
-        initialLocation: noteLocation(id, edit: true),
+        initialLocation: '/notes',
         notes: repo,
+        noteId: () => ids[next++],
       );
-      await tester.enterText(
-        find.byKey(const ValueKey('note-body')),
-        'Uncommitted navigation writing',
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(
-        find.byTooltip('Close editor').evaluate().isNotEmpty
-            ? find.byTooltip('Close editor')
-            : find.byTooltip('Back'),
-      );
-      await tester.pumpAndSettle();
-      expect(router.routeInformationProvider.value.uri.path, noteLocation(id));
-      expect(find.byTooltip('Resume draft'), findsOneWidget);
-      await tester.tap(
-        find.byTooltip('Close editor').evaluate().isNotEmpty
-            ? find.byTooltip('Close editor')
-            : find.byTooltip('Back'),
-      );
-      await tester.pumpAndSettle();
-      if (router.routeInformationProvider.value.uri.path != '/notes') {
-        await tester.tap(
-          find.byTooltip('Close editor').evaluate().isNotEmpty
-              ? find.byTooltip('Close editor')
-              : find.byTooltip('Back'),
-        );
-        await tester.pumpAndSettle();
-      }
-      expect(find.byKey(const ValueKey('notes-drafts')), findsOneWidget);
-      await tap(tester, 'Synthetic note');
-      expect(
-        tester
-            .widget<TextField>(find.byKey(const ValueKey('note-body')))
-            .controller!
-            .text,
-        'Uncommitted navigation writing',
-      );
-      await tap(tester, 'Discard draft');
-      await tap(tester, 'Keep writing');
-      expect((await repo.openDocument(id)).draft, isNotNull);
-      await tap(tester, 'Discard draft');
-      await tap(tester, 'Discard');
-      expect((await repo.openDocument(id)).draft, isNull);
-      expect((await repo.openDocument(id)).note!.revision, 1);
-      expect(router.routeInformationProvider.value.uri.path, '/notes');
-      expect(tester.takeException(), isNull);
-    },
-  );
-
-  noteTest(
-    'failed save and recovery retain text, block unsafe back and retry',
-    (tester) async {
-      await seed(committed: false);
-      final router = await pumpApp(
-        tester,
-        initialLocation: noteLocation(id, edit: true),
-        notes: repo,
-      );
-      repo.failDraft = true;
-      await tester.enterText(
-        find.byKey(const ValueKey('note-body')),
-        'Retain this buffer',
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(
-        find.byTooltip('Close editor').evaluate().isNotEmpty
-            ? find.byTooltip('Close editor')
-            : find.byTooltip('Back'),
-      );
-      await tester.pumpAndSettle();
-      expect(
-        router.routeInformationProvider.value.uri.path,
-        noteLocation(id, edit: true),
-      );
-      expect(
-        find.textContaining('Recovery could not be saved'),
-        findsOneWidget,
-      );
-      repo.failDraft = false;
-      await tap(tester, 'Retry recovery');
-      repo.failCommit = true;
-      await tap(tester, 'Save note');
-      expect(find.textContaining('Save failed.'), findsOneWidget);
-      expect(
-        (await repo.openDocument(id)).draft!.text.body,
-        'Retain this buffer',
-      );
-      repo.failCommit = false;
-      repo.commitGate = Completer<void>();
-      final container = tester.container();
-      final saving = container.read(noteEditorProvider(id).notifier).save();
-      await tester.pump();
-      expect(find.text('Saving…'), findsOneWidget);
-      expect(
-        find.textContaining('Saved revision 1 on this device.'),
-        findsNothing,
-      );
-      repo.commitGate!.complete();
-      await saving;
-      await tester.pumpAndSettle();
-      expect(find.text('Saved revision 1 on this device.'), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    },
-  );
-
-  noteTest(
-    'opening an empty note creates no draft; list/read failures recover',
-    (tester) async {
-      final router = await pumpApp(
-        tester,
-        initialLocation: noteLocation(id),
-        notes: repo,
-        noteId: () => id,
-      );
-      expect(find.text('Note unavailable'), findsOneWidget);
-      await tap(tester, 'Return to Notes');
       await tap(tester, 'Create note');
-      expect((await repo.openDocument(id)).draft, isNull);
-      await tester.tap(
-        find.byTooltip('Close editor').evaluate().isNotEmpty
-            ? find.byTooltip('Close editor')
-            : find.byTooltip('Back'),
-      );
-      await tester.pumpAndSettle();
+      expect(path(router), noteLocation(id));
+      await tap(tester, 'Close editor');
+      expect(path(router), '/notes');
+      expect(find.text('Note unavailable'), findsNothing);
       expect(find.text('Open recovery draft'), findsNothing);
-      repo.failRead = true;
-      await tester.pumpWidget(const SizedBox());
-      await pumpApp(tester, initialLocation: '/notes', notes: repo);
-      await tester.scrollUntilVisible(
-        find.text('Notes could not be loaded.'),
-        200,
-        scrollable: find.byType(Scrollable).last,
-      );
-      expect(find.text('Notes could not be loaded.'), findsOneWidget);
-      repo.failRead = false;
-      while (find.text('Retry loading').evaluate().isNotEmpty) {
-        await tester.ensureVisible(find.text('Retry loading').first);
-        await tester.tap(find.text('Retry loading').first);
-        await tester.pumpAndSettle();
-      }
+      expect((await repo.openDocument(id)).note, isNull);
       expect(find.text('Every idea\nstarts somewhere.'), findsOneWidget);
+
+      await tap(tester, 'Create note');
+      expect(path(router), noteLocation(ids[1]));
+      await tester.enterText(find.byKey(const ValueKey('note-title')), 'Kept');
+      await tester.enterText(bodyField(), 'Saved by going back');
+      await tester.pumpAndSettle();
+      // The system back gesture or button.
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      // Writing saved itself; leaving the editor shows the note it made.
+      expect(path(router), noteLocation(ids[1]));
+      expect(bodyField(), findsNothing);
+      expect(find.text('Kept'), findsOneWidget);
+      expect(
+        (await repo.openDocument(ids[1])).note!.text.body,
+        'Saved by going back',
+      );
       expect(tester.takeException(), isNull);
-      // Router from the first disposed scope is intentionally never reused.
-      expect(router, isNotNull);
     },
   );
+
+  noteTest('a failed save keeps editing open with the writing; retry leaves', (
+    tester,
+  ) async {
+    await seed();
+    final router = await pumpApp(
+      tester,
+      initialLocation: noteLocation(id),
+      notes: repo,
+    );
+    await startEditing(tester);
+    repo.failSave = true;
+    await tester.enterText(bodyField(), 'Retain this buffer');
+    await tester.pumpAndSettle();
+    await tap(tester, 'Close editor');
+    expect(path(router), noteLocation(id));
+    expect(bodyText(tester), 'Retain this buffer');
+    expect(find.textContaining('could not be saved'), findsOneWidget);
+    expect((await repo.openDocument(id)).note!.revision, 1);
+    repo.failSave = false;
+    repo.saveGate = Completer<void>();
+    await tester.tap(find.byTooltip('Close editor'));
+    await tester.pump();
+    expect(find.text('Saving…'), findsOneWidget);
+    expect(bodyField(), findsOneWidget, reason: 'waits for the save');
+    repo.saveGate!.complete();
+    await tester.pumpAndSettle();
+    expect(bodyField(), findsNothing);
+    expect(path(router), noteLocation(id));
+    expect((await repo.openDocument(id)).note!.text.body, 'Retain this buffer');
+    expect(tester.takeException(), isNull);
+  });
+
+  noteTest('a change elsewhere offers a copy or discarding', (tester) async {
+    await seed();
+    await pumpApp(
+      tester,
+      initialLocation: noteLocation(id),
+      notes: repo,
+      noteId: () => '33333333333333333333333333333333',
+    );
+    await startEditing(tester);
+    await tester.enterText(bodyField(), 'My conflicting words');
+    await repo.organize(id, 1, pinned: true, tags: []);
+    await tester.pumpAndSettle();
+    await tap(tester, 'Done');
+    expect(find.textContaining('changed somewhere else'), findsOneWidget);
+    await tap(tester, 'Discard changes');
+    await tap(tester, 'Keep writing');
+    expect(bodyText(tester), 'My conflicting words');
+    await tap(tester, 'Save a copy');
+    expect(
+      (await repo.openDocument('33333333333333333333333333333333'))
+          .note!
+          .text
+          .body,
+      'My conflicting words',
+    );
+    expect(
+      (await repo.openDocument(id)).note!.text.body,
+      isNot(contains('My')),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  noteTest('a missing note is unavailable; list read failures recover', (
+    tester,
+  ) async {
+    final router = await pumpApp(
+      tester,
+      initialLocation: noteLocation(id),
+      notes: repo,
+      noteId: () => id,
+    );
+    expect(find.text('Note unavailable'), findsOneWidget);
+    expect(find.text('Open recovery draft'), findsNothing);
+    await tap(tester, 'Return to Notes');
+    repo.failRead = true;
+    await tester.pumpWidget(const SizedBox());
+    await pumpApp(tester, initialLocation: '/notes', notes: repo);
+    await tester.scrollUntilVisible(
+      find.text('Notes could not be loaded.'),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('Notes could not be loaded.'), findsOneWidget);
+    repo.failRead = false;
+    while (find.text('Retry loading').evaluate().isNotEmpty) {
+      await tester.ensureVisible(find.text('Retry loading').first);
+      await tester.tap(find.text('Retry loading').first);
+      await tester.pumpAndSettle();
+    }
+    expect(find.text('Every idea\nstarts somewhere.'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    // Router from the first disposed scope is intentionally never reused.
+    expect(router, isNotNull);
+  });
 
   for (final theme in [AppTheme.light, AppTheme.dark]) {
     for (final simple in [false, true]) {
@@ -507,15 +482,16 @@ void main() {
           await tap(tester, 'Delete note');
           await tap(tester, 'Keep note');
           expect(tester.takeException(), isNull);
-          router.go(noteLocation(id, edit: true));
+          router.go(noteLocation(id));
           await tester.pumpAndSettle();
+          await startEditing(tester);
           await tester.enterText(
             find.byKey(const ValueKey('note-body')),
             'Large text writing 👩🏽‍💻',
           );
           await tester.pumpAndSettle();
-          await tap(tester, 'Save note');
-          expect(find.text('Saved revision 2 on this device.'), findsOneWidget);
+          await tap(tester, 'Done');
+          expect(find.text('Saved revision 2'), findsOneWidget);
           expect(tester.takeException(), isNull);
         },
       );
@@ -533,8 +509,9 @@ void main() {
         notes: repo,
       );
       expect(find.text(text), findsOneWidget);
-      router.go(noteLocation(id, edit: true));
+      router.go(noteLocation(id));
       await tester.pumpAndSettle();
+      await startEditing(tester);
       expect(
         tester
             .widget<TextField>(find.byKey(const ValueKey('note-body')))
@@ -546,123 +523,68 @@ void main() {
     },
   );
 
-  noteTest(
-    'switching IDs replaces the editor buffer and preserves each draft',
-    (tester) async {
-      await seed(committed: false);
-      const other = '22222222222222222222222222222222';
-      await repo.putDraft(
-        id: other,
-        text: const PlainTextDocument(title: 'Other', body: 'Other buffer'),
-        baseRevision: 0,
-        expectedDraftRevision: null,
-      );
-      final router = await pumpApp(
-        tester,
-        initialLocation: noteLocation(id, edit: true),
-        notes: repo,
-      );
-      await tester.enterText(
-        find.byKey(const ValueKey('note-body')),
-        'First buffer',
-      );
-      await tester.pumpAndSettle();
-      router.go(noteLocation(other, edit: true));
-      await tester.pumpAndSettle();
-      expect(
-        tester
-            .widget<TextField>(find.byKey(const ValueKey('note-body')))
-            .controller!
-            .text,
-        'Other buffer',
-      );
-      await tester.enterText(
-        find.byKey(const ValueKey('note-body')),
-        'Second buffer',
-      );
-      await tester.pumpAndSettle();
-      router.go(noteLocation(id, edit: true));
-      await tester.pumpAndSettle();
-      expect(
-        tester
-            .widget<TextField>(find.byKey(const ValueKey('note-body')))
-            .controller!
-            .text,
-        'First buffer',
-      );
-      expect(
-        (await repo.openDocument(other)).draft!.text.body,
-        'Second buffer',
-      );
-      expect(tester.takeException(), isNull);
-    },
-  );
-
-  noteTest('back waits for a pending recovery commit before leaving', (
+  noteTest('switching notes keeps and saves each note\'s writing', (
     tester,
   ) async {
-    await seed(committed: false);
+    await seed();
+    const other = '22222222222222222222222222222222';
+    await seed(noteId: other, title: 'Other', body: 'Other buffer');
     final router = await pumpApp(
       tester,
-      initialLocation: noteLocation(id, edit: true),
+      initialLocation: noteLocation(id),
       notes: repo,
     );
-    repo.draftGate = Completer<void>();
-    await tester.enterText(
-      find.byKey(const ValueKey('note-body')),
-      'Pending recovery',
-    );
-    await tester.pump();
-    await tester.tap(
-      find.byTooltip('Close editor').evaluate().isNotEmpty
-          ? find.byTooltip('Close editor')
-          : find.byTooltip('Back'),
-    );
-    await tester.pump();
-    expect(
-      router.routeInformationProvider.value.uri.path,
-      noteLocation(id, edit: true),
-    );
-    repo.draftGate!.complete();
+    await startEditing(tester);
+    await tester.enterText(bodyField(), 'First buffer');
     await tester.pumpAndSettle();
-    expect(router.routeInformationProvider.value.uri.path, noteLocation(id));
-    expect((await repo.openDocument(id)).draft!.text.body, 'Pending recovery');
+    router.go(noteLocation(other));
+    await tester.pumpAndSettle();
+    await startEditing(tester);
+    expect(bodyText(tester), 'Other buffer');
+    await tester.pump(NoteEditorController.autosaveDelay);
+    await tester.pumpAndSettle();
+    expect((await repo.openDocument(id)).note!.text.body, 'First buffer');
+    await tester.enterText(bodyField(), 'Second buffer');
+    await tester.pumpAndSettle();
+    router.go(noteLocation(id));
+    await tester.pumpAndSettle();
+    await startEditing(tester);
+    expect(bodyText(tester), 'First buffer');
+    await tester.pump(NoteEditorController.autosaveDelay);
+    await tester.pumpAndSettle();
+    expect((await repo.openDocument(other)).note!.text.body, 'Second buffer');
     expect(tester.takeException(), isNull);
   });
 
-  noteTest('warm navigation retains a failed in-memory buffer for reopening', (
+  noteTest('writing that failed to save survives leaving and reopening', (
     tester,
   ) async {
-    await seed(committed: false);
+    await seed();
     final router = await pumpApp(
       tester,
-      initialLocation: noteLocation(id, edit: true),
+      initialLocation: noteLocation(id),
       notes: repo,
     );
-    repo.failDraft = true;
-    await tester.enterText(
-      find.byKey(const ValueKey('note-body')),
-      'Memory retained across platform navigation',
-    );
+    await startEditing(tester);
+    repo.failSave = true;
+    await tester.enterText(bodyField(), 'Memory retained across navigation');
     await tester.pumpAndSettle();
     router.go('/notes');
     await tester.pumpAndSettle();
-    router.go(noteLocation(id, edit: true));
+    await tester.pump(NoteEditorController.autosaveDelay);
     await tester.pumpAndSettle();
+    router.go(noteLocation(id));
+    await tester.pumpAndSettle();
+    await startEditing(tester);
+    expect(bodyText(tester), 'Memory retained across navigation');
+    repo.failSave = false;
+    await tap(tester, 'Done');
     expect(
-      tester
-          .widget<TextField>(find.byKey(const ValueKey('note-body')))
-          .controller!
-          .text,
-      'Memory retained across platform navigation',
-    );
-    repo.failDraft = false;
-    await tap(tester, 'Retry recovery');
-    expect(
-      (await repo.openDocument(id)).draft!.text.body,
-      'Memory retained across platform navigation',
+      (await repo.openDocument(id)).note!.text.body,
+      'Memory retained across navigation',
     );
   });
+
   noteTest(
     'pin, tags, combined filters and explicit trash restoration/deletion',
     (tester) async {
@@ -758,9 +680,9 @@ void main() {
       await tap(tester, 'Delete permanently');
       expect((await repo.openDocument(id)).note, isNull);
       expect(router.routeInformationProvider.value.uri.path, '/notes');
-      router.go(noteLocation(id, edit: true));
+      router.go(noteLocation(id));
       await tester.pumpAndSettle();
-      expect(find.textContaining('Editor unavailable'), findsOneWidget);
+      expect(find.text('Note unavailable'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );
@@ -801,39 +723,29 @@ void main() {
     expect(find.byType(NoteCard).evaluate().length, lessThan(30));
     expect(tester.takeException(), isNull);
   });
-  noteTest(
-    'restore remains available with recovery writing; permanent deletion removes reviewed draft',
-    (tester) async {
-      await seed();
-      await repo.putDraft(
-        id: id,
-        text: const PlainTextDocument(
-          body: 'Retain recovery until deliberate deletion',
-        ),
-        baseRevision: 1,
-        expectedDraftRevision: null,
-      );
-      await repo.deleteNote(id, 1);
-      await pumpApp(tester, initialLocation: noteLocation(id), notes: repo);
-      await tap(tester, 'Restore note');
-      expect((await repo.openDocument(id)).available, isTrue);
-      expect(
-        (await repo.openDocument(id)).draft!.text.body,
-        'Retain recovery until deliberate deletion',
-      );
-      await tap(tester, 'Delete note');
-      await tap(tester, 'Delete');
-      tester.container().read(appRouterProvider).go(noteLocation(id));
-      await tester.pumpAndSettle();
-      await tap(tester, 'Delete forever');
-      await tester.enterText(
-        find.byKey(const ValueKey('delete-confirmation')),
-        'DELETE',
-      );
-      await tester.pumpAndSettle();
-      await tap(tester, 'Delete permanently');
-      expect((await repo.openDocument(id)).note, isNull);
-      expect((await repo.openDocument(id)).draft, isNull);
-    },
-  );
+  noteTest('restore and permanent deletion from Trash', (tester) async {
+    await seed();
+    await repo.deleteNote(id, 1);
+    await pumpApp(tester, initialLocation: noteLocation(id), notes: repo);
+    await tap(tester, 'Restore note');
+    expect((await repo.openDocument(id)).available, isTrue);
+    await tap(tester, 'Delete note');
+    await tap(tester, 'Delete');
+    tester.container().read(appRouterProvider).go(noteLocation(id));
+    await tester.pumpAndSettle();
+    await tap(tester, 'Delete forever');
+    await tester.enterText(
+      find.byKey(const ValueKey('delete-confirmation')),
+      'DELETE',
+    );
+    await tester.pumpAndSettle();
+    await tap(tester, 'Delete permanently');
+    expect((await repo.openDocument(id)).note, isNull);
+  });
+}
+
+/// Editing is a state of the note page; this is what the Edit control does.
+Future<void> startEditing(WidgetTester tester) async {
+  tester.widget<NoteReadView>(find.byType(NoteReadView)).onEdit();
+  await tester.pumpAndSettle();
 }

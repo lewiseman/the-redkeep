@@ -125,12 +125,7 @@ class _NoteToolMenu extends ConsumerWidget {
     final state = editor ? ref.watch(noteEditorProvider(id)).value : null;
     final draft = state?.baseRevision == 0 || opened.value?.note == null;
     final available =
-        opened.hasValue &&
-        (draft
-            ? state != null
-            : opened.value!.available &&
-                  opened.value!.draft == null &&
-                  !editor);
+        opened.hasValue && (draft ? state != null : opened.value!.available);
     final canEdit = ref.watch(syncCanEditProvider);
     final narrow =
         MediaQuery.sizeOf(context).width < 350 ||
@@ -197,7 +192,7 @@ class _NoteToolMenu extends ConsumerWidget {
                   const Padding(
                     padding: EdgeInsets.all(14),
                     child: Text(
-                      'Save your note and close the editor to use these tools.',
+                      'This note is unavailable.',
                       key: ValueKey('note-assistant-save-first'),
                     ),
                   ),
@@ -847,16 +842,15 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
     final note = ref.watch(noteDocumentProvider(job.key)).value;
     final stale =
         note != null &&
-        (source['draft'] == true
+        (source['unsaved'] == true
             ? note.note != null ||
-                  note.draft?.draftRevision != source['draftRevision']
-            : !note.available ||
-                  note.note!.revision != source['revision'] ||
-                  note.draft != null);
+                  ref.watch(noteEditorProvider(job.key)).value?.editVersion !=
+                      source['editVersion']
+            : !note.available || note.note!.revision != source['revision']);
     final canApply =
         note != null &&
         !stale &&
-        (source['draft'] == true || ref.watch(syncCanEditProvider));
+        (source['unsaved'] == true || ref.watch(syncCanEditProvider));
     final result = <Widget>[
       if (stale)
         const Padding(

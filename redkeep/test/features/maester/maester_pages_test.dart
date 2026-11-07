@@ -28,13 +28,12 @@ void main() {
     final notes = DriftNotesRepository(db, clock: () => now);
     final diary = DriftDiaryRepository(db, clock: () => now);
     final flow = DriftFlowRepository(db, clock: () => now);
-    final draft = await notes.putDraft(
+    await notes.saveNote(
       id: id,
       text: const PlainTextDocument(title: 'Existing note', body: writing),
-      baseRevision: 0,
-      expectedDraftRevision: null,
+      expectedRevision: 0,
+      details: const NoteDetails(),
     );
-    await notes.commitDraft(id, draft.draftRevision);
     await diary.save(
       id: id,
       date: date,
@@ -58,7 +57,6 @@ void main() {
         thoughtLocation(id, edit: true),
         '/notes',
         noteLocation(id),
-        noteLocation(id, edit: true),
         '/diary',
         diaryEntryLocation(date, id),
         diaryEntryLocation(date, id, edit: true),

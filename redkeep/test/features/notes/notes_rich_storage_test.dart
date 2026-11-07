@@ -29,60 +29,43 @@ void main() {
   });
   tearDown(() => h.close());
 
-  test(
-    'complete notes, private drafts and prior content survive database reopen',
-    () async {
-      final path = '${h.directory.path}/writing.sqlite';
-      var database = AppDatabase(NativeDatabase(File(path)));
-      var repository = DriftNotesRepository(database, clock: DateTime.now);
-      final draft = await repository.putDraft(
-        id: notesTestId,
-        text: const PlainTextDocument(body: 'Saved words'),
-        baseRevision: 0,
-        expectedDraftRevision: null,
-        details: const NoteDetails(
-          background: {'type': 'sage'},
-          tags: ['travel'],
-        ),
+  test('complete notes and prior content survive database reopen', () async {
+    final path = '${h.directory.path}/writing.sqlite';
+    var database = AppDatabase(NativeDatabase(File(path)));
+    var repository = DriftNotesRepository(database, clock: DateTime.now);
+    var saved = await repository.saveNote(
+      id: notesTestId,
+      text: const PlainTextDocument(body: 'Saved words'),
+      expectedRevision: 0,
+      details: const NoteDetails(
+        background: {'type': 'sage'},
+        tags: ['travel'],
+      ),
+    );
+    saved = await repository.applyProposal(
+      saved.id,
+      saved.revision,
+      text: const PlainTextDocument(body: 'Reviewed words'),
+      details: saved.details,
+      taskId: 'restart-task',
+      operation: 'rewrite-note',
+    );
+    await database.close();
+    database = AppDatabase(NativeDatabase(File(path)));
+    repository = DriftNotesRepository(database, clock: DateTime.now);
+    try {
+      final opened = await repository.openDocument(notesTestId);
+      expect(opened.note!.text.body, 'Reviewed words');
+      expect(opened.note!.details.background['type'], 'sage');
+      expect(opened.note!.tags, ['travel']);
+      expect(
+        (await repository.priorContent(notesTestId)).single.body,
+        'Saved words',
       );
-      var saved = await repository.commitDraft(
-        notesTestId,
-        draft.draftRevision,
-      );
-      saved = await repository.applyProposal(
-        saved.id,
-        saved.revision,
-        text: const PlainTextDocument(body: 'Reviewed words'),
-        details: saved.details,
-        taskId: 'restart-task',
-        operation: 'rewrite-note',
-      );
-      final private = await repository.putDraft(
-        id: saved.id,
-        text: const PlainTextDocument(body: 'Private unfinished words'),
-        baseRevision: saved.revision,
-        expectedDraftRevision: null,
-        details: saved.details.copy(background: {'type': 'rose'}),
-      );
+    } finally {
       await database.close();
-      database = AppDatabase(NativeDatabase(File(path)));
-      repository = DriftNotesRepository(database, clock: DateTime.now);
-      try {
-        final opened = await repository.openDocument(notesTestId);
-        expect(opened.note!.text.body, 'Reviewed words');
-        expect(opened.note!.details.background['type'], 'sage');
-        expect(opened.draft!.text.body, 'Private unfinished words');
-        expect(opened.draft!.details.background['type'], 'rose');
-        expect(opened.draft!.draftRevision, private.draftRevision);
-        expect(
-          (await repository.priorContent(notesTestId)).single.body,
-          'Saved words',
-        );
-      } finally {
-        await database.close();
-      }
-    },
-  );
+    }
+  });
 
   test('lost camera photo keeps its note address and is copied only once before reopening', () async {
     final source = File('${h.directory.path}/picked.png');
@@ -182,31 +165,36 @@ void main() {
     expect(saved.details.background, {'type': 'sage'});
   });
 
-  test('collection excludes large website/body payloads while overlaying full draft metadata', () async {
-    await h.save(
-      body: 'x' * 100000,
-      details: NoteDetails(
-        website: '<html>${'w' * 100000}</html>',
-        background: const {'type': 'rose'},
-      ),
-    );
-    var entry = (await h.repository.watchCollection().first).single;
-    expect(entry.excerpt.length, 600);
-    expect(entry.details.website, isEmpty);
-    await h.repository.putDraft(
-      id: notesTestId,
-      text: const PlainTextDocument(body: 'Draft writing'),
-      baseRevision: 1,
-      expectedDraftRevision: null,
-      details: const NoteDetails(background: {'type': 'sage'}, tags: ['work']),
-    );
-    entry = (await h.repository.watchCollection().first).single;
-    expect(entry.isDraft, isTrue);
-    expect(entry.excerpt, 'Draft writing');
-    expect(entry.details.background['type'], 'sage');
-  });
+  test(
+    'collection excludes large website/body payloads but keeps card metadata',
+    () async {
+      await h.save(
+        body: 'x' * 100000,
+        details: NoteDetails(
+          website: '<html>${'w' * 100000}</html>',
+          background: const {'type': 'rose'},
+        ),
+      );
+      var entry = (await h.repository.watchCollection().first).single;
+      expect(entry.excerpt.length, 600);
+      expect(entry.details.website, isEmpty);
+      expect(entry.details.background['type'], 'rose');
+      await h.repository.saveNote(
+        id: notesTestId,
+        text: const PlainTextDocument(body: 'Edited writing'),
+        expectedRevision: 1,
+        details: const NoteDetails(
+          background: {'type': 'sage'},
+          tags: ['work'],
+        ),
+      );
+      entry = (await h.repository.watchCollection().first).single;
+      expect(entry.excerpt, 'Edited writing');
+      expect(entry.details.background['type'], 'sage');
+    },
+  );
 
-  test('accepted proposals are atomic, refuse drafts, and keep ten local recovery copies', () async {
+  test('accepted proposals are atomic, refuse stale revisions, and keep ten local recovery copies', () async {
     var note = await h.save();
     for (var i = 0; i < 12; i++) {
       note = await h.repository.applyProposal(
@@ -226,16 +214,10 @@ void main() {
       throwsA(isA<NoteException>()),
     );
     final current = (await h.repository.openDocument(note.id)).note!;
-    final draft = await h.repository.putDraft(
-      id: note.id,
-      text: const PlainTextDocument(body: 'Uncommitted'),
-      baseRevision: current.revision,
-      expectedDraftRevision: null,
-    );
     await expectLater(
       h.repository.applyProposal(
         note.id,
-        current.revision,
+        current.revision - 1,
         text: const PlainTextDocument(body: 'Do not overwrite'),
         details: current.details,
         taskId: 'blocked-task',
@@ -244,8 +226,8 @@ void main() {
       throwsA(isA<NoteException>()),
     );
     expect(
-      (await h.repository.openDocument(note.id)).draft!.draftRevision,
-      draft.draftRevision,
+      (await h.repository.openDocument(note.id)).note!.text.body,
+      'Manual change after proposal',
     );
   });
 

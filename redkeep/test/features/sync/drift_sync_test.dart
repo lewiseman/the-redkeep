@@ -69,13 +69,12 @@ class Harness {
 
   Future<NoteDocument> saveNote(String id, String body) async {
     final opened = await notes.openDocument(id);
-    final draft = await notes.putDraft(
+    return notes.saveNote(
       id: id,
       text: PlainTextDocument(body: body),
-      baseRevision: opened.note?.revision ?? 0,
-      expectedDraftRevision: opened.draft?.draftRevision,
+      expectedRevision: opened.note?.revision ?? 0,
+      details: opened.note?.details ?? const NoteDetails(),
     );
-    return notes.commitDraft(id, draft.draftRevision);
   }
 }
 
@@ -197,29 +196,31 @@ void main() {
     expect(h.drive.documents['diary/${date.key}']!.payload['schema'], 3);
   });
 
-  test('committed writing queues atomically; drafts remain private and failed transactions roll back', () async {
-    final draft = await h.notes.putDraft(
-      id: noteId,
-      text: const PlainTextDocument(body: 'private'),
-      baseRevision: 0,
-      expectedDraftRevision: null,
-    );
-    expect(await h.db.select(h.db.syncRecords).get(), isEmpty);
-    await expectLater(
-      h.db.transaction(() async {
-        await h.notes.commitDraft(noteId, draft.draftRevision);
-        throw StateError('rollback');
-      }),
-      throwsStateError,
-    );
-    expect(await h.db.select(h.db.syncRecords).get(), isEmpty);
-    expect((await h.notes.openDocument(noteId)).draft!.text.body, 'private');
-    await h.notes.commitDraft(noteId, draft.draftRevision);
-    expect((await h.storage.pendingCreations).single.id, noteId);
-    await h.engine.syncNow(manual: true);
-    expect(h.drive.documents['note/$noteId']!.payload['body'], 'private');
-    expect(await DriftSyncCollection(h.db, 'note').pendingIds, isEmpty);
-  });
+  test(
+    'saved writing queues atomically and failed transactions roll back',
+    () async {
+      Future<NoteDocument> save() => h.notes.saveNote(
+        id: noteId,
+        text: const PlainTextDocument(body: 'private'),
+        expectedRevision: 0,
+        details: const NoteDetails(),
+      );
+      await expectLater(
+        h.db.transaction(() async {
+          await save();
+          throw StateError('rollback');
+        }),
+        throwsStateError,
+      );
+      expect(await h.db.select(h.db.syncRecords).get(), isEmpty);
+      expect((await h.notes.openDocument(noteId)).note, isNull);
+      await save();
+      expect((await h.storage.pendingCreations).single.id, noteId);
+      await h.engine.syncNow(manual: true);
+      expect(h.drive.documents['note/$noteId']!.payload['body'], 'private');
+      expect(await DriftSyncCollection(h.db, 'note').pendingIds, isEmpty);
+    },
+  );
   test('edits during upload remain pending and exact acknowledgement cannot erase them', () async {
     await h.saveNote(noteId, 'first');
     final entered = Completer<void>(), release = Completer<void>();
@@ -238,49 +239,46 @@ void main() {
     await h.engine.syncNow(manual: true);
     expect(h.drive.documents['note/$noteId']!.payload['body'], 'newer');
   });
-  test('remote changes invalidate editor revisions and preserve recovery drafts, tags and trash', () async {
-    var saved = await h.saveNote(noteId, 'local');
-    await h.notes.organize(
-      noteId,
-      saved.revision,
-      pinned: true,
-      tags: ['keep'],
-    );
-    saved = (await h.notes.openDocument(noteId)).note!;
-    await h.engine.syncNow(manual: true);
-    final draft = await h.notes.putDraft(
-      id: noteId,
-      text: const PlainTextDocument(body: 'unsaved'),
-      baseRevision: saved.revision,
-      expectedDraftRevision: null,
-    );
-    final payload = {
-      ...h.drive.documents['note/$noteId']!.payload,
-      'body': 'remote',
-      'deleted_at': 123,
-    };
-    h.drive.seed('note', noteId, payload);
-    await h.engine.syncNow(manual: true);
-    final opened = await h.notes.openDocument(noteId);
-    expect(opened.note!.text.body, 'remote');
-    expect(opened.note!.tags, ['keep']);
-    expect(opened.note!.pinned, true);
-    expect(opened.draft!.text.body, 'unsaved');
-    expect(opened.note!.revision, greaterThan(saved.revision));
-    await expectLater(
-      h.notes.commitDraft(noteId, draft.draftRevision),
-      throwsA(isA<NoteException>()),
-    );
-  });
+  test(
+    'remote changes invalidate editor revisions and preserve tags and trash',
+    () async {
+      var saved = await h.saveNote(noteId, 'local');
+      await h.notes.organize(
+        noteId,
+        saved.revision,
+        pinned: true,
+        tags: ['keep'],
+      );
+      saved = (await h.notes.openDocument(noteId)).note!;
+      await h.engine.syncNow(manual: true);
+      final payload = {
+        ...h.drive.documents['note/$noteId']!.payload,
+        'body': 'remote',
+        'deleted_at': 123,
+      };
+      h.drive.seed('note', noteId, payload);
+      await h.engine.syncNow(manual: true);
+      final opened = await h.notes.openDocument(noteId);
+      expect(opened.note!.text.body, 'remote');
+      expect(opened.note!.tags, ['keep']);
+      expect(opened.note!.pinned, true);
+      expect(opened.note!.revision, greaterThan(saved.revision));
+      await expectLater(
+        h.notes.saveNote(
+          id: noteId,
+          text: const PlainTextDocument(body: 'unsaved'),
+          expectedRevision: saved.revision,
+          details: const NoteDetails(),
+        ),
+        throwsA(isA<NoteException>()),
+      );
+    },
+  );
   test('permanent removal keeps a durable cloud tombstone and cannot resurrect on sync', () async {
     final saved = await h.saveNote(noteId, 'remove');
     await h.engine.syncNow(manual: true);
     await h.notes.deleteNote(noteId, saved.revision);
-    await h.notes.permanentlyDelete(
-      noteId,
-      saved.revision + 1,
-      expectedDraftRevision: null,
-    );
+    await h.notes.permanentlyDelete(noteId, saved.revision + 1);
     await h.engine.syncNow(manual: true);
     await h.engine.syncNow(manual: true);
     expect(h.drive.documents['note/$noteId']!.payload['removed'], true);
@@ -301,19 +299,18 @@ void main() {
         h.notes.deleteNote(noteId, saved.revision),
         throwsStateError,
       );
-      final recovery = await h.notes.putDraft(
-        id: noteId,
-        text: const PlainTextDocument(body: 'kept before role changed'),
-        baseRevision: saved.revision,
-        expectedDraftRevision: null,
-      );
       await expectLater(
-        h.notes.commitDraft(noteId, recovery.draftRevision),
+        h.notes.saveNote(
+          id: noteId,
+          text: const PlainTextDocument(body: 'edit after role changed'),
+          expectedRevision: saved.revision,
+          details: const NoteDetails(),
+        ),
         throwsStateError,
       );
       expect(
-        (await h.notes.openDocument(noteId)).draft!.text.body,
-        'kept before role changed',
+        (await h.notes.openDocument(noteId)).note!.text.body,
+        'before role',
       );
       await h.saveNote('b' * 32, 'new secondary note');
       await h.engine.syncNow(manual: true);

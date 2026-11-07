@@ -28,7 +28,6 @@ part 'app_database.g.dart';
     AppearanceSettings,
     OnboardingCompletion,
     Notes,
-    NoteDrafts,
     NoteTags,
     NoteAiRecoveries,
     NoteMediaOps,
@@ -47,7 +46,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   // Reset changes this generation before disposing editors. Old repositories
   // cannot write after cleanup, even when an async continuation finishes late.
@@ -74,6 +73,10 @@ class AppDatabase extends _$AppDatabase {
         await customStatement(
           'ALTER TABLE ai_preferences_table DROP COLUMN overrides',
         );
+      }
+      if (from < 3) {
+        // Notes no longer have drafts.
+        await customStatement('DROP TABLE IF EXISTS note_drafts');
       }
     },
   );

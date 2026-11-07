@@ -142,11 +142,6 @@ class NoteCard extends ConsumerWidget {
                           ),
                         ),
                       ),
-                      if (entry.isDraft)
-                        const Padding(
-                          padding: EdgeInsets.only(top: 8),
-                          child: Text('Draft'),
-                        ),
                       if (entry.pinned)
                         const Icon(Icons.push_pin_rounded, size: 14),
                       if (entry.excerpt.trim().isNotEmpty) ...[

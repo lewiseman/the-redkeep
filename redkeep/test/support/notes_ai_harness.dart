@@ -179,14 +179,12 @@ class NotesAiHarness {
     NoteDetails? details,
   }) async {
     final opened = await repository.openDocument(id);
-    final draft = await repository.putDraft(
+    return repository.saveNote(
       id: id,
       text: PlainTextDocument(title: title, body: body),
-      baseRevision: opened.note?.revision ?? 0,
-      expectedDraftRevision: opened.draft?.draftRevision,
-      details: details,
+      expectedRevision: opened.note?.revision ?? 0,
+      details: details ?? opened.note?.details ?? const NoteDetails(),
     );
-    return repository.commitDraft(id, draft.draftRevision);
   }
 
   Future<void> close() async {
@@ -196,4 +194,3 @@ class NotesAiHarness {
     await directory.delete(recursive: true);
   }
 }
-

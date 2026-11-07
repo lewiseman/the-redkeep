@@ -138,7 +138,7 @@ class _AiLifecycleHostState extends ConsumerState<AiLifecycleHost>
             label: 'Open note',
             onPressed: () {
               ref.read(noteNewIdsProvider.notifier).add(pending.id);
-              context.push(noteLocation(pending.id, edit: true));
+              context.push(noteLocation(pending.id));
             },
           ),
         ),

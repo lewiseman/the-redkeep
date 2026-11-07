@@ -60,14 +60,13 @@ void main() {
       clock: () => DateTime.utc(2026, 11, 4),
     );
     final id = 'a' * 32;
-    final draft = await notes.putDraft(
+    expect(await db.select(db.recallQueue).get(), isEmpty);
+    await notes.saveNote(
       id: id,
       text: const PlainTextDocument(title: 'Private draft', body: 'Garden'),
-      baseRevision: 0,
-      expectedDraftRevision: null,
+      expectedRevision: 0,
+      details: const NoteDetails(),
     );
-    expect(await db.select(db.recallQueue).get(), isEmpty);
-    await notes.commitDraft(id, draft.draftRevision);
     final row = await db.select(db.recallQueue).getSingle();
     expect((row.kind, row.sourceId), ('note', id));
     await expectLater(

@@ -18,66 +18,57 @@ void main() {
   });
   tearDown(() => db.close());
 
-  Future<RecoveryDraft> draft({
+  Future<NoteDocument> save({
     String body = 'Words',
-    int base = 0,
-    int? expected,
-  }) => repo.putDraft(
-    id: id,
+    int expected = 0,
+    String noteId = id,
+  }) => repo.saveNote(
+    id: noteId,
     text: PlainTextDocument(title: 'Title', body: body),
-    baseRevision: base,
-    expectedDraftRevision: expected,
+    expectedRevision: expected,
+    details: const NoteDetails(),
   );
 
-  test(
-    'empty and whitespace-only drafts are rejected without replacing writing',
-    () async {
-      for (final text in [
-        const PlainTextDocument(),
-        const PlainTextDocument(title: ' \n', body: '\t\u00a0'),
-      ]) {
-        await expectLater(
-          repo.putDraft(
-            id: id,
-            text: text,
-            baseRevision: 0,
-            expectedDraftRevision: null,
-          ),
-          throwsA(isA<NoteException>()),
-        );
-        expect(await repo.watchDrafts().first, isEmpty);
-      }
-      final existing = await draft(body: 'Keep this');
+  test('empty and whitespace-only notes are rejected', () async {
+    for (final text in [
+      const PlainTextDocument(),
+      const PlainTextDocument(title: ' \n', body: '\t '),
+    ]) {
       await expectLater(
-        repo.putDraft(
+        repo.saveNote(
           id: id,
-          text: const PlainTextDocument(),
-          baseRevision: 0,
-          expectedDraftRevision: existing.draftRevision,
+          text: text,
+          expectedRevision: 0,
+          details: const NoteDetails(),
         ),
         throwsA(isA<NoteException>()),
       );
-      expect((await repo.openDocument(id)).draft!.text.body, 'Keep this');
-    },
-  );
+      expect(await repo.watchNotes().first, isEmpty);
+    }
+    await save(body: 'Keep this');
+    await expectLater(
+      repo.saveNote(
+        id: id,
+        text: const PlainTextDocument(),
+        expectedRevision: 1,
+        details: const NoteDetails(),
+      ),
+      throwsA(isA<NoteException>()),
+    );
+    expect((await repo.openDocument(id)).note!.text.body, 'Keep this');
+  });
 
   test(
     'empty reads seed nothing; create/edit/delete retain a full tombstone',
     () async {
       expect(await repo.watchNotes().first, isEmpty);
-      expect(await repo.watchDrafts().first, isEmpty);
-      final first = await draft();
-      expect((await repo.openDocument(id)).note, isNull);
-      final saved = await repo.commitDraft(id, first.draftRevision);
+      final saved = await save();
       expect(saved.revision, 1);
       expect(saved.createdAt, now);
-      expect((await repo.openDocument(id)).draft, isNull);
-      expect(await repo.watchDrafts().first, isEmpty);
       expect((await repo.watchNotes().first).single.id, id);
-      final edit = await draft(base: 1, body: 'Changed');
-      final updated = await repo.commitDraft(id, edit.draftRevision);
+      final updated = await save(expected: 1, body: 'Changed');
       expect(updated.revision, 2);
-      final retained = await draft(base: 2, body: 'Uncommitted');
+      expect(updated.createdAt, now);
       await repo.deleteNote(id, 2);
       expect(await repo.watchNotes().first, isEmpty);
       final deleted = await repo.openDocument(id);
@@ -86,157 +77,110 @@ void main() {
       expect(deleted.note!.createdAt, now);
       expect(deleted.note!.deletedAt, now);
       expect(deleted.note!.revision, 3);
-      expect(deleted.draft!.text.body, 'Uncommitted');
       await expectLater(
-        repo.commitDraft(id, retained.draftRevision),
+        save(expected: 3, body: 'Revive'),
         throwsA(isA<NoteException>()),
       );
-      expect((await repo.openDocument(id)).draft!.text.body, 'Uncommitted');
+      expect((await repo.openDocument(id)).note!.text.body, 'Changed');
     },
   );
 
   test(
-    'stale sources and stale draft tokens never overwrite or clear writing',
+    'saves compare and swap: no double create, no stale overwrite',
     () async {
-      var recovery = await draft();
-      await repo.commitDraft(id, recovery.draftRevision);
-      recovery = await draft(base: 1, body: 'Latest');
-      await repo.commitDraft(id, recovery.draftRevision);
-      final stale = await draft(base: 1, body: 'Old editor');
+      await save();
       await expectLater(
-        repo.commitDraft(id, stale.draftRevision),
+        save(body: 'Second create'),
+        throwsA(isA<NoteException>()),
+      );
+      await save(expected: 1, body: 'Latest');
+      await expectLater(
+        save(expected: 1, body: 'Old editor'),
         throwsA(isA<NoteException>()),
       );
       expect((await repo.openDocument(id)).note!.text.body, 'Latest');
-      expect((await repo.openDocument(id)).draft!.text.body, 'Old editor');
       await expectLater(repo.deleteNote(id, 1), throwsA(isA<NoteException>()));
-      final newer = await draft(
-        base: 1,
-        body: 'Newest draft',
-        expected: stale.draftRevision,
-      );
-      await expectLater(
-        draft(base: 1, body: 'Clobber', expected: stale.draftRevision),
-        throwsA(isA<NoteException>()),
-      );
-      await expectLater(
-        repo.discardDraft(id, stale.draftRevision),
-        throwsA(isA<NoteException>()),
-      );
-      await repo.discardDraft(id, newer.draftRevision);
-      final replacement = await draft(base: 2);
-      expect(replacement.draftRevision, greaterThan(newer.draftRevision));
-      await expectLater(
-        repo.commitDraft(id, stale.draftRevision),
-        throwsA(isA<NoteException>()),
-      );
-      expect(
-        (await repo.openDocument(id)).draft!.draftRevision,
-        replacement.draftRevision,
-      );
     },
   );
 
-  test(
-    'transaction failures in note write or draft cleanup roll back both',
-    () async {
-      final recovery = await draft(body: 'Must survive');
-      await db.customStatement(
-        "CREATE TRIGGER fail_note BEFORE INSERT ON notes BEGIN SELECT RAISE(ABORT, 'synthetic'); END",
-      );
-      await expectLater(
-        repo.commitDraft(id, recovery.draftRevision),
-        throwsA(isA<Exception>()),
-      );
-      expect((await repo.openDocument(id)).draft!.text.body, 'Must survive');
-      expect((await repo.openDocument(id)).note, isNull);
-      await db.customStatement('DROP TRIGGER fail_note');
-      await db.customStatement(
-        "CREATE TRIGGER fail_cleanup BEFORE DELETE ON note_drafts BEGIN SELECT RAISE(ABORT, 'synthetic'); END",
-      );
-      await expectLater(
-        repo.commitDraft(id, recovery.draftRevision),
-        throwsA(isA<Exception>()),
-      );
-      expect((await repo.openDocument(id)).note, isNull);
-      expect((await repo.openDocument(id)).draft!.text.body, 'Must survive');
-      await db.customStatement('DROP TRIGGER fail_cleanup');
-      await repo.commitDraft(id, recovery.draftRevision);
-    },
-  );
+  test('saved tags and details travel with the note', () async {
+    final saved = await repo.saveNote(
+      id: id,
+      expectedRevision: 0,
+      text: const PlainTextDocument(body: 'Tagged'),
+      details: const NoteDetails(tags: ['🌱#Garden']),
+    );
+    expect(saved.tags, ['🌱#Garden']);
+    expect((await repo.openDocument(id)).note!.tags, ['🌱#Garden']);
+    expect(await repo.watchTags().first, ['🌱#Garden']);
+  });
 
-  test(
-    'background close/reopen preserves Unicode, large bodies and drafts',
-    () async {
-      await db.close();
-      final directory = await Directory.systemTemp.createTemp('redkeep-notes-');
-      addTearDown(() => directory.delete(recursive: true));
-      final file = File.fromUri(directory.uri.resolve('notes.sqlite'));
-      const unicode = 'Swahili: Habari • 中文 • العربية • e\u0301 • 👩🏽‍💻\n';
-      final body = List.filled(24000, unicode).join();
-      var background = AppDatabase(NativeDatabase.createInBackground(file));
-      var repository = DriftNotesRepository(background, clock: () => now);
-      final pending = await repository.putDraft(
-        id: id,
-        text: PlainTextDocument(title: unicode, body: body),
-        baseRevision: 0,
-        expectedDraftRevision: null,
-      );
-      await background.close();
-      background = AppDatabase(NativeDatabase.createInBackground(file));
+  test('a failed note write rolls back', () async {
+    await db.customStatement(
+      "CREATE TRIGGER fail_note BEFORE INSERT ON notes BEGIN SELECT RAISE(ABORT, 'synthetic'); END",
+    );
+    await expectLater(
+      save(body: 'Must not half-save'),
+      throwsA(isA<Exception>()),
+    );
+    expect((await repo.openDocument(id)).note, isNull);
+    await db.customStatement('DROP TRIGGER fail_note');
+    expect((await save()).revision, 1);
+  });
+
+  test('background close/reopen preserves Unicode and large bodies', () async {
+    await db.close();
+    final directory = await Directory.systemTemp.createTemp('redkeep-notes-');
+    addTearDown(() => directory.delete(recursive: true));
+    final file = File.fromUri(directory.uri.resolve('notes.sqlite'));
+    const unicode = 'Swahili: Habari • 中文 • العربية • é • 👩🏽‍💻\n';
+    final body = List.filled(24000, unicode).join();
+    var background = AppDatabase(NativeDatabase.createInBackground(file));
+    var repository = DriftNotesRepository(background, clock: () => now);
+    final saved = await repository.saveNote(
+      id: id,
+      text: PlainTextDocument(title: unicode, body: body),
+      expectedRevision: 0,
+      details: const NoteDetails(),
+    );
+    await background.close();
+    background = AppDatabase(NativeDatabase.createInBackground(file));
+    try {
       repository = DriftNotesRepository(background, clock: () => now);
-      expect((await repository.openDocument(id)).draft!.text.body, body);
-      final committed = await repository.commitDraft(id, pending.draftRevision);
-      final latest = await repository.putDraft(
-        id: id,
-        text: const PlainTextDocument(body: 'Unsaved after commit 👩🏽‍💻'),
-        baseRevision: committed.revision,
-        expectedDraftRevision: null,
-      );
+      final restored = await repository.openDocument(id);
+      expect(restored.note!.text.body, body);
+      expect(restored.note!.text.title, unicode);
+      await repository.deleteNote(id, saved.revision);
+    } finally {
       await background.close();
-      background = AppDatabase(NativeDatabase.createInBackground(file));
-      try {
-        repository = DriftNotesRepository(background, clock: () => now);
-        final restored = await repository.openDocument(id);
-        expect(restored.note!.text.body, body);
-        expect(restored.note!.text.title, unicode);
-        expect(restored.draft!.text.body, latest.text.body);
-        await repository.deleteNote(id, committed.revision);
-      } finally {
-        await background.close();
-      }
-      background = AppDatabase(NativeDatabase.createInBackground(file));
-      try {
-        final deleted = await DriftNotesRepository(
-          background,
-          clock: () => now,
-        ).openDocument(id);
-        expect(deleted.available, isFalse);
-        expect(deleted.note!.text.body, body);
-        expect(deleted.draft!.text.body, latest.text.body);
-      } finally {
-        await background.close();
-      }
-    },
-  );
+    }
+    background = AppDatabase(NativeDatabase.createInBackground(file));
+    try {
+      final deleted = await DriftNotesRepository(
+        background,
+        clock: () => now,
+      ).openDocument(id);
+      expect(deleted.available, isFalse);
+      expect(deleted.note!.text.body, body);
+    } finally {
+      await background.close();
+    }
+  });
 
-  test(
-    'watchers reflect commits and draft-only records; invalid IDs are rejected',
-    () async {
-      final observed = repo
-          .watchDocument(id)
-          .firstWhere((v) => v.draft?.text.body == 'Words');
-      await draft();
-      expect((await observed).available, isFalse);
-      for (final invalid in ['', '../x', 'A' * 32, 'a' * 31]) {
-        await expectLater(
-          repo.openDocument(invalid),
-          throwsA(isA<NoteException>()),
-        );
-      }
-      final missing = await repo.openDocument('2' * 32);
-      expect(missing.available, isFalse);
-      expect(missing.draft, isNull);
-    },
-  );
+  test('watchers reflect saves; invalid IDs are rejected', () async {
+    final observed = repo
+        .watchDocument(id)
+        .firstWhere((v) => v.note?.text.body == 'Words');
+    await save();
+    expect((await observed).available, isTrue);
+    for (final invalid in ['', '../x', 'A' * 32, 'a' * 31]) {
+      await expectLater(
+        repo.openDocument(invalid),
+        throwsA(isA<NoteException>()),
+      );
+    }
+    final missing = await repo.openDocument('2' * 32);
+    expect(missing.available, isFalse);
+    expect(missing.note, isNull);
+  });
 }

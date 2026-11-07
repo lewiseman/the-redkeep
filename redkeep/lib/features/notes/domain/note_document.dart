@@ -32,31 +32,13 @@ class NoteDocument {
   final NoteDetails details;
 }
 
-class RecoveryDraft {
-  const RecoveryDraft({
-    required this.id,
-    required this.text,
-    required this.baseRevision,
-    required this.draftRevision,
-    this.details = const NoteDetails(),
-    required this.updatedAt,
-  });
-  final String id;
-  final PlainTextDocument text;
-  final int baseRevision;
-  final int draftRevision;
-  final NoteDetails details;
-  final DateTime updatedAt;
-}
-
 class OpenNote {
-  const OpenNote({this.note, this.draft});
+  const OpenNote({this.note});
   final NoteDocument? note;
-  final RecoveryDraft? draft;
   bool get available => note != null && note!.deletedAt == null;
 }
 
-/// Lists deliberately omit bodies, including very large recovery documents.
+/// Lists deliberately omit bodies, including very large documents.
 class NoteListing {
   const NoteListing({
     required this.id,
@@ -77,13 +59,7 @@ String noteTitle(String title) =>
 
 bool isNoteId(String value) => RegExp(r'^[0-9a-f]{32}$').hasMatch(value);
 
-enum NoteFailure {
-  unavailable,
-  staleRevision,
-  draftChanged,
-  empty,
-  invalidTags,
-}
+enum NoteFailure { unavailable, staleRevision, empty, invalidTags }
 
 class NoteException implements Exception {
   const NoteException(this.failure);

@@ -17,7 +17,6 @@ class NoteTagStrip extends StatefulWidget {
   /// Values for the built-in collections. The NUL prefix keeps them from
   /// colliding with user tags of the same name.
   static const all = 'All';
-  static const drafts = '\u0000drafts';
   static const pinned = '\u0000pinned';
   static const trash = '\u0000trash';
 
@@ -172,7 +171,6 @@ class _NoteTagStripState extends State<NoteTagStrip> {
                       Padding(
                         key: ValueKey(switch (tag.value) {
                           NoteTagStrip.all => 'notes-all',
-                          NoteTagStrip.drafts => 'notes-drafts',
                           NoteTagStrip.pinned => 'notes-pinned',
                           NoteTagStrip.trash => 'notes-trash',
                           _ => 'notes-tag-${tag.value}',

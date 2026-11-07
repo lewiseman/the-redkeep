@@ -79,11 +79,11 @@ void main() {
       expect(h.db.writingBlocked, true);
       expect(await resetStorage.canSync(), false);
       await expectLater(
-        oldRepo.putDraft(
+        oldRepo.saveNote(
           id: 'b' * 32,
           text: const PlainTextDocument(body: 'late'),
-          baseRevision: 0,
-          expectedDraftRevision: null,
+          expectedRevision: 0,
+          details: const NoteDetails(),
         ),
         throwsStateError,
       );
@@ -109,22 +109,22 @@ void main() {
       expect(await resetStorage.canSync(), true);
       expect(await h.db.select(h.db.notes).get(), isEmpty);
       await expectLater(
-        oldRepo.putDraft(
+        oldRepo.saveNote(
           id: 'b' * 32,
           text: const PlainTextDocument(body: 'late'),
-          baseRevision: 0,
-          expectedDraftRevision: null,
+          expectedRevision: 0,
+          details: const NoteDetails(),
         ),
         throwsStateError,
       );
       final current = container.read(notesRepositoryProvider);
-      await current.putDraft(
+      await current.saveNote(
         id: 'c' * 32,
         text: const PlainTextDocument(body: 'fresh'),
-        baseRevision: 0,
-        expectedDraftRevision: null,
+        expectedRevision: 0,
+        details: const NoteDetails(),
       );
-      expect((await current.openDocument('c' * 32)).draft!.text.body, 'fresh');
+      expect((await current.openDocument('c' * 32)).note!.text.body, 'fresh');
     } finally {
       container.dispose();
       await h.close();

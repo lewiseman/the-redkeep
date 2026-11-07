@@ -24,13 +24,12 @@ void main() {
     bool pinned = false,
     List<String> tags = const [],
   }) async {
-    final draft = await repo.putDraft(
+    final note = await repo.saveNote(
       id: key(i),
       text: PlainTextDocument(title: title, body: body),
-      baseRevision: 0,
-      expectedDraftRevision: null,
+      expectedRevision: 0,
+      details: const NoteDetails(),
     );
-    final note = await repo.commitDraft(key(i), draft.draftRevision);
     if (pinned || tags.isNotEmpty) {
       await repo.organize(note.id, note.revision, pinned: pinned, tags: tags);
     }
@@ -143,12 +142,6 @@ void main() {
     'organization commits atomically, validates tags and rejects stale sources',
     () async {
       final note = await seed(1, tags: ['old']);
-      final draft = await repo.putDraft(
-        id: note.id,
-        text: const PlainTextDocument(body: 'Recovery'),
-        baseRevision: note.revision,
-        expectedDraftRevision: null,
-      );
       await db.customStatement(
         "CREATE TRIGGER fail_tag BEFORE INSERT ON note_tags BEGIN SELECT RAISE(ABORT, 'synthetic'); END",
       );
@@ -160,7 +153,6 @@ void main() {
       expect(opened.note!.tags, ['old']);
       expect(opened.note!.pinned, isFalse);
       expect(opened.note!.revision, note.revision);
-      expect(opened.draft!.draftRevision, draft.draftRevision);
       await db.customStatement('DROP TRIGGER fail_tag');
       await expectLater(
         repo.organize(note.id, note.revision, pinned: true, tags: ['x' * 41]),
@@ -177,24 +169,25 @@ void main() {
         throwsA(isA<NoteException>()),
       );
       await expectLater(
-        repo.commitDraft(note.id, draft.draftRevision),
+        repo.saveNote(
+          id: note.id,
+          text: const PlainTextDocument(body: 'Stale editor'),
+          expectedRevision: note.revision,
+          details: const NoteDetails(),
+        ),
         throwsA(isA<NoteException>()),
       );
       opened = await repo.openDocument(note.id);
       expect(opened.note!.tags, ['new tag', '工作']);
       expect(opened.note!.pinned, isTrue);
-      expect(opened.draft!.text.body, 'Recovery');
+      expect(opened.note!.text.body, 'blue water');
     },
   );
 
-  test('trash/restore keep metadata, exclude sources, protect drafts and permanent deletion rolls back', () async {
+  test('trash/restore keep metadata, exclude sources and permanent deletion rolls back', () async {
     var note = await seed(1, pinned: true, tags: ['travel']);
     await expectLater(
-      repo.permanentlyDelete(
-        note.id,
-        note.revision,
-        expectedDraftRevision: null,
-      ),
+      repo.permanentlyDelete(note.id, note.revision),
       throwsA(isA<NoteException>()),
     );
     await repo.deleteNote(note.id, note.revision);
@@ -214,42 +207,23 @@ void main() {
     ]);
     await repo.deleteNote(note.id, note.revision);
     note = (await repo.openDocument(note.id)).note!;
-    final draft = await repo.putDraft(
-      id: note.id,
-      text: const PlainTextDocument(body: 'Last draft'),
-      baseRevision: note.revision - 1,
-      expectedDraftRevision: null,
-    );
     await expectLater(
-      repo.permanentlyDelete(
-        note.id,
-        note.revision,
-        expectedDraftRevision: null,
-      ),
+      repo.permanentlyDelete(note.id, note.revision - 1),
       throwsA(isA<NoteException>()),
     );
     await db.customStatement(
       "CREATE TRIGGER fail_delete BEFORE DELETE ON notes BEGIN SELECT RAISE(ABORT, 'synthetic'); END",
     );
     await expectLater(
-      repo.permanentlyDelete(
-        note.id,
-        note.revision,
-        expectedDraftRevision: draft.draftRevision,
-      ),
+      repo.permanentlyDelete(note.id, note.revision),
       throwsA(isA<Exception>()),
     );
-    expect((await repo.openDocument(note.id)).draft!.text.body, 'Last draft');
     expect((await repo.openDocument(note.id)).note!.tags, ['travel']);
     await db.customStatement('DROP TRIGGER fail_delete');
     final observed = repo
         .watchDocument(note.id)
-        .firstWhere((v) => v.note == null && v.draft == null);
-    await repo.permanentlyDelete(
-      note.id,
-      note.revision,
-      expectedDraftRevision: draft.draftRevision,
-    );
+        .firstWhere((v) => v.note == null);
+    await repo.permanentlyDelete(note.id, note.revision);
     await observed;
     expect(await ids(const NotesQuery(trash: true)), isEmpty);
     expect(await repo.watchTags(trash: true).first, isEmpty);
@@ -267,13 +241,12 @@ void main() {
     db = AppDatabase(NativeDatabase.createInBackground(file));
     repo = DriftNotesRepository(db, clock: () => now);
     var note = await seed(1, pinned: true, tags: ['Travel', '工作']);
-    final draft = await repo.putDraft(
+    note = await repo.saveNote(
       id: note.id,
       text: const PlainTextDocument(body: 'New body'),
-      baseRevision: note.revision,
-      expectedDraftRevision: null,
+      expectedRevision: note.revision,
+      details: note.details,
     );
-    note = await repo.commitDraft(note.id, draft.draftRevision);
     expect(note.pinned, isTrue);
     expect(note.tags, ['travel', '工作']);
     await repo.deleteNote(note.id, note.revision);

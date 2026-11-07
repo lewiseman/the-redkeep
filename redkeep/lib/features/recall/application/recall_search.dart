@@ -18,12 +18,7 @@ final _writingRevisionProvider = StreamProvider.autoDispose<int>((ref) async* {
   var revision = 0;
   yield revision;
   await for (final _ in db.tableUpdates(
-    TableUpdateQuery.onAllTables([
-      db.notes,
-      db.noteDrafts,
-      db.diaryEntries,
-      db.flowThoughts,
-    ]),
+    TableUpdateQuery.onAllTables([db.notes, db.diaryEntries, db.flowThoughts]),
   )) {
     yield ++revision;
   }

@@ -1,5 +1,7 @@
 import 'note_actions_menu.dart';
 import 'note_ai_sheet.dart';
+import 'note_app_bar.dart';
+import '../../../core/presentation/rendering_policy.dart';
 import 'note_scene.dart';
 import 'note_media_widgets.dart';
 import 'note_tag_picker.dart';
@@ -18,29 +20,42 @@ import '../../../app/navigation_destination.dart';
 import '../../../core/presentation/paper_surface.dart';
 import '../application/notes_providers.dart';
 import '../domain/note_document.dart';
-import '../application/note_editor_controller.dart';
 import 'note_markdown_preview.dart';
 import 'note_paper.dart';
 import 'note_action_dialog.dart';
 
-class NoteReadPage extends ConsumerStatefulWidget {
-  const NoteReadPage({super.key, required this.id});
+/// The reading state of [NotePage]. [onEdit] switches the same page to
+/// editing.
+class NoteReadView extends ConsumerStatefulWidget {
+  const NoteReadView({
+    super.key,
+    required this.id,
+    required this.onEdit,
+    required this.paperKey,
+    required this.expansion,
+  });
   final String id;
+  final VoidCallback onEdit;
+
+  /// Shared with editing so the same paper continues into it.
+  final GlobalKey paperKey;
+
+  /// Owned by the page: the paper's fold, which stays open after editing.
+  final ValueNotifier<double> expansion;
   @override
-  ConsumerState<NoteReadPage> createState() => _NoteReadPageState();
+  ConsumerState<NoteReadView> createState() => _NoteReadViewState();
 }
 
-class _NoteReadPageState extends ConsumerState<NoteReadPage> {
+class _NoteReadViewState extends ConsumerState<NoteReadView> {
   String? _error;
   bool _preview = true;
   bool _showWebsiteText = false;
   final _paper = NotePaperController();
-  final _expansion = ValueNotifier<double>(0);
+  ValueNotifier<double> get _expansion => widget.expansion;
 
   @override
   void dispose() {
     _paper.dispose();
-    _expansion.dispose();
     super.dispose();
   }
 
@@ -70,6 +85,9 @@ class _NoteReadPageState extends ConsumerState<NoteReadPage> {
     final busy = ref.watch(notesActionsProvider) || !canEdit;
     final current = opened.value;
     final note = current?.note;
+    final paperShown =
+        current?.available == true &&
+        (note!.details.website.isEmpty || _showWebsiteText);
     return NoteScene(
       details: note?.details ?? const NoteDetails(),
       seed: widget.id.hashCode,
@@ -81,325 +99,345 @@ class _NoteReadPageState extends ConsumerState<NoteReadPage> {
             if (!didPop) _paper.collapse();
           },
           child: Scaffold(
-            appBar: AppBar(
-              leading: IconButton(
-                tooltip: 'Back',
-                icon: const Icon(Icons.arrow_back_ios_new_rounded),
-                onPressed: () => _back(current?.available == true),
-              ),
+            appBar: NoteAppBar(
+              // Folded preview lets the note scene show through the bar;
+              // immersive paper continues under it.
+              fill: expansion,
+              onBack: () => _back(current?.available == true),
               actions: [
                 if (current?.available == true) ...[
-                  IconButton(
-                    tooltip: 'AI tools',
-                    icon: const Icon(Icons.auto_awesome_outlined),
+                  NoteAiButton(
                     onPressed: () => showNoteAiTools(context, widget.id),
                   ),
-                  if (expansion > .3 ||
-                      current!.draft != null ||
-                      note!.details.website.isNotEmpty)
-                    IconButton(
-                      tooltip: current!.draft == null
-                          ? 'Edit note'
-                          : 'Resume draft',
-                      onPressed: canEdit
-                          ? () =>
-                                context.go(noteLocation(widget.id, edit: true))
-                          : null,
-                      icon: const Icon(Icons.edit_outlined),
+                  // A website note has no paper to unfold, so it keeps Edit
+                  // beside its actions.
+                  if (note!.details.website.isNotEmpty && expansion <= .3)
+                    Padding(
+                      padding: const EdgeInsetsDirectional.only(end: 4),
+                      child: IconButton(
+                        tooltip: 'Edit note',
+                        style: noteBarButtonStyle(context),
+                        onPressed: canEdit ? widget.onEdit : null,
+                        icon: const Icon(Icons.edit_outlined),
+                      ),
                     ),
-                  NoteActionsMenu(
-                    isPinned: note!.pinned,
-                    onTogglePin: busy || current.draft != null
-                        ? null
-                        : () => _act(
-                            () => ref
-                                .read(notesActionsProvider.notifier)
-                                .organize(
-                                  note,
-                                  pinned: !note.pinned,
-                                  tags: note.tags,
-                                ),
+                  // Immersive paper keeps only AI and Edit; the folded
+                  // preview offers the note's actions instead.
+                  AnimatedSwitcher(
+                    duration: RenderingPolicyScope.of(context).duration,
+                    child: expansion > .3
+                        ? Padding(
+                            key: const ValueKey('note-edit-action'),
+                            padding: const EdgeInsetsDirectional.only(start: 4),
+                            child: IconButton(
+                              tooltip: 'Edit note',
+                              style: noteBarButtonStyle(context),
+                              onPressed: canEdit ? widget.onEdit : null,
+                              icon: const Icon(Icons.edit_outlined),
+                            ),
+                          )
+                        : KeyedSubtree(
+                            key: const ValueKey('note-more-actions'),
+                            child: NoteActionsMenu(
+                              isPinned: note.pinned,
+                              onTogglePin: busy
+                                  ? null
+                                  : () => _act(
+                                      () => ref
+                                          .read(notesActionsProvider.notifier)
+                                          .organize(
+                                            note,
+                                            pinned: !note.pinned,
+                                            tags: note.tags,
+                                          ),
+                                    ),
+                              onTags: busy ? null : () => _tags(note),
+                              onBackground: busy
+                                  ? null
+                                  : () => _background(note),
+                              onDelete: busy ? null : () => _delete(note),
+                              onPreview: () =>
+                                  setState(() => _preview = !_preview),
+                              preview: _preview,
+                            ),
                           ),
-                    onTags: busy || current.draft != null
-                        ? null
-                        : () => _tags(note),
-                    onBackground: busy || current.draft != null
-                        ? null
-                        : () => _background(note),
-                    onDelete: busy ? null : () => _delete(note),
-                    onPreview: () => setState(() => _preview = !_preview),
-                    preview: _preview,
                   ),
-                  const SizedBox(width: 12),
                 ],
               ],
             ),
-            body: SafeArea(
-              child: opened.when(
-                loading: () => const Center(child: Text('Loading note…')),
-                error: (_, _) => SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    children: [
-                      const Text('This note could not be loaded.'),
-                      OutlinedButton(
-                        onPressed: () =>
-                            ref.invalidate(noteDocumentProvider(widget.id)),
-                        child: const Text('Retry loading'),
-                      ),
-                    ],
-                  ),
-                ),
-                data: (value) {
-                  final note = value.note;
-                  if (!value.available) {
-                    return SingleChildScrollView(
-                      padding: const EdgeInsets.all(24),
-                      child: PaperSurface(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Text(
-                              'Note unavailable',
-                              style: Theme.of(context).textTheme.headlineSmall,
-                            ),
-                            const SizedBox(height: 12),
-                            const Text(
-                              'This note has not been saved, is missing, or was deleted.',
-                            ),
-                            if (note?.deletedAt != null) ...[
-                              const Text(
-                                'This note is in Trash. Restore it to read or edit the saved text.',
-                              ),
-                              OutlinedButton(
-                                onPressed: busy
-                                    ? null
-                                    : () => _act(
-                                        () => ref
-                                            .read(notesActionsProvider.notifier)
-                                            .restore(note!),
-                                      ),
-                                child: const Text('Restore note'),
-                              ),
-                              OutlinedButton(
-                                onPressed: busy
-                                    ? null
-                                    : () => _permanentlyDelete(value),
-                                child: const Text('Delete forever'),
-                              ),
-                            ],
-                            if (_error != null) _failure(),
-                            if (value.draft != null)
-                              OutlinedButton(
-                                onPressed: !canEdit
-                                    ? null
-                                    : () => context.go(
-                                        noteLocation(widget.id, edit: true),
-                                      ),
-                                child: const Text('Open recovery draft'),
-                              ),
-                            FilledButton(
-                              onPressed: () =>
-                                  context.go(AppDestination.notes.location),
-                              child: const Text('Return to Notes'),
-                            ),
-                          ],
+            // Immersive paper runs to the bottom edge; its scroll padding
+            // keeps text clear of the system inset.
+            body: Padding(
+              padding: EdgeInsets.only(
+                bottom:
+                    MediaQuery.paddingOf(context).bottom *
+                    (paperShown ? 1 - expansion.clamp(0.0, 1.0) : 1),
+              ),
+              child: SafeArea(
+                bottom: false,
+                child: opened.when(
+                  loading: () => const Center(child: Text('Loading note…')),
+                  error: (_, _) => SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      children: [
+                        const Text('This note could not be loaded.'),
+                        OutlinedButton(
+                          onPressed: () =>
+                              ref.invalidate(noteDocumentProvider(widget.id)),
+                          child: const Text('Retry loading'),
                         ),
-                      ),
-                    );
-                  }
-                  if (note!.details.website.isNotEmpty && !_showWebsiteText) {
-                    return LayoutBuilder(
-                      builder: (context, constraints) => Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          ConstrainedBox(
-                            constraints: BoxConstraints(
-                              maxHeight: constraints.maxHeight * .45,
-                            ),
-                            child: SingleChildScrollView(
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                ),
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.stretch,
-                                  children: [
-                                    Text(
-                                      noteTitle(note.text.title),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleMedium,
-                                    ),
-                                    Wrap(
-                                      spacing: 8,
-                                      crossAxisAlignment:
-                                          WrapCrossAlignment.center,
-                                      children: [
-                                        TextButton(
-                                          onPressed: () => setState(
-                                            () => _showWebsiteText = true,
-                                          ),
-                                          child: const Text('Read note text'),
-                                        ),
-                                        if (canEdit && value.draft == null) ...[
-                                          TextButton.icon(
-                                            onPressed: () => _websiteLook(note),
-                                            icon: const Icon(
-                                              Icons.palette_outlined,
-                                            ),
-                                            label: const Text('Change look'),
-                                          ),
-                                          TextButton(
-                                            onPressed: () => _act(
-                                              () => ref
-                                                  .read(notesRepositoryProvider)
-                                                  .applyProposal(
-                                                    note.id,
-                                                    note.revision,
-                                                    text: note.text,
-                                                    details: note.details.copy(
-                                                      website: '',
-                                                      websiteSourceHash: '',
-                                                    ),
-                                                    taskId:
-                                                        'remove-website-${DateTime.now().microsecondsSinceEpoch}',
-                                                    operation: 'remove-website',
-                                                    retainPrior: false,
-                                                  ),
-                                            ),
-                                            child: const Text('Remove website'),
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                    if (websiteContentHash(note.text.body) !=
-                                        note.details.websiteSourceHash)
-                                      const Padding(
-                                        padding: EdgeInsets.all(12),
-                                        child: Text(
-                                          'Your note changed since this website was made.',
-                                          key: ValueKey(
-                                            'note-website-page-stale',
-                                          ),
-                                        ),
-                                      ),
-                                    if (_error != null) _failure(),
-                                  ],
-                                ),
+                      ],
+                    ),
+                  ),
+                  data: (value) {
+                    final note = value.note;
+                    if (!value.available) {
+                      return SingleChildScrollView(
+                        padding: const EdgeInsets.all(24),
+                        child: PaperSurface(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Text(
+                                'Note unavailable',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .headlineSmall,
                               ),
-                            ),
-                          ),
-                          Expanded(
-                            child: NoteWebsiteView(
-                              html: note.details.website,
-                              photos: note.details.attachments,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-                  return NotePaper(
-                    controller: _paper,
-                    color: NoteColors.fromBackground(
-                      Theme.of(context).colorScheme,
-                      note.details.background,
-                    ).background,
-                    isPreviewMode: true,
-                    readOnly: !canEdit,
-                    onExpansionChanged: (value) => _expansion.value = value,
-                    onEdit: () =>
-                        context.go(noteLocation(widget.id, edit: true)),
-                    children: [
-                      SliverToBoxAdapter(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            if (note.details.website.isNotEmpty)
-                              TextButton(
-                                onPressed: () =>
-                                    setState(() => _showWebsiteText = false),
-                                child: const Text('Show website'),
-                              ),
-                            NoteAttachmentStrip(
-                              attachments: note.details.attachments,
-                            ),
-                            SelectableText(
-                              noteTitle(note.text.title),
-                              style: const TextStyle(
-                                fontSize: 24,
-                                height: 1.3,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            if (note.tags.isNotEmpty) ...[
-                              const SizedBox(height: 20),
-                              LayoutBuilder(
-                                builder: (context, constraints) => Wrap(
-                                  spacing: 8,
-                                  runSpacing: 8,
-                                  children: [
-                                    for (final tag in note.tags)
-                                      ConstrainedBox(
-                                        constraints: BoxConstraints(
-                                          maxWidth: constraints.maxWidth,
-                                        ),
-                                        child: Chip(
-                                          label: Text(
-                                            tag,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          shape: const StadiumBorder(),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                            const SizedBox(height: 20),
-                            if (_preview &&
-                                note.text.body.length <=
-                                    NoteMarkdownPreview.maxCharacters &&
-                                '\n'.allMatches(note.text.body).length <
-                                    NoteMarkdownPreview.maxLines)
-                              NoteMarkdownPreview(
-                                key: ValueKey(note.revision),
-                                text: note.text.body,
-                              )
-                            else
-                              SelectableText(
-                                note.text.body.isEmpty
-                                    ? 'This note is empty.'
-                                    : note.text.body,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  height: 1.6,
-                                ),
-                              ),
-                            const SizedBox(height: 24),
-                            Text(
-                              'Saved revision ${note.revision}',
-                              style: Theme.of(context).textTheme.labelSmall,
-                            ),
-                            if (note.pinned) const Text('Pinned'),
-                            if (value.draft != null) ...[
                               const SizedBox(height: 12),
                               const Text(
-                                'A separate recovery draft is available. This is the committed version. Save or discard the draft before changing tags or pinning.',
+                                'This note is missing or was deleted.',
+                              ),
+                              if (note?.deletedAt != null) ...[
+                                const Text(
+                                  'This note is in Trash. Restore it to read or edit the saved text.',
+                                ),
+                                OutlinedButton(
+                                  onPressed: busy
+                                      ? null
+                                      : () => _act(
+                                          () => ref
+                                              .read(
+                                                notesActionsProvider.notifier,
+                                              )
+                                              .restore(note!),
+                                        ),
+                                  child: const Text('Restore note'),
+                                ),
+                                OutlinedButton(
+                                  onPressed: busy
+                                      ? null
+                                      : () => _permanentlyDelete(value),
+                                  child: const Text('Delete forever'),
+                                ),
+                              ],
+                              if (_error != null) _failure(),
+                              FilledButton(
+                                onPressed: () =>
+                                    context.go(AppDestination.notes.location),
+                                child: const Text('Return to Notes'),
                               ),
                             ],
-                            if (_error != null) _failure(),
+                          ),
+                        ),
+                      );
+                    }
+                    if (note!.details.website.isNotEmpty && !_showWebsiteText) {
+                      return LayoutBuilder(
+                        builder: (context, constraints) => Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            ConstrainedBox(
+                              constraints: BoxConstraints(
+                                maxHeight: constraints.maxHeight * .45,
+                              ),
+                              child: SingleChildScrollView(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      Text(
+                                        noteTitle(note.text.title),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleMedium,
+                                      ),
+                                      Wrap(
+                                        spacing: 8,
+                                        crossAxisAlignment:
+                                            WrapCrossAlignment.center,
+                                        children: [
+                                          TextButton(
+                                            onPressed: () => setState(
+                                              () => _showWebsiteText = true,
+                                            ),
+                                            child: const Text('Read note text'),
+                                          ),
+                                          if (canEdit) ...[
+                                            TextButton.icon(
+                                              onPressed: () =>
+                                                  _websiteLook(note),
+                                              icon: const Icon(
+                                                Icons.palette_outlined,
+                                              ),
+                                              label: const Text('Change look'),
+                                            ),
+                                            TextButton(
+                                              onPressed: () => _act(
+                                                () => ref
+                                                    .read(
+                                                      notesRepositoryProvider,
+                                                    )
+                                                    .applyProposal(
+                                                      note.id,
+                                                      note.revision,
+                                                      text: note.text,
+                                                      details: note.details
+                                                          .copy(
+                                                            website: '',
+                                                            websiteSourceHash:
+                                                                '',
+                                                          ),
+                                                      taskId:
+                                                          'remove-website-${DateTime.now().microsecondsSinceEpoch}',
+                                                      operation:
+                                                          'remove-website',
+                                                      retainPrior: false,
+                                                    ),
+                                              ),
+                                              child: const Text(
+                                                'Remove website',
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                      if (websiteContentHash(note.text.body) !=
+                                          note.details.websiteSourceHash)
+                                        const Padding(
+                                          padding: EdgeInsets.all(12),
+                                          child: Text(
+                                            'Your note changed since this website was made.',
+                                            key: ValueKey(
+                                              'note-website-page-stale',
+                                            ),
+                                          ),
+                                        ),
+                                      if (_error != null) _failure(),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: NoteWebsiteView(
+                                html: note.details.website,
+                                photos: note.details.attachments,
+                              ),
+                            ),
                           ],
                         ),
-                      ),
-                    ],
-                  );
-                },
+                      );
+                    }
+                    return NotePaper(
+                      key: widget.paperKey,
+                      controller: _paper,
+                      color: NoteColors.fromBackground(
+                        Theme.of(context).colorScheme,
+                        note.details.background,
+                      ).background,
+                      isPreviewMode: true,
+                      readOnly: !canEdit,
+                      onExpansionChanged: (value) => _expansion.value = value,
+                      onEdit: widget.onEdit,
+                      children: [
+                        SliverToBoxAdapter(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              if (note.details.website.isNotEmpty)
+                                TextButton(
+                                  onPressed: () =>
+                                      setState(() => _showWebsiteText = false),
+                                  child: const Text('Show website'),
+                                ),
+                              NoteAttachmentStrip(
+                                attachments: note.details.attachments,
+                              ),
+                              SelectableText(
+                                noteTitle(note.text.title),
+                                style: const TextStyle(
+                                  fontSize: 24,
+                                  height: 1.3,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              if (note.tags.isNotEmpty) ...[
+                                const SizedBox(height: 20),
+                                LayoutBuilder(
+                                  builder: (context, constraints) => Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: [
+                                      for (final tag in note.tags)
+                                        ConstrainedBox(
+                                          constraints: BoxConstraints(
+                                            maxWidth: constraints.maxWidth,
+                                          ),
+                                          child: Chip(
+                                            label: Text(
+                                              tag,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            shape: const StadiumBorder(),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                              const SizedBox(height: 20),
+                              if (_preview &&
+                                  note.text.body.length <=
+                                      NoteMarkdownPreview.maxCharacters &&
+                                  '\n'.allMatches(note.text.body).length <
+                                      NoteMarkdownPreview.maxLines)
+                                NoteMarkdownPreview(
+                                  key: ValueKey(note.revision),
+                                  text: note.text.body,
+                                )
+                              else
+                                SelectableText(
+                                  note.text.body.isEmpty
+                                      ? 'This note is empty.'
+                                      : note.text.body,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    height: 1.6,
+                                  ),
+                                ),
+                              const SizedBox(height: 24),
+                              Text(
+                                'Saved revision ${note.revision}',
+                                style: Theme.of(context).textTheme.labelSmall,
+                              ),
+                              if (note.pinned) const Text('Pinned'),
+                              if (_error != null) _failure(),
+                            ],
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
               ),
             ),
           ),
@@ -550,14 +588,13 @@ class _NoteReadPageState extends ConsumerState<NoteReadPage> {
     try {
       await ref
           .read(notesActionsProvider.notifier)
-          .permanentlyDelete(snapshot.note!, snapshot.draft?.draftRevision);
+          .permanentlyDelete(snapshot.note!);
       if (!mounted) return;
-      ref.invalidate(noteEditorProvider(widget.id));
       context.go(AppDestination.notes.location);
     } catch (_) {
       if (mounted) {
         setState(
-          () => _error = 'Permanent deletion failed or the note or recovery draft changed. Everything is kept. Reload and review again.',
+          () => _error = 'Permanent deletion failed or the note changed. Everything is kept. Reload and review again.',
         );
       }
     }
@@ -570,7 +607,7 @@ class _NoteReadPageState extends ConsumerState<NoteReadPage> {
       builder: (context) => NoteActionDialog(
         title: const Text('Delete this note?'),
         content: const Text(
-          'The note will move to Trash and leave saved lists and search. Its text, tags, pin and recovery draft stay on this device until you choose Delete forever.',
+          'The note will move to Trash and leave saved lists and search. Its text, tags and pin stay on this device until you choose Delete forever.',
         ),
         actions: [
           TextButton(
@@ -619,7 +656,7 @@ class _PermanentDeleteDialogState extends State<_PermanentDeleteDialog> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Text(
-          'This removes the saved text, tags and current recovery draft from this device. It cannot be restored. Type DELETE to confirm.',
+          'This removes the saved text and tags from this device. It cannot be restored. Type DELETE to confirm.',
         ),
         TextField(
           key: const ValueKey('delete-confirmation'),

@@ -151,13 +151,12 @@ void main() {
     'Grand Maestar and the Notes toolbox open the shared history route',
     (tester) async {
       final notes = DriftNotesRepository(db, clock: DateTime.now);
-      final draft = await notes.putDraft(
+      await notes.saveNote(
         id: 'a' * 32,
         text: const PlainTextDocument(body: 'A saved note'),
-        baseRevision: 0,
-        expectedDraftRevision: null,
+        expectedRevision: 0,
+        details: const NoteDetails(),
       );
-      await notes.commitDraft('a' * 32, draft.draftRevision);
       final router = await pumpApp(
         tester,
         initialLocation: '/settings/brain',

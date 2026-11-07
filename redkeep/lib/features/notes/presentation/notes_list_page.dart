@@ -60,12 +60,8 @@ class _NotesListPageState extends ConsumerState<NotesListPage> {
   /// Special collections share the tag strip; selecting any chip replaces
   /// the current collection rather than stacking filters.
   void _collection(String value) {
-    ref
-        .read(notesDraftsOnlyProvider.notifier)
-        .set(value == NoteTagStrip.drafts);
     final special =
         value == NoteTagStrip.all ||
-        value == NoteTagStrip.drafts ||
         value == NoteTagStrip.pinned ||
         value == NoteTagStrip.trash;
     _filter(
@@ -80,7 +76,6 @@ class _NotesListPageState extends ConsumerState<NotesListPage> {
   Widget build(BuildContext context) {
     final entries = ref.watch(notesCollectionProvider);
     final filter = ref.watch(notesFilterProvider);
-    final drafts = ref.watch(notesDraftsOnlyProvider);
     final tags = ref.watch(noteTagsProvider);
     final busy = ref.watch(notesActionsProvider);
     final policy = RenderingPolicyScope.of(context);
@@ -222,11 +217,6 @@ class _NotesListPageState extends ConsumerState<NotesListPage> {
                       tags: [
                         (emoji: '🗂️', name: 'All', value: NoteTagStrip.all),
                         (
-                          emoji: '📝',
-                          name: 'Drafts',
-                          value: NoteTagStrip.drafts,
-                        ),
-                        (
                           emoji: '📌',
                           name: 'Pinned',
                           value: NoteTagStrip.pinned,
@@ -246,9 +236,7 @@ class _NotesListPageState extends ConsumerState<NotesListPage> {
                             value: raw,
                           ),
                       ],
-                      selectedTag: drafts
-                          ? NoteTagStrip.drafts
-                          : filter.trash
+                      selectedTag: filter.trash
                           ? NoteTagStrip.trash
                           : filter.tag ??
                                 (filter.pinnedOnly
@@ -299,7 +287,6 @@ class _NotesListPageState extends ConsumerState<NotesListPage> {
                     ],
                     data: (items) => [
                       if (items.isEmpty &&
-                          !drafts &&
                           !filter.trash &&
                           filter.search.isEmpty &&
                           filter.tag == null &&
@@ -318,9 +305,7 @@ class _NotesListPageState extends ConsumerState<NotesListPage> {
                       else if (items.isEmpty)
                         SliverToBoxAdapter(
                           child: _message(
-                            drafts
-                                ? 'No drafts yet.'
-                                : filter.trash
+                            filter.trash
                                 ? 'Trash is empty.'
                                 : filter.search.isNotEmpty ||
                                       filter.tag != null ||
@@ -328,25 +313,20 @@ class _NotesListPageState extends ConsumerState<NotesListPage> {
                                 ? 'No notes match these filters.'
                                 : 'A little room for your thoughts',
                             action:
-                                drafts ||
-                                    filter.trash ||
+                                filter.trash ||
                                     filter.search.isNotEmpty ||
                                     filter.tag != null ||
                                     filter.pinnedOnly
                                 ? 'Show all notes'
                                 : 'Create note',
                             onTap: () {
-                              if (!drafts &&
-                                  !filter.trash &&
+                              if (!filter.trash &&
                                   filter.search.isEmpty &&
                                   filter.tag == null &&
                                   !filter.pinnedOnly) {
                                 _create();
                               } else {
                                 _search.clear();
-                                ref
-                                    .read(notesDraftsOnlyProvider.notifier)
-                                    .set(false);
                                 ref
                                     .read(notesFilterProvider.notifier)
                                     .set(const NotesQuery());
@@ -370,9 +350,7 @@ class _NotesListPageState extends ConsumerState<NotesListPage> {
                               return NoteCard(
                                 entry: entry,
                                 index: index,
-                                onTap: () => context.go(
-                                  noteLocation(entry.id, edit: entry.isDraft),
-                                ),
+                                onTap: () => context.go(noteLocation(entry.id)),
                               );
                             },
                           ),
@@ -424,7 +402,7 @@ class _NotesListPageState extends ConsumerState<NotesListPage> {
   Future<void> _create() async {
     try {
       final id = await ref.read(notesActionsProvider.notifier).create();
-      if (mounted && id != null) context.go(noteLocation(id, edit: true));
+      if (mounted && id != null) context.go(noteLocation(id));
     } catch (_) {
       if (mounted) {
         setState(() => _error = 'The editor could not be opened. Try again.');

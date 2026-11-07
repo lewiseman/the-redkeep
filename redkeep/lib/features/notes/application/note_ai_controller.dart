@@ -84,29 +84,30 @@ class NoteAiController {
     int? selectionEnd,
   }) async {
     final repo = ref.read(notesRepositoryProvider);
-    var opened = await repo.openDocument(id);
-    final isDraft = opened.note == null;
-    if (isDraft) {
+    // Open writing goes into the note first, so the tool sees what is shown.
+    if (ref.exists(noteEditorProvider(id)) &&
+        !await ref.read(noteEditorProvider(id).notifier).save()) {
+      throw const FormatException(
+        'This note could not be saved, so nothing was sent.',
+      );
+    }
+    final opened = await repo.openDocument(id);
+    final unsaved = opened.note == null;
+    if (unsaved) {
       if (!{
         AiOperation.noteTemplate,
         AiOperation.noteScan,
         AiOperation.noteBackground,
       }.contains(operation)) {
-        throw const FormatException(
-          'Save this note and close the editor first.',
-        );
+        throw const FormatException('Write something in this note first.');
       }
-      if (!ref.read(noteNewIdsProvider).contains(id) && opened.draft == null) {
-        throw const FormatException('This draft is unavailable.');
+      if (!ref.read(noteNewIdsProvider).contains(id)) {
+        throw const FormatException('This note is unavailable.');
       }
-      if (!await ref.read(noteEditorProvider(id).notifier).flushRecovery()) {
-        throw const FormatException('Save recovery before using AI.');
-      }
-      opened = await repo.openDocument(id);
-    } else if (!opened.available || opened.draft != null) {
-      throw const FormatException('Save this note and close the editor first.');
+    } else if (!opened.available) {
+      throw const FormatException('This note is unavailable.');
     }
-    if (!isDraft &&
+    if (!unsaved &&
         !ref.read(syncCanEditProvider) &&
         {
           AiOperation.noteMetadata,
@@ -119,12 +120,15 @@ class NoteAiController {
       );
     }
     final note = opened.note;
-    final text = note?.text ?? opened.draft?.text ?? const PlainTextDocument();
+    final text = note?.text ?? const PlainTextDocument();
     final source = <String, dynamic>{
       'noteId': id,
       'revision': note?.revision ?? 0,
-      'draft': isDraft,
-      'draftRevision': opened.draft?.draftRevision,
+      'unsaved': unsaved,
+      // A new note lives only in its editor; any later typing makes this
+      // result stale.
+      if (unsaved)
+        'editVersion': ref.read(noteEditorProvider(id)).value?.editVersion,
       'title': text.title,
       'body': text.body,
     };
@@ -243,20 +247,14 @@ class NoteAiController {
     }
     validateNoteAiOutput(job.operation, job.text!, job.source);
     final source = noteTaskSource(job.source);
-    if (source['draft'] == true &&
-        !await ref
-            .read(noteEditorProvider(source['noteId'] as String).notifier)
-            .flushRecovery()) {
+    final unsaved = source['unsaved'] == true;
+    if (unsaved &&
+        !ref.exists(noteEditorProvider(source['noteId'] as String))) {
       throw const FormatException(
-        'Keep this editor open and retry recovery first.',
+        'Open this new note again to add the result.',
       );
     }
-    final expectedEdit = source['draft'] == true
-        ? ref
-              .read(noteEditorProvider(source['noteId'] as String))
-              .value
-              ?.editVersion
-        : null;
+    final expectedEdit = source['editVersion'];
     if (!await noteAiSourceCurrent(ref, job.operation, job.source)) {
       throw const FormatException(
         'This note changed. The proposal was kept; nothing was applied.',
@@ -265,11 +263,11 @@ class NoteAiController {
     final id = source['noteId'] as String;
     final repo = ref.read(notesRepositoryProvider);
     final opened = await repo.openDocument(id);
-    var text =
-        opened.note?.text ?? opened.draft?.text ?? const PlainTextDocument();
+    final editing = unsaved ? ref.read(noteEditorProvider(id)).value : null;
+    var text = opened.note?.text ?? editing?.text ?? const PlainTextDocument();
     var details =
         opened.note?.details.copy(tags: opened.note!.tags) ??
-        opened.draft?.details ??
+        editing?.details ??
         const NoteDetails();
     String append(String value) =>
         [if (text.body.isNotEmpty) text.body, value].join('\n\n');
@@ -355,19 +353,19 @@ class NoteAiController {
           body: range.replace(job.text!),
         );
     }
-    if (source['draft'] == true) {
+    if (unsaved) {
       if (ref.read(noteEditorProvider(id)).value?.editVersion != expectedEdit ||
           !await noteAiSourceCurrent(ref, job.operation, job.source)) {
         throw const FormatException(
-          'The draft changed while reviewing. Nothing was applied.',
+          'The note changed while reviewing. Nothing was applied.',
         );
       }
       final controller = ref.read(noteEditorProvider(id).notifier);
       controller.edit(text);
       controller.editDetails(details);
-      if (!await controller.flushRecovery()) {
+      if (!await controller.save()) {
         throw const FormatException(
-          'The result is in this editor. Retry recovery before leaving.',
+          'The result is in this note but could not be saved yet.',
         );
       }
       await _clearReviewedJob(job);

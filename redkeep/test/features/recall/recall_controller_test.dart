@@ -46,13 +46,12 @@ void main() {
     await db.close();
   });
   Future<void> save(String body, {int revision = 0}) async {
-    final draft = await notes.putDraft(
+    await notes.saveNote(
       id: 'a' * 32,
       text: PlainTextDocument(title: 'Garden', body: body),
-      baseRevision: revision,
-      expectedDraftRevision: null,
+      expectedRevision: revision,
+      details: const NoteDetails(),
     );
-    await notes.commitDraft('a' * 32, draft.draftRevision);
   }
 
   test(

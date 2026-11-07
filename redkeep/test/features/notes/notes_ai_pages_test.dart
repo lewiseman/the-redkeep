@@ -16,6 +16,8 @@ import '../../support/fake_appearance_repository.dart';
 import '../../support/notes_ai_harness.dart';
 import '../../support/pump_app.dart';
 
+import 'package:redkeep/features/notes/presentation/note_read_page.dart';
+
 void main() {
   late NotesAiHarness h;
   setUp(() async {
@@ -89,12 +91,19 @@ void main() {
           );
           await tester.tap(find.byTooltip('Close AI tools'));
           await tester.pumpAndSettle();
-          router.go(noteLocation(notesTestId, edit: true));
+          router.go(noteLocation(notesTestId));
           await tester.pumpAndSettle();
+          await startEditing(tester);
           await tester.tap(find.byTooltip('AI tools'));
           await tester.pumpAndSettle();
+          // Editing a saved note no longer blocks the tools: they save
+          // first and then run on what is shown.
           expect(
             find.byKey(const ValueKey('note-assistant-save-first')),
+            findsNothing,
+          );
+          expect(
+            find.byKey(const ValueKey('note-assistant-writing')),
             findsOneWidget,
           );
           expect(tester.takeException(), isNull);
@@ -149,7 +158,7 @@ void main() {
       final source = jsonEncode({
         'noteId': note.id,
         'revision': note.revision,
-        'draft': false,
+        'unsaved': false,
         'title': note.text.title,
         'body': note.text.body,
         'payload': NoteMetadataSource.fromNote(note).encode(),
@@ -208,7 +217,7 @@ void main() {
   );
 
   testWidgets(
-    'editing attachments keeps a complete draft until the note is saved',
+    'editing attachments saves into the note and Done returns to reading',
     (tester) async {
       late String path;
       await tester.runAsync(() async {
@@ -227,34 +236,21 @@ void main() {
           notes: h.repository,
           noteMedia: h.media,
           database: h.db,
-          initialLocation: noteLocation(notesTestId, edit: true),
+          initialLocation: noteLocation(notesTestId),
         );
+        await startEditing(tester);
         expect(find.text('Page.png'), findsOneWidget);
         await tester.enterText(
           find.byKey(const ValueKey('note-body')),
           'My own revised words',
         );
         await tester.pumpAndSettle();
-        expect(
-          (await h.repository.openDocument(notesTestId))
-              .draft!
-              .details
-              .attachments
-              .single
-              .path,
-          path,
-        );
-        expect(
-          (await h.repository.openDocument(notesTestId)).note!.text.body,
-          notesTestBody,
-        );
         await tester.tap(find.byTooltip('Remove attachment'));
         await tester.pumpAndSettle();
-        final opened = await h.repository.openDocument(notesTestId);
-        expect(opened.draft!.details.attachments, isEmpty);
-        expect(opened.note!.details.attachments.single.path, path);
-        await tester.tap(find.byTooltip('Save note'));
+        await tester.tap(find.byTooltip('Close editor'));
         await tester.pumpAndSettle();
+        expect(find.byKey(const ValueKey('note-body')), findsNothing);
+        expect(find.byTooltip('AI tools'), findsOneWidget);
         expect(
           (await h.repository.openDocument(notesTestId))
               .note!
@@ -304,8 +300,9 @@ void main() {
         await tester.tap(find.text('Read note text'));
         await tester.pumpAndSettle();
         expect(find.text('Show website'), findsOneWidget);
-        router.go(noteLocation(notesTestId, edit: true));
+        router.go(noteLocation(notesTestId));
         await tester.pumpAndSettle();
+        await startEditing(tester);
         expect(
           (tester
                   .widget<TextField>(find.byKey(const ValueKey('note-body')))
@@ -320,4 +317,10 @@ void main() {
       }
     },
   );
+}
+
+/// Editing is a state of the note page; this is what the Edit control does.
+Future<void> startEditing(WidgetTester tester) async {
+  tester.widget<NoteReadView>(find.byType(NoteReadView)).onEdit();
+  await tester.pumpAndSettle();
 }

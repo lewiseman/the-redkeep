@@ -16,23 +16,55 @@ import 'package:redkeep/features/onboarding/data/drift_onboarding_repository.dar
 import 'generated/schema.dart';
 
 void main() {
-  test('fresh schema matches the complete version 2 snapshot', () async {
+  test('fresh schema matches the complete version 3 snapshot', () async {
     final database = AppDatabase(NativeDatabase.memory());
     addTearDown(database.close);
 
-    expect(database.schemaVersion, 2);
-    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 2);
+    expect(database.schemaVersion, 3);
+    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 3);
     final version = await database
         .customSelect('PRAGMA user_version')
         .getSingle();
-    expect(version.read<int>('user_version'), 2);
+    expect(version.read<int>('user_version'), 3);
   });
 
-  test('the version 2 upgrade matches the snapshot', () async {
+  test('the upgrade from version 1 matches the snapshot', () async {
     final verifier = SchemaVerifier(GeneratedHelper());
     final database = AppDatabase(await verifier.startAt(1));
     addTearDown(database.close);
-    await verifier.migrateAndValidate(database, 2);
+    await verifier.migrateAndValidate(database, 3);
+  });
+
+  test('the version 3 upgrade matches the snapshot', () async {
+    final verifier = SchemaVerifier(GeneratedHelper());
+    final database = AppDatabase(await verifier.startAt(2));
+    addTearDown(database.close);
+    await verifier.migrateAndValidate(database, 3);
+  });
+
+  test('version 3 drops the old note drafts table', () async {
+    final directory = await Directory.systemTemp.createTemp('redkeep-v2-');
+    addTearDown(() => directory.delete(recursive: true));
+    final file = File('${directory.path}/app.sqlite');
+    final old = AppDatabase(NativeDatabase(file));
+    await old.customStatement(
+      'CREATE TABLE note_drafts (id TEXT NOT NULL UNIQUE, body TEXT NOT NULL)',
+    );
+    await old.customStatement('PRAGMA user_version = 2');
+    await old.close();
+
+    final database = AppDatabase(NativeDatabase(file));
+    addTearDown(database.close);
+    final tables = await database
+        .customSelect(
+          "SELECT name FROM sqlite_master WHERE name = 'note_drafts'",
+        )
+        .get();
+    expect(tables, isEmpty);
+    final version = await database
+        .customSelect('PRAGMA user_version')
+        .getSingle();
+    expect(version.read<int>('user_version'), 3);
   });
 
   test('upgrading a real version 1 file keeps preferences, writing and recall triggers', () async {
@@ -41,12 +73,14 @@ void main() {
     final file = File('${directory.path}/app.sqlite');
     // The snapshot has no triggers, so rebuild version 1 from a live database.
     final old = AppDatabase(NativeDatabase(file));
-    await old.into(old.aiPreferencesTable).insert(
-      const AiPreferencesTableCompanion(
-        id: Value(1),
-        dailyQuestions: Value(false),
-      ),
-    );
+    await old
+        .into(old.aiPreferencesTable)
+        .insert(
+          const AiPreferencesTableCompanion(
+            id: Value(1),
+            dailyQuestions: Value(false),
+          ),
+        );
     await old.customStatement(
       'ALTER TABLE ai_preferences_table DROP COLUMN routes',
     );
@@ -72,7 +106,7 @@ void main() {
     final version = await database
         .customSelect('PRAGMA user_version')
         .getSingle();
-    expect(version.read<int>('user_version'), 2);
+    expect(version.read<int>('user_version'), 3);
     final columns = await database
         .customSelect('PRAGMA table_info(ai_preferences_table)')
         .get();
@@ -91,13 +125,12 @@ void main() {
       database,
       clock: () => DateTime.utc(2026, 11, 5),
     );
-    final draft = await repository.putDraft(
+    await repository.saveNote(
       id: 'a' * 32,
       text: const PlainTextDocument(title: 'Kept', body: 'Still writable'),
-      baseRevision: 0,
-      expectedDraftRevision: null,
+      expectedRevision: 0,
+      details: const NoteDetails(),
     );
-    await repository.commitDraft('a' * 32, draft.draftRevision);
     expect(
       (await repository.openDocument('a' * 32)).note!.text.body,
       'Still writable',
@@ -128,7 +161,7 @@ void main() {
   );
 
   test(
-    'a saved database reopens writing and drafts with working outbox triggers',
+    'a saved database reopens writing with working outbox triggers',
     () async {
       final directory = await Directory.systemTemp.createTemp(
         'redkeep-schema-',
@@ -144,35 +177,24 @@ void main() {
         reduceMotion: true,
         simplerEffects: true,
       );
-      late int draftRevision;
       try {
         await DriftAppearanceRepository(database).save(preferences);
         await DriftOnboardingRepository(database).complete('  Léa 王  ');
         final repository = DriftNotesRepository(database, clock: () => now);
-        final initial = await repository.putDraft(
+        expect(await database.select(database.syncRecords).get(), isEmpty);
+        expect(await database.select(database.syncOperations).get(), isEmpty);
+        expect(await database.select(database.recallQueue).get(), isEmpty);
+
+        final saved = await repository.saveNote(
           id: id,
           text: const PlainTextDocument(
             title: 'Saved',
             body: 'Exact words 👩🏽‍💻',
           ),
-          baseRevision: 0,
-          expectedDraftRevision: null,
+          expectedRevision: 0,
+          details: const NoteDetails(),
         );
-        expect(await database.select(database.syncRecords).get(), isEmpty);
-        expect(await database.select(database.syncOperations).get(), isEmpty);
-        expect(await database.select(database.recallQueue).get(), isEmpty);
-
-        final saved = await repository.commitDraft(id, initial.draftRevision);
-        final draft = await repository.putDraft(
-          id: id,
-          text: const PlainTextDocument(
-            title: 'Draft',
-            body: 'Unfinished words',
-          ),
-          baseRevision: saved.revision,
-          expectedDraftRevision: null,
-        );
-        draftRevision = draft.draftRevision;
+        expect(saved.revision, 1);
       } finally {
         await database.close();
       }
@@ -188,8 +210,6 @@ void main() {
       final restored = await repository.openDocument(id);
       expect(restored.note!.text.body, 'Exact words 👩🏽‍💻');
       expect(restored.note!.revision, 1);
-      expect(restored.draft!.text.body, 'Unfinished words');
-      expect(restored.draft!.draftRevision, draftRevision);
       expect(
         (await reopened.select(reopened.syncRecords).getSingle()).state,
         'pending',
@@ -203,20 +223,24 @@ void main() {
         1,
       );
 
-      await repository.commitDraft(id, draftRevision);
+      await repository.saveNote(
+        id: id,
+        text: const PlainTextDocument(title: 'Saved', body: 'Later words'),
+        expectedRevision: 1,
+        details: const NoteDetails(),
+      );
       expect(
         (await repository.openDocument(id)).note!.text.body,
-        'Unfinished words',
+        'Later words',
       );
       expect(
         (await reopened.select(reopened.recallQueue).getSingle()).generation,
         2,
       );
-      expect(await reopened.select(reopened.noteDrafts).get(), isEmpty);
       final version = await reopened
           .customSelect('PRAGMA user_version')
           .getSingle();
-      expect(version.read<int>('user_version'), 2);
+      expect(version.read<int>('user_version'), 3);
     },
   );
 

@@ -252,7 +252,7 @@ void main() {
     }
     expect(stored.routeFor(AiOperation.diaryDetails).isCompanion, isTrue);
     expect(find.text('On your network · 4 tasks'), findsOneWidget);
-    expect(find.text('Over the internet · 10 tasks'), findsOneWidget);
+    expect(find.text('Over the internet · 9 tasks'), findsOneWidget);
     await finish(tester);
   });
 

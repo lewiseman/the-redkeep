@@ -9,46 +9,34 @@ import 'package:redkeep/features/notes/domain/notes_query.dart';
 class ControlledNotesRepository implements NotesRepository {
   ControlledNotesRepository(this.inner);
   final NotesRepository inner;
-  bool failDraft = false;
-  bool failCommit = false;
+  bool failSave = false;
   bool failRead = false;
-  Completer<void>? draftGate;
-  Completer<void>? commitGate;
-  int commits = 0;
+  Completer<void>? saveGate;
+  int saves = 0;
 
   @override
   Stream<List<NoteCollectionEntry>> watchCollection({
     NotesQuery query = const NotesQuery(),
-    bool draftsOnly = false,
   }) => failRead
       ? Stream.error(StateError('synthetic read failure'))
-      : inner.watchCollection(query: query, draftsOnly: draftsOnly);
+      : inner.watchCollection(query: query);
 
   @override
-  Future<RecoveryDraft> putDraft({
+  Future<NoteDocument> saveNote({
     required String id,
+    required int expectedRevision,
     required PlainTextDocument text,
-    required int baseRevision,
-    required int? expectedDraftRevision,
-    NoteDetails? details,
+    required NoteDetails details,
   }) async {
-    await draftGate?.future;
-    if (failDraft) throw StateError('synthetic recovery failure');
-    return inner.putDraft(
+    saves++;
+    await saveGate?.future;
+    if (failSave) throw StateError('synthetic save failure');
+    return inner.saveNote(
       id: id,
+      expectedRevision: expectedRevision,
       text: text,
       details: details,
-      baseRevision: baseRevision,
-      expectedDraftRevision: expectedDraftRevision,
     );
-  }
-
-  @override
-  Future<NoteDocument> commitDraft(String id, int expectedDraftRevision) async {
-    commits++;
-    await commitGate?.future;
-    if (failCommit) throw StateError('synthetic commit failure');
-    return inner.commitDraft(id, expectedDraftRevision);
   }
 
   @override
@@ -68,10 +56,6 @@ class ControlledNotesRepository implements NotesRepository {
       ? Stream.error(StateError('synthetic read failure'))
       : inner.watchNotes(query: query);
   @override
-  Stream<List<NoteListing>> watchDrafts() => failRead
-      ? Stream.error(StateError('synthetic read failure'))
-      : inner.watchDrafts();
-  @override
   Future<void> deleteNote(String id, int expectedRevision) =>
       inner.deleteNote(id, expectedRevision);
   @override
@@ -89,15 +73,8 @@ class ControlledNotesRepository implements NotesRepository {
   Future<void> restoreNote(String id, int revision) =>
       inner.restoreNote(id, revision);
   @override
-  Future<void> permanentlyDelete(
-    String id,
-    int revision, {
-    required int? expectedDraftRevision,
-  }) => inner.permanentlyDelete(
-    id,
-    revision,
-    expectedDraftRevision: expectedDraftRevision,
-  );
+  Future<void> permanentlyDelete(String id, int revision) =>
+      inner.permanentlyDelete(id, revision);
   @override
   Future<NoteDocument> applyProposal(
     String id,
@@ -127,7 +104,4 @@ class ControlledNotesRepository implements NotesRepository {
   ) => inner.restorePriorContent(id, recoveryId, expectedRevision);
   @override
   Future<void> clearPriorContent(String id) => inner.clearPriorContent(id);
-  @override
-  Future<void> discardDraft(String id, int expectedDraftRevision) =>
-      inner.discardDraft(id, expectedDraftRevision);
 }

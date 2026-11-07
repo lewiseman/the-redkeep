@@ -10,6 +10,7 @@ import '../domain/note_question_contract.dart';
 import '../domain/note_scan_contract.dart';
 import '../domain/transform_contract.dart';
 import '../domain/website/website_contract.dart';
+import 'note_editor_controller.dart';
 import 'notes_providers.dart';
 
 Map<String, dynamic> noteTaskSource(String raw) =>
@@ -36,13 +37,15 @@ Future<bool> noteAiSourceCurrent(
     return true;
   }
   final opened = await repo.openDocument(source['noteId'] as String);
-  if (source['draft'] == true) {
+  if (source['unsaved'] == true) {
+    final editor = ref.exists(noteEditorProvider(source['noteId'] as String))
+        ? ref.read(noteEditorProvider(source['noteId'] as String)).value
+        : null;
     return opened.note == null &&
-        opened.draft?.draftRevision == source['draftRevision'];
+        editor != null &&
+        editor.editVersion == source['editVersion'];
   }
-  return opened.available &&
-      opened.note!.revision == source['revision'] &&
-      opened.draft == null;
+  return opened.available && opened.note!.revision == source['revision'];
 }
 
 void validateNoteAiOutput(

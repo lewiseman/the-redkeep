@@ -187,7 +187,7 @@ void main() {
     expect(undone.tags, ['travel']);
   });
 
-  test('template result enters the new draft and survives recovery without committing', () async {
+  test('template result fills a new note and saves it', () async {
     final id = 'c' * 32;
     h.scope.read(noteNewIdsProvider.notifier).add(id);
     final sub = h.scope.listen(noteEditorProvider(id), (_, _) {});
@@ -197,10 +197,11 @@ void main() {
         '{"title":"Trip plan","body":"Destination:\\n- [ ] Pack"}';
     await actions().start(AiOperation.noteTemplate, id, topic: 'Trip plan');
     await actions().apply(job());
+    final buffer = h.scope.read(noteEditorProvider(id)).requireValue;
+    expect(buffer.text.title, 'Trip plan');
     final opened = await h.repository.openDocument(id);
-    expect(opened.note, isNull);
-    expect(opened.draft!.text.title, 'Trip plan');
-    expect(opened.draft!.text.body, contains('- [ ] Pack'));
+    expect(opened.note!.text.title, 'Trip plan');
+    expect(opened.note!.text.body, contains('- [ ] Pack'));
   });
 
   test(

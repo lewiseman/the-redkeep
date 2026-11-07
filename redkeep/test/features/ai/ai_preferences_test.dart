@@ -41,8 +41,8 @@ void main() {
     expect((await prefs.read()).routeFor(AiOperation.diaryDetails), main);
   });
 
-  test('exactly the 14 phone tasks can use a provider', () async {
-    expect(AiOperation.values.where((o) => o.supportsProvider), hasLength(14));
+  test('exactly the 13 phone tasks can use a provider', () async {
+    expect(AiOperation.values.where((o) => o.supportsProvider), hasLength(13));
     await prefs.setDefaultRoute(main);
     final stored = await prefs.read();
     for (final operation in AiOperation.values) {

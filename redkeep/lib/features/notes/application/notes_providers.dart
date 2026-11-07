@@ -35,28 +35,10 @@ final notesCollectionProvider =
     StreamProvider.autoDispose<List<NoteCollectionEntry>>(
       (ref) => ref
           .watch(notesRepositoryProvider)
-          .watchCollection(
-            query: ref.watch(notesFilterProvider),
-            draftsOnly: ref.watch(notesDraftsOnlyProvider),
-          ),
+          .watchCollection(query: ref.watch(notesFilterProvider)),
       retry: (_, _) => null,
     );
 
-/// Separate from tag text: a user tag named "drafts" is still an ordinary tag.
-final notesDraftsOnlyProvider = NotifierProvider<NotesDraftsOnly, bool>(
-  NotesDraftsOnly.new,
-);
-
-class NotesDraftsOnly extends Notifier<bool> {
-  @override
-  bool build() => false;
-  void set(bool value) => state = value;
-}
-
-final recoveryListProvider = StreamProvider.autoDispose<List<NoteListing>>(
-  (ref) => ref.watch(notesRepositoryProvider).watchDrafts(),
-  retry: (_, _) => null,
-);
 final noteDocumentProvider = StreamProvider.autoDispose
     .family<OpenNote, String>(
       (ref, id) => ref.watch(notesRepositoryProvider).watchDocument(id),
@@ -97,14 +79,10 @@ class NotesActions extends Notifier<bool> {
   Future<void> restore(NoteDocument note) => _run(
     () => ref.read(notesRepositoryProvider).restoreNote(note.id, note.revision),
   );
-  Future<void> permanentlyDelete(NoteDocument note, int? draftRevision) => _run(
+  Future<void> permanentlyDelete(NoteDocument note) => _run(
     () => ref
         .read(notesRepositoryProvider)
-        .permanentlyDelete(
-          note.id,
-          note.revision,
-          expectedDraftRevision: draftRevision,
-        ),
+        .permanentlyDelete(note.id, note.revision),
   );
   Future<void> _run(Future<void> Function() action) async {
     if (state) throw StateError('An action is already pending');

@@ -17,80 +17,98 @@ class NoteEditorState {
     required this.text,
     this.details = const NoteDetails(),
     required this.baseRevision,
-    this.draftRevision,
     this.editVersion = 0,
     this.saving = false,
-    this.recovering = false,
-    this.recoveryFailed = false,
+    this.dirty = false,
+    this.conflict = false,
     this.message,
-    this.sourceUnavailable = false,
   });
   final PlainTextDocument text;
   final NoteDetails details;
+
+  /// The saved revision this writing builds on; 0 until a new note is saved.
   final int baseRevision;
-  final int? draftRevision;
   final int editVersion;
   final bool saving;
-  final bool recovering;
-  final bool recoveryFailed;
-  final bool sourceUnavailable;
+
+  /// Writing that has not reached the note yet.
+  final bool dirty;
+
+  /// The note changed elsewhere or was deleted; only a copy can be saved.
+  final bool conflict;
   final String? message;
 }
 
-/// The editing boundary owns the working buffer and serializes recovery writes.
-/// Navigation never owns a live model and never discards the buffer implicitly.
+/// Owns the working buffer and saves it straight into the note: shortly after
+/// typing stops, and whenever the page asks (leaving editing, backgrounding).
 class NoteEditorController extends AsyncNotifier<NoteEditorState> {
   NoteEditorController(this.id);
   final String id;
+
+  static const autosaveDelay = Duration(milliseconds: 1500);
+
   late NotesRepository _repository;
   late PlainTextDocument _text;
   NoteDetails _details = const NoteDetails();
   late int _baseRevision;
-  int? _draftRevision;
-  bool _unavailable = false;
   bool _saving = false;
-  bool _recoveryFailed = false;
+  bool _conflict = false;
   int _sequence = 0;
-  int _persistedSequence = 0;
+  int _savedSequence = 0;
+  Timer? _autosave;
   Future<bool>? _pending;
-  void Function()? _releaseFailedBuffer;
+  void Function()? _releaseUnsaved;
+
+  bool get _dirty => _sequence != _savedSequence;
 
   @override
   Future<NoteEditorState> build() async {
     _repository = ref.watch(notesRepositoryProvider);
+    ref.onDispose(() => _autosave?.cancel());
     final allocated = ref.read(noteNewIdsProvider).contains(id);
     final opened = await _repository.openDocument(id);
-    if (!opened.available &&
-        opened.draft == null &&
-        (opened.note != null || !allocated)) {
+    final note = opened.note;
+    if (note == null ? !allocated : !opened.available) {
       throw const NoteException(NoteFailure.unavailable);
     }
-    _text =
-        opened.draft?.text ?? opened.note?.text ?? const PlainTextDocument();
-    _details =
-        opened.draft?.details ??
-        opened.note?.details.copy(tags: opened.note!.tags) ??
-        const NoteDetails();
-    _baseRevision = opened.draft?.baseRevision ?? opened.note?.revision ?? 0;
-    _draftRevision = opened.draft?.draftRevision;
-    _unavailable = !opened.available && _baseRevision != 0;
-    return _snapshot(
-      message: opened.draft == null
-          ? null
-          : 'Recovery draft reopened. Save to commit this writing.',
-    );
+    _text = note?.text ?? const PlainTextDocument();
+    _details = note?.details.copy(tags: note.tags) ?? const NoteDetails();
+    _baseRevision = note?.revision ?? 0;
+    final changes = _repository.watchDocument(id).listen(_adoptExternal);
+    ref.onDispose(changes.cancel);
+    return _snapshot();
+  }
+
+  /// Picks up a newer saved revision (an AI result, a sync import) while
+  /// there is no unsaved writing that it would overwrite.
+  void _adoptExternal(OpenNote opened) {
+    final note = opened.note;
+    if (!ref.mounted ||
+        !state.hasValue ||
+        _saving ||
+        _dirty ||
+        note == null ||
+        !opened.available ||
+        note.revision <= _baseRevision) {
+      return;
+    }
+    _text = note.text;
+    _details = note.details.copy(tags: note.tags);
+    _baseRevision = note.revision;
+    _sequence++;
+    _savedSequence = _sequence;
+    _conflict = false;
+    _publish();
   }
 
   NoteEditorState _snapshot({String? message}) => NoteEditorState(
     text: _text,
     details: _details,
     baseRevision: _baseRevision,
-    draftRevision: _draftRevision,
     editVersion: _sequence,
     saving: _saving,
-    recovering: _sequence != _persistedSequence && !_recoveryFailed,
-    recoveryFailed: _recoveryFailed,
-    sourceUnavailable: _unavailable,
+    dirty: _dirty,
+    conflict: _conflict,
     message: message,
   );
 
@@ -98,28 +116,165 @@ class NoteEditorController extends AsyncNotifier<NoteEditorState> {
     if (ref.mounted) state = AsyncData(_snapshot(message: message));
   }
 
+  /// Typing never waits for a save; writing that arrives mid-save is saved
+  /// right after it.
   void edit(PlainTextDocument text) {
-    if (_saving || !state.hasValue) return;
+    if (!state.hasValue) return;
     _text = text;
-    _sequence++;
-    _recoveryFailed = false;
-    _publish();
-    unawaited(flushRecovery());
+    _changed();
   }
 
   void editDetails(NoteDetails details) {
-    if (_saving || !state.hasValue) return;
+    if (!state.hasValue) return;
     _details = details;
-    _sequence++;
-    _recoveryFailed = false;
-    _publish();
-    unawaited(flushRecovery());
+    _changed();
   }
 
-  /// Explicit proposal acceptance changes only this working buffer. Recheck
-  /// authoritative source/draft tokens after recovery and again synchronously
-  /// against editor/selection guards before touching text. Manual commit still
-  /// uses the repository's atomic source revision check.
+  void _changed() {
+    _sequence++;
+    // Keep the buffer alive until it reaches the note, even if the page goes.
+    _releaseUnsaved ??= ref.keepAlive().close;
+    _publish();
+    _autosave?.cancel();
+    if (!_conflict) _autosave = Timer(autosaveDelay, () => unawaited(save()));
+  }
+
+  void _settled() {
+    if (_dirty) return;
+    _releaseUnsaved?.call();
+    _releaseUnsaved = null;
+  }
+
+  /// Saves any unsaved writing. True when nothing is left unsaved, including
+  /// a new note that is still empty (it is simply never created).
+  Future<bool> save() {
+    _autosave?.cancel();
+    if (!state.hasValue) return Future.value(false);
+    return _pending ??= _save().whenComplete(() => _pending = null);
+  }
+
+  Future<bool> _save() async {
+    while (_dirty) {
+      if (_conflict) return false;
+      final sequence = _sequence;
+      if (_text.isEmpty && !_details.hasWriting) {
+        if (_baseRevision == 0) {
+          _savedSequence = sequence;
+          continue;
+        }
+        _publish(
+          message: 'An empty note can’t be saved. Add some writing or delete the note.',
+        );
+        return false;
+      }
+      _saving = true;
+      _publish();
+      try {
+        final saved = await _repository.saveNote(
+          id: id,
+          expectedRevision: _baseRevision,
+          text: _text,
+          details: _details,
+        );
+        _baseRevision = saved.revision;
+        _savedSequence = sequence;
+        if (ref.mounted) ref.read(noteNewIdsProvider.notifier).remove(id);
+      } on NoteException catch (error) {
+        _saving = false;
+        if (error.failure == NoteFailure.staleRevision ||
+            error.failure == NoteFailure.unavailable) {
+          _conflict = true;
+          _publish(
+            message: 'This note changed somewhere else or was deleted. Your writing is still here: save it as a copy.',
+          );
+        } else {
+          _publish(
+            message:
+                'This note could not be saved. Your writing is still here.',
+          );
+        }
+        return false;
+      } catch (_) {
+        _saving = false;
+        _publish(
+          message: 'This note could not be saved. Your writing is still here; check device storage and try again.',
+        );
+        return false;
+      }
+      _saving = false;
+    }
+    _publish();
+    _settled();
+    return true;
+  }
+
+  /// Drops unsaved writing; the saved note (if any) is untouched.
+  void discardChanges() {
+    _autosave?.cancel();
+    _savedSequence = _sequence;
+    _conflict = false;
+    _publish();
+    _settled();
+  }
+
+  /// Keeps conflicting writing as a new note. Returns its id.
+  Future<String?> saveCopy() async {
+    if (_saving || !state.hasValue || (_text.isEmpty && !_details.hasWriting)) {
+      return null;
+    }
+    _autosave?.cancel();
+    final newId = ref.read(noteIdProvider)();
+    _saving = true;
+    _publish();
+    try {
+      await _repository.saveNote(
+        id: newId,
+        expectedRevision: 0,
+        text: _text,
+        details: _details,
+      );
+      _savedSequence = _sequence;
+      _saving = false;
+      _publish();
+      _settled();
+      return newId;
+    } catch (_) {
+      _saving = false;
+      _publish(
+        message: 'The copy could not be saved. Your writing is still here; try again.',
+      );
+      return null;
+    }
+  }
+
+  /// Applies an edit only while the buffer and the saved note still match
+  /// what the reviewer saw.
+  Future<bool> _stillMatches(
+    NoteEditorState expected,
+    bool Function() valid,
+  ) async {
+    if (!valid()) return false;
+    final opened = await _repository.openDocument(id);
+    return valid() &&
+        (expected.baseRevision == 0
+            ? opened.note == null
+            : opened.available &&
+                  opened.note!.revision == expected.baseRevision);
+  }
+
+  bool _unchangedSince(
+    NoteEditorState expected,
+    bool Function() stillCurrent,
+  ) =>
+      ref.mounted &&
+      !_saving &&
+      state.hasValue &&
+      stillCurrent() &&
+      _sequence == expected.editVersion &&
+      _baseRevision == expected.baseRevision &&
+      _text.title == expected.text.title &&
+      _text.body == expected.text.body;
+
   Future<bool> acceptReplacement({
     required NoteEditorState expected,
     required int start,
@@ -127,15 +282,7 @@ class NoteEditorController extends AsyncNotifier<NoteEditorState> {
     required String replacement,
     required bool Function() stillCurrent,
   }) async {
-    bool valid() =>
-        ref.mounted &&
-        !_saving &&
-        state.hasValue &&
-        stillCurrent() &&
-        _sequence == expected.editVersion &&
-        _baseRevision == expected.baseRevision &&
-        _text.title == expected.text.title &&
-        _text.body == expected.text.body;
+    bool valid() => _unchangedSince(expected, stillCurrent);
     if (!valid() ||
         start < 0 ||
         end <= start ||
@@ -143,16 +290,7 @@ class NoteEditorController extends AsyncNotifier<NoteEditorState> {
         replacement.trim().isEmpty) {
       return false;
     }
-    if (!await flushRecovery() || !valid()) return false;
-    final opened = await _repository.openDocument(id);
-    if (!valid() ||
-        (expected.baseRevision == 0
-            ? opened.note != null
-            : !opened.available ||
-                  opened.note!.revision != expected.baseRevision) ||
-        opened.draft?.draftRevision != _draftRevision) {
-      return false;
-    }
+    if (!await _stillMatches(expected, valid)) return false;
     edit(
       PlainTextDocument(
         title: _text.title,
@@ -163,32 +301,15 @@ class NoteEditorController extends AsyncNotifier<NoteEditorState> {
   }
 
   /// Dictation is an append proposal, including for an initially empty note.
-  /// The transcript remains retained by the caller when any token changed.
+  /// The transcript remains retained by the caller when anything changed.
   Future<bool> appendReviewedTranscript({
     required NoteEditorState expected,
     required String transcript,
     required bool Function() stillCurrent,
   }) async {
-    bool valid() =>
-        ref.mounted &&
-        !_saving &&
-        state.hasValue &&
-        stillCurrent() &&
-        _sequence == expected.editVersion &&
-        _baseRevision == expected.baseRevision &&
-        _text.title == expected.text.title &&
-        _text.body == expected.text.body;
+    bool valid() => _unchangedSince(expected, stillCurrent);
     if (transcript.trim().isEmpty || !valid()) return false;
-    if (!await flushRecovery() || !valid()) return false;
-    final opened = await _repository.openDocument(id);
-    if (!valid() ||
-        (expected.baseRevision == 0
-            ? opened.note != null
-            : !opened.available ||
-                  opened.note!.revision != expected.baseRevision) ||
-        opened.draft?.draftRevision != _draftRevision) {
-      return false;
-    }
+    if (!await _stillMatches(expected, valid)) return false;
     edit(
       PlainTextDocument(
         title: _text.title,
@@ -199,165 +320,5 @@ class NoteEditorController extends AsyncNotifier<NoteEditorState> {
       ),
     );
     return true;
-  }
-
-  /// Coalesces changes during a write and retains this provider until settled.
-  Future<bool> flushRecovery() {
-    if (_pending != null) return _pending!;
-    final keep = ref.keepAlive();
-    final future = _flush();
-    _pending = future;
-    unawaited(
-      future.then((recovered) {
-        _pending = null;
-        if (recovered) {
-          _releaseFailedBuffer?.call();
-          _releaseFailedBuffer = null;
-          keep.close();
-        } else if (_releaseFailedBuffer == null) {
-          // A platform destination can bypass a page's back guard. Retain the
-          // failed working buffer in this scope for a subsequent editor visit.
-          _releaseFailedBuffer = keep.close;
-        } else {
-          keep.close();
-        }
-      }),
-    );
-    return future;
-  }
-
-  Future<bool> _flush() async {
-    while (_persistedSequence != _sequence) {
-      final sequence = _sequence;
-      final text = _text;
-      try {
-        if (text.isEmpty && !_details.hasWriting) {
-          if (_draftRevision != null) {
-            await _repository.discardDraft(id, _draftRevision!);
-            _draftRevision = null;
-          }
-        } else {
-          final draft = await _repository.putDraft(
-            id: id,
-            text: text,
-            details: _details,
-            baseRevision: _baseRevision,
-            expectedDraftRevision: _draftRevision,
-          );
-          _draftRevision = draft.draftRevision;
-        }
-        _persistedSequence = sequence;
-        _recoveryFailed = false;
-      } catch (_) {
-        _recoveryFailed = true;
-        _publish(
-          message: 'Recovery could not be saved. Keep this editor open and retry, or save a copy.',
-        );
-        return false;
-      }
-    }
-    _publish();
-    return true;
-  }
-
-  Future<bool> save() async {
-    if (_saving || !state.hasValue || (_text.isEmpty && !_details.hasWriting)) {
-      return false;
-    }
-    _saving = true;
-    _publish();
-    final keep = ref.keepAlive();
-    try {
-      if (!await flushRecovery()) return false;
-      if (_draftRevision == null) return true;
-      final saved = await _repository.commitDraft(id, _draftRevision!);
-      _draftRevision = null;
-      _baseRevision = saved.revision;
-      ref.read(noteNewIdsProvider.notifier).remove(id);
-      _unavailable = false;
-      _saving = false;
-      _publish(message: 'Saved revision ${saved.revision} on this device.');
-      return true;
-    } on NoteException catch (error) {
-      _saving = false;
-      if (error.failure == NoteFailure.draftChanged) {
-        _recoveryFailed = true;
-        _persistedSequence = -1;
-        if (ref.mounted) _releaseFailedBuffer ??= ref.keepAlive().close;
-      }
-      _publish(
-        message: error.failure == NoteFailure.draftChanged
-            ? 'The recovery draft changed elsewhere. Keep this editor open and save a copy.'
-            : 'This note changed or was deleted. Your recovery draft is kept. Save a copy to keep both versions.',
-      );
-      return false;
-    } catch (_) {
-      _saving = false;
-      _publish(
-        message: 'Save failed. Your recovery draft is kept. Check device storage and retry.',
-      );
-      return false;
-    } finally {
-      _saving = false;
-      // Preserve the specific result message, including recovery failure.
-      if (ref.mounted) _publish(message: state.value?.message);
-      keep.close();
-    }
-  }
-
-  /// Explicit conflict recovery; the source and its recovery draft are retained.
-  Future<String?> saveCopy() async {
-    if (_saving || !state.hasValue || (_text.isEmpty && !_details.hasWriting)) {
-      return null;
-    }
-    final newId = ref.read(noteIdProvider)();
-    _saving = true;
-    _publish();
-    final keep = ref.keepAlive();
-    try {
-      final draft = await _repository.putDraft(
-        id: newId,
-        text: _text,
-        details: _details,
-        baseRevision: 0,
-        expectedDraftRevision: null,
-      );
-      await _repository.commitDraft(newId, draft.draftRevision);
-      _releaseFailedBuffer?.call();
-      _releaseFailedBuffer = null;
-      return newId;
-    } catch (_) {
-      _publish(
-        message: 'Copy could not be committed. Your writing is kept; check Recovery drafts and retry.',
-      );
-      return null;
-    } finally {
-      _saving = false;
-      if (ref.mounted) _publish(message: state.value?.message);
-      keep.close();
-    }
-  }
-
-  Future<bool> discard() async {
-    if (_saving) return false;
-    _saving = true;
-    _publish();
-    final keep = ref.keepAlive();
-    try {
-      if (!await flushRecovery()) return false;
-      if (_draftRevision != null) {
-        await _repository.discardDraft(id, _draftRevision!);
-        _draftRevision = null;
-      }
-      ref.read(noteNewIdsProvider.notifier).remove(id);
-      return true;
-    } catch (_) {
-      _publish(message: 'Draft could not be discarded. It has been kept.');
-      return false;
-    } finally {
-      _saving = false;
-      if (ref.mounted) _publish(message: state.value?.message);
-      keep.close();
-    }
   }
 }

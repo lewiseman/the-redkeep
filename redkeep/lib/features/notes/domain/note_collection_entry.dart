@@ -9,8 +9,6 @@ class NoteCollectionEntry {
     required this.excerpt,
     required this.updatedAt,
     required this.pinned,
-    required this.isDraft,
-    required this.sourceUnavailable,
   });
 
   static const excerptCharacters = 600;
@@ -20,6 +18,4 @@ class NoteCollectionEntry {
   final String excerpt;
   final DateTime updatedAt;
   final bool pinned;
-  final bool isDraft;
-  final bool sourceUnavailable;
 }

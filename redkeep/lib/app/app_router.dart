@@ -35,9 +35,8 @@ import 'package:go_router/go_router.dart';
 import '../features/appearance/presentation/appearance_page.dart';
 import '../features/onboarding/application/onboarding_controller.dart';
 import '../features/onboarding/presentation/onboarding_page.dart';
+import '../features/notes/presentation/note_page.dart';
 import '../features/notes/presentation/notes_list_page.dart';
-import '../features/notes/presentation/note_read_page.dart';
-import '../features/notes/presentation/note_edit_page.dart';
 import 'bootstrap/bootstrap_controller.dart';
 import 'bootstrap/startup_handoff.dart';
 import 'bootstrap/startup_page.dart';
@@ -226,27 +225,16 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
                     pageBuilder: (context, state) =>
                         _page(state, const RetainedNoteAiPage()),
                   ),
+                  // Editing is a state of this page, not a route of its own.
                   GoRoute(
                     path: ':id',
                     pageBuilder: (context, state) => _page(
                       state,
-                      NoteReadPage(
+                      NotePage(
                         key: ValueKey(state.pathParameters['id']),
                         id: state.pathParameters['id']!,
                       ),
                     ),
-                    routes: [
-                      GoRoute(
-                        path: 'edit',
-                        pageBuilder: (context, state) => _page(
-                          state,
-                          NoteEditPage(
-                            key: ValueKey(state.pathParameters['id']),
-                            id: state.pathParameters['id']!,
-                          ),
-                        ),
-                      ),
-                    ],
                   ),
                 ],
               ),

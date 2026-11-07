@@ -22,20 +22,15 @@ class DriftNotesRepository implements NotesRepository {
   @override
   Stream<List<NoteCollectionEntry>> watchCollection({
     NotesQuery query = const NotesQuery(),
-    bool draftsOnly = false,
   }) {
     final conditions = <String>[
-      if (query.trash)
-        'deleted_at IS NOT NULL'
-      else
-        '(deleted_at IS NULL OR is_draft = 1)',
-      if (draftsOnly) query.trash ? '0' : 'is_draft = 1',
+      query.trash ? 'deleted_at IS NOT NULL' : 'deleted_at IS NULL',
       if (query.pinnedOnly) 'pinned = 1',
     ];
     final variables = <Variable>[];
     if (query.tag != null) {
       conditions.add(
-        'EXISTS (SELECT 1 FROM note_tags WHERE note_id = effective.id AND tag = ?)',
+        'EXISTS (SELECT 1 FROM note_tags WHERE note_id = notes.id AND tag = ?)',
       );
       variables.add(Variable.withString(query.tag!));
     }
@@ -52,33 +47,17 @@ class DriftNotesRepository implements NotesRepository {
         Variable.withString(token),
       ]);
     }
-    // The CTE keeps filtering and overlaying in SQLite. Only the final bounded
-    // excerpt crosses the database boundary, even for very large documents.
-    final source = query.trash
-        ? '''SELECT id, title, body, updated_at, pinned, deleted_at,
-             details, 0 AS is_draft, 0 AS source_unavailable FROM notes'''
-        : '''SELECT ids.id,
-             CASE WHEN d.id IS NOT NULL THEN d.title ELSE n.title END AS title,
-             CASE WHEN d.id IS NOT NULL THEN d.body ELSE n.body END AS body,
-             CASE WHEN d.id IS NOT NULL THEN d.updated_at ELSE n.updated_at END AS updated_at,
-             coalesce(n.pinned, 0) AS pinned, n.deleted_at,
-             CASE WHEN d.id IS NOT NULL THEN d.details ELSE n.details END AS details,
-             (d.id IS NOT NULL) AS is_draft,
-             (d.id IS NOT NULL AND d.base_revision > 0 AND
-               (n.id IS NULL OR n.deleted_at IS NOT NULL)) AS source_unavailable
-           FROM (SELECT id FROM notes UNION SELECT id FROM note_drafts) ids
-           LEFT JOIN notes n ON n.id = ids.id
-           LEFT JOIN note_drafts d ON d.id = ids.id''';
+    // Only the bounded excerpt crosses the database boundary, even for very
+    // large documents.
     return _db
         .customSelect(
-          '''WITH effective AS ($source)
-         SELECT id, title, substr(body, 1, ${NoteCollectionEntry.excerptCharacters}) AS excerpt,
-           updated_at, pinned, is_draft, source_unavailable,
+          '''SELECT id, title, substr(body, 1, ${NoteCollectionEntry.excerptCharacters}) AS excerpt,
+           updated_at, pinned,
            json_remove(details, '\$.website', '\$.websiteSourceHash') AS card_details
-         FROM effective WHERE ${conditions.join(' AND ')}
+         FROM notes WHERE ${conditions.join(' AND ')}
          ORDER BY pinned DESC, updated_at DESC, id''',
           variables: variables,
-          readsFrom: {_db.notes, _db.noteDrafts, _db.noteTags},
+          readsFrom: {_db.notes, _db.noteTags},
         )
         .watch()
         .map(
@@ -93,8 +72,6 @@ class DriftNotesRepository implements NotesRepository {
                   isUtc: true,
                 ),
                 pinned: row.read<int>('pinned') == 1,
-                isDraft: row.read<int>('is_draft') == 1,
-                sourceUnavailable: row.read<int>('source_unavailable') == 1,
                 details: NoteDetails.decode(row.read<String>('card_details')),
               ),
           ],
@@ -148,15 +125,6 @@ class DriftNotesRepository implements NotesRepository {
       .watch()
       .map((rows) => rows.map((r) => r.read<String>('tag')).toList());
 
-  @override
-  Stream<List<NoteListing>> watchDrafts() => _db
-      .customSelect(
-        'SELECT id, title, base_revision, updated_at FROM note_drafts ORDER BY updated_at DESC, id',
-        readsFrom: {_db.noteDrafts},
-      )
-      .watch()
-      .map((rows) => rows.map((r) => _listing(r, 'base_revision')).toList());
-
   NoteListing _listing(QueryRow row, String revision) => NoteListing(
     id: row.read<String>('id'),
     title: row.read<String>('title'),
@@ -176,14 +144,9 @@ class DriftNotesRepository implements NotesRepository {
     return _db
         .customSelect(
           'SELECT (SELECT revision FROM notes WHERE id = ?) AS source_revision, '
-          '(SELECT draft_revision FROM note_drafts WHERE id = ?) AS draft_revision, '
           '(SELECT group_concat(tag) FROM note_tags WHERE note_id = ?) AS tags',
-          variables: [
-            Variable.withString(id),
-            Variable.withString(id),
-            Variable.withString(id),
-          ],
-          readsFrom: {_db.notes, _db.noteDrafts, _db.noteTags},
+          variables: [Variable.withString(id), Variable.withString(id)],
+          readsFrom: {_db.notes, _db.noteTags},
         )
         .watch()
         .asyncMap((_) => openDocument(id));
@@ -196,9 +159,6 @@ class DriftNotesRepository implements NotesRepository {
       final note = await (_db.select(
         _db.notes,
       )..where((r) => r.id.equals(id))).getSingleOrNull();
-      final draft = await (_db.select(
-        _db.noteDrafts,
-      )..where((r) => r.id.equals(id))).getSingleOrNull();
       final tags =
           await (_db.select(_db.noteTags)
                 ..where((r) => r.noteId.equals(id))
@@ -208,108 +168,47 @@ class DriftNotesRepository implements NotesRepository {
         note: note == null
             ? null
             : _note(note, tags.map((t) => t.tag).toList()),
-        draft: draft == null
-            ? null
-            : _draft(
-                draft,
-                legacyDetails: note == null
-                    ? null
-                    : NoteDetails.decode(note.details)
-                          .copy(tags: tags.map((t) => t.tag).toList()),
-              ),
       );
     });
   }
 
   @override
-  Future<RecoveryDraft> putDraft({
+  Future<NoteDocument> saveNote({
     required String id,
+    required int expectedRevision,
     required PlainTextDocument text,
-    required int baseRevision,
-    required int? expectedDraftRevision,
-    NoteDetails? details,
+    required NoteDetails details,
   }) async {
     return _db.transaction(() async {
-      await checkWritingAccess(_db, _generation, recoveryOnly: true);
       _validate(id);
-
-      final old = await (_db.select(
-        _db.noteDrafts,
-      )..where((r) => r.id.equals(id))).getSingleOrNull();
-      if (old?.draftRevision != expectedDraftRevision ||
-          (old != null && old.baseRevision != baseRevision)) {
-        throw const NoteException(NoteFailure.draftChanged);
-      }
-      final source = await openDocument(id);
-      final effectiveDetails =
-          details ??
-          source.draft?.details ??
-          source.note?.details.copy(tags: source.note!.tags) ??
-          const NoteDetails();
-      NoteDetails.decode(effectiveDetails.encode());
-      if (text.isEmpty && !effectiveDetails.hasWriting) {
-        throw const NoteException(NoteFailure.empty);
-      }
-      final now = _clock().toUtc().millisecondsSinceEpoch;
-      if (old != null) await discardDraft(id, old.draftRevision);
-      final version = await _db
-          .into(_db.noteDrafts)
-          .insert(
-            NoteDraftsCompanion.insert(
-              id: id,
-              title: text.title,
-              body: text.body,
-              details: Value(effectiveDetails.encode()),
-              baseRevision: baseRevision,
-              updatedAt: now,
-            ),
-          );
-      return RecoveryDraft(
-        id: id,
-        text: text,
-        details: effectiveDetails,
-        baseRevision: baseRevision,
-        draftRevision: version,
-        updatedAt: DateTime.fromMillisecondsSinceEpoch(now, isUtc: true),
-      );
-    });
-  }
-
-  @override
-  Future<NoteDocument> commitDraft(String id, int expectedDraftRevision) async {
-    return _db.transaction(() async {
       await checkWritingAccess(
         _db,
         _generation,
-        creating:
-            (await (_db.select(
-              _db.notes,
-            )..where((r) => r.id.equals(id))).getSingleOrNull()) ==
-            null,
+        creating: expectedRevision == 0,
       );
-      _validate(id);
-
-      final snapshot = await openDocument(id);
-      final draft = snapshot.draft;
-      if (draft == null || draft.draftRevision != expectedDraftRevision) {
-        throw const NoteException(NoteFailure.draftChanged);
+      NoteDetails.decode(details.encode());
+      if (text.isEmpty && !details.hasWriting) {
+        throw const NoteException(NoteFailure.empty);
       }
-      final old = snapshot.note;
-      if (old?.deletedAt != null ||
-          (old?.revision ?? 0) != draft.baseRevision) {
+      final old = (await openDocument(id)).note;
+      if (expectedRevision == 0
+          ? old != null
+          : old == null ||
+                old.deletedAt != null ||
+                old.revision != expectedRevision) {
         throw const NoteException(NoteFailure.staleRevision);
       }
       final now = _clock().toUtc();
-      final revision = draft.baseRevision + 1;
+      final revision = expectedRevision + 1;
       if (old == null) {
         await _db
             .into(_db.notes)
             .insert(
               NotesCompanion.insert(
                 id: id,
-                title: draft.text.title,
-                body: draft.text.body,
-                details: Value(draft.details.encode()),
+                title: text.title,
+                body: text.body,
+                details: Value(details.encode()),
                 revision: revision,
                 createdAt: now.millisecondsSinceEpoch,
                 updatedAt: now.millisecondsSinceEpoch,
@@ -320,31 +219,30 @@ class DriftNotesRepository implements NotesRepository {
             await (_db.update(_db.notes)..where(
                   (r) =>
                       r.id.equals(id) &
-                      r.revision.equals(draft.baseRevision) &
+                      r.revision.equals(expectedRevision) &
                       r.deletedAt.isNull(),
                 ))
                 .write(
                   NotesCompanion(
-                    title: Value(draft.text.title),
-                    body: Value(draft.text.body),
-                    details: Value(draft.details.encode()),
+                    title: Value(text.title),
+                    body: Value(text.body),
+                    details: Value(details.encode()),
                     revision: Value(revision),
                     updatedAt: Value(now.millisecondsSinceEpoch),
                   ),
                 );
         if (count != 1) throw const NoteException(NoteFailure.staleRevision);
       }
-      await _putTags(id, draft.details.tags);
-      await discardDraft(id, expectedDraftRevision);
+      await _putTags(id, details.tags);
       return NoteDocument(
         id: id,
-        text: draft.text,
+        text: text,
         revision: revision,
         createdAt: old?.createdAt ?? now,
         updatedAt: now,
         pinned: old?.pinned ?? false,
-        tags: draft.details.tags,
-        details: draft.details,
+        tags: details.tags,
+        details: details,
       );
     });
   }
@@ -445,11 +343,7 @@ class DriftNotesRepository implements NotesRepository {
   }
 
   @override
-  Future<void> permanentlyDelete(
-    String id,
-    int expectedRevision, {
-    required int? expectedDraftRevision,
-  }) async {
+  Future<void> permanentlyDelete(String id, int expectedRevision) async {
     return _db.transaction(() async {
       await checkWritingAccess(_db, _generation);
       _validate(id);
@@ -459,32 +353,8 @@ class DriftNotesRepository implements NotesRepository {
           snapshot.note!.revision != expectedRevision) {
         throw const NoteException(NoteFailure.staleRevision);
       }
-      if (snapshot.draft?.draftRevision != expectedDraftRevision) {
-        throw const NoteException(NoteFailure.draftChanged);
-      }
-      if (expectedDraftRevision != null) {
-        await discardDraft(id, expectedDraftRevision);
-      }
       await (_db.delete(_db.noteTags)..where((r) => r.noteId.equals(id))).go();
       await (_db.delete(_db.notes)..where((r) => r.id.equals(id))).go();
-    });
-  }
-
-  @override
-  Future<void> discardDraft(String id, int expectedDraftRevision) async {
-    return _db.transaction(() async {
-      if (_db.writingBlocked || _db.writingGeneration != _generation) {
-        throw StateError('Account reset changed this writing session.');
-      }
-      _validate(id);
-      final count =
-          await (_db.delete(_db.noteDrafts)..where(
-                (r) =>
-                    r.id.equals(id) &
-                    r.draftRevision.equals(expectedDraftRevision),
-              ))
-              .go();
-      if (count != 1) throw const NoteException(NoteFailure.draftChanged);
     });
   }
 
@@ -512,9 +382,7 @@ class DriftNotesRepository implements NotesRepository {
     _validate(id);
     NoteDetails.decode(details.encode());
     final opened = await openDocument(id);
-    if (!opened.available ||
-        opened.note!.revision != expectedRevision ||
-        opened.draft != null) {
+    if (!opened.available || opened.note!.revision != expectedRevision) {
       throw const NoteException(NoteFailure.staleRevision);
     }
     final old = opened.note!;
@@ -623,18 +491,4 @@ class DriftNotesRepository implements NotesRepository {
         ? null
         : DateTime.fromMillisecondsSinceEpoch(r.deletedAt!, isUtc: true),
   );
-  RecoveryDraft _draft(NoteDraft r, {NoteDetails? legacyDetails}) =>
-      RecoveryDraft(
-        id: r.id,
-        text: PlainTextDocument(title: r.title, body: r.body),
-        details: r.details == '{}'
-            ? legacyDetails ?? const NoteDetails()
-            : NoteDetails.decode(r.details),
-        baseRevision: r.baseRevision,
-        draftRevision: r.draftRevision,
-        updatedAt: DateTime.fromMillisecondsSinceEpoch(
-          r.updatedAt,
-          isUtc: true,
-        ),
-      );
 }

@@ -7,6 +7,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/presentation/rendering_policy.dart';
+import '../../diary/presentation/photos/diary_memory_material.dart';
 
 import 'note_paper_surface.dart';
 
@@ -57,6 +58,7 @@ class NotePaper extends StatefulWidget {
 class _NotePaperState extends State<NotePaper>
     with SingleTickerProviderStateMixin {
   static const _transitionDistance = 100.0;
+  static const _editBadgeSize = 56.0;
   static const _bottomFadeHeight = 110.0;
   static const _unfoldDuration = Duration(milliseconds: 320);
   static const _spring = SpringDescription(
@@ -105,6 +107,14 @@ class _NotePaperState extends State<NotePaper>
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller?.removeListener(_collapse);
       widget.controller?.addListener(_collapse);
+    }
+    if (oldWidget.onExpansionChanged == null &&
+        widget.onExpansionChanged != null) {
+      // Moving between reading and editing keeps this paper; tell the new
+      // listener where the fold already is (after this build).
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _publishExpansion();
+      });
     }
     if (oldWidget.isPreviewMode && !widget.isPreviewMode) {
       _dragCanExpand = false;
@@ -335,19 +345,18 @@ class _NotePaperState extends State<NotePaper>
                       child: ExcludeSemantics(
                         child: Opacity(
                           opacity: ((folded - .35) / .65).clamp(0.0, 1.0),
+                          // Matches the app bar action buttons.
                           child: SizedBox.square(
-                            dimension: 48,
+                            dimension: _editBadgeSize,
                             child: DecoratedBox(
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .surfaceContainerHigh,
+                                color: Theme.of(context).colorScheme.surface,
                               ),
                               child: Center(
-                                child: Icon(
-                                  Icons.edit_outlined,
-                                  size: 22,
+                                child: DiaryInkGlyph(
+                                  symbol: DiaryInkSymbol.pencil,
+                                  size: 28,
                                   color: Theme.of(context)
                                       .colorScheme
                                       .onSurface,
@@ -430,7 +439,7 @@ class _NotePaperState extends State<NotePaper>
                       tooltip: 'Edit note',
                       onPressed: _edit,
                       style: IconButton.styleFrom(
-                        fixedSize: const Size(48, 48),
+                        fixedSize: const Size.square(_editBadgeSize),
                       ),
                       icon: const SizedBox.shrink(),
                     ),

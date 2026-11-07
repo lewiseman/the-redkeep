@@ -287,7 +287,7 @@ class NoteMediaStore {
     for (final row
         in await db
             .customSelect(
-              'SELECT details FROM notes UNION ALL SELECT details FROM note_drafts UNION ALL SELECT details FROM note_ai_recoveries',
+              'SELECT details FROM notes UNION ALL SELECT details FROM note_ai_recoveries',
             )
             .get()) {
       final details = NoteDetails.decode(row.read<String>('details'));

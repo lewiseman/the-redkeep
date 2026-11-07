@@ -357,13 +357,7 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
                                     liveRegion: true,
                                     child: Text(
                                       state.message ??
-                                          (state.saving
-                                              ? 'Saving…'
-                                              : state.dirty
-                                              ? 'Unsaved changes'
-                                              : state.baseRevision > 0
-                                              ? 'Saved'
-                                              : ''),
+                                          (state.saving ? 'Saving…' : ''),
                                       key: const ValueKey('note-save-status'),
                                       style: Theme.of(context)
                                           .textTheme

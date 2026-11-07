@@ -33,6 +33,9 @@ class MemoryAiProviders implements ProtectedAiProviders {
 class FakeAiProviderClient implements AiCloudClient {
   FakeAiProviderClient([this.reply = '']);
   String reply;
+
+  /// Answers for the next chats, in order, before [reply].
+  final replies = <String>[];
   AiProviderFailure? failure;
   Completer<void>? gate;
   bool aborted = false;
@@ -65,7 +68,7 @@ class FakeAiProviderClient implements AiCloudClient {
   }) async {
     requests.add(request);
     await _wait(abort);
-    return AiResult(reply, usage);
+    return AiResult(replies.isEmpty ? reply : replies.removeAt(0), usage);
   }
 
   @override

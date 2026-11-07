@@ -46,7 +46,8 @@ void main() {
         h.remote.output = '<script>untrusted output</script>';
         if (operation == AiOperation.noteQuestion) {
           await actions().search('tomatoes', scope: notesJobScope);
-        } else if (operation == AiOperation.noteTemplate) {
+        } else if (operation == AiOperation.noteTemplate ||
+            operation == AiOperation.noteDraft) {
           final id = 'c' * 32;
           h.scope.read(noteNewIdsProvider.notifier).add(id);
           final sub = h.scope.listen(noteEditorProvider(id), (_, _) {});
@@ -212,6 +213,66 @@ void main() {
       expect(saved.tags, containsAll(['travel', '🌱#Gardening']));
     },
   );
+
+  test('a new note can be written from an idea and get its website', () async {
+    final id = 'd' * 32;
+    h.scope.read(noteNewIdsProvider.notifier).add(id);
+    final sub = h.scope.listen(noteEditorProvider(id), (_, _) {});
+    addTearDown(sub.close);
+    await h.scope.read(noteEditorProvider(id).future);
+    const body = '## Clothes\n\n- [ ] Rain jacket\n- [ ] Walking shoes';
+    h.aiProvider.replies.addAll([
+      jsonEncode({'title': 'Japan packing', 'body': body}),
+      noteWebsiteOutput,
+    ]);
+    await actions().start(
+      AiOperation.noteDraft,
+      id,
+      scope: notesJobScope,
+      topic: 'Packing list for a week in Japan',
+    );
+    expect(jsonDecode(h.remote.submissions.first['prompt'] as String), {
+      'idea': 'Packing list for a week in Japan',
+    });
+    await actions().apply(job(), scope: notesJobScope);
+    final saved = (await h.repository.openDocument(id)).note!;
+    expect(saved.text.title, 'Japan packing');
+    expect(saved.text.body, body);
+
+    await actions().start(
+      AiOperation.noteWebsite,
+      id,
+      scope: notesJobScope,
+      description: 'Checklist',
+    );
+    expect(
+      jsonDecode(h.remote.submissions.last['prompt'] as String)['text'],
+      body,
+    );
+    await actions().apply(job(), scope: notesJobScope);
+    final website = (await h.scope.read(noteWebsitesProvider).get(id))!;
+    expect(website.isOutdatedFor(body), isFalse);
+  });
+
+  test('a drafted note must fit the editor', () async {
+    final id = 'e' * 32;
+    h.scope.read(noteNewIdsProvider.notifier).add(id);
+    final sub = h.scope.listen(noteEditorProvider(id), (_, _) {});
+    addTearDown(sub.close);
+    await h.scope.read(noteEditorProvider(id).future);
+    h.remote.output = jsonEncode({
+      'title': 'Trip',
+      'body': '| a | table |\n|---|---|',
+    });
+    await actions().start(
+      AiOperation.noteDraft,
+      id,
+      scope: notesJobScope,
+      topic: 'Trip',
+    );
+    expect(job().phase, isNot('completed'));
+    expect((await h.repository.openDocument(id)).note, isNull);
+  });
 
   test('template result fills a new note and saves it', () async {
     final id = 'c' * 32;

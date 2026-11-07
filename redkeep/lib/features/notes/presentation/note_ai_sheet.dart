@@ -87,6 +87,13 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
     return ref.watch(noteWebsiteProvider(id)).value;
   }
 
+  /// A new note with nothing written yet: the website tool writes it first.
+  bool get _creating {
+    if (widget.tool != NoteAiTool.presentation) return false;
+    final subject = _subject();
+    return subject != null && subject.body.trim().isEmpty;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -174,6 +181,24 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
     final actions = ref.read(noteAiControllerProvider);
     if (widget.tool == NoteAiTool.search) {
       await actions.search(_input.text, scope: _scope);
+    } else if (widget.tool == NoteAiTool.presentation && _creating) {
+      // A new, empty note: the Maester writes it first, then builds its
+      // website from that text. Both stay editable.
+      await actions.start(
+        AiOperation.noteDraft,
+        widget.id!,
+        scope: _scope,
+        topic: _question.text,
+      );
+      final draft = ref.read(_jobs).job;
+      if (draft == null || draft.phase != 'completed') return;
+      await actions.apply(draft, scope: _scope);
+      await actions.start(
+        AiOperation.noteWebsite,
+        widget.id!,
+        scope: _scope,
+        description: _input.text,
+      );
     } else {
       await actions.start(
         _operation,
@@ -572,6 +597,24 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
         ),
       ],
       if (widget.tool == NoteAiTool.presentation) ...[
+        if (_creating) ...[
+          const Text(
+            'Describe the note. The Maester writes it, then builds its website. You can edit the text afterwards.',
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            key: const ValueKey('notes-ai-website-idea'),
+            controller: _question,
+            maxLength: 240,
+            minLines: 1,
+            maxLines: 3,
+            onChanged: (_) => setState(() {}),
+            decoration: const InputDecoration(
+              labelText: 'What is this note?',
+              hintText: 'e.g. Packing list for a week in Japan',
+            ),
+          ),
+        ],
         if (_website case final website?)
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
@@ -595,8 +638,10 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
             labelText: 'Describe the website (optional)',
           ),
         ),
-        const NoteAiDetails(
-          'Your note text is not changed; the website is kept beside it. The title, text, this description and the number of photos are sent. Photos stay on this device. A long note can take a few minutes.',
+        NoteAiDetails(
+          _creating
+              ? 'What you describe is sent to write the note; the note and this description are then sent to build the website, which is kept beside it. This can take a few minutes.'
+              : 'Your note text is not changed; the website is kept beside it. The title, text, this description and the number of photos are sent. Photos stay on this device. A long note can take a few minutes.',
           title: 'What is used',
         ),
       ],
@@ -611,7 +656,9 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
       const SizedBox(height: 18),
       FilledButton.icon(
         key: const ValueKey('notes-ai-generate'),
-        onPressed: _generate,
+        onPressed: _creating && _question.text.trim().isEmpty
+            ? null
+            : _generate,
         icon: const Icon(Icons.auto_awesome_rounded),
         label: Text(switch (widget.tool) {
           NoteAiTool.search => 'Ask your notes',
@@ -620,7 +667,11 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
           NoteAiTool.scan => 'Read the page',
           NoteAiTool.background => 'Paint it',
           NoteAiTool.presentation =>
-            _website == null ? 'Build the website' : 'Build a new website',
+            _creating
+                ? 'Write it and build the website'
+                : _website == null
+                ? 'Build the website'
+                : 'Build a new website',
           _ => 'Write it on the page',
         }),
       ),

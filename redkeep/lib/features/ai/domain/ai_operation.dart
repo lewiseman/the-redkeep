@@ -66,6 +66,15 @@ enum AiOperation {
     1800,
     noteTemplateSystem,
   ),
+  // Writes a new note from an idea, so it has text to build a website from.
+  noteDraft(
+    'draft-note',
+    true,
+    'noteHelpContract',
+    4000,
+    16384,
+    noteDraftSystem,
+  ),
   noteQuestion(
     'answer-note-question',
     true,
@@ -139,6 +148,7 @@ enum AiOperation {
           noteMarkdown => 'Format note',
           noteMetadata => 'Title & tag ideas',
           noteTemplate => 'Starting template',
+          noteDraft => 'Draft a note',
           noteQuestion => 'AI note search',
           noteImage => 'Ask about an image',
           noteScan => 'Scan a page',
@@ -169,6 +179,7 @@ enum AiOperation {
   double get temperature => switch (this) {
     thoughtReflection => .4,
     noteTemplate => .7,
+    noteDraft => .5,
     noteWebsite => .4,
     noteWebsiteRemix => .3,
     _ => 0,

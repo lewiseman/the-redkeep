@@ -467,7 +467,8 @@ void main() {
           expect(tester.takeException(), isNull);
           router.go(noteLocation(id));
           await tester.pumpAndSettle();
-          expect(find.text('Saved revision 1'), findsOneWidget);
+          expect(find.byKey(const ValueKey('note-updated-at')), findsOneWidget);
+          expect(find.textContaining('Updated '), findsOneWidget);
           await tap(tester, 'Show plain text');
           expect(tester.takeException(), isNull);
           await tap(tester, 'Markdown preview');
@@ -486,7 +487,7 @@ void main() {
           await enterNoteBody(tester, 'Large text writing 👩🏽‍💻');
           await tester.pumpAndSettle();
           await tap(tester, 'Done');
-          expect(find.text('Saved revision 2'), findsOneWidget);
+          expect(find.byKey(const ValueKey('note-updated-at')), findsOneWidget);
           expect(tester.takeException(), isNull);
         },
       );
@@ -890,20 +891,21 @@ void main() {
       expect(tools.top, greaterThan(paper.top));
     });
 
-    noteTest('formatting the editor cannot show still opens in the rich editor, unchanged until edited', (
-      tester,
-    ) async {
-      const table = '| a | b |\n|---|---|\n| 1 | 2 |';
-      await seed(body: table);
-      await pumpApp(tester, initialLocation: noteLocation(id), notes: repo);
-      await startEditing(tester);
-      expect(tester.widget(noteBody()), isA<QuillEditor>());
-      expect(richBody(tester).document.toPlainText(), '$table\n');
-      expect(find.textContaining("editor can't show"), findsNothing);
-      await tap(tester, 'Close editor');
-      expect((await repo.openDocument(id)).note!.text.body, table);
-      expect((await repo.openDocument(id)).note!.revision, 1);
-    });
+    noteTest(
+      'formatting the editor cannot show still opens in the rich editor, unchanged until edited',
+      (tester) async {
+        const table = '| a | b |\n|---|---|\n| 1 | 2 |';
+        await seed(body: table);
+        await pumpApp(tester, initialLocation: noteLocation(id), notes: repo);
+        await startEditing(tester);
+        expect(tester.widget(noteBody()), isA<QuillEditor>());
+        expect(richBody(tester).document.toPlainText(), '$table\n');
+        expect(find.textContaining("editor can't show"), findsNothing);
+        await tap(tester, 'Close editor');
+        expect((await repo.openDocument(id)).note!.text.body, table);
+        expect((await repo.openDocument(id)).note!.revision, 1);
+      },
+    );
   });
 }
 

@@ -246,14 +246,41 @@ class NoteTemplateSource {
   }
 }
 
+const noteDraftIdeaChars = 240;
+const noteDraftBodyBytes = 12000;
+const noteDraftLines = 300;
+
+/// What a new note should be, for the Maester to draft it, e.g. before
+/// building its website.
+class NoteDraftSource {
+  const NoteDraftSource(this.idea);
+  final String idea;
+
+  /// Throws [FormatException] for an empty, long or multi-line idea.
+  String request() {
+    final clean = _collapse(idea);
+    if (!_plain(clean, noteDraftIdeaChars)) {
+      throw const FormatException(
+        'Describe the note in one line of at most 240 characters.',
+      );
+    }
+    return jsonEncode({'idea': clean});
+  }
+}
+
 /// The model's template, re-checked here: an exact envelope, a plain title
 /// and a short body of ordinary lines.
 class NoteTemplate {
   const NoteTemplate({required this.title, required this.body});
   final String title, body;
 
-  /// Throws [FormatException] for anything outside the contract.
-  factory NoteTemplate.parse(String text) {
+  /// Throws [FormatException] for anything outside the contract. A drafted
+  /// note ([NoteDraftSource]) may be longer than a template.
+  factory NoteTemplate.parse(
+    String text, {
+    int bodyBytes = noteTemplateBodyBytes,
+    int lines = noteTemplateLines,
+  }) {
     final json = jsonDecode(text);
     if (json is! Map ||
         json.keys.length != 2 ||
@@ -263,8 +290,8 @@ class NoteTemplate {
     }
     final body = (json['body'] as String).trimRight();
     if (body.trim().isEmpty ||
-        utf8.encode(body).length > noteTemplateBodyBytes ||
-        body.split('\n').length > noteTemplateLines ||
+        utf8.encode(body).length > bodyBytes ||
+        body.split('\n').length > lines ||
         RegExp(r'[\x00-\x09\x0b-\x1f\x7f]').hasMatch(body)) {
       throw const FormatException('Invalid template body');
     }

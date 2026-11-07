@@ -1,8 +1,14 @@
+import 'package:redkeep/features/notes/application/note_editor_controller.dart';
+import 'package:redkeep/features/notes/application/notes_providers.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'dart:convert';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:redkeep/app/navigation_destination.dart';
+import 'package:redkeep/core/presentation/rendering_policy.dart';
 import 'package:redkeep/features/appearance/domain/appearance_preferences.dart';
 import 'package:redkeep/features/notes/domain/note_document.dart';
 import 'package:redkeep/features/notes/data/drift_note_websites.dart';
@@ -507,6 +513,79 @@ void main() {
       await tester.pumpWidget(const SizedBox());
       await tester.pumpAndSettle();
     }
+  });
+
+  testWidgets('a new note can start as a website', (tester) async {
+    final id = 'f' * 32;
+    h.scope.read(noteNewIdsProvider.notifier).add(id);
+    final sub = h.scope.listen(noteEditorProvider(id), (_, _) {});
+    addTearDown(sub.close);
+    h.holdPage();
+    await tester.runAsync(() => h.scope.read(noteEditorProvider(id).future));
+    const body = '- [ ] Rain jacket\n- [ ] Walking shoes';
+    h.aiProvider.replies.addAll([
+      jsonEncode({'title': 'Japan packing', 'body': body}),
+      noteWebsiteOutput,
+    ]);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: h.scope,
+        child: MaterialApp(
+          builder: (context, child) => RenderingPolicyScope(
+            policy: RenderingPolicy(
+              osReducedMotion: false,
+              preferences: const AppearancePreferences(),
+            ),
+            child: child!,
+          ),
+          // As in the desk, the tool scrolls with its sheet.
+          home: Scaffold(
+            body: ListView(
+              children: [
+                NoteAiToolPage(
+                  tool: NoteAiTool.presentation,
+                  id: id,
+                  embedded: true,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final idea = find.byKey(const ValueKey('notes-ai-website-idea'));
+    expect(idea, findsOneWidget);
+    final generate = find.byKey(const ValueKey('notes-ai-generate'));
+    await tester.ensureVisible(generate);
+    expect(tester.widget<FilledButton>(generate).onPressed, isNull);
+    await tester.enterText(idea, 'Packing list for a week in Japan');
+    await tester.pump();
+    await tester.ensureVisible(generate);
+    await tester.tap(generate);
+    for (var i = 0; i < 50; i++) {
+      if (find
+          .byKey(const ValueKey('note-website-view'))
+          .evaluate()
+          .isNotEmpty) {
+        break;
+      }
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+      await tester.pump();
+    }
+    expect(find.byKey(const ValueKey('note-website-view')), findsOneWidget);
+    final saved = (await tester.runAsync(() => h.repository.openDocument(id)))!
+        .note!;
+    expect(saved.text.body, body);
+    expect(h.aiProvider.requests, hasLength(2));
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+    // Let the editor's autosave timer run out.
+    await tester.pump(const Duration(seconds: 2));
+    sub.close();
+    await tester.pump(const Duration(seconds: 2));
   });
 
   testWidgets('the note text page links back to its website', (tester) async {

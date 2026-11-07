@@ -13,6 +13,7 @@ import '../../sync/application/sync_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../../app/navigation_destination.dart';
 import '../../../core/presentation/paper_surface.dart';
@@ -293,7 +294,8 @@ class _NoteReadViewState extends ConsumerState<NoteReadView> {
                                 ),
                                 const SizedBox(height: 24),
                                 Text(
-                                  'Saved revision ${note.revision}',
+                                  _updatedLabel(note.updatedAt).toUpperCase(),
+                                  key: const ValueKey('note-updated-at'),
                                   style: Theme.of(context).textTheme.labelSmall,
                                 ),
                                 if (note.pinned) const Text('Pinned'),
@@ -495,4 +497,13 @@ class _PermanentDeleteDialogState extends State<_PermanentDeleteDialog> {
       ),
     ],
   );
+}
+
+/// A small stamp: the year only when it is not this one.
+String _updatedLabel(DateTime updatedAt) {
+  final local = updatedAt.toLocal();
+  final pattern = local.year == DateTime.now().year
+      ? 'MMM d · h:mm a'
+      : 'MMM d, y · h:mm a';
+  return DateFormat(pattern).format(local);
 }

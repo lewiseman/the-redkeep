@@ -69,6 +69,15 @@ void validateNoteAiOutput(
       if (!richCompatible(NoteTemplate.parse(text).body)) {
         throw const FormatException(richIncompatibleMessage);
       }
+    case AiOperation.noteDraft:
+      final draft = NoteTemplate.parse(
+        text,
+        bodyBytes: noteDraftBodyBytes,
+        lines: noteDraftLines,
+      );
+      if (!richCompatible(draft.body)) {
+        throw const FormatException(richIncompatibleMessage);
+      }
     case AiOperation.noteQuestion:
       RecallQuestionAnswer.parse(
         text,

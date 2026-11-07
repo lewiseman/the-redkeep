@@ -99,7 +99,13 @@ class _NoteAiDeskState extends ConsumerState<NoteAiDesk> {
     final details = state?.details ?? saved?.details ?? const NoteDetails();
     final title = state?.text.title ?? saved?.text.title ?? '';
     final tools = draft
-        ? const [NoteAiTool.template, NoteAiTool.scan, NoteAiTool.background]
+        ? [
+            NoteAiTool.template,
+            // A new note can start as a website too.
+            if (canEdit) NoteAiTool.presentation,
+            NoteAiTool.scan,
+            NoteAiTool.background,
+          ]
         : [
             NoteAiTool.writing,
             NoteAiTool.summary,

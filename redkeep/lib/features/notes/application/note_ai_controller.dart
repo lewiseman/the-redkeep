@@ -106,6 +106,7 @@ class NoteAiController {
     if (unsaved) {
       if (!{
         AiOperation.noteTemplate,
+        AiOperation.noteDraft,
         AiOperation.noteScan,
         AiOperation.noteBackground,
       }.contains(operation)) {
@@ -153,6 +154,8 @@ class NoteAiController {
         source['payload'] = payload.encode();
       case AiOperation.noteTemplate:
         prompt = NoteTemplateSource(topic).request();
+      case AiOperation.noteDraft:
+        prompt = NoteDraftSource(topic).request();
       case AiOperation.noteWebsite:
         final request = WebsiteRequest(
           title: text.title,
@@ -367,8 +370,14 @@ class NoteAiController {
         if (title == null && tags.isEmpty) return null;
         text = PlainTextDocument(title: title ?? text.title, body: text.body);
         details = details.copy(tags: {...details.tags, ...tags}.toList());
-      case AiOperation.noteTemplate:
-        final template = NoteTemplate.parse(job.text!);
+      case AiOperation.noteTemplate || AiOperation.noteDraft:
+        final template = job.operation == AiOperation.noteDraft
+            ? NoteTemplate.parse(
+                job.text!,
+                bodyBytes: noteDraftBodyBytes,
+                lines: noteDraftLines,
+              )
+            : NoteTemplate.parse(job.text!);
         text = PlainTextDocument(
           title: text.title.trim().isEmpty ? template.title : text.title,
           body: [

@@ -63,6 +63,7 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
   bool _loaded = false;
   bool _leaving = false;
   bool _dictating = false;
+  NoteAiLanding? _landing;
   late final AppLifecycleListener _lifecycle;
 
   @override
@@ -185,7 +186,16 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
               NoteAiButton(
                 onPressed: value == null
                     ? null
-                    : () => showNoteAiTools(context, widget.id, editor: true),
+                    : () async {
+                        final landing = await showNoteAiTools(
+                          context,
+                          widget.id,
+                          editor: true,
+                        );
+                        if (mounted && landing != null) {
+                          setState(() => _landing = landing);
+                        }
+                      },
               ),
               NoteBarEntrance(
                 child: IconButton(
@@ -416,6 +426,15 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
                       ),
                     ),
                   ),
+                // Only the seal itself takes touches; writing continues below.
+                Positioned.fill(
+                  child: NoteAiLandingHost(
+                    landing: _landing,
+                    details: details,
+                    onDismissed: () => setState(() => _landing = null),
+                    child: const SizedBox.expand(),
+                  ),
+                ),
               ],
             ),
           ),

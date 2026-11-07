@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 
+import 'note_ai_palette.dart';
+
+export 'note_ai_palette.dart';
+
 /// One visual language from the note toolbox through to the reviewed result.
 enum NoteAiTool {
   search(
@@ -83,16 +87,25 @@ enum NoteAiTool {
   final String title, description, label, caption;
   final Color tint;
 
-  Color ink(BuildContext context) =>
-      Theme.of(context).brightness == Brightness.dark
-      ? Color.lerp(tint, Colors.white, .42)!
-      : tint;
+  /// This tool's ink on the current desk paper, always legible.
+  Color ink(BuildContext context) => NoteAiPalette.of(context, tint: tint).ink;
+
+  /// The words used when a kept result lands back on the note.
+  String get landed => switch (this) {
+    template => 'Template added to your note',
+    summary => 'Summary ready',
+    writing => 'Your note was rewritten',
+    metadata => 'Title & tags updated',
+    image => 'Added to the end of your note',
+    scan => 'Page added to the end of your note',
+    background => 'New background set',
+    presentation => 'Your note was restyled',
+    search || thoughtSearch => 'Done',
+  };
 }
 
-Color noteAiPaper(BuildContext context) =>
-    Theme.of(context).brightness == Brightness.dark
-    ? const Color(0xFF232522)
-    : const Color(0xFFFAF8F2);
+/// The desk paper: the app paper quietly tinted by the open note.
+Color noteAiPaper(BuildContext context) => NoteAiPalette.of(context).paper;
 
 /// Illustrated choices retain their meaning without depending on color alone.
 class NoteAiArt extends StatelessWidget {
@@ -387,136 +400,79 @@ class NoteAiToolCard extends StatelessWidget {
   }
 }
 
-/// Content shares the sheet scroll position; back stays within reach.
+/// A full-page tool (AI note search) or, when [embedded], the body of one
+/// tool inside the note's AI desk, which supplies the scrolling and header.
 class NoteAiScaffold extends StatelessWidget {
   const NoteAiScaffold({
     super.key,
     required this.tool,
     required this.children,
-    this.step = 0,
     this.listKey,
     this.header,
     this.loading,
+    this.embedded = false,
   });
   final NoteAiTool tool;
   final List<Widget> children;
-  final int step;
   final Key? listKey;
   final Widget? header;
   final Widget? loading;
+  final bool embedded;
 
   @override
   Widget build(BuildContext context) {
     final base = Theme.of(context);
-    final ink = tool.ink(context);
-    final largeText = MediaQuery.textScalerOf(context).scale(14) > 20;
-    final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(16),
-    );
-    final theme = base.copyWith(
-      scaffoldBackgroundColor: noteAiPaper(context),
-      colorScheme: base.colorScheme.copyWith(
-        primary: ink,
-        primaryContainer: Color.alphaBlend(
-          ink.withValues(alpha: .14),
-          noteAiPaper(context),
-        ),
-        onPrimaryContainer: ink,
-        surface: noteAiPaper(context),
-      ),
-      filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          backgroundColor: ink,
-          foregroundColor: base.brightness == Brightness.dark
-              ? const Color(0xFF1C211E)
-              : Colors.white,
-          minimumSize: const Size(64, 54),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-          shape: shape,
-          textStyle: base.textTheme.labelLarge?.copyWith(
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
-      outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(
-          foregroundColor: ink,
-          minimumSize: const Size(48, 50),
-          shape: shape,
-          side: BorderSide(color: ink.withValues(alpha: .3)),
-        ),
-      ),
-      textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(
-          foregroundColor: ink,
-          minimumSize: const Size(48, 48),
-        ),
-      ),
-      inputDecorationTheme: InputDecorationThemeData(
-        filled: true,
-        fillColor: Color.alphaBlend(
-          ink.withValues(alpha: .025),
-          noteAiPaper(context),
-        ),
-        contentPadding: const EdgeInsets.all(16),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: ink.withValues(alpha: .22)),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: ink.withValues(alpha: .22)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: ink, width: 2),
-        ),
-      ),
-    );
-    return Builder(
-      builder: (_) => Theme(
+    final theme = NoteAiPalette.of(context, tint: tool.tint).theme(base);
+    if (embedded) {
+      return Theme(
         data: theme,
-        child: Scaffold(
-          body: SafeArea(
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    children: [
-                      const BackButton(),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          tool.title,
-                          style: base.textTheme.labelLarge,
-                        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [?loading, ...children],
+        ),
+      );
+    }
+    final largeText = MediaQuery.textScalerOf(context).scale(14) > 20;
+    return Theme(
+      data: theme,
+      child: Scaffold(
+        body: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    const BackButton(),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        tool.title,
+                        style: theme.textTheme.labelLarge,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                Expanded(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) => ListView(
-                      key: listKey,
-                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-                      children: [
-                        if (loading != null)
-                          ConstrainedBox(
-                            constraints: BoxConstraints(
-                              minHeight: constraints.maxHeight > 32
-                                  ? constraints.maxHeight - 32
-                                  : 0,
-                            ),
-                            child: Center(child: loading),
-                          )
-                        else ...[
-                          const SizedBox(height: 8),
-                          if (header != null)
-                            header!
-                          else ...[
+              ),
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) => ListView(
+                    key: listKey,
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                    children: [
+                      if (loading != null)
+                        ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: constraints.maxHeight > 32
+                                ? constraints.maxHeight - 32
+                                : 0,
+                          ),
+                          child: Center(child: loading),
+                        )
+                      else ...[
+                        const SizedBox(height: 8),
+                        header ??
                             Row(
-                              crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
                                 NoteAiArt(
                                   tool: tool,
@@ -526,117 +482,23 @@ class NoteAiScaffold extends StatelessWidget {
                                 Expanded(
                                   child: Text(
                                     tool.description,
-                                    style: base.textTheme.bodyMedium?.copyWith(
+                                    style: theme.textTheme.bodyMedium?.copyWith(
                                       height: 1.35,
-                                      color: base.colorScheme.onSurfaceVariant,
+                                      color: theme.colorScheme.onSurfaceVariant,
                                     ),
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 20),
-                            _StepTrail(step: step, ink: ink),
-                          ],
-                          const SizedBox(height: 20),
-                          ...children,
-                        ],
+                        const SizedBox(height: 24),
+                        ...children,
                       ],
-                    ),
+                    ],
                   ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _StepTrail extends StatelessWidget {
-  const _StepTrail({required this.step, required this.ink});
-  final int step;
-  final Color ink;
-
-  @override
-  Widget build(BuildContext context) {
-    const labels = ['Choose', 'Create', 'Review'];
-    final active = step.clamp(0, 2);
-    final largeText = MediaQuery.textScalerOf(context).scale(14) > 20;
-    return Semantics(
-      label: 'Step ${active + 1} of 3: ${labels[active]}',
-      child: ExcludeSemantics(
-        child: Column(
-          children: [
-            Row(
-              children: [
-                for (var i = 0; i < 3; i++) ...[
-                  if (i > 0)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Icon(
-                        Icons.chevron_right_rounded,
-                        size: 16,
-                        color: ink.withValues(alpha: .45),
-                      ),
-                    ),
-                  Expanded(
-                    child: Column(
-                      children: [
-                        Container(
-                          height: 30,
-                          width: 38,
-                          decoration: BoxDecoration(
-                            color: ink.withValues(
-                              alpha: i == active ? .16 : .04,
-                            ),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Icon(
-                            i < active
-                                ? Icons.check_rounded
-                                : [
-                                    Icons.touch_app_outlined,
-                                    Icons.auto_awesome_outlined,
-                                    Icons.fact_check_outlined,
-                                  ][i],
-                            size: 19,
-                            color: ink.withValues(alpha: i <= active ? 1 : .45),
-                          ),
-                        ),
-                        if (!largeText) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            labels[i],
-                            style: Theme.of(context).textTheme.labelSmall
-                                ?.copyWith(
-                                  color: i == active
-                                      ? ink
-                                      : Theme.of(context)
-                                            .colorScheme
-                                            .onSurfaceVariant,
-                                  fontWeight: i == active
-                                      ? FontWeight.bold
-                                      : FontWeight.normal,
-                                ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
-              ],
-            ),
-            if (largeText)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  labels[active],
-                  style: Theme.of(context).textTheme.labelMedium
-                      ?.copyWith(color: ink, fontWeight: FontWeight.bold),
                 ),
               ),
-          ],
+            ],
+          ),
         ),
       ),
     );

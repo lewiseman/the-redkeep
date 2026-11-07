@@ -63,7 +63,18 @@ void main() {
           await tester.tap(find.byTooltip('AI tools'));
           await tester.pumpAndSettle();
           final writing = find.byKey(const ValueKey('note-assistant-writing'));
+          await tester.scrollUntilVisible(
+            writing,
+            200,
+            scrollable: find
+                .descendant(
+                  of: find.byKey(const ValueKey('note-assistant-actions')),
+                  matching: find.byType(Scrollable),
+                )
+                .first,
+          );
           await tester.ensureVisible(writing);
+          await tester.pumpAndSettle();
           await tester.tap(writing);
           await tester.pumpAndSettle();
           expect(find.text('Writing help'), findsWidgets);
@@ -72,7 +83,7 @@ void main() {
             200,
             scrollable: find
                 .descendant(
-                  of: find.byKey(const ValueKey('notes-ai-tool-list')),
+                  of: find.byKey(const ValueKey('note-assistant-actions')),
                   matching: find.byType(Scrollable),
                 )
                 .first,
@@ -82,11 +93,15 @@ void main() {
             findsOneWidget,
           );
           expect(tester.takeException(), isNull);
-          await tester.tap(find.byType(BackButton).last);
+          // The chosen craft works on the note itself, shown as a folio.
+          expect(find.byKey(const ValueKey('notes-ai-folio')), findsOneWidget);
+          await tester.tap(find.byTooltip('All tools'));
           await tester.pumpAndSettle();
+          // Back at the desk: the ribbon unfolds into every craft again.
+          expect(find.text('The Maester'), findsOneWidget);
           expect(
-            find.byKey(const ValueKey('note-assistant-actions')),
-            findsOneWidget,
+            find.byKey(const ValueKey('note-ribbon-writing')),
+            findsNothing,
           );
           await tester.tap(find.byTooltip('Close AI tools'));
           await tester.pumpAndSettle();
@@ -101,9 +116,15 @@ void main() {
             find.byKey(const ValueKey('note-assistant-save-first')),
             findsNothing,
           );
-          expect(
+          await tester.scrollUntilVisible(
             find.byKey(const ValueKey('note-assistant-writing')),
-            findsOneWidget,
+            200,
+            scrollable: find
+                .descendant(
+                  of: find.byKey(const ValueKey('note-assistant-actions')),
+                  matching: find.byType(Scrollable),
+                )
+                .first,
           );
           expect(tester.takeException(), isNull);
         } finally {
@@ -151,6 +172,78 @@ void main() {
   );
 
   testWidgets(
+    'keeping a result closes the AI desk onto the note and shows what changed',
+    (tester) async {
+      h.remote.output = noteMetadataOutput;
+      try {
+        final router = await pumpApp(
+          tester,
+          notes: h.repository,
+          database: h.db,
+          aiProvider: h.aiProvider,
+          initialLocation: '/notes',
+        );
+        router.go(noteLocation(notesTestId));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byTooltip('AI tools'));
+        await tester.pumpAndSettle();
+        final metadata = find.byKey(const ValueKey('note-assistant-metadata'));
+        await tester.ensureVisible(metadata);
+        await tester.tap(metadata);
+        await tester.pumpAndSettle();
+        // The cards fold into a ribbon to switch crafts in one tap.
+        expect(
+          find.byKey(const ValueKey('note-ribbon-writing')),
+          findsOneWidget,
+        );
+        final generate = find.byKey(const ValueKey('notes-ai-generate'));
+        await tester.ensureVisible(generate);
+        await tester.tap(generate);
+        for (var i = 0; i < 10; i++) {
+          await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+          await tester.pumpAndSettle();
+        }
+        final title = find.text('Raised bed plan');
+        await tester.ensureVisible(title.last);
+        await tester.tap(title.last);
+        await tester.pumpAndSettle();
+        // The chosen title is written onto the folio before keeping it.
+        expect(
+          find.descendant(
+            of: find.byKey(const ValueKey('notes-ai-folio')),
+            matching: find.text('Raised bed plan'),
+          ),
+          findsOneWidget,
+        );
+        final apply = find.byKey(const ValueKey('notes-ai-apply'));
+        await tester.ensureVisible(apply);
+        await tester.tap(apply);
+        for (var i = 0; i < 5; i++) {
+          await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+          await tester.pumpAndSettle();
+        }
+        expect(
+          (await h.repository.openDocument(notesTestId)).note!.text.title,
+          'Raised bed plan',
+        );
+        expect(
+          find.byKey(const ValueKey('note-assistant-actions')),
+          findsNothing,
+        );
+        expect(find.byKey(const ValueKey('note-ai-landing')), findsOneWidget);
+        expect(find.text('Title & tags updated'), findsOneWidget);
+        await tester.tap(find.byKey(const ValueKey('note-ai-landing')));
+        await tester.pumpAndSettle();
+        expect(find.byKey(const ValueKey('note-ai-landing')), findsNothing);
+        expect(tester.takeException(), isNull);
+      } finally {
+        await tester.pumpWidget(const SizedBox());
+        await tester.pumpAndSettle();
+      }
+    },
+  );
+
+  testWidgets(
     'selective metadata review stays disabled until a suggestion is selected',
     (tester) async {
       final note = (await h.repository.openDocument(notesTestId)).note!;
@@ -181,6 +274,7 @@ void main() {
           find.byKey(const ValueKey('notes-ai-apply')),
         );
         expect(apply().onPressed, isNull);
+        await tester.ensureVisible(find.text('Raised bed plan'));
         await tester.tap(find.text('Raised bed plan'));
         await tester.pumpAndSettle();
         expect(apply().onPressed, isNotNull);

@@ -49,6 +49,10 @@ class NoteReadView extends ConsumerStatefulWidget {
 class _NoteReadViewState extends ConsumerState<NoteReadView> {
   String? _error;
   bool _showWebsiteText = false;
+
+  /// While the AI desk is open its kept result decides where the paper goes.
+  bool _aiOpen = false;
+  NoteAiLanding? _landing;
   final _paper = NotePaperController();
   ValueNotifier<double> get _expansion => widget.expansion;
 
@@ -75,7 +79,8 @@ class _NoteReadViewState extends ConsumerState<NoteReadView> {
       final after = next.value?.note;
       if (before != null &&
           after != null &&
-          before.revision != after.revision) {
+          before.revision != after.revision &&
+          !_aiOpen) {
         _paper.collapse();
       }
     });
@@ -105,9 +110,7 @@ class _NoteReadViewState extends ConsumerState<NoteReadView> {
               onBack: () => _back(current?.available == true),
               actions: [
                 if (current?.available == true) ...[
-                  NoteAiButton(
-                    onPressed: () => showNoteAiTools(context, widget.id),
-                  ),
+                  NoteAiButton(onPressed: _openAi),
                   // A website note has no paper to unfold, so it keeps Edit
                   // beside its actions.
                   if (note!.details.website.isNotEmpty && expansion <= .3)
@@ -163,256 +166,269 @@ class _NoteReadViewState extends ConsumerState<NoteReadView> {
             ),
             // Immersive paper runs to the bottom edge; its scroll padding
             // keeps text clear of the system inset.
-            body: Padding(
-              padding: EdgeInsets.only(
-                bottom:
-                    MediaQuery.paddingOf(context).bottom *
-                    (paperShown ? 1 - expansion.clamp(0.0, 1.0) : 1),
-              ),
-              child: SafeArea(
-                bottom: false,
-                child: opened.when(
-                  loading: () => const Center(child: Text('Loading note…')),
-                  error: (_, _) => SingleChildScrollView(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      children: [
-                        const Text('This note could not be loaded.'),
-                        OutlinedButton(
-                          onPressed: () =>
-                              ref.invalidate(noteDocumentProvider(widget.id)),
-                          child: const Text('Retry loading'),
-                        ),
-                      ],
+            body: NoteAiLandingHost(
+              landing: _landing,
+              details: note?.details ?? const NoteDetails(),
+              onDismissed: () => setState(() => _landing = null),
+              child: Padding(
+                padding: EdgeInsets.only(
+                  bottom:
+                      MediaQuery.paddingOf(context).bottom *
+                      (paperShown ? 1 - expansion.clamp(0.0, 1.0) : 1),
+                ),
+                child: SafeArea(
+                  bottom: false,
+                  child: opened.when(
+                    loading: () => const Center(child: Text('Loading note…')),
+                    error: (_, _) => SingleChildScrollView(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        children: [
+                          const Text('This note could not be loaded.'),
+                          OutlinedButton(
+                            onPressed: () =>
+                                ref.invalidate(noteDocumentProvider(widget.id)),
+                            child: const Text('Retry loading'),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  data: (value) {
-                    final note = value.note;
-                    if (!value.available) {
-                      return SingleChildScrollView(
-                        padding: const EdgeInsets.all(24),
-                        child: PaperSurface(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Text(
-                                'Note unavailable',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .headlineSmall,
-                              ),
-                              const SizedBox(height: 12),
-                              const Text(
-                                'This note is missing or was deleted.',
-                              ),
-                              if (note?.deletedAt != null) ...[
+                    data: (value) {
+                      final note = value.note;
+                      if (!value.available) {
+                        return SingleChildScrollView(
+                          padding: const EdgeInsets.all(24),
+                          child: PaperSurface(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Text(
+                                  'Note unavailable',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .headlineSmall,
+                                ),
+                                const SizedBox(height: 12),
                                 const Text(
-                                  'This note is in Trash. Restore it to read or edit the saved text.',
+                                  'This note is missing or was deleted.',
                                 ),
-                                OutlinedButton(
-                                  onPressed: busy
-                                      ? null
-                                      : () => _act(
-                                          () => ref
-                                              .read(
-                                                notesActionsProvider.notifier,
-                                              )
-                                              .restore(note!),
-                                        ),
-                                  child: const Text('Restore note'),
-                                ),
-                                OutlinedButton(
-                                  onPressed: busy
-                                      ? null
-                                      : () => _permanentlyDelete(value),
-                                  child: const Text('Delete forever'),
+                                if (note?.deletedAt != null) ...[
+                                  const Text(
+                                    'This note is in Trash. Restore it to read or edit the saved text.',
+                                  ),
+                                  OutlinedButton(
+                                    onPressed: busy
+                                        ? null
+                                        : () => _act(
+                                            () => ref
+                                                .read(
+                                                  notesActionsProvider.notifier,
+                                                )
+                                                .restore(note!),
+                                          ),
+                                    child: const Text('Restore note'),
+                                  ),
+                                  OutlinedButton(
+                                    onPressed: busy
+                                        ? null
+                                        : () => _permanentlyDelete(value),
+                                    child: const Text('Delete forever'),
+                                  ),
+                                ],
+                                if (_error != null) _failure(),
+                                FilledButton(
+                                  onPressed: () =>
+                                      context.go(AppDestination.notes.location),
+                                  child: const Text('Return to Notes'),
                                 ),
                               ],
-                              if (_error != null) _failure(),
-                              FilledButton(
-                                onPressed: () =>
-                                    context.go(AppDestination.notes.location),
-                                child: const Text('Return to Notes'),
-                              ),
-                            ],
+                            ),
                           ),
-                        ),
-                      );
-                    }
-                    if (note!.details.website.isNotEmpty && !_showWebsiteText) {
-                      return LayoutBuilder(
-                        builder: (context, constraints) => Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            ConstrainedBox(
-                              constraints: BoxConstraints(
-                                maxHeight: constraints.maxHeight * .45,
-                              ),
-                              child: SingleChildScrollView(
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    children: [
-                                      Text(
-                                        noteTitle(note.text.title),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleMedium,
-                                      ),
-                                      Wrap(
-                                        spacing: 8,
-                                        crossAxisAlignment:
-                                            WrapCrossAlignment.center,
-                                        children: [
-                                          TextButton(
-                                            onPressed: () => setState(
-                                              () => _showWebsiteText = true,
-                                            ),
-                                            child: const Text('Read note text'),
-                                          ),
-                                          if (canEdit) ...[
-                                            TextButton.icon(
-                                              onPressed: () =>
-                                                  _websiteLook(note),
-                                              icon: const Icon(
-                                                Icons.palette_outlined,
-                                              ),
-                                              label: const Text('Change look'),
-                                            ),
+                        );
+                      }
+                      if (note!.details.website.isNotEmpty &&
+                          !_showWebsiteText) {
+                        return LayoutBuilder(
+                          builder: (context, constraints) => Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  maxHeight: constraints.maxHeight * .45,
+                                ),
+                                child: SingleChildScrollView(
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: [
+                                        Text(
+                                          noteTitle(note.text.title),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleMedium,
+                                        ),
+                                        Wrap(
+                                          spacing: 8,
+                                          crossAxisAlignment:
+                                              WrapCrossAlignment.center,
+                                          children: [
                                             TextButton(
-                                              onPressed: () => _act(
-                                                () => ref
-                                                    .read(
-                                                      notesRepositoryProvider,
-                                                    )
-                                                    .applyProposal(
-                                                      note.id,
-                                                      note.revision,
-                                                      text: note.text,
-                                                      details: note.details
-                                                          .copy(
-                                                            website: '',
-                                                            websiteSourceHash:
-                                                                '',
-                                                          ),
-                                                    ),
+                                              onPressed: () => setState(
+                                                () => _showWebsiteText = true,
                                               ),
                                               child: const Text(
-                                                'Remove website',
+                                                'Read note text',
                                               ),
                                             ),
+                                            if (canEdit) ...[
+                                              TextButton.icon(
+                                                onPressed: () =>
+                                                    _websiteLook(note),
+                                                icon: const Icon(
+                                                  Icons.palette_outlined,
+                                                ),
+                                                label: const Text(
+                                                  'Change look',
+                                                ),
+                                              ),
+                                              TextButton(
+                                                onPressed: () => _act(
+                                                  () => ref
+                                                      .read(
+                                                        notesRepositoryProvider,
+                                                      )
+                                                      .applyProposal(
+                                                        note.id,
+                                                        note.revision,
+                                                        text: note.text,
+                                                        details: note.details
+                                                            .copy(
+                                                              website: '',
+                                                              websiteSourceHash:
+                                                                  '',
+                                                            ),
+                                                      ),
+                                                ),
+                                                child: const Text(
+                                                  'Remove website',
+                                                ),
+                                              ),
+                                            ],
                                           ],
-                                        ],
-                                      ),
-                                      if (websiteContentHash(note.text.body) !=
-                                          note.details.websiteSourceHash)
-                                        const Padding(
-                                          padding: EdgeInsets.all(12),
-                                          child: Text(
-                                            'Your note changed since this website was made.',
-                                            key: ValueKey(
-                                              'note-website-page-stale',
+                                        ),
+                                        if (websiteContentHash(
+                                              note.text.body,
+                                            ) !=
+                                            note.details.websiteSourceHash)
+                                          const Padding(
+                                            padding: EdgeInsets.all(12),
+                                            child: Text(
+                                              'Your note changed since this website was made.',
+                                              key: ValueKey(
+                                                'note-website-page-stale',
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                      if (_error != null) _failure(),
-                                    ],
+                                        if (_error != null) _failure(),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                            Expanded(
-                              child: NoteWebsiteView(
-                                html: note.details.website,
-                                photos: note.details.attachments,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-                    return NotePaper(
-                      key: widget.paperKey,
-                      controller: _paper,
-                      color: NoteColors.fromBackground(
-                        Theme.of(context).colorScheme,
-                        note.details.background,
-                      ).background,
-                      isPreviewMode: true,
-                      readOnly: !canEdit,
-                      onExpansionChanged: (value) => _expansion.value = value,
-                      onEdit: widget.onEdit,
-                      children: [
-                        SliverToBoxAdapter(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              if (note.details.website.isNotEmpty)
-                                TextButton(
-                                  onPressed: () =>
-                                      setState(() => _showWebsiteText = false),
-                                  child: const Text('Show website'),
-                                ),
-                              NoteAttachmentStrip(
-                                attachments: note.details.attachments,
-                              ),
-                              SelectableText(
-                                noteTitle(note.text.title),
-                                style: const TextStyle(
-                                  fontSize: 24,
-                                  height: 1.3,
-                                  fontWeight: FontWeight.bold,
+                              Expanded(
+                                child: NoteWebsiteView(
+                                  html: note.details.website,
+                                  photos: note.details.attachments,
                                 ),
                               ),
-                              if (note.tags.isNotEmpty) ...[
-                                const SizedBox(height: 20),
-                                LayoutBuilder(
-                                  builder: (context, constraints) => Wrap(
-                                    spacing: 8,
-                                    runSpacing: 8,
-                                    children: [
-                                      for (final tag in note.tags)
-                                        ConstrainedBox(
-                                          constraints: BoxConstraints(
-                                            maxWidth: constraints.maxWidth,
-                                          ),
-                                          child: Chip(
-                                            label: Text(
-                                              tag,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                            shape: const StadiumBorder(),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                              const SizedBox(height: 20),
-                              NoteMarkdownPreview(
-                                key: ValueKey(note.revision),
-                                text: note.text.body,
-                              ),
-                              const SizedBox(height: 24),
-                              Text(
-                                'Saved revision ${note.revision}',
-                                style: Theme.of(context).textTheme.labelSmall,
-                              ),
-                              if (note.pinned) const Text('Pinned'),
-                              if (_error != null) _failure(),
                             ],
                           ),
-                        ),
-                      ],
-                    );
-                  },
+                        );
+                      }
+                      return NotePaper(
+                        key: widget.paperKey,
+                        controller: _paper,
+                        color: NoteColors.fromBackground(
+                          Theme.of(context).colorScheme,
+                          note.details.background,
+                        ).background,
+                        isPreviewMode: true,
+                        readOnly: !canEdit,
+                        onExpansionChanged: (value) => _expansion.value = value,
+                        onEdit: widget.onEdit,
+                        children: [
+                          SliverToBoxAdapter(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                if (note.details.website.isNotEmpty)
+                                  TextButton(
+                                    onPressed: () => setState(
+                                      () => _showWebsiteText = false,
+                                    ),
+                                    child: const Text('Show website'),
+                                  ),
+                                NoteAttachmentStrip(
+                                  attachments: note.details.attachments,
+                                ),
+                                SelectableText(
+                                  noteTitle(note.text.title),
+                                  style: const TextStyle(
+                                    fontSize: 24,
+                                    height: 1.3,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                if (note.tags.isNotEmpty) ...[
+                                  const SizedBox(height: 20),
+                                  LayoutBuilder(
+                                    builder: (context, constraints) => Wrap(
+                                      spacing: 8,
+                                      runSpacing: 8,
+                                      children: [
+                                        for (final tag in note.tags)
+                                          ConstrainedBox(
+                                            constraints: BoxConstraints(
+                                              maxWidth: constraints.maxWidth,
+                                            ),
+                                            child: Chip(
+                                              label: Text(
+                                                tag,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              shape: const StadiumBorder(),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                                const SizedBox(height: 20),
+                                NoteMarkdownPreview(
+                                  key: ValueKey(note.revision),
+                                  text: note.text.body,
+                                ),
+                                const SizedBox(height: 24),
+                                Text(
+                                  'Saved revision ${note.revision}',
+                                  style: Theme.of(context).textTheme.labelSmall,
+                                ),
+                                if (note.pinned) const Text('Pinned'),
+                                if (_error != null) _failure(),
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
                 ),
               ),
             ),
@@ -420,6 +436,21 @@ class _NoteReadViewState extends ConsumerState<NoteReadView> {
         ),
       ),
     );
+  }
+
+  /// The desk closes onto the note; a kept result is told on the paper and,
+  /// when words were added at the end, the paper unfolds to show them.
+  Future<void> _openAi() async {
+    _aiOpen = true;
+    final landing = await showNoteAiTools(context, widget.id);
+    _aiOpen = false;
+    if (!mounted || landing == null) return;
+    setState(() => _landing = landing);
+    if (landing.appended) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _paper.revealEnd();
+      });
+    }
   }
 
   Widget _failure() => Column(

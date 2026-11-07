@@ -1,3 +1,6 @@
+export 'note_ai_desk.dart'
+    show showNoteAiTools, NoteAiLanding, NoteAiLandingHost;
+
 import 'dart:io';
 
 import 'note_scan_stage.dart';
@@ -27,10 +30,11 @@ import '../domain/note_question_contract.dart';
 import '../domain/note_scan_contract.dart';
 import '../domain/note_tag.dart';
 import '../domain/transform_contract.dart';
+import 'note_ai_desk.dart';
+import 'note_ai_folio.dart';
 import 'note_ai_loading.dart';
 import 'note_ai_widgets.dart';
 import 'note_writing_widgets.dart';
-import 'note_scene.dart';
 import 'website/note_website_view.dart';
 import '../domain/website/website_render.dart';
 import 'website/website_theme_picker.dart';
@@ -48,183 +52,22 @@ NoteAiTool noteToolForJob(AiJob job) => switch (job.operation) {
   _ => NoteAiTool.writing,
 };
 
-Future<void> showNoteAiTools(
-  BuildContext context,
-  String id, {
-  bool editor = false,
-}) async {
-  await showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    showDragHandle: true,
-    backgroundColor: noteAiPaper(context),
-    constraints: BoxConstraints(
-      maxWidth: 720,
-      maxHeight: MediaQuery.sizeOf(context).height * .94,
-    ),
-    builder: (sheetContext) => SizedBox(
-      height: MediaQuery.sizeOf(context).height * .86,
-      child: _NoteToolNavigator(id: id, editor: editor),
-    ),
-  );
-}
-
-class _NoteToolNavigator extends StatefulWidget {
-  const _NoteToolNavigator({required this.id, required this.editor});
-  final String id;
-  final bool editor;
-  @override
-  State<_NoteToolNavigator> createState() => _NoteToolNavigatorState();
-}
-
-class _NoteToolNavigatorState extends State<_NoteToolNavigator> {
-  final _navigator = GlobalKey<NavigatorState>();
-  @override
-  Widget build(BuildContext context) => NavigatorPopHandler<Object?>(
-    onPopWithResult: (result) => _navigator.currentState!.pop(result),
-    child: Navigator(
-      key: _navigator,
-      onGenerateRoute: (_) => MaterialPageRoute<void>(
-        builder: (_) => _NoteToolMenu(
-          id: widget.id,
-          editor: widget.editor,
-          onClose: () => Navigator.of(context).pop(),
-        ),
-      ),
-    ),
-  );
-}
-
-class _NoteToolMenu extends ConsumerWidget {
-  const _NoteToolMenu({
-    required this.id,
-    required this.editor,
-    required this.onClose,
-  });
-  final String id;
-  final bool editor;
-  final VoidCallback onClose;
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final opened = ref.watch(noteDocumentProvider(id));
-    final state = editor ? ref.watch(noteEditorProvider(id)).value : null;
-    final draft = state?.baseRevision == 0 || opened.value?.note == null;
-    final available =
-        opened.hasValue && (draft ? state != null : opened.value!.available);
-    final canEdit = ref.watch(syncCanEditProvider);
-    final narrow =
-        MediaQuery.sizeOf(context).width < 350 ||
-        MediaQuery.textScalerOf(context).scale(14) > 20;
-    void open(Widget page) =>
-        Navigator.of(context)
-            .push(MaterialPageRoute<void>(builder: (_) => page));
-    Widget card(NoteAiTool tool) => NoteAiToolCard(
-      key: ValueKey('note-assistant-${tool.name}'),
-      tool: tool,
-      horizontal: draft || narrow,
-      onTap: available ? () => open(NoteAiToolPage(tool: tool, id: id)) : null,
-    );
-    List<Widget> group(String name, List<NoteAiTool> tools) => [
-      Padding(
-        padding: const EdgeInsets.only(top: 20, bottom: 10),
-        child: Text(name, style: Theme.of(context).textTheme.labelMedium),
-      ),
-      for (var i = 0; i < tools.length; i += narrow || draft ? 1 : 2)
-        Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: narrow || draft || i + 1 == tools.length
-              ? card(tools[i])
-              : IntrinsicHeight(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Expanded(child: card(tools[i])),
-                      const SizedBox(width: 10),
-                      Expanded(child: card(tools[i + 1])),
-                    ],
-                  ),
-                ),
-        ),
-    ];
-    return Material(
-      color: noteAiPaper(context),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Note AI',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'Close AI tools',
-                  onPressed: onClose,
-                  icon: const Icon(Icons.close_rounded),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: ListView(
-              key: const ValueKey('note-assistant-actions'),
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-              children: [
-                if (!available && !draft)
-                  const Padding(
-                    padding: EdgeInsets.all(14),
-                    child: Text(
-                      'This note is unavailable.',
-                      key: ValueKey('note-assistant-save-first'),
-                    ),
-                  ),
-                if (draft)
-                  ...group('Start', [
-                    NoteAiTool.template,
-                    NoteAiTool.scan,
-                    NoteAiTool.background,
-                  ])
-                else ...[
-                  ...group('Edit', [
-                    NoteAiTool.writing,
-                    NoteAiTool.summary,
-                    NoteAiTool.metadata,
-                  ]),
-                  ...group('Add', [
-                    if (canEdit) NoteAiTool.scan,
-                    if (opened.value?.note?.details.attachments.any(
-                          (a) => a.isImage,
-                        ) ==
-                        true)
-                      NoteAiTool.image,
-                  ]),
-                  ...group('Appearance', [
-                    NoteAiTool.presentation,
-                    if (canEdit) NoteAiTool.background,
-                  ]),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class NoteAiToolPage extends ConsumerStatefulWidget {
   const NoteAiToolPage({
     super.key,
     required this.tool,
     this.id,
     this.initialQuery = '',
+    this.embedded = false,
+    this.onLanded,
   });
   final NoteAiTool tool;
   final String? id;
+
+  /// Inside the note's AI desk: no page chrome, and keeping a result hands a
+  /// [NoteAiLanding] to [onLanded] so the desk closes onto the note.
+  final bool embedded;
+  final ValueChanged<NoteAiLanding>? onLanded;
 
   /// Prefills the question, e.g. from the notes search bar. Nothing is sent
   /// until the person asks.
@@ -248,7 +91,10 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
   String? _title, _error, _reviewedJob;
   NoteAttachment? _image;
   TextSelection? _selection;
-  bool _working = false, _showBefore = false;
+  bool _working = false;
+
+  /// The compare wipe: one shows the proposal, zero the original.
+  double _split = 1;
 
   String get _scope => noteAiScope(widget.tool.name, widget.id);
 
@@ -346,6 +192,21 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
         );
     if (!mounted) return;
     _reviewedJob = null;
+    final landed = widget.onLanded;
+    if (landed != null) {
+      landed(
+        NoteAiLanding(
+          tool: widget.tool,
+          message: _landedMessage(job.operation),
+          appended: const {
+            AiOperation.noteScan,
+            AiOperation.noteImage,
+            AiOperation.noteTemplate,
+          }.contains(job.operation),
+        ),
+      );
+      return;
+    }
     if (result != null && job.operation == AiOperation.noteMetadata) {
       ScaffoldMessenger.of(
         context,
@@ -353,6 +214,93 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
     }
     if (mounted) Navigator.of(context).maybePop();
   });
+
+  String _landedMessage(AiOperation operation) => switch (operation.wireName) {
+    'rewrite-note' => 'Rewritten in place',
+    'clarify-note' => 'Words polished',
+    'expand-note' => 'Detail woven in',
+    'tone-note' => 'Tone changed',
+    'markdown-note' => 'Note organized',
+    _ => widget.tool.landed,
+  };
+
+  /// What the folio shows: the saved note, or a new note's open draft.
+  ({String title, String body, List<String> tags, NoteDetails details})?
+  _subject() {
+    final id = widget.id;
+    if (id == null || !isNoteId(id)) return null;
+    final saved = ref.watch(noteDocumentProvider(id)).value?.note;
+    if (saved != null) {
+      return (
+        title: saved.text.title,
+        body: saved.text.body,
+        tags: saved.tags,
+        details: saved.details,
+      );
+    }
+    if (!ref.exists(noteEditorProvider(id))) return null;
+    final draft = ref.watch(noteEditorProvider(id)).value;
+    if (draft == null) return null;
+    return (
+      title: draft.text.title,
+      body: draft.text.body,
+      tags: draft.details.tags,
+      details: draft.details,
+    );
+  }
+
+  Widget _folio({
+    required Widget child,
+    String? status,
+    bool inking = false,
+    String? imageKey,
+  }) => Padding(
+    padding: const EdgeInsets.only(bottom: 18),
+    child: NoteFolio(
+      key: const ValueKey('notes-ai-folio'),
+      details: _subject()?.details ?? const NoteDetails(),
+      status: status,
+      inking: inking,
+      imageKey: imageKey,
+      child: child,
+    ),
+  );
+
+  Widget _page({
+    int? lines = 4,
+    String? proposedTitle,
+    Set<String> newTags = const {},
+    String? body,
+    Widget? footer,
+  }) {
+    final subject = _subject();
+    return NoteFolioPage(
+      title: subject?.title ?? '',
+      body: body ?? subject?.body ?? '',
+      tags: subject?.tags ?? const [],
+      proposedTitle: proposedTitle,
+      newTags: newTags,
+      bodyLines: lines,
+      footer: footer,
+    );
+  }
+
+  /// The end of the note fades in above the words the Maester would add.
+  Widget _appendedPage(Widget fresh, {String? title}) {
+    final subject = _subject();
+    final body = subject?.body.trim() ?? '';
+    final tail = body.length > 220
+        ? '…${body.substring(body.length - 220)}'
+        : body;
+    final empty = subject == null || subject.title.trim().isEmpty;
+    return _page(
+      body: tail,
+      lines: 3,
+      proposedTitle: title != null && empty ? title : null,
+      footer: NoteFreshInk(label: 'ADDED HERE', child: fresh),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(_jobs);
@@ -361,41 +309,111 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
     if (widget.id != null && isNoteId(widget.id!)) {
       ref.watch(noteDocumentProvider(widget.id!));
     }
-    final loading = _working || mine && !job.terminal && state.busy;
+    final loading =
+        (_working || mine && !job.terminal && state.busy) &&
+        widget.tool != NoteAiTool.scan;
+    final phase = mine ? job.phase : 'preparing';
+    final onCancel = mine && !job.terminal
+        ? ref.read(_jobs.notifier).cancel
+        : null;
+    final error = [
+      if (_error != null)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Semantics(liveRegion: true, child: Text(_error!)),
+        ),
+      if (state.message != null) Text(state.message!),
+    ];
+    if (widget.embedded) {
+      return NoteAiScaffold(
+        tool: widget.tool,
+        embedded: true,
+        children: loading
+            ? [
+                _folio(status: 'Inking…', inking: true, child: _page()),
+                Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    noteAiPhaseTitle(widget.tool, phase),
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                ),
+                if (onCancel != null) ...[
+                  const SizedBox(height: 8),
+                  Center(
+                    child: TextButton.icon(
+                      onPressed: onCancel,
+                      icon: const Icon(Icons.stop_rounded, size: 20),
+                      label: const Text('Stop'),
+                    ),
+                  ),
+                ],
+              ]
+            : [...error, if (mine) ..._task(job, state) else ..._form()],
+      );
+    }
     return NoteAiScaffold(
       listKey: const ValueKey('notes-ai-tool-list'),
       tool: widget.tool,
-      step: mine && job.text != null
-          ? 2
-          : mine
-          ? 1
-          : 0,
-      loading: loading && widget.tool != NoteAiTool.scan
-          ? NoteAiLoading(
-              tool: widget.tool,
-              phase: mine ? job.phase : 'preparing',
-              onCancel: mine && !job.terminal
-                  ? ref.read(_jobs.notifier).cancel
-                  : null,
-            )
+      loading: loading
+          ? NoteAiLoading(tool: widget.tool, phase: phase, onCancel: onCancel)
           : null,
-      children: [
-        if (_error != null)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Semantics(liveRegion: true, child: Text(_error!)),
-          ),
-        if (state.message != null) Text(state.message!),
-        if (mine) ..._task(job, state) else ..._form(),
-      ],
+      children: [...error, if (mine) ..._task(job, state) else ..._form()],
     );
   }
 
+  Widget _label(String text) => Padding(
+    padding: const EdgeInsets.only(top: 6, bottom: 4),
+    child: Text(
+      text,
+      style: Theme.of(context).textTheme.labelLarge
+          ?.copyWith(fontWeight: FontWeight.w700),
+    ),
+  );
+
   List<Widget> _form() {
+    final subject = _subject();
     final note = widget.id == null || !isNoteId(widget.id!)
         ? null
         : ref.watch(noteDocumentProvider(widget.id!)).value?.note;
+    final hasFolio = subject != null && widget.tool != NoteAiTool.scan;
     return [
+      if (hasFolio && widget.tool == NoteAiTool.writing)
+        _folio(
+          status: _selection == null ? 'Whole note' : 'Selected passage',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                subject.title.trim().isEmpty
+                    ? 'Untitled note'
+                    : subject.title.trim(),
+                style: Theme.of(context).textTheme.titleLarge
+                    ?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 12),
+              SelectableText(
+                subject.body,
+                style: Theme.of(context).textTheme.bodyMedium
+                    ?.copyWith(height: 1.5),
+                onSelectionChanged: (selection, cause) {
+                  if (cause == SelectionChangedCause.longPress ||
+                      cause == SelectionChangedCause.drag ||
+                      cause == SelectionChangedCause.tap) {
+                    setState(
+                      () =>
+                          _selection = selection.isCollapsed ? null : selection,
+                    );
+                  }
+                },
+              ),
+            ],
+          ),
+        )
+      else if (hasFolio)
+        _folio(status: 'Your note', child: _page()),
       if (widget.tool == NoteAiTool.search)
         TextField(
           key: const ValueKey('notes-ai-search-field'),
@@ -411,6 +429,7 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
           ),
         ),
       if (widget.tool == NoteAiTool.template) ...[
+        _label('Start from'),
         NoteAiChoices(
           choices: const {
             'Meeting notes': 'Meeting notes',
@@ -429,42 +448,36 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
         ),
       ],
       if (widget.tool == NoteAiTool.writing) ...[
-        const NoteWritingSteps(step: 0),
-        NoteAiChoices(
-          choices: writingActions,
+        Text(
+          _selection == null
+              ? 'Long-press the page above to work on one passage.'
+              : 'Only the selected passage will change.',
+          style: Theme.of(context).textTheme.bodySmall
+              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+        ),
+        if (_selection != null)
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TextButton(
+              onPressed: () => setState(() => _selection = null),
+              child: const Text('Use whole note'),
+            ),
+          ),
+        const SizedBox(height: 10),
+        NoteWritingChoices(
           selected: _writing,
-          onChanged: (String v) => setState(() => _writing = v),
+          onChanged: (v) => setState(() => _writing = v),
         ),
         if (_writing == 'tone-note')
           NoteAiChoices(
             choices: {for (final e in writingTones.entries) e.key: e.value.$1},
+            icons: {for (final e in writingTones.entries) e.key: e.value.$2},
             selected: _tone,
             onChanged: (String v) => setState(() => _tone = v),
           ),
-        if (note != null) ...[
-          NoteAiPreview(
-            label: _selection == null ? 'Whole saved note' : 'Selected passage',
-            child: SelectableText(
-              note.text.body,
-              onSelectionChanged: (selection, cause) {
-                if (cause == SelectionChangedCause.longPress ||
-                    cause == SelectionChangedCause.drag ||
-                    cause == SelectionChangedCause.tap) {
-                  setState(
-                    () => _selection = selection.isCollapsed ? null : selection,
-                  );
-                }
-              },
-            ),
-          ),
-          if (_selection != null)
-            TextButton(
-              onPressed: () => setState(() => _selection = null),
-              child: const Text('Use whole note'),
-            ),
-        ],
       ],
       if (widget.tool == NoteAiTool.image) ...[
+        _label('Choose a photo'),
         for (final a
             in note?.details.attachments.where((a) => a.isImage) ??
                 const <NoteAttachment>[])
@@ -511,6 +524,7 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
           ),
       ],
       if (widget.tool == NoteAiTool.background) ...[
+        _label('Paint a backdrop'),
         NoteAiBackdropIdeas(
           value: _input.text,
           onChanged: (v) => setState(() => _input.text = v),
@@ -547,7 +561,10 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
             'Your note text stays intact. Only the title, text, chosen theme and number of photos are used. Photos stay on this device.',
             title: 'What is used',
           ),
-        ],
+        ] else
+          const Text(
+            'Give your note headings, lists and emphasis. You will see it before anything changes.',
+          ),
       ],
       if (widget.tool == NoteAiTool.summary)
         const Text(
@@ -557,17 +574,18 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
         const Text(
           'Choose which title and tags to keep. Existing tags stay on your note.',
         ),
-      const SizedBox(height: 16),
+      const SizedBox(height: 18),
       FilledButton.icon(
         key: const ValueKey('notes-ai-generate'),
         onPressed: _generate,
-        icon: const Icon(Icons.auto_awesome_outlined),
+        icon: const Icon(Icons.auto_awesome_rounded),
         label: Text(switch (widget.tool) {
           NoteAiTool.search => 'Ask your notes',
           NoteAiTool.summary => 'Summarize',
           NoteAiTool.metadata => 'Suggest title & tags',
           NoteAiTool.scan => 'Read the page',
-          _ => 'Generate preview',
+          NoteAiTool.background => 'Paint it',
+          _ => 'Write it on the page',
         }),
       ),
     ];
@@ -650,63 +668,64 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
     ),
   );
 
-  Widget _imagePreview(String path) => SizedBox(
-    height: 220,
-    child: ref
-        .watch(noteBackgroundImageProvider(path))
-        .when(
-          data: (image) => image == null
-              ? const Text('Image unavailable')
-              : Image(image: image, fit: BoxFit.contain),
-          loading: () => const SizedBox.shrink(),
-          error: (_, _) => const Text('Image unavailable'),
-        ),
-  );
+  Future<void> _discard(AiJobs controller) => _run(() async {
+    await controller.clear();
+    if (mounted) {
+      setState(() {
+        _reviewedJob = null;
+        _tags.clear();
+        _title = null;
+        _split = 1;
+      });
+    }
+  });
+
   List<Widget> _task(AiJob job, AiJobState state) {
     final controller = ref.read(_jobs.notifier);
     final complete = job.phase == 'completed' && job.text != null;
     return [
-      Text(
-        '${job.operation.label} · ${job.phase}',
-        style: Theme.of(context).textTheme.labelSmall,
-      ),
       if (job.operation == AiOperation.noteScan)
-        _retainedScanStage(job, complete),
-      if (complete) ..._result(job),
-      const SizedBox(height: 12),
-      Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          if (!state.busy && !complete && job.phase != 'cancelled')
-            OutlinedButton(
-              onPressed: controller.retry,
-              child: const Text('Try again'),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: _retainedScanStage(job, complete),
+        ),
+      if (complete)
+        ..._result(job, onDiscard: () => _discard(controller))
+      else ...[
+        if (job.operation != AiOperation.noteScan &&
+            job.operation != AiOperation.noteQuestion)
+          _folio(status: 'Unchanged', child: _page()),
+        if (job.phase == 'cancelled')
+          const Text('Stopped. Your note is unchanged.')
+        else if (job.terminal)
+          const Text('The Maester could not finish. Your note is unchanged.'),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            if (!state.busy && job.phase != 'cancelled')
+              FilledButton.icon(
+                onPressed: controller.retry,
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Try again'),
+              ),
+            if (!job.terminal)
+              OutlinedButton(
+                onPressed: controller.cancel,
+                child: const Text('Cancel'),
+              ),
+            TextButton(
+              onPressed: () => _discard(controller),
+              child: const Text('Start over'),
             ),
-          if (!job.terminal)
-            OutlinedButton(
-              onPressed: controller.cancel,
-              child: const Text('Cancel'),
-            ),
-          TextButton(
-            onPressed: () => _run(() async {
-              await controller.clear();
-              if (mounted) {
-                setState(() {
-                  _reviewedJob = null;
-                  _tags.clear();
-                  _title = null;
-                });
-              }
-            }),
-            child: Text(complete ? 'Reject / clear preview' : 'Clear'),
-          ),
-        ],
-      ),
+          ],
+        ),
+      ],
     ];
   }
 
-  List<Widget> _result(AiJob job) {
+  List<Widget> _result(AiJob job, {required VoidCallback onDiscard}) {
     try {
       validateNoteAiOutput(job.operation, job.text!, job.source);
     } catch (_) {
@@ -714,6 +733,7 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
         const Text(
           'This retained preview could not be read safely. Clear it to ask again.',
         ),
+        TextButton(onPressed: onDiscard, child: const Text('Clear')),
       ];
     }
     final source = noteTaskSource(job.source);
@@ -757,6 +777,8 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
               );
             },
           ),
+        const SizedBox(height: 12),
+        TextButton(onPressed: onDiscard, child: const Text('Ask again')),
       ];
     }
     final note = ref.watch(noteDocumentProvider(job.key)).value;
@@ -774,7 +796,7 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
     final result = <Widget>[
       if (stale)
         const Padding(
-          padding: EdgeInsets.symmetric(vertical: 12),
+          padding: EdgeInsets.only(bottom: 12),
           child: Text(
             'Earlier note version: the source changed. This preview cannot replace the current note.',
             key: ValueKey('notes-ai-stale'),
@@ -790,19 +812,33 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
             .whereType<NoteTag>(),
       );
       result.addAll([
-        ChoiceChip(
-          label: const Text('Keep current title'),
-          selected: _title == null,
-          onSelected: (_) => setState(() => _title = null),
+        _folio(
+          status: 'Proposal',
+          child: _page(lines: 2, proposedTitle: _title, newTags: _tags),
         ),
-        for (final title in suggestions.titles)
-          ChoiceChip(
-            label: Text(title),
-            selected: _title == title,
-            onSelected: (_) => setState(() => _title = title),
-          ),
+        _label('Title'),
         Wrap(
           spacing: 8,
+          runSpacing: 8,
+          children: [
+            ChoiceChip(
+              label: const Text('Keep current title'),
+              selected: _title == null,
+              onSelected: (_) => setState(() => _title = null),
+            ),
+            for (final title in suggestions.titles)
+              ChoiceChip(
+                label: Text(title),
+                selected: _title == title,
+                onSelected: (_) => setState(() => _title = title),
+              ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _label('Tags'),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
           children: [
             for (final tag in suggestions.tags)
               FilterChip(
@@ -820,7 +856,13 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
         ),
       ]);
     } else if (job.operation == AiOperation.noteBackground) {
-      result.add(_imagePreview(backgroundPreviewPath(job.id, job.text!)));
+      result.add(
+        _folio(
+          status: 'New backdrop',
+          imageKey: backgroundPreviewPath(job.id, job.text!),
+          child: _page(lines: 3),
+        ),
+      );
     } else if (job.operation == AiOperation.noteWebsite) {
       result.add(
         FutureBuilder<String>(
@@ -853,15 +895,11 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
           Text(
             'Check unclear words marked [?]. ${scan.unreadableMarks} unreadable places.',
           ),
-        if (scan.check != null)
-          NoteAiDetails(
-            scan.check!.map((line) => line.text).join('\n'),
-            title: 'Second reading',
-          ),
         if (scan.disagreements.isNotEmpty)
           Text(
             'Check these names and numbers: ${scan.disagreements.join(', ')}',
           ),
+        const SizedBox(height: 8),
         TextField(
           controller: _review,
           minLines: 6,
@@ -871,6 +909,12 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
             labelText: 'Check and correct the words',
           ),
         ),
+        _livePreview(),
+        if (scan.check != null)
+          NoteAiDetails(
+            scan.check!.map((line) => line.text).join('\n'),
+            title: 'Second reading',
+          ),
         NoteAiDetails(scan.text, title: 'Original reading'),
       ]);
     } else if (job.operation == AiOperation.noteImage) {
@@ -887,11 +931,18 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
       }.entries) {
         if (entry.value.isNotEmpty) {
           result.add(
-            NoteAiPreview(label: entry.key, child: SelectableText(entry.value)),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: NoteAiPreview(
+                label: entry.key,
+                child: SelectableText(entry.value),
+              ),
+            ),
           );
         }
       }
-      result.add(
+      result.addAll([
+        const SizedBox(height: 8),
         TextField(
           controller: _review,
           minLines: 2,
@@ -899,45 +950,92 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
           maxLength: 4000,
           decoration: const InputDecoration(
             labelText: 'Insert into the note',
-            helperText:
-                'Edit before inserting. Appended to the end of the note body.',
+            helperText: 'Edit before inserting. It lands at the end.',
           ),
         ),
-      );
+        _livePreview(),
+      ]);
     } else if (job.operation == AiOperation.noteTemplate) {
       final template = NoteTemplate.parse(job.text!);
       result.add(
-        NoteAiPreview(
-          label: template.title,
-          child: SelectableText(template.body),
+        _folio(
+          status: 'Proposal',
+          child: _appendedPage(
+            Text(
+              template.body,
+              style: Theme.of(context).textTheme.bodyMedium
+                  ?.copyWith(height: 1.5),
+            ),
+            title: template.title,
+          ),
+        ),
+      );
+    } else if (job.operation == AiOperation.noteSummary) {
+      result.add(
+        _folio(
+          status: 'Summary',
+          child: _page(
+            body: '',
+            footer: NoteFreshInk(
+              label: 'IN A FEW LINES',
+              child: SelectableText(
+                job.text!,
+                style: Theme.of(context).textTheme.bodyMedium
+                    ?.copyWith(height: 1.5),
+              ),
+            ),
+          ),
         ),
       );
     } else {
-      if (source['range'] is String) {
-        result.add(
-          TextButton(
-            onPressed: () => setState(() => _showBefore = !_showBefore),
-            child: Text(_showBefore ? 'Show proposal' : 'Show original'),
-          ),
-        );
-      }
-      result.add(
-        NoteAiPreview(
-          label: _showBefore ? 'Original selected text' : 'Your preview',
-          child: SelectableText(
-            _showBefore && source['range'] is String
-                ? TransformSource.decode(source['range'] as String).selected
-                : job.text!,
+      final range = source['range'] is String
+          ? TransformSource.decode(source['range'] as String)
+          : null;
+      final subject = _subject();
+      result.addAll([
+        _folio(
+          status: 'Proposal',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                (subject?.title.trim().isEmpty ?? true)
+                    ? 'Untitled note'
+                    : subject!.title.trim(),
+                style: Theme.of(context).textTheme.titleLarge
+                    ?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 14),
+              if (range == null)
+                SelectableText(job.text!)
+              else
+                NoteFolioCompare(
+                  key: const ValueKey('notes-ai-compare'),
+                  before: range.selected,
+                  after: job.text!,
+                  split: _split,
+                  onChanged: (v) => setState(() => _split = v),
+                ),
+            ],
           ),
         ),
-      );
+        if (range != null)
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TextButton.icon(
+              onPressed: () => setState(() => _split = _split > .5 ? 0 : 1),
+              icon: const Icon(Icons.swap_horiz_rounded),
+              label: Text(_split > .5 ? 'Show original' : 'Show proposal'),
+            ),
+          ),
+      ]);
     }
     result.addAll([
-      const SizedBox(height: 12),
+      const SizedBox(height: 16),
       if (job.operation == AiOperation.noteSummary)
-        OutlinedButton.icon(
+        FilledButton.icon(
           onPressed: () => Clipboard.setData(ClipboardData(text: job.text!)),
-          icon: const Icon(Icons.copy_outlined),
+          icon: const Icon(Icons.copy_rounded),
           label: const Text('Copy summary'),
         )
       else
@@ -957,10 +1055,34 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
                 : job.operation == AiOperation.noteScan ||
                       job.operation == AiOperation.noteImage
                 ? 'Add to note'
-                : 'Keep this',
+                : 'Keep in note',
           ),
         ),
+      const SizedBox(height: 4),
+      Center(
+        child: TextButton(
+          key: const ValueKey('notes-ai-discard'),
+          onPressed: onDiscard,
+          child: const Text('Discard and try another'),
+        ),
+      ),
     ]);
     return result;
   }
+
+  /// The reviewed words, shown where they will land as they are edited.
+  Widget _livePreview() => ValueListenableBuilder<TextEditingValue>(
+    valueListenable: _review,
+    builder: (context, value, _) => _folio(
+      status: 'Where it lands',
+      child: _appendedPage(
+        Text(
+          value.text.trim().isEmpty ? '…' : value.text.trim(),
+          maxLines: 8,
+          overflow: TextOverflow.fade,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.5),
+        ),
+      ),
+    ),
+  );
 }

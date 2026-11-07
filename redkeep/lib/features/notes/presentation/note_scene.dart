@@ -8,6 +8,7 @@ import '../data/note_media_store.dart';
 import '../domain/note_document.dart';
 import '../domain/note_colors.dart';
 import 'edit_note_page_bg.dart';
+import 'note_ai_palette.dart';
 
 final noteBackgroundImageProvider = FutureProvider.autoDispose
     .family<ImageProvider?, String>((ref, key) async {
@@ -56,10 +57,7 @@ class NoteScene extends ConsumerWidget {
       builder: (context, opacity, header) => Theme(
         data: base.copyWith(
           scaffoldBackgroundColor: Colors.transparent,
-          colorScheme: base.colorScheme.copyWith(
-            onSurface: colors.foreground,
-            surfaceContainerLow: colors.background,
-          ),
+          colorScheme: noteSceneScheme(base.colorScheme, colors),
           textTheme: base.textTheme.apply(
             bodyColor: colors.foreground,
             displayColor: colors.foreground,
@@ -74,6 +72,63 @@ class NoteScene extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// The whole color scheme of a note's page, matched to its paper.
+///
+/// Swapping only the text color leaves the app's light surfaces, grey
+/// secondary text and red behind, which break on bold paper (light ink on
+/// white buttons, red on green). Every pair here is checked for contrast.
+ColorScheme noteSceneScheme(ColorScheme base, NoteColors colors) {
+  final paper = colors.background, ink = colors.foreground;
+  Color layer(double amount) =>
+      Color.alphaBlend(ink.withValues(alpha: amount), paper);
+  Color on(Color color) =>
+      noteAiContrast(Colors.white, color) >=
+          noteAiContrast(const Color(0xFF1C1B19), color)
+      ? Colors.white
+      : const Color(0xFF1C1B19);
+  // Floating controls (bar buttons, the format capsule) lift off the paper.
+  final surface = layer(.07);
+  // Readable both on the paper (menus, sheets) and on lifted controls.
+  Color legible(Color color) =>
+      noteAiLegible(noteAiLegible(color, surface), paper);
+  final primary = legible(base.primary);
+  final secondary = legible(base.secondary);
+  final error = legible(base.error);
+  final variant = legible(colors.secondary);
+  final primaryContainer = Color.alphaBlend(
+    primary.withValues(alpha: .18),
+    paper,
+  );
+  return base.copyWith(
+    primary: primary,
+    onPrimary: on(primary),
+    primaryContainer: primaryContainer,
+    onPrimaryContainer: noteAiLegible(ink, primaryContainer),
+    secondary: secondary,
+    onSecondary: on(secondary),
+    secondaryContainer: layer(.12),
+    onSecondaryContainer: ink,
+    error: error,
+    onError: on(error),
+    errorContainer: Color.alphaBlend(error.withValues(alpha: .16), paper),
+    onErrorContainer: noteAiLegible(error, paper),
+    surface: surface,
+    onSurface: ink,
+    onSurfaceVariant: variant,
+    surfaceDim: paper,
+    surfaceBright: layer(.1),
+    surfaceContainerLowest: paper,
+    surfaceContainerLow: paper,
+    surfaceContainer: layer(.04),
+    // Plain paper is the app's surfaceContainerHigh; keeping it lets papers
+    // resolved inside the scene stay exactly the scene's color.
+    surfaceContainerHigh: paper,
+    surfaceContainerHighest: layer(.12),
+    outline: Color.lerp(variant, paper, .3),
+    outlineVariant: Color.lerp(variant, paper, .65),
+  );
 }
 
 /// Shares the original painting's readable paper opacity with the folded paper.

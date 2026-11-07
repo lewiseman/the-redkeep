@@ -15,7 +15,19 @@ export 'note_paper_surface.dart' show NotePaperSurface;
 
 /// Lets the page restore the folded preview without replacing the scroll view.
 class NotePaperController extends ChangeNotifier {
-  void collapse() => notifyListeners();
+  bool _toEnd = false;
+
+  void collapse() {
+    _toEnd = false;
+    notifyListeners();
+  }
+
+  /// Unfolds the paper and scrolls to the note's end, e.g. to show words an
+  /// AI tool just added there.
+  void revealEnd() {
+    _toEnd = true;
+    notifyListeners();
+  }
 }
 
 /// Scrolling unfolds the paper without leaving preview. Only an explicit edit
@@ -89,7 +101,7 @@ class _NotePaperState extends State<NotePaper>
   @override
   void initState() {
     super.initState();
-    widget.controller?.addListener(_collapse);
+    widget.controller?.addListener(_request);
   }
 
   @override
@@ -109,8 +121,8 @@ class _NotePaperState extends State<NotePaper>
   void didUpdateWidget(covariant NotePaper oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.controller != widget.controller) {
-      oldWidget.controller?.removeListener(_collapse);
-      widget.controller?.addListener(_collapse);
+      oldWidget.controller?.removeListener(_request);
+      widget.controller?.addListener(_request);
     }
     if (oldWidget.onExpansionChanged == null &&
         widget.onExpansionChanged != null) {
@@ -169,6 +181,37 @@ class _NotePaperState extends State<NotePaper>
     } finally {
       if (mounted) setState(() => _enteringEdit = false);
     }
+  }
+
+  void _request() {
+    if (widget.controller?._toEnd == true) {
+      _revealEnd();
+    } else {
+      _collapse();
+    }
+  }
+
+  Future<void> _revealEnd() async {
+    if (!widget.isPreviewMode) return;
+    try {
+      await _animateTo(1);
+    } on TickerCanceled {
+      return;
+    }
+    // Let the unfolded paper lay out its new extent first.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scroll.hasClients) return;
+      final end = _scroll.position.maxScrollExtent;
+      if (_reduceMotion) {
+        _scroll.jumpTo(end);
+      } else {
+        _scroll.animateTo(
+          end,
+          duration: const Duration(milliseconds: 520),
+          curve: Curves.easeOutCubic,
+        );
+      }
+    });
   }
 
   Future<void> _collapse() async {
@@ -239,7 +282,7 @@ class _NotePaperState extends State<NotePaper>
 
   @override
   void dispose() {
-    widget.controller?.removeListener(_collapse);
+    widget.controller?.removeListener(_request);
     _scroll.dispose();
     _bottomFade.dispose();
     _expansion.dispose();

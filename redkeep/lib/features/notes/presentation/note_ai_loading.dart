@@ -33,6 +33,36 @@ bool noteAiIsLoading(String phase, {required bool busy}) {
       }.contains(phase);
 }
 
+/// A short word for a task phase, e.g. on the note's folio.
+String noteAiPhaseStatus(String phase) => switch (phase) {
+  'queued' || 'accepted' => 'Waiting',
+  'restoring' || 'retrieving' => 'Checking',
+  'running' => 'Working',
+  'preparing' => 'Preparing',
+  'saving' => 'Saving',
+  _ => 'Starting',
+};
+
+/// What the Maester is doing right now, in the tool's own words.
+String noteAiPhaseTitle(NoteAiTool tool, String phase) => switch (phase) {
+  'queued' || 'accepted' => 'Waiting to begin…',
+  'restoring' || 'retrieving' => 'Checking your task…',
+  'preparing' => 'Opening your preview…',
+  'saving' => 'Saving your note…',
+  _ => switch (tool) {
+    NoteAiTool.search => 'Searching notes…',
+    NoteAiTool.thoughtSearch => 'Searching thoughts…',
+    NoteAiTool.template => 'Building your template…',
+    NoteAiTool.summary => 'Making your summary…',
+    NoteAiTool.writing => 'Improving your note…',
+    NoteAiTool.metadata => 'Finding titles & tags…',
+    NoteAiTool.image => 'Reading your image…',
+    NoteAiTool.scan => 'Reading your page…',
+    NoteAiTool.background => 'Making your background…',
+    NoteAiTool.presentation => 'Preparing your page…',
+  },
+};
+
 /// A shared, indeterminate loading view for every note AI tool.
 /// Owns only its illustration's motion; task controls belong to the caller.
 class NoteAiLoading extends StatefulWidget {
@@ -93,33 +123,8 @@ class _NoteAiLoadingState extends State<NoteAiLoading>
     super.dispose();
   }
 
-  String get _status => switch (widget.phase) {
-    'queued' || 'accepted' => 'Waiting',
-    'restoring' || 'retrieving' => 'Checking',
-    'running' => 'Working',
-    'preparing' => 'Preparing',
-    'saving' => 'Saving',
-    _ => 'Starting',
-  };
-
-  String get _title => switch (widget.phase) {
-    'queued' || 'accepted' => 'Waiting to begin…',
-    'restoring' || 'retrieving' => 'Checking your task…',
-    'preparing' => 'Opening your preview…',
-    'saving' => 'Saving your note…',
-    _ => switch (widget.tool) {
-      NoteAiTool.search => 'Searching notes…',
-      NoteAiTool.thoughtSearch => 'Searching thoughts…',
-      NoteAiTool.template => 'Building your template…',
-      NoteAiTool.summary => 'Making your summary…',
-      NoteAiTool.writing => 'Improving your note…',
-      NoteAiTool.metadata => 'Finding titles & tags…',
-      NoteAiTool.image => 'Reading your image…',
-      NoteAiTool.scan => 'Reading your page…',
-      NoteAiTool.background => 'Making your background…',
-      NoteAiTool.presentation => 'Preparing your page…',
-    },
-  };
+  String get _status => noteAiPhaseStatus(widget.phase);
+  String get _title => noteAiPhaseTitle(widget.tool, widget.phase);
 
   @override
   Widget build(BuildContext context) {

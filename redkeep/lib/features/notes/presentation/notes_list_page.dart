@@ -1,8 +1,5 @@
 import 'note_tag_strip.dart';
-import 'note_ai_widgets.dart';
 import '../domain/note_tag.dart';
-import '../../recall/application/recall_search.dart';
-import '../../ai/application/ai_lifecycle.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -81,21 +78,12 @@ class _NotesListPageState extends ConsumerState<NotesListPage> {
 
   @override
   Widget build(BuildContext context) {
-    final entries = ref.watch(notesHybridCollectionProvider);
+    final entries = ref.watch(notesCollectionProvider);
     final filter = ref.watch(notesFilterProvider);
     final drafts = ref.watch(notesDraftsOnlyProvider);
     final tags = ref.watch(noteTagsProvider);
     final busy = ref.watch(notesActionsProvider);
     final policy = RenderingPolicyScope.of(context);
-    final meaning =
-        ref.watch(aiEnabledProvider) &&
-            filter.search.isNotEmpty &&
-            !filter.trash &&
-            !drafts
-        ? ref
-              .watch(recallSearchProvider((query: filter.search, kind: 'note')))
-              .value
-        : null;
     final colors = Theme.of(context).colorScheme;
     final screenPadding = MediaQuery.paddingOf(context);
     return Scaffold(
@@ -170,7 +158,11 @@ class _NotesListPageState extends ConsumerState<NotesListPage> {
                             ?.copyWith(fontSize: 14),
                         maxLength: 256,
                         textInputAction: TextInputAction.search,
-                        onSubmitted: (_) => FocusScope.of(context).unfocus(),
+                        onSubmitted: (value) {
+                          FocusScope.of(context).unfocus();
+                          if (filter.trash || value.trim().isEmpty) return;
+                          context.push('/notes/ai-search', extra: value.trim());
+                        },
                         onChanged: (value) => _filter(search: value),
                         decoration: InputDecoration(
                           hintText: filter.trash
@@ -266,30 +258,6 @@ class _NotesListPageState extends ConsumerState<NotesListPage> {
                       onSelected: _collection,
                     ),
                   ),
-                  if (meaning?.message case final message?)
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-                        child: Text(
-                          message,
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ),
-                    ),
-                  if (!filter.trash)
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 6),
-                        child: NoteAiToolCard(
-                          key: const ValueKey('notes-assistant-search'),
-                          tool: NoteAiTool.search,
-                          horizontal:
-                              MediaQuery.sizeOf(context).width < 350 ||
-                              MediaQuery.textScalerOf(context).scale(14) > 20,
-                          onTap: () => context.push('/notes/ai-search'),
-                        ),
-                      ),
-                    ),
                   if (tags.hasError)
                     SliverToBoxAdapter(
                       child: TextButton(

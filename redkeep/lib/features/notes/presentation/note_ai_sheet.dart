@@ -247,15 +247,24 @@ class _NoteToolMenu extends ConsumerWidget {
 }
 
 class NoteAiToolPage extends ConsumerStatefulWidget {
-  const NoteAiToolPage({super.key, required this.tool, this.id});
+  const NoteAiToolPage({
+    super.key,
+    required this.tool,
+    this.id,
+    this.initialQuery = '',
+  });
   final NoteAiTool tool;
   final String? id;
+
+  /// Prefills the question, e.g. from the notes search bar. Nothing is sent
+  /// until the person asks.
+  final String initialQuery;
   @override
   ConsumerState<NoteAiToolPage> createState() => _NoteAiToolPageState();
 }
 
 class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
-  final _input = TextEditingController();
+  late final _input = TextEditingController(text: widget.initialQuery);
   final _question = TextEditingController();
   final _review = TextEditingController();
   final _tags = <String>{};

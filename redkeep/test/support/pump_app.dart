@@ -111,7 +111,6 @@ Future<GoRouter> pumpApp(
           ),
         if (flow != null) flowRepositoryProvider.overrideWithValue(flow),
         if (flowId != null) flowIdProvider.overrideWithValue(flowId),
-        notesAmbientMotionProvider.overrideWithValue(false),
         if (notes != null) notesRepositoryProvider.overrideWithValue(notes),
         if (noteMedia != null)
           noteMediaStoreProvider.overrideWithValue(noteMedia),

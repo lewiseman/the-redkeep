@@ -50,8 +50,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  shaders:
-    - shaders/wabi_sabi.frag
   assets:
     - assets/catalog/presentation-v1.json
     - assets/branding/grand_maestar.png

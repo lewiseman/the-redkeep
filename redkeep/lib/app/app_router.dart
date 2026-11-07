@@ -213,7 +213,12 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
                     path: 'ai-search',
                     pageBuilder: (context, state) => _page(
                       state,
-                      const NoteAiToolPage(tool: NoteAiTool.search),
+                      NoteAiToolPage(
+                        tool: NoteAiTool.search,
+                        initialQuery: state.extra is String
+                            ? state.extra as String
+                            : '',
+                      ),
                     ),
                   ),
                   GoRoute(

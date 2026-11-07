@@ -9,9 +9,6 @@ import '../../companion/application/companion_controller.dart';
 import '../../diary/application/diary_providers.dart';
 import '../../diary/domain/diary_document.dart';
 import '../../diary/domain/diary_period.dart';
-import '../../notes/application/notes_providers.dart';
-import '../../notes/domain/note_collection_entry.dart';
-import '../../notes/domain/notes_query.dart';
 import '../../flow/application/flow_providers.dart';
 import '../domain/recall.dart';
 import 'recall_controller.dart';
@@ -59,42 +56,6 @@ final recallSearchProvider = FutureProvider.autoDispose
             request.kind,
             active: () => ref.mounted,
           );
-    });
-final _eligibleNotesProvider =
-    StreamProvider.autoDispose<List<NoteCollectionEntry>>((ref) {
-      final filter = ref.watch(notesFilterProvider);
-      return ref
-          .watch(notesRepositoryProvider)
-          .watchCollection(
-            query: NotesQuery(tag: filter.tag, pinnedOnly: filter.pinnedOnly),
-          );
-    }, retry: (_, _) => null);
-final notesHybridCollectionProvider =
-    Provider.autoDispose<AsyncValue<List<NoteCollectionEntry>>>((ref) {
-      final keywords = ref.watch(notesCollectionProvider);
-      final filter = ref.watch(notesFilterProvider);
-      if (!ref.watch(aiEnabledProvider) ||
-          filter.search.trim().isEmpty ||
-          filter.trash ||
-          ref.watch(notesDraftsOnlyProvider)) {
-        return keywords;
-      }
-      final matches = currentRecallSources(
-        ref.watch(recallSearchProvider((query: filter.search, kind: 'note'))),
-      );
-      final candidates =
-          ref.watch(_eligibleNotesProvider).value ??
-          const <NoteCollectionEntry>[];
-      if (!keywords.hasValue || keywords.hasError) return keywords;
-      final byId = {
-        for (final note in candidates)
-          if (!note.isDraft && !note.sourceUnavailable) note.id: note,
-      };
-      return AsyncData(
-        fuseRecall(keywords.value!, [
-          for (final source in matches) ?byId[source.id],
-        ], (note) => note.id),
-      );
     });
 final diaryHybridSearchProvider = Provider.autoDispose
     .family<AsyncValue<List<DiaryListing>>, String>((ref, query) {

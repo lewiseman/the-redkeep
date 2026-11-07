@@ -1,5 +1,3 @@
-import '../application/notes_providers.dart';
-
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -52,7 +50,6 @@ class NoteScene extends ConsumerWidget {
         : null;
     final base = Theme.of(context);
     return EditNotepageBg(
-      animate: ref.watch(notesAmbientMotionProvider),
       seed: seed,
       color: colors.background,
       image: image,

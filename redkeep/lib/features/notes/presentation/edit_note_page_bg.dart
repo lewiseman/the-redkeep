@@ -1,28 +1,20 @@
-import '../../../core/presentation/rendering_policy.dart';
-
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
-import 'note_paint_timing.dart';
-
 /// Shows [image] as a cover background with a subtle [color] tint when provided.
-/// Otherwise, seeded batches of paint sweep onto washi using [color], then dry
-/// into a repeatable print.
+/// Otherwise, a still, seeded wash of soft color blooms over warm paper.
 class EditNotepageBg extends StatefulWidget {
   const EditNotepageBg({
     super.key,
     required this.builder,
     this.seed = 0,
-    this.animate = true,
     this.color,
     this.image,
-    this.animationDuration = NotePaintTiming.duration,
   });
 
-  /// Builds the foreground with the paper opacity for the current entrance.
-  /// Painted backgrounds start at 60% opaque paper to keep notes readable.
-  /// Image backgrounds and completed paintings use 80% opaque paper.
+  /// Builds the foreground with the paper opacity: 78% over the wash and 80%
+  /// over an image.
   /// [imageHeaderColor] includes the tint over the visible top of the image,
   /// falling back to the tinted surface while loading or on failure.
   /// It is null when no image is selected.
@@ -33,27 +25,15 @@ class EditNotepageBg extends StatefulWidget {
   )
   builder;
   final int seed;
-  final bool animate;
   final Color? color;
   final ImageProvider? image;
-
-  /// Captured on mount, with an 18-second minimum. Later updates do not retime
-  /// or replay the entrance, so editing can keep its original painting pace.
-  final Duration animationDuration;
 
   @override
   State<EditNotepageBg> createState() => _EditNotepageBgState();
 }
 
-class _EditNotepageBgState extends State<EditNotepageBg>
-    with SingleTickerProviderStateMixin {
-  late _PigmentField _field = _PigmentField(widget.seed);
-  late final AnimationController _settle;
-  late final Animation<double> _paintProgress;
-  late final Animation<double> _paperOpacity;
-  ui.FragmentShader? _shader;
-  bool _shaderRequested = false;
-  bool _visible = true;
+class _EditNotepageBgState extends State<EditNotepageBg> {
+  late _WashField _field = _WashField(widget.seed);
   ImageStream? _imageStream;
   late final _imageListener = ImageStreamListener(
     _onImage,
@@ -163,99 +143,16 @@ class _EditNotepageBgState extends State<EditNotepageBg>
   }
 
   @override
-  void initState() {
-    super.initState();
-    final duration = widget.animationDuration < NotePaintTiming.duration
-        ? NotePaintTiming.duration
-        : widget.animationDuration;
-    _settle = AnimationController(
-      vsync: this,
-      duration: duration,
-      // The app's motion preference is handled in didChangeDependencies.
-      animationBehavior: AnimationBehavior.preserve,
-    )..addStatusListener(_onSettleStatus);
-    _paintProgress = _settle.drive(
-      CurveTween(curve: _ReadingPaceCurve(duration)),
-    );
-    // Keep notes readable from the start while leaving the backdrop visible.
-    _paperOpacity = _paintProgress
-        .drive(
-          CurveTween(curve: const Interval(.9, 1, curve: Curves.easeInOut)),
-        )
-        .drive(Tween<double>(begin: .65, end: .78));
-  }
-
-  void _loadShaders() {
-    if (!widget.animate ||
-        RenderingPolicyScope.of(context).simplerEffects ||
-        widget.image != null ||
-        _shaderRequested) {
-      return;
-    }
-    _shaderRequested = true;
-    ui.FragmentProgram.fromAsset('shaders/wabi_sabi.frag').then(
-      (program) {
-        if (!mounted) return;
-        setState(() {
-          _shader = program.fragmentShader();
-        });
-        _startSettle();
-      },
-      onError: (Object error, StackTrace stack) {
-        if (!mounted) return;
-        _settle.value = 1;
-        // Canvas pigment washes remain available on unsupported renderers.
-        assert(() {
-          debugPrint('Unable to load the pigment shader: $error');
-          return true;
-        }());
-      },
-    );
-  }
-
-  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _loadShaders();
     _resolveHeaderImage();
-    _visible = TickerMode.valuesOf(context).enabled;
-    if (!widget.animate ||
-        (MediaQuery.disableAnimationsOf(context) ||
-            RenderingPolicyScope.of(context).simplerEffects)) {
-      _settle.value = 1;
-    }
-    // A covered route settles immediately and does not replay on return.
-    // Initial offstage layout must not consume an entrance that hasn't begun.
-    if (!_visible && _settle.isAnimating) {
-      _settle.value = 1;
-    }
-    _startSettle();
   }
 
   @override
   void didUpdateWidget(covariant EditNotepageBg oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.image != widget.image) _resolveHeaderImage();
-    if (oldWidget.seed != widget.seed) _field = _PigmentField(widget.seed);
-    if (widget.image != null && _settle.isAnimating) {
-      _settle.value = 1;
-    }
-    _loadShaders();
-    _startSettle();
-  }
-
-  void _startSettle() {
-    if (widget.image == null &&
-        _visible &&
-        _settle.isDismissed &&
-        _shader != null) {
-      _settle.forward();
-    }
-  }
-
-  void _onSettleStatus(AnimationStatus status) {
-    // Restore raster caching for the backdrop once painting has finished.
-    if (status == AnimationStatus.completed && mounted) setState(() {});
+    if (oldWidget.seed != widget.seed) _field = _WashField(widget.seed);
   }
 
   @override
@@ -263,8 +160,6 @@ class _EditNotepageBgState extends State<EditNotepageBg>
     _headerRequest++;
     _imageStream?.removeListener(_imageListener);
     _headerImage?.dispose();
-    _settle.dispose();
-    _shader?.dispose();
     super.dispose();
   }
 
@@ -285,9 +180,7 @@ class _EditNotepageBgState extends State<EditNotepageBg>
     final imageTint = (widget.color ?? colors.surface).withValues(alpha: .4);
     final child = widget.builder(
       context,
-      widget.image == null
-          ? _paperOpacity
-          : const AlwaysStoppedAnimation<double>(.8),
+      AlwaysStoppedAnimation<double>(widget.image == null ? .78 : .8),
       widget.image == null
           ? null
           : Color.alphaBlend(imageTint, _imageHeaderColor ?? colors.surface),
@@ -328,14 +221,11 @@ class _EditNotepageBgState extends State<EditNotepageBg>
               child: RepaintBoundary(
                 child: CustomPaint(
                   isComplex: true,
-                  willChange: !_settle.isCompleted,
-                  painter: _WabiSabiPainter(
+                  painter: _WashPainter(
                     field: _field,
-                    pigment: widget.color ?? colors.primary,
+                    tint: widget.color ?? colors.primary,
                     surface: colors.surface,
                     dark: colors.brightness == Brightness.dark,
-                    shader: _shader,
-                    settle: _paintProgress,
                   ),
                 ),
               ),
@@ -346,16 +236,6 @@ class _EditNotepageBgState extends State<EditNotepageBg>
       ],
     );
   }
-}
-
-class _ReadingPaceCurve extends Curve {
-  const _ReadingPaceCurve(this.duration);
-
-  final Duration duration;
-
-  @override
-  double transformInternal(double t) =>
-      NotePaintTiming.progressFor(t, duration);
 }
 
 /// Park–Miller arithmetic stays exact on both the Dart VM and JavaScript.
@@ -371,15 +251,14 @@ class _PrintRandom {
   }
 }
 
-/// Only four anchors are needed; the shader grows their texture per pixel.
-/// Resizing returns to the seed instead of advancing a shared random stream.
-class _PigmentField {
-  _PigmentField(this.seed) : timing = NotePaintTiming.fromSeed(seed);
+/// Four seeded blooms near the corners. Resizing returns to the seed instead of
+/// advancing a shared random stream.
+class _WashField {
+  _WashField(this.seed);
 
   final int seed;
-  final NotePaintTiming timing;
   Size? _size;
-  List<_PigmentBloom> blooms = [];
+  List<_Bloom> blooms = [];
 
   void layout(Size size) {
     if (size == _size) return;
@@ -391,29 +270,29 @@ class _PigmentField {
         Offset(size.width * (mirror ? 1 - x : x), size.height * y);
 
     blooms = [
-      _PigmentBloom(
+      _Bloom(
         point(.02, .035 + random.next() * .04),
         unit * (.76 + random.next() * .12),
       ),
-      _PigmentBloom(point(.92, -.055), unit * (.58 + random.next() * .12)),
-      _PigmentBloom(
+      _Bloom(point(.92, -.055), unit * (.58 + random.next() * .12)),
+      _Bloom(
         point(1.04, .99 + random.next() * .025),
         unit * (.84 + random.next() * .14),
       ),
-      _PigmentBloom(point(.05, 1.075), unit * (.64 + random.next() * .1)),
+      _Bloom(point(.05, 1.075), unit * (.64 + random.next() * .1)),
     ];
   }
 }
 
-class _PigmentBloom {
-  const _PigmentBloom(this.center, this.radius);
+class _Bloom {
+  const _Bloom(this.center, this.radius);
 
   final Offset center;
   final double radius;
 }
 
-class _GlazePalette {
-  _GlazePalette(Color source, Color surface, bool dark) {
+class _WashPalette {
+  _WashPalette(Color source, Color surface, bool dark) {
     final hsl = HSLColor.fromColor(source);
     final saturation = (hsl.saturation * .7 + .1).clamp(.12, .65);
     Color tone(double shift, double saturation, double lightness) =>
@@ -445,64 +324,26 @@ class _GlazePalette {
   late final List<Color> colors;
 }
 
-class _WabiSabiPainter extends CustomPainter {
-  const _WabiSabiPainter({
+class _WashPainter extends CustomPainter {
+  const _WashPainter({
     required this.field,
-    required this.pigment,
+    required this.tint,
     required this.surface,
     required this.dark,
-    required this.settle,
-    this.shader,
-  }) : super(repaint: settle);
+  });
 
-  final _PigmentField field;
-  final Color pigment;
+  final _WashField field;
+  final Color tint;
   final Color surface;
   final bool dark;
-  final Animation<double> settle;
-  final ui.FragmentShader? shader;
 
   @override
   void paint(Canvas canvas, Size size) {
     if (size.isEmpty) return;
     field.layout(size);
     final bounds = Offset.zero & size;
-    final palette = _GlazePalette(pigment, surface, dark);
-    if (shader != null) {
-      final random = _PrintRandom(field.seed + 72317);
-      // Progress is bounded: one reveal, ending on the original static print.
-      final uniforms = <double>[
-        size.width,
-        size.height,
-        random.next() * 64,
-        random.next() * 64,
-        dark ? 1 : 0,
-        palette.paper.r,
-        palette.paper.g,
-        palette.paper.b,
-        for (final color in palette.colors) ...[color.r, color.g, color.b],
-        for (final bloom in field.blooms) ...[
-          bloom.center.dx,
-          bloom.center.dy,
-          bloom.radius,
-        ],
-        settle.value,
-        for (final window in field.timing.windows) ...[
-          window.washStart,
-          window.washDuration,
-          window.glazeStart,
-          window.glazeDuration,
-        ],
-      ];
-      for (var i = 0; i < uniforms.length; i++) {
-        shader!.setFloat(i, uniforms[i]);
-      }
-      canvas.drawRect(bounds, Paint()..shader = shader);
-      return;
-    }
-    // A light Canvas wash covers shader startup and unsupported renderers.
+    final palette = _WashPalette(tint, surface, dark);
     canvas.drawColor(palette.paper, BlendMode.srcOver);
-    if (!settle.isCompleted) return;
     for (var i = 0; i < field.blooms.length; i++) {
       final bloom = field.blooms[i];
       final color = palette.colors[i];
@@ -518,11 +359,9 @@ class _WabiSabiPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _WabiSabiPainter oldDelegate) =>
+  bool shouldRepaint(covariant _WashPainter oldDelegate) =>
       field != oldDelegate.field ||
-      pigment != oldDelegate.pigment ||
+      tint != oldDelegate.tint ||
       surface != oldDelegate.surface ||
-      shader != oldDelegate.shader ||
-      settle != oldDelegate.settle ||
       dark != oldDelegate.dark;
 }

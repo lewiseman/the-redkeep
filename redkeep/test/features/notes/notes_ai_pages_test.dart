@@ -55,7 +55,7 @@ void main() {
           );
           expect(
             find.byKey(const ValueKey('notes-assistant-search')),
-            findsOneWidget,
+            findsNothing,
           );
           router.go(noteLocation(notesTestId));
           await tester.pumpAndSettle();
@@ -105,6 +105,42 @@ void main() {
       },
     );
   }
+
+  testWidgets(
+    'typing filters by keyword; the keyboard search action opens AI note search without sending',
+    (tester) async {
+      try {
+        final router = await pumpApp(
+          tester,
+          notes: h.repository,
+          database: h.db,
+          initialLocation: '/notes',
+        );
+        expect(find.text('Keyword and meaning results'), findsNothing);
+        await tester.enterText(
+          find.byKey(const ValueKey('notes-search')),
+          'tomatoes',
+        );
+        await tester.pumpAndSettle();
+        expect(router.routerDelegate.currentConfiguration.uri.path, '/notes');
+        await tester.testTextInput.receiveAction(TextInputAction.search);
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(const ValueKey('notes-ai-search-field')),
+          findsOneWidget,
+        );
+        final field = tester.widget<TextField>(
+          find.byKey(const ValueKey('notes-ai-search-field')),
+        );
+        expect(field.controller!.text, 'tomatoes');
+        expect(h.remote.submissions, isEmpty);
+        expect(tester.takeException(), isNull);
+      } finally {
+        await tester.pumpWidget(const SizedBox());
+        await tester.pumpAndSettle();
+      }
+    },
+  );
 
   testWidgets(
     'selective metadata review stays disabled until selected and Undo survives closing the tool',

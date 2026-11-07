@@ -171,6 +171,7 @@ class AiCloud {
     double topP = 1,
     List<AiImageInput> images = const [],
     Future<void>? abort,
+    Duration? timeout,
   }) async {
     final ready = await _ready(
       images.isEmpty ? AiCapability.chat : AiCapability.vision,
@@ -183,6 +184,7 @@ class AiCloud {
       temperature: temperature,
       topP: topP,
       images: images,
+      timeout: timeout,
     );
     final text = await _run(
       ready.settings,

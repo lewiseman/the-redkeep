@@ -231,11 +231,15 @@ class AiChatRequest {
     this.temperature = 0,
     this.topP = 1,
     this.images = const [],
+    this.timeout,
   });
   final String model, system, user;
   final int outputTokens;
   final double temperature, topP;
   final List<AiImageInput> images;
+
+  /// How long one attempt may take; null keeps the transport's default.
+  final Duration? timeout;
 }
 
 class AiResult<T> {

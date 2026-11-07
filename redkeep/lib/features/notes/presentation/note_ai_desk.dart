@@ -33,10 +33,14 @@ class NoteAiLanding {
 
 /// Opens the Maester's desk over the note. Keeping a result closes the desk
 /// and returns a [NoteAiLanding] so the note can show what changed.
+///
+/// [initialTool] opens that tool straight away, e.g. Regenerate on a
+/// website page.
 Future<NoteAiLanding?> showNoteAiTools(
   BuildContext context,
   String id, {
   bool editor = false,
+  NoteAiTool? initialTool,
 }) => showModalBottomSheet<NoteAiLanding>(
   context: context,
   isScrollControlled: true,
@@ -52,6 +56,7 @@ Future<NoteAiLanding?> showNoteAiTools(
     child: NoteAiDesk(
       id: id,
       editor: editor,
+      initialTool: initialTool,
       onLanded: (landing) => Navigator.of(sheetContext).pop(landing),
       onClose: () => Navigator.of(sheetContext).pop(),
     ),
@@ -65,9 +70,11 @@ class NoteAiDesk extends ConsumerStatefulWidget {
     required this.editor,
     required this.onLanded,
     required this.onClose,
+    this.initialTool,
   });
   final String id;
   final bool editor;
+  final NoteAiTool? initialTool;
   final ValueChanged<NoteAiLanding> onLanded;
   final VoidCallback onClose;
 
@@ -76,7 +83,7 @@ class NoteAiDesk extends ConsumerStatefulWidget {
 }
 
 class _NoteAiDeskState extends ConsumerState<NoteAiDesk> {
-  NoteAiTool? _tool;
+  late NoteAiTool? _tool = widget.initialTool;
 
   @override
   Widget build(BuildContext context) {

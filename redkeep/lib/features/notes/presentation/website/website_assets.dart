@@ -4,11 +4,12 @@ import 'dart:ui' as ui;
 import 'package:html/parser.dart' as html;
 
 import '../../domain/note_details.dart';
+import '../../domain/website/website_contract.dart';
 import '../../data/note_media_store.dart';
 
-/// The note's photos, in the order a themed website numbers them.
+/// The note's photos, in the order a website numbers them.
 List<NoteAttachment> websitePhotos(List<NoteAttachment> attachments) =>
-    attachments.where((a) => a.isImage).take(6).toList();
+    attachments.where((a) => a.isImage).take(websiteMaxPhotos).toList();
 
 const _photoSide = 1200;
 const _passThroughBytes = 700 * 1024;
@@ -61,6 +62,8 @@ Future<String> withWebsiteAssets(
   List<NoteAttachment> photos, {
   required NoteMediaStore store,
 }) async {
+  // Most pages have no photos; skip parsing a large page for nothing.
+  if (!safe.contains('data-photo')) return safe;
   final document = html.parse(safe);
   final placeholders = document.querySelectorAll('img[data-photo]');
   if (placeholders.isEmpty) return safe;
@@ -80,11 +83,6 @@ Future<String> withWebsiteAssets(
       img.attributes['src'] = uri;
     }
   }
-  // An emptied gallery leaves no gap.
-  for (final gallery in document.querySelectorAll('.gallery')) {
-    if (gallery.children.isEmpty) gallery.remove();
-  }
-
   final result = '<!doctype html>\n${document.documentElement!.outerHtml}';
   if (_cache.length >= 4) _cache.remove(_cache.keys.first);
   return _cache[key] = result;

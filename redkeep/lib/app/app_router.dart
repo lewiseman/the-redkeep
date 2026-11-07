@@ -27,6 +27,7 @@ import '../features/appearance/presentation/appearance_page.dart';
 import '../features/onboarding/application/onboarding_controller.dart';
 import '../features/onboarding/presentation/onboarding_page.dart';
 import '../features/notes/presentation/note_page.dart';
+import '../features/notes/presentation/website/note_website_page.dart';
 import '../features/notes/presentation/notes_list_page.dart';
 import 'bootstrap/bootstrap_controller.dart';
 import 'bootstrap/startup_handoff.dart';
@@ -186,12 +187,27 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
                     ),
                   ),
                   // Editing is a state of this page, not a route of its own.
+                  // It can be opened straight into editing, e.g. from the
+                  // note's website.
                   GoRoute(
                     path: ':id',
                     pageBuilder: (context, state) => _page(
                       state,
                       NotePage(
                         key: ValueKey(state.pathParameters['id']),
+                        id: state.pathParameters['id']!,
+                        startEditing: state.extra == NoteOpen.edit,
+                      ),
+                    ),
+                  ),
+                  // A sibling, not a child: leaving the website returns to
+                  // where it was opened from, not to the note.
+                  GoRoute(
+                    path: ':id/website',
+                    pageBuilder: (context, state) => _page(
+                      state,
+                      NoteWebsitePage(
+                        key: ValueKey(state.uri.path),
                         id: state.pathParameters['id']!,
                       ),
                     ),

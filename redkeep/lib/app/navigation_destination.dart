@@ -84,7 +84,8 @@ String _destination(String location) {
   }
   final flow = RegExp(r'^/flow/([0-9a-f]{32})(/edit)?$').firstMatch(location);
   if (flow != null && isThoughtId(flow[1]!)) return location;
-  final match = RegExp(r'^/notes/([0-9a-f]{32})$').firstMatch(location);
+  final match = RegExp(r'^/notes/([0-9a-f]{32})(?:/website)?$')
+      .firstMatch(location);
   return match != null && isNoteId(match[1]!)
       ? location
       : AppDestination.unavailable.location;
@@ -94,6 +95,10 @@ String _destination(String location) {
 /// separate editing address. New notes open in editing on their own.
 String noteLocation(String id) =>
     isNoteId(id) ? '/notes/$id' : AppDestination.unavailable.location;
+
+/// A note's generated website, shown on a page of its own.
+String noteWebsiteLocation(String id) =>
+    isNoteId(id) ? '/notes/$id/website' : AppDestination.unavailable.location;
 
 String _requestedDestination(Uri requested) {
   final isGate =

@@ -269,6 +269,9 @@ class DriftSyncCollection implements SyncCollection {
           db.noteTags,
         )..where((r) => r.noteId.equals(document.id))).go();
         await (db.delete(
+          db.noteWebsites,
+        )..where((r) => r.noteId.equals(document.id))).go();
+        await (db.delete(
           db.notes,
         )..where((r) => r.id.equals(document.id))).go();
       } else if (type == 'thought') {

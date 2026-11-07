@@ -6,37 +6,16 @@ import 'package:cryptography/cryptography.dart';
 import 'package:html/dom.dart' as dom;
 import 'package:html/parser.dart' as html;
 
-/// The retired freehand website, written whole by the model. It is no longer
-/// requested; the name stays so saved pages and older jobs still read.
-const noteWebsiteOperation = 'present-website';
-const noteWebsiteInputBytes = 2000;
-const noteWebsiteDescriptionChars = 240;
-const noteWebsiteOutputBytes = 16384;
-
-/// A themed website: the computer returns a [WebsiteSpec] of the note's own
-/// words, and this phone draws it with a hand-built theme.
-const noteWebsiteDesignOperation = 'design-website';
-const noteWebsiteDesignContract = 1;
-const websiteThemeIds = [
-  'editorial',
-  'zine',
-  'garden',
-  'notebook',
-  'night',
-  'postcard',
-];
-const websiteAccents = ['ink', 'rose', 'ocean', 'forest', 'sun', 'plum'];
-const websiteSectionKinds = [
-  'text',
-  'cards',
-  'list',
-  'timeline',
-  'quote',
-  'stats',
-  'photos',
-];
+/// An interactive website written whole by the model from a note.
+const noteWebsiteOperation = 'build-website';
+const websiteBriefChars = 240;
 const websiteMaxPhotos = 6;
-const websiteSpecBytes = 8192;
+
+/// The note, title and brief together; a little under the job's source cap.
+const websiteInputBytes = 100000;
+
+/// The largest page kept, before the app's own head is added.
+const websiteOutputBytes = 2 * 1024 * 1024;
 
 final _control = RegExp(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]');
 
@@ -48,259 +27,116 @@ String websiteContentHash(String content) => Sha256()
     .map((b) => b.toRadixString(16).padLeft(2, '0'))
     .join();
 
-/// What was asked for, and the note at that moment. Only the title, content
-/// and description are sent, plus for a themed website the theme and how
-/// many photos the note has; the photos themselves stay on this phone.
+/// What is sent to make a website: the note's title and text, the person's
+/// optional brief, and how many photos the page may place. The photos
+/// themselves stay on this phone.
 class WebsiteRequest {
   const WebsiteRequest({
-    required this.noteId,
-    required this.version,
     required this.title,
-    required this.content,
-    required this.description,
-    this.theme = '',
+    required this.body,
+    this.brief = '',
     this.photos = 0,
   });
-  final String noteId, version, title, content, description;
-
-  /// A [websiteThemeIds] entry or `auto`; empty for a freehand website.
-  final String theme;
+  final String title, body, brief;
   final int photos;
 
-  bool get themed => theme.isNotEmpty;
-  String get operation =>
-      themed ? noteWebsiteDesignOperation : noteWebsiteOperation;
+  /// The brief as sent: one line, trimmed.
+  String get cleanBrief => brief.replaceAll(RegExp(r'\s+'), ' ').trim();
 
-  String get contentHash => websiteContentHash(content);
-
-  /// Throws [FormatException] when the note or description does not fit.
+  /// Throws [FormatException] when the note or brief does not fit.
   String request() {
-    final clean = description.replaceAll(RegExp(r'\s+'), ' ').trim();
-    if (clean.isEmpty ||
-        clean.runes.length > noteWebsiteDescriptionChars ||
-        content.trim().isEmpty ||
-        _control.hasMatch(content) ||
-        _control.hasMatch(title)) {
+    if (body.trim().isEmpty) {
+      throw const FormatException('Write something in this note first.');
+    }
+    if (cleanBrief.runes.length > websiteBriefChars ||
+        _control.hasMatch(body) ||
+        _control.hasMatch(title) ||
+        photos < 0 ||
+        photos > websiteMaxPhotos) {
       throw const FormatException(
         'Describe the website in one line of at most 240 characters.',
       );
     }
-    if (themed &&
-        ((theme != 'auto' && !websiteThemeIds.contains(theme)) ||
-            photos < 0 ||
-            photos > websiteMaxPhotos)) {
-      throw const FormatException('Choose one of the website themes.');
-    }
     final value = jsonEncode({
       'title': title.trim(),
-      'text': content,
-      'description': clean,
-      if (themed) ...{'theme': theme, 'photos': photos},
+      'text': body,
+      'brief': cleanBrief,
+      'photos': photos,
     });
-    if (utf8.encode(value).length > noteWebsiteInputBytes) {
+    if (utf8.encode(value).length > websiteInputBytes) {
       throw const FormatException(
-        'This note is longer than a website can be made from (2,000 bytes with its title and description). Nothing was sent.',
+        'This note is too long to make a website from. Nothing was sent.',
       );
     }
     return value;
   }
-
-  String encode() => jsonEncode({
-    'noteId': noteId,
-    'version': version,
-    'title': title,
-    'content': content,
-    'description': description,
-    if (themed) ...{'theme': theme, 'photos': photos},
-  });
-
-  factory WebsiteRequest.decode(String raw) {
-    final json = jsonDecode(raw);
-    if (json is! Map ||
-        [
-          'noteId',
-          'version',
-          'title',
-          'content',
-          'description',
-        ].any((key) => json[key] is! String)) {
-      throw const FormatException('Invalid website request');
-    }
-    return WebsiteRequest(
-      noteId: json['noteId'] as String,
-      version: json['version'] as String,
-      title: json['title'] as String,
-      content: json['content'] as String,
-      description: json['description'] as String,
-      theme: json['theme'] is String ? json['theme'] as String : '',
-      photos: json['photos'] is int ? json['photos'] as int : 0,
-    );
-  }
 }
 
-/// One titled entry of a cards, list, timeline or stats section.
-class WebsiteItem {
-  const WebsiteItem({required this.title, required this.text});
-  final String title, text;
-
-  Map<String, Object> toJson() => {'title': title, 'text': text};
-}
-
-class WebsiteSection {
-  const WebsiteSection({
-    required this.kind,
-    this.heading = '',
-    this.body = '',
-    this.items = const [],
-    this.photo = -1,
+/// How the app looks right now, handed to a website so it can match.
+class WebsiteAppearance {
+  const WebsiteAppearance({
+    this.dark = false,
+    this.reduceMotion = false,
+    this.simpleEffects = false,
+    this.tokens = const {},
   });
-  final String kind, heading, body;
-  final List<WebsiteItem> items;
+  final bool dark, reduceMotion, simpleEffects;
 
-  /// Index into the note's image attachments, or -1 for none.
-  final int photo;
+  /// `bg`, `fg`, `muted`, `accent` and `surface`, as `#rrggbb` colours.
+  final Map<String, String> tokens;
+
+  static final _colour = RegExp(r'^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$');
+  static const tokenNames = {'bg', 'fg', 'muted', 'accent', 'surface'};
 
   Map<String, Object> toJson() => {
-    'kind': kind,
-    'heading': heading,
-    'body': body,
-    'items': [for (final item in items) item.toJson()],
-    'photo': photo,
+    'theme': dark ? 'dark' : 'light',
+    'motion': reduceMotion ? 'reduce' : 'full',
+    'effects': simpleEffects ? 'simple' : 'full',
+    'tokens': {
+      for (final MapEntry(:key, :value) in tokens.entries)
+        if (tokenNames.contains(key) && _colour.hasMatch(value)) key: value,
+    },
   };
+
+  /// A statement that re-themes an open page without reloading it.
+  String get script =>
+      'window.redkeep&&window.redkeep.setAppearance('
+      '${jsonEncode(toJson())});';
+
+  @override
+  bool operator ==(Object other) =>
+      other is WebsiteAppearance &&
+      jsonEncode(other.toJson()) == jsonEncode(toJson());
+
+  @override
+  int get hashCode => jsonEncode(toJson()).hashCode;
 }
 
-/// The structure of a themed website, in the note's own words. Every string
-/// is plain text; the renderer escapes it.
-class WebsiteSpec {
-  const WebsiteSpec({
-    required this.theme,
-    required this.accent,
-    required this.heading,
-    this.tagline = '',
-    required this.sections,
-  });
-  final String theme, accent, heading, tagline;
-  final List<WebsiteSection> sections;
+/// The policy every page carries: inline code only, and nothing may reach
+/// the network. The web view also blocks every navigation.
+const websitePolicy =
+    "default-src 'none'; script-src 'unsafe-inline'; "
+    "style-src 'unsafe-inline'; img-src data: blob:; font-src data:; "
+    "media-src data: blob:; connect-src 'none'; form-action 'none'; "
+    "base-uri 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; "
+    "manifest-src 'none'; object-src 'none'";
 
-  WebsiteSpec withStyle({String? theme, String? accent}) => WebsiteSpec(
-    theme: theme ?? this.theme,
-    accent: accent ?? this.accent,
-    heading: heading,
-    tagline: tagline,
-    sections: sections,
-  );
-
-  String encode() => jsonEncode({
-    'theme': theme,
-    'accent': accent,
-    'hero': {'heading': heading, 'tagline': tagline},
-    'sections': [for (final section in sections) section.toJson()],
-  });
-
-  /// Throws [FormatException] unless [raw] is a spec within the contract.
-  /// [photos] bounds photo indexes; null skips that check (a synced page
-  /// may come from a device with different attachments).
-  factory WebsiteSpec.decode(String raw, {int? photos}) {
-    var text = raw.trim();
-    final fence = RegExp(
-      r'^```(?:json)?\s*\n([\s\S]*?)\n?```$',
-      caseSensitive: false,
-    ).firstMatch(text);
-    if (fence != null) text = fence.group(1)!.trim();
-    if (utf8.encode(text).length > websiteSpecBytes) {
-      throw const FormatException('Oversized website');
-    }
-    Object? json;
-    try {
-      json = jsonDecode(text);
-    } on FormatException {
-      throw const FormatException('Invalid website');
-    }
-    String plain(Object? value, int chars, {bool lines = false}) {
-      if (value is! String ||
-          value.runes.length > chars ||
-          (lines ? _control : RegExp(r'[\x00-\x1f\x7f]')).hasMatch(value)) {
-        throw const FormatException('Invalid website');
-      }
-      return value;
-    }
-
-    Map keyed(Object? value, String keys) {
-      if (value is! Map ||
-          (value.keys.map((k) => '$k').toList()..sort()).join(',') != keys) {
-        throw const FormatException('Invalid website');
-      }
-      return value;
-    }
-
-    final spec = keyed(json, 'accent,hero,sections,theme');
-    final hero = keyed(spec['hero'], 'heading,tagline');
-    final sections = spec['sections'];
-    if (!websiteThemeIds.contains(spec['theme']) ||
-        !websiteAccents.contains(spec['accent']) ||
-        sections is! List ||
-        sections.isEmpty ||
-        sections.length > 8) {
-      throw const FormatException('Invalid website');
-    }
-    return WebsiteSpec(
-      theme: spec['theme'] as String,
-      accent: spec['accent'] as String,
-      heading: plain(hero['heading'], 80),
-      tagline: plain(hero['tagline'], 160),
-      sections: [
-        for (final value in sections)
-          () {
-            final section = keyed(value, 'body,heading,items,kind,photo');
-            final items = section['items'], photo = section['photo'];
-            if (!websiteSectionKinds.contains(section['kind']) ||
-                items is! List ||
-                items.length > 6 ||
-                photo is! int ||
-                photo < -1 ||
-                photo >= (photos ?? websiteMaxPhotos)) {
-              throw const FormatException('Invalid website');
-            }
-            return WebsiteSection(
-              kind: section['kind'] as String,
-              heading: plain(section['heading'], 80),
-              body: plain(section['body'], 600, lines: true),
-              items: [
-                for (final item in items)
-                  () {
-                    final entry = keyed(item, 'text,title');
-                    return WebsiteItem(
-                      title: plain(entry['title'], 80),
-                      text: plain(entry['text'], 240, lines: true),
-                    );
-                  }(),
-              ],
-              photo: photo,
-            );
-          }(),
-      ],
-    );
-  }
-}
+/// Defines `window.redkeep.setAppearance`, which the app calls to theme the
+/// page. Pages cannot replace it.
+const _bootstrap =
+    r'''(function(){var r=document.documentElement;function set(a){if(!a)return;r.setAttribute('data-theme',a.theme==='dark'?'dark':'light');r.setAttribute('data-motion',a.motion==='reduce'?'reduce':'full');r.setAttribute('data-effects',a.effects==='simple'?'simple':'full');r.style.colorScheme=a.theme==='dark'?'dark':'light';var t=a.tokens||{};for(var k in t){if(Object.prototype.hasOwnProperty.call(t,k)){r.style.setProperty('--rk-'+k,t[k]);}}try{window.dispatchEvent(new CustomEvent('redkeep:appearance',{detail:a}));}catch(e){}}try{Object.defineProperty(window,'redkeep',{value:Object.freeze({setAppearance:set}),writable:false,configurable:false});}catch(e){}})();''';
 
 const _removed = {
-  'script',
   'iframe',
   'frame',
   'frameset',
   'object',
   'embed',
   'applet',
-  'form',
   'link',
   'base',
-  'noscript',
-  'template',
   'portal',
-  'audio',
-  'video',
-  'source',
-  'track',
+  'fencedframe',
 };
 const _urlAttributes = {
   'src',
@@ -312,52 +148,73 @@ const _urlAttributes = {
   'background',
   'xlink:href',
   'ping',
+  'data',
+  'codebase',
+  'manifest',
 };
 // Any url() that is not inline data, imported sheets, and legacy expressions.
 final _remoteCss = RegExp(
-  r'url\(\s*(?![\x22\x27]?\s*data:)[^)]*\)|@import[^;]*;?|expression\s*\(',
+  r'url\(\s*(?![\x22\x27]?\s*(?:data:|#))[^)]*\)|@import[^;]*;?|expression\s*\(',
+  caseSensitive: false,
+);
+final _fence = RegExp(
+  r'^```(?:html)?\s*\n([\s\S]*?)\n?```$',
   caseSensitive: false,
 );
 
-/// The policy every rendered page carries, in addition to the web view
-/// having JavaScript and navigation off.
-const websitePolicy =
-    "default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:";
+/// The app's own marker on what it adds, so a page checked twice is not
+/// given two heads.
+const _ownMarker = 'data-redkeep';
 
-/// Rebuilds [raw] as an inert page: no scripts, handlers, frames, forms or
-/// remote resources, with a strict content policy. Throws [FormatException]
-/// when nothing usable is left.
-String sanitizeWebsite(String raw) {
+/// Rebuilds [raw] as a self-contained page: its own inline scripts and
+/// styles stay, while frames, plugins, remote resources and links away are
+/// removed and a strict content policy is put first. With [appearance] the
+/// page opens already themed. Throws [FormatException] when the page is
+/// unusable, including when the model was cut off.
+String sanitizeWebsite(String raw, {WebsiteAppearance? appearance}) {
   var text = raw.trim();
-  final fence = RegExp(
-    r'^```(?:html)?\s*\n([\s\S]*?)\n?```$',
-    caseSensitive: false,
-  ).firstMatch(text);
+  final fence = _fence.firstMatch(text);
   if (fence != null) text = fence.group(1)!.trim();
-  if (text.isEmpty ||
-      utf8.encode(text).length > noteWebsiteOutputBytes ||
-      _control.hasMatch(text)) {
-    throw const FormatException('Invalid website');
+  if (text.isEmpty || utf8.encode(text).length > websiteOutputBytes) {
+    throw const FormatException('The website is too large to keep.');
+  }
+  if (_control.hasMatch(text)) {
+    throw const FormatException('The website could not be read.');
+  }
+  if (!RegExp(r'</html\s*>\s*$', caseSensitive: false).hasMatch(text)) {
+    throw const FormatException(
+      'The website was cut off. Try again, or ask for a simpler page.',
+    );
   }
   final document = html.parse(text);
   for (final element in document.querySelectorAll('*').toList()) {
     final name = element.localName ?? '';
-    final refresh =
-        name == 'meta' && element.attributes.containsKey('http-equiv');
-    if (_removed.contains(name) || refresh) {
+    final attributes = element.attributes;
+    final drop =
+        _removed.contains(name) ||
+        attributes.containsKey(_ownMarker) ||
+        (name == 'script' && attributes.containsKey('src')) ||
+        (name == 'meta' &&
+            (attributes.containsKey('http-equiv') ||
+                attributes.containsKey('charset') ||
+                {
+                  'viewport',
+                  'color-scheme',
+                }.contains(attributes['name']?.toLowerCase())));
+    if (drop) {
       element.remove();
       continue;
     }
-    for (final key in element.attributes.keys.toList()) {
+    for (final key in attributes.keys.toList()) {
       final attribute = key.toString().toLowerCase();
-      final value = element.attributes[key] ?? '';
+      final value = (attributes[key] ?? '').trim().toLowerCase();
+      final inline = value.startsWith('data:') || value.startsWith('blob:');
       final local =
-          value.trim().startsWith('#') ||
-          value.trim().toLowerCase().startsWith('data:image/');
-      if (attribute.startsWith('on') ||
-          (_urlAttributes.contains(attribute) && !local) ||
-          (attribute == 'style' && _remoteCss.hasMatch(value))) {
-        element.attributes.remove(key);
+          value.startsWith('#') ||
+          (inline && attribute != 'href' && attribute != 'xlink:href');
+      if ((_urlAttributes.contains(attribute) && !local) ||
+          (attribute == 'style' && _remoteCss.hasMatch(attributes[key]!))) {
+        attributes.remove(key);
       }
     }
     if (name == 'style' && _remoteCss.hasMatch(element.text)) {
@@ -365,38 +222,77 @@ String sanitizeWebsite(String raw) {
     }
   }
   final body = document.body;
-  if (body == null || body.text.trim().isEmpty) {
-    throw const FormatException('The website has no content');
+  if (body == null || !_hasReadableText(body)) {
+    throw const FormatException('The website has no content.');
   }
-  final head = document.head ?? (dom.Element.tag('head'));
-  if (document.head == null) document.documentElement!.insertBefore(head, body);
-  head.nodes.insert(
-    0,
-    dom.Element.tag('meta')
-      ..attributes['http-equiv'] = 'Content-Security-Policy'
-      ..attributes['content'] = websitePolicy,
+  final root = document.documentElement!;
+  final head = document.head ?? dom.Element.tag('head');
+  if (document.head == null) root.insertBefore(head, root.firstChild);
+  dom.Element meta(Map<String, String> values) =>
+      dom.Element.tag('meta')..attributes.addAll({...values, _ownMarker: ''});
+  head.nodes.insertAll(0, [
+    meta({'charset': 'utf-8'}),
+    meta({'http-equiv': 'Content-Security-Policy', 'content': websitePolicy}),
+    meta({
+      'name': 'viewport',
+      'content': 'width=device-width, initial-scale=1, viewport-fit=cover',
+    }),
+    meta({'name': 'color-scheme', 'content': 'light dark'}),
+    dom.Element.tag('script')
+      ..attributes[_ownMarker] = ''
+      ..text = _bootstrap,
+  ]);
+  root.attributes.removeWhere(
+    (key, _) => {
+      'data-theme',
+      'data-motion',
+      'data-effects',
+    }.contains(key.toString().toLowerCase()),
   );
-  head.nodes.insert(
-    1,
-    dom.Element.tag('meta')
-      ..attributes['name'] = 'viewport'
-      ..attributes['content'] = 'width=device-width, initial-scale=1',
-  );
-  head.nodes.insert(
-    0,
-    dom.Element.tag('meta')..attributes['charset'] = 'utf-8',
-  );
-  final result = '<!doctype html>\n${document.documentElement!.outerHtml}';
-  if (utf8.encode(result).length > noteWebsiteOutputBytes + 1024) {
-    throw const FormatException('Oversized website');
+  if (appearance != null) {
+    final values = appearance.toJson();
+    root.attributes.addAll({
+      'data-theme': values['theme'] as String,
+      'data-motion': values['motion'] as String,
+      'data-effects': values['effects'] as String,
+    });
+    final tokens = values['tokens'] as Map<String, String>;
+    final style = [
+      'color-scheme: ${values['theme']}',
+      for (final MapEntry(:key, :value) in tokens.entries) '--rk-$key: $value',
+    ].join('; ');
+    final own = root.attributes['style'];
+    root.attributes['style'] = own == null || own.trim().isEmpty
+        ? style
+        : '$style; $own';
+  }
+  final result = '<!doctype html>\n${root.outerHtml}';
+  if (utf8.encode(result).length > websiteOutputBytes + 16384) {
+    throw const FormatException('The website is too large to keep.');
   }
   return result;
 }
 
-/// A killable worker bounds the parser, including on malformed input.
+/// Whether [element] shows words of its own, not only code or styles. The
+/// note's words must be readable even before any script runs.
+bool _hasReadableText(dom.Element element) {
+  for (final node in element.nodes) {
+    if (node is dom.Text && node.text.trim().isNotEmpty) return true;
+    if (node is dom.Element &&
+        !const {'script', 'style', 'template'}.contains(node.localName) &&
+        _hasReadableText(node)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/// [sanitizeWebsite] in a killable worker, which bounds the parser on large
+/// or malformed pages.
 Future<String> sanitizeWebsiteBounded(
   String raw, {
-  Duration timeout = const Duration(seconds: 2),
+  WebsiteAppearance? appearance,
+  Duration timeout = const Duration(seconds: 10),
 }) async {
   final port = ReceivePort();
   Isolate? worker;
@@ -404,7 +300,9 @@ Future<String> sanitizeWebsiteBounded(
     worker = await Isolate.spawn(
       (SendPort send) {
         try {
-          send.send(sanitizeWebsite(raw));
+          send.send(sanitizeWebsite(raw, appearance: appearance));
+        } on FormatException catch (error) {
+          send.send(['error', error.message]);
         } catch (_) {
           send.send(null);
         }
@@ -414,6 +312,9 @@ Future<String> sanitizeWebsiteBounded(
       onExit: port.sendPort,
     );
     final result = await port.first.timeout(timeout);
+    if (result is List && result.length == 2 && result.last is String) {
+      throw FormatException(result.last as String);
+    }
     if (result is! String) {
       throw const FormatException('This website could not be made safe.');
     }

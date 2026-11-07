@@ -5,12 +5,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:redkeep/app/navigation_destination.dart';
 import 'package:redkeep/features/appearance/domain/appearance_preferences.dart';
 import 'package:redkeep/features/notes/domain/note_document.dart';
+import 'package:redkeep/features/notes/data/drift_note_websites.dart';
+import 'package:redkeep/features/notes/domain/note_website.dart';
 import 'package:redkeep/features/notes/domain/website/website_contract.dart';
 
 import '../../support/fake_appearance_repository.dart';
 import '../../support/notes_ai_harness.dart';
 import '../../support/pump_app.dart';
 
+import 'package:redkeep/features/notes/presentation/note_card.dart';
 import 'package:redkeep/features/notes/presentation/note_read_page.dart';
 import 'package:redkeep/features/notes/presentation/note_ai_sheet.dart';
 import 'package:redkeep/features/notes/presentation/note_ai_widgets.dart';
@@ -347,47 +350,133 @@ void main() {
     },
   );
 
-  testWidgets(
-    'saved websites keep original text accessible and the note AI entry available',
-    (tester) async {
-      const page =
-          '<html><body><h1>Garden</h1><p>A garden plan.</p></body></html>';
-      tester.view.physicalSize = const Size(320, 568);
-      tester.view.devicePixelRatio = 1;
-      tester.platformDispatcher.textScaleFactorTestValue = 3;
-      addTearDown(tester.view.reset);
-      addTearDown(tester.platformDispatcher.clearAllTestValues);
-      await h.save(
-        details: NoteDetails(
-          website: page,
-          websiteSourceHash: websiteContentHash(notesTestBody),
-        ),
-      );
-      try {
-        final router = await pumpApp(
-          tester,
-          notes: h.repository,
-          database: h.db,
-          initialLocation: noteLocation(notesTestId),
+  for (final dark in [false, true]) {
+    testWidgets(
+      'a website note opens on its page, edits its text and marks itself outdated; dark=$dark',
+      (tester) async {
+        tester.view.physicalSize = const Size(320, 640);
+        tester.view.devicePixelRatio = 1;
+        tester.platformDispatcher.textScaleFactorTestValue = 3;
+        addTearDown(tester.view.reset);
+        addTearDown(tester.platformDispatcher.clearAllTestValues);
+        final appearance = FakeAppearanceRepository(
+          AppearancePreferences(
+            theme: dark ? AppTheme.dark : AppTheme.light,
+            reduceMotion: dark,
+            simplerEffects: dark,
+          ),
         );
-        expect(find.byTooltip('AI tools'), findsOneWidget);
-        expect(find.byKey(const ValueKey('note-website-view')), findsOneWidget);
-        await tester.ensureVisible(find.text('Read note text'));
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Read note text'));
-        await tester.pumpAndSettle();
-        expect(find.text('Show website'), findsOneWidget);
-        router.go(noteLocation(notesTestId));
-        await tester.pumpAndSettle();
-        await startEditing(tester);
-        expect(noteBodyText(tester), notesTestBody);
-        expect(tester.takeException(), isNull);
-      } finally {
-        await tester.pumpWidget(const SizedBox());
-        await tester.pumpAndSettle();
-      }
-    },
-  );
+        addTearDown(appearance.close);
+        await DriftNoteWebsites(h.db).save(
+          NoteWebsite(
+            noteId: notesTestId,
+            html: noteWebsiteOutput,
+            sourceHash: websiteContentHash(notesTestBody),
+            brief: 'A garden guide',
+            madeAt: DateTime.utc(2026),
+          ),
+        );
+        try {
+          final router = await pumpApp(
+            tester,
+            notes: h.repository,
+            database: h.db,
+            repository: appearance,
+            initialLocation: '/notes',
+          );
+          String path() => router.state.uri.path;
+          // What tapping the card does (at 3x text it sits under the bar).
+          tester.widget<NoteCard>(find.byType(NoteCard).first).onTap();
+          await tester.pumpAndSettle();
+          expect(path(), noteWebsiteLocation(notesTestId));
+          expect(
+            find.byKey(const ValueKey('note-website-view')),
+            findsOneWidget,
+          );
+          expect(
+            find.byKey(const ValueKey('note-website-outdated')),
+            findsNothing,
+          );
+
+          // Narrow, large text: the actions are in the menu.
+          await tester.tap(find.byKey(const ValueKey('note-website-menu')));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Edit text'));
+          await tester.pumpAndSettle();
+          expect(path(), noteLocation(notesTestId));
+          expect(noteBodyText(tester), notesTestBody);
+
+          // The text changes; the website is kept but marked outdated.
+          await h.save(body: 'Plant peppers instead.');
+          await tester.pumpAndSettle();
+          await tester.tap(find.byTooltip('Close editor'));
+          await tester.pumpAndSettle();
+          expect(path(), noteWebsiteLocation(notesTestId));
+          final pill = find.byKey(const ValueKey('note-website-outdated'));
+          expect(pill, findsOneWidget);
+          expect(
+            (await h.repository.openDocument(notesTestId)).note!.text.body,
+            'Plant peppers instead.',
+          );
+
+          await tester.tap(pill);
+          await tester.pumpAndSettle();
+          final again = find.byKey(
+            const ValueKey('note-website-outdated-regenerate'),
+          );
+          await tester.ensureVisible(again);
+          await tester.pumpAndSettle();
+          await tester.tap(again);
+          await tester.pumpAndSettle();
+          final brief = find.byKey(const ValueKey('notes-ai-website-brief'));
+          await tester.ensureVisible(brief);
+          expect(
+            tester.widget<TextField>(brief).controller!.text,
+            'A garden guide',
+          );
+          expect(tester.takeException(), isNull);
+        } finally {
+          await tester.pumpWidget(const SizedBox());
+          await tester.pumpAndSettle();
+        }
+      },
+    );
+  }
+
+  testWidgets('the note text page links back to its website', (tester) async {
+    await DriftNoteWebsites(h.db).save(
+      NoteWebsite(
+        noteId: notesTestId,
+        html: noteWebsiteOutput,
+        sourceHash: websiteContentHash('older text'),
+        madeAt: DateTime.utc(2026),
+      ),
+    );
+    try {
+      final router = await pumpApp(
+        tester,
+        notes: h.repository,
+        database: h.db,
+        initialLocation: noteLocation(notesTestId),
+      );
+      final card = find.byKey(const ValueKey('note-website-card'));
+      expect(card, findsOneWidget);
+      expect(
+        find.descendant(
+          of: card,
+          matching: find.byKey(const ValueKey('note-website-outdated')),
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(card);
+      await tester.pumpAndSettle();
+      expect(router.state.uri.path, noteWebsiteLocation(notesTestId));
+      expect(tester.takeException(), isNull);
+    } finally {
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpAndSettle();
+    }
+  });
 }
 
 /// Editing is a state of the note page; this is what the Edit control does.

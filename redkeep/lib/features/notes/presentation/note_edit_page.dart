@@ -6,6 +6,7 @@ import 'package:redkeep/features/ai/application/ai_cloud.dart';
 import 'package:redkeep/features/ai/domain/ai_provider.dart';
 
 import 'note_ai_sheet.dart';
+import 'note_ai_widgets.dart' show NoteAiTool;
 import 'note_app_bar.dart';
 import 'note_format_bar.dart';
 import 'note_markdown_preview.dart';
@@ -192,9 +193,13 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
                           widget.id,
                           editor: true,
                         );
-                        if (mounted && landing != null) {
-                          setState(() => _landing = landing);
+                        if (!mounted || landing == null) return;
+                        // A new website opens on its own page.
+                        if (landing.tool == NoteAiTool.presentation) {
+                          this.context.push(noteWebsiteLocation(widget.id));
+                          return;
                         }
+                        setState(() => _landing = landing);
                       },
               ),
               NoteBarEntrance(

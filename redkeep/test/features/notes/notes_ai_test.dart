@@ -413,15 +413,70 @@ void main() {
     },
   );
 
-  test('the website tool is paused and never sends', () async {
+  test(
+    'a website is kept beside the note and never changes its text',
+    () async {
+      h.remote.output = noteWebsiteOutput;
+      await actions().start(
+        AiOperation.noteWebsite,
+        notesTestId,
+        scope: notesJobScope,
+        description: '  An interactive   garden guide ',
+      );
+      final sent = h.remote.submissions.single;
+      expect(sent['system'], contains('data-theme'));
+      expect(jsonDecode(sent['prompt'] as String), {
+        'title': 'Garden',
+        'text': notesTestBody,
+        'brief': 'An interactive garden guide',
+        'photos': 0,
+      });
+      final before = (await h.repository.openDocument(notesTestId)).note!;
+      await actions().apply(job(), scope: notesJobScope);
+      final after = (await h.repository.openDocument(notesTestId)).note!;
+      expect(after.revision, before.revision);
+      expect(after.text.body, notesTestBody);
+      expect(after.details.encode(), before.details.encode());
+      final website = (await h.scope
+          .read(noteWebsitesProvider)
+          .get(notesTestId))!;
+      expect(website.brief, 'An interactive garden guide');
+      expect(website.model, 'test-model');
+      expect(website.isOutdatedFor(notesTestBody), isFalse);
+      expect(website.html, contains('Content-Security-Policy'));
+      // Its own script stays; it runs in the sandboxed view.
+      expect(website.html, contains('dataset.ready'));
+
+      await h.save(body: 'Plant peppers instead.');
+      expect(website.isOutdatedFor('Plant peppers instead.'), isTrue);
+    },
+  );
+
+  test('editing during a website build prevents keeping it', () async {
+    h.remote.output = noteWebsiteOutput;
     await actions().start(
       AiOperation.noteWebsite,
       notesTestId,
       scope: notesJobScope,
-      description: 'A garden plan',
     );
-    expect(h.remote.submissions, isEmpty);
+    final old = job();
+    await h.save(body: 'New manual writing');
+    await expectLater(
+      actions().apply(old, scope: notesJobScope),
+      throwsFormatException,
+    );
+    expect(await h.scope.read(noteWebsitesProvider).get(notesTestId), isNull);
+  });
+
+  test('a cut-off website is refused', () async {
+    h.remote.output = noteWebsiteOutput.replaceFirst('</html>', '');
+    await actions().start(
+      AiOperation.noteWebsite,
+      notesTestId,
+      scope: notesJobScope,
+    );
     expect(job().phase, 'failed');
+    expect(await h.scope.read(noteWebsitesProvider).get(notesTestId), isNull);
   });
 
   test('cancel and reject never change notes', () async {

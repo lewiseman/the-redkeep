@@ -11,7 +11,6 @@ import '../domain/note_image_contract.dart';
 import '../domain/note_question_contract.dart';
 import '../domain/note_scan_contract.dart';
 import '../domain/transform_contract.dart';
-import '../domain/website/website_contract.dart';
 import 'note_editor_controller.dart';
 import 'notes_providers.dart';
 
@@ -82,7 +81,12 @@ void validateNoteAiOutput(
     case AiOperation.noteBackground:
       NoteBackgroundResult.parse(text);
     case AiOperation.noteWebsite:
-      WebsiteSpec.decode(text, photos: source['photos'] as int? ?? 0);
+      // The page is checked and made safe in a worker before it is kept.
+      if (!RegExp(r'</html\s*>\s*$', caseSensitive: false).hasMatch(text)) {
+        throw const FormatException(
+          'The website was cut off. Try again, or ask for a simpler page.',
+        );
+      }
     default:
       if (!validTransformOutput(text)) {
         throw const FormatException(

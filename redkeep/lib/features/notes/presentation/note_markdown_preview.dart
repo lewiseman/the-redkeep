@@ -8,8 +8,15 @@ import 'note_typography.dart';
 
 /// A note's reading view: its Markdown, formatted as the editor shows it.
 class NoteMarkdownPreview extends ConsumerStatefulWidget {
-  const NoteMarkdownPreview({super.key, required this.text});
+  const NoteMarkdownPreview({
+    super.key,
+    required this.text,
+    this.selectable = true,
+  });
   final String text;
+
+  /// Off where taps and drags mean something else, e.g. AI previews.
+  final bool selectable;
   @override
   ConsumerState<NoteMarkdownPreview> createState() =>
       _NoteMarkdownPreviewState();
@@ -29,7 +36,7 @@ class _NoteMarkdownPreviewState extends ConsumerState<NoteMarkdownPreview> {
           Semantics(liveRegion: true, child: Text(_message!)),
         MarkdownBody(
           data: widget.text.isEmpty ? 'This note is empty.' : widget.text,
-          selectable: true,
+          selectable: widget.selectable,
           styleSheet: typography.markdown(context),
           checkboxBuilder: (checked) => Padding(
             padding: const EdgeInsetsDirectional.only(end: 4),

@@ -10,9 +10,15 @@ import 'note_read_page.dart';
 /// One page per note. Reading and editing are states of this page, so
 /// switching between them never navigates. A new note opens in editing;
 /// leaving it shows the note, or returns to where it began if left empty.
+/// How a note page opens.
+enum NoteOpen { read, edit }
+
 class NotePage extends ConsumerStatefulWidget {
-  const NotePage({super.key, required this.id});
+  const NotePage({super.key, required this.id, this.startEditing = false});
   final String id;
+
+  /// Opens straight into writing, e.g. "Edit text" on the note's website.
+  final bool startEditing;
   @override
   ConsumerState<NotePage> createState() => _NotePageState();
 }
@@ -30,7 +36,8 @@ class _NotePageState extends ConsumerState<NotePage> {
   void initState() {
     super.initState();
     // A new note opens straight into writing.
-    _editing = ref.read(noteNewIdsProvider).contains(widget.id);
+    _editing =
+        widget.startEditing || ref.read(noteNewIdsProvider).contains(widget.id);
   }
 
   void _leave() {
@@ -45,8 +52,14 @@ class _NotePageState extends ConsumerState<NotePage> {
       ref.read(noteDocumentProvider(widget.id)).value?.available == true;
 
   /// Leaving editing shows the saved note, including a just-written one;
-  /// an empty new note has nothing to show and returns to where it began.
+  /// an empty new note, or a note opened only to edit, returns to where it
+  /// began.
   Future<void> _back() async {
+    // Opened only to edit (from the website): return there.
+    if (widget.startEditing) {
+      _leave();
+      return;
+    }
     if (await _hasSavedNote()) {
       if (mounted) {
         setState(() => _editing = false);

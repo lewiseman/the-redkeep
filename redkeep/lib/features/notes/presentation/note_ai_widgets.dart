@@ -70,10 +70,10 @@ enum NoteAiTool {
     Color(0xFF9C6887),
   ),
   presentation(
-    'Presentation',
-    'Choose a website or format your note.',
+    'Website',
+    'Turn this note into an interactive page. Your text stays as it is.',
     'Style this note',
-    'Website or formatted text',
+    'Make it a website',
     Color(0xFF75619B),
   );
 
@@ -99,7 +99,7 @@ enum NoteAiTool {
     image => 'Added to the end of your note',
     scan => 'Page added to the end of your note',
     background => 'New background set',
-    presentation => 'Your note was restyled',
+    presentation => 'Website ready',
     search || thoughtSearch => 'Done',
   };
 }
@@ -638,16 +638,55 @@ class NoteAiChoices<T> extends StatelessWidget {
 }
 
 /// Concrete starting points let a person choose a picture before typing.
+/// Starting points for a website brief: a label, the brief, an icon and a
+/// tint.
+const noteWebsiteIdeas = [
+  (
+    'Guide',
+    'A clear guide with a table of contents and collapsible sections',
+    Icons.menu_book_outlined,
+    Color(0xFF75619B),
+  ),
+  (
+    'Timeline',
+    'An interactive timeline of what happened, in order',
+    Icons.timeline_rounded,
+    Color(0xFF527C9C),
+  ),
+  (
+    'Checklist',
+    'A practical page with checklists I can tick off and see progress',
+    Icons.checklist_rounded,
+    Color(0xFF44766B),
+  ),
+  (
+    'Dashboard',
+    'A dashboard with charts of the numbers in the note',
+    Icons.insights_rounded,
+    Color(0xFFB5683F),
+  ),
+  (
+    'Magazine',
+    'An elegant magazine-style story with bold headings',
+    Icons.auto_stories_outlined,
+    Color(0xFF9C6887),
+  ),
+];
+
 class NoteAiBackdropIdeas extends StatelessWidget {
   const NoteAiBackdropIdeas({
     super.key,
     required this.value,
     required this.onChanged,
+    this.ideas = _backdrops,
   });
   final String value;
   final ValueChanged<String>? onChanged;
 
-  static const _ideas = [
+  /// A label, the text it fills in, an icon and a tint.
+  final List<(String, String, IconData, Color)> ideas;
+
+  static const _backdrops = [
     (
       'Ocean',
       'Soft ocean waves and sea glass, calm and minimal',
@@ -675,7 +714,7 @@ class NoteAiBackdropIdeas extends StatelessWidget {
       spacing: 8,
       runSpacing: 8,
       children: [
-        for (final idea in _ideas)
+        for (final idea in ideas)
           ChoiceChip(
             selectedColor: Color.alphaBlend(
               Theme.of(context).colorScheme.primary.withValues(alpha: .14),

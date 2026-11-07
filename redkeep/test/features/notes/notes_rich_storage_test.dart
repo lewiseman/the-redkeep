@@ -12,7 +12,10 @@ import 'package:drift/native.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:redkeep/core/storage/app_database.dart';
+import 'package:redkeep/features/notes/data/drift_note_websites.dart';
 import 'package:redkeep/features/notes/data/drift_notes_repository.dart';
+import 'package:redkeep/features/notes/domain/note_website.dart';
+import 'package:redkeep/features/notes/domain/website/website_contract.dart';
 import 'package:redkeep/features/notes/domain/note_document.dart';
 import 'package:redkeep/features/sync/data/drift_sync_collection.dart';
 import 'package:redkeep/features/sync/data/drift_account_reset_data.dart';
@@ -28,6 +31,42 @@ void main() {
     h = await NotesAiHarness.create();
   });
   tearDown(() => h.close());
+
+  test('websites stay on this device and leave with their note', () async {
+    final note = await h.save();
+    final websites = DriftNoteWebsites(h.db);
+    Future<void> keep() => websites.save(
+      NoteWebsite(
+        noteId: notesTestId,
+        html: '<html><body>Garden site</body></html>',
+        sourceHash: websiteContentHash(notesTestBody),
+        brief: 'A guide',
+        madeAt: DateTime.utc(2026),
+      ),
+    );
+    await keep();
+    final watched = await websites.watch(notesTestId).first;
+    expect(watched!.brief, 'A guide');
+    // Not part of the note, its details or what syncs.
+    final wire = (await DriftSyncCollection(h.db, 'note').read(notesTestId))!;
+    expect(jsonEncode(wire.payload), isNot(contains('Garden site')));
+    expect(
+      (await h.repository.openDocument(notesTestId)).note!.revision,
+      note.revision,
+    );
+
+    await h.repository.deleteNote(notesTestId, note.revision);
+    expect(await websites.get(notesTestId), isNotNull, reason: 'restorable');
+    await expectLater(keep(), throwsA(isA<NoteException>()));
+    final trashed = (await h.repository.openDocument(notesTestId)).note!;
+    await h.repository.permanentlyDelete(notesTestId, trashed.revision);
+    expect(await websites.get(notesTestId), isNull);
+
+    await h.save();
+    await keep();
+    await DriftAccountResetData(h.db).clear();
+    expect(await websites.get(notesTestId), isNull);
+  });
 
   test('complete notes and prior content survive database reopen', () async {
     final path = '${h.directory.path}/writing.sqlite';
@@ -159,34 +198,35 @@ void main() {
     expect(saved.details.background, {'type': 'sage'});
   });
 
-  test(
-    'collection excludes large website/body payloads but keeps card metadata',
-    () async {
-      await h.save(
-        body: 'x' * 100000,
-        details: NoteDetails(
-          website: '<html>${'w' * 100000}</html>',
-          background: const {'type': 'rose'},
-        ),
-      );
-      var entry = (await h.repository.watchCollection().first).single;
-      expect(entry.excerpt.length, 600);
-      expect(entry.details.website, isEmpty);
-      expect(entry.details.background['type'], 'rose');
-      await h.repository.saveNote(
-        id: notesTestId,
-        text: const PlainTextDocument(body: 'Edited writing'),
-        expectedRevision: 1,
-        details: const NoteDetails(
-          background: {'type': 'sage'},
-          tags: ['work'],
-        ),
-      );
-      entry = (await h.repository.watchCollection().first).single;
-      expect(entry.excerpt, 'Edited writing');
-      expect(entry.details.background['type'], 'sage');
-    },
-  );
+  test('collection excludes large body payloads, flags websites and keeps card metadata', () async {
+    await h.save(
+      body: 'x' * 100000,
+      details: const NoteDetails(background: {'type': 'rose'}),
+    );
+    var entry = (await h.repository.watchCollection().first).single;
+    expect(entry.excerpt.length, 600);
+    expect(entry.hasWebsite, isFalse);
+    expect(entry.details.background['type'], 'rose');
+    await DriftNoteWebsites(h.db).save(
+      NoteWebsite(
+        noteId: notesTestId,
+        html: '<html>${'w' * 100000}</html>',
+        sourceHash: websiteContentHash('x' * 100000),
+        madeAt: DateTime.utc(2026),
+      ),
+    );
+    entry = (await h.repository.watchCollection().first).single;
+    expect(entry.hasWebsite, isTrue);
+    await h.repository.saveNote(
+      id: notesTestId,
+      text: const PlainTextDocument(body: 'Edited writing'),
+      expectedRevision: 1,
+      details: const NoteDetails(background: {'type': 'sage'}, tags: ['work']),
+    );
+    entry = (await h.repository.watchCollection().first).single;
+    expect(entry.excerpt, 'Edited writing');
+    expect(entry.details.background['type'], 'sage');
+  });
 
   test('accepted proposals are atomic and refuse stale revisions', () async {
     var note = await h.save();
@@ -222,7 +262,6 @@ void main() {
       details: NoteDetails(
         attachments: [NoteAttachment(path: path, type: 'image/png')],
         background: const {'type': 'sage'},
-        website: '<html><body>Garden</body></html>',
       ),
     );
     await h.repository.applyProposal(
@@ -245,7 +284,6 @@ void main() {
     final repository = DriftNotesRepository(peer, clock: DateTime.now);
     final imported = (await repository.openDocument(notesTestId)).note!;
     expect(imported.details.attachments.single.path, path);
-    expect(imported.details.website, contains('Garden'));
     final legacy = Map<String, dynamic>.from(wire.payload)..remove('details');
     legacy['body'] = 'Edited by an older peer';
     await collection.mergeRemote(

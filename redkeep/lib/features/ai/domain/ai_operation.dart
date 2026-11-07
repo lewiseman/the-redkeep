@@ -98,8 +98,8 @@ enum AiOperation {
     2048,
     '',
   ),
-  // Paused: hidden in the app until it is redesigned for cloud providers.
-  noteWebsite('design-website', false, 'websiteDesignContract', 2048, 8192, '');
+  // A whole interactive page; long notes make long websites.
+  noteWebsite('build-website', true, '', 32000, 2097152, noteWebsiteSystem);
 
   const AiOperation(
     this.wireName,
@@ -144,6 +144,7 @@ enum AiOperation {
         };
   int get inputBytes => switch (this) {
     photoQuestions => 3200,
+    noteWebsite => 100000,
     _ => 2000,
   };
   int get contractVersion => this == photoQuestions ? 2 : 1;
@@ -157,7 +158,13 @@ enum AiOperation {
   double get temperature => switch (this) {
     thoughtReflection => .4,
     noteTemplate => .7,
+    noteWebsite => .4,
     _ => 0,
   };
+
+  /// How long one attempt may run; null keeps the transport's default.
+  /// A whole website takes minutes to write.
+  Duration? get timeout =>
+      this == noteWebsite ? const Duration(minutes: 10) : null;
   double get topP => this == noteTemplate ? .95 : 1;
 }

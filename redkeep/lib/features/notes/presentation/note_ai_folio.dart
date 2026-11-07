@@ -7,6 +7,7 @@ import '../../../core/presentation/rendering_policy.dart';
 import '../domain/note_colors.dart';
 import '../domain/note_document.dart';
 import 'note_ai_palette.dart';
+import 'note_markdown_preview.dart';
 import 'note_scene.dart';
 
 /// A living miniature of the note the AI desk works on: its own artwork and
@@ -259,12 +260,7 @@ class NoteFolioPage extends StatelessWidget {
         ],
         if (body.trim().isNotEmpty) ...[
           const SizedBox(height: 14),
-          Text(
-            body.trim(),
-            maxLines: bodyLines,
-            overflow: bodyLines == null ? null : TextOverflow.fade,
-            style: theme.textTheme.bodyMedium?.copyWith(height: 1.5),
-          ),
+          NoteFolioText(body.trim(), lines: bodyLines),
         ],
         if (footer != null) ...[const SizedBox(height: 14), footer!],
         if (body.trim().isEmpty && footer == null) ...[
@@ -310,6 +306,145 @@ class _FolioTag extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Note text exactly as the note shows it: formatted, never raw Markdown.
+/// With [lines], it is cut to about that many lines and fades out.
+class NoteFolioText extends StatefulWidget {
+  const NoteFolioText(this.markdown, {super.key, this.lines});
+  final String markdown;
+  final int? lines;
+
+  @override
+  State<NoteFolioText> createState() => _NoteFolioTextState();
+}
+
+class _NoteFolioTextState extends State<NoteFolioText> {
+  bool _cut = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = NoteMarkdownPreview(text: widget.markdown, selectable: false);
+    final lines = widget.lines;
+    if (lines == null) return text;
+    final height = MediaQuery.textScalerOf(context).scale(16) * 1.6 * lines;
+    final clipped = ClipRect(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: height),
+        child: NotificationListener<ScrollMetricsNotification>(
+          onNotification: (n) {
+            final cut = n.metrics.maxScrollExtent > 0;
+            if (cut != _cut) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) setState(() => _cut = cut);
+              });
+            }
+            return true;
+          },
+          child: SingleChildScrollView(
+            physics: const NeverScrollableScrollPhysics(),
+            child: text,
+          ),
+        ),
+      ),
+    );
+    if (!_cut) return clipped;
+    return ShaderMask(
+      blendMode: BlendMode.dstIn,
+      shaderCallback: (rect) => const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        stops: [.6, 1],
+        colors: [Colors.white, Colors.transparent],
+      ).createShader(rect),
+      child: clipped,
+    );
+  }
+}
+
+/// The note split into its paragraphs; tap them to choose which ones a
+/// writing tool works on. Nothing chosen means the whole note.
+class NoteFolioPassages extends StatelessWidget {
+  const NoteFolioPassages({
+    super.key,
+    required this.body,
+    required this.selected,
+    required this.onChanged,
+  });
+  final String body;
+  final Set<int> selected;
+  final ValueChanged<Set<int>> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final blocks = noteBlocks(body);
+    final ink = Theme.of(context).colorScheme.primary;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < blocks.length; i++)
+          Semantics(
+            button: true,
+            selected: selected.contains(i),
+            label: 'Paragraph ${i + 1}',
+            child: InkWell(
+              key: ValueKey('notes-ai-passage-$i'),
+              borderRadius: BorderRadius.circular(10),
+              onTap: () => onChanged(
+                selected.contains(i)
+                    ? ({...selected}..remove(i))
+                    : {...selected, i},
+              ),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                margin: const EdgeInsets.symmetric(vertical: 2),
+                padding: const EdgeInsetsDirectional.fromSTEB(10, 4, 8, 4),
+                decoration: BoxDecoration(
+                  color: selected.contains(i)
+                      ? ink.withValues(alpha: .1)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                  border: BorderDirectional(
+                    start: BorderSide(
+                      color: selected.contains(i)
+                          ? ink
+                          : ink.withValues(alpha: .12),
+                      width: 3,
+                    ),
+                  ),
+                ),
+                child: IgnorePointer(
+                  child: NoteFolioText(
+                    body.substring(blocks[i].start, blocks[i].end),
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// The paragraphs (blank-line separated blocks) of a note body, as ranges
+/// into it, so a chosen passage maps back to the exact Markdown source.
+List<TextRange> noteBlocks(String body) {
+  final blocks = <TextRange>[];
+  var start = 0;
+  void add(int end) {
+    final text = body.substring(start, end);
+    if (text.trim().isEmpty) return;
+    final lead = text.length - text.trimLeft().length;
+    final trail = text.length - text.trimRight().length;
+    blocks.add(TextRange(start: start + lead, end: end - trail));
+  }
+
+  for (final gap in RegExp(r'\n[ \t]*\n').allMatches(body)) {
+    add(gap.start);
+    start = gap.end;
+  }
+  add(body.length);
+  return blocks;
 }
 
 /// Words the Maester would add: marked by an ink rule in the margin.
@@ -381,7 +516,6 @@ class NoteFolioCompare extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final ink = theme.colorScheme.primary;
-    final style = theme.textTheme.bodyMedium?.copyWith(height: 1.5);
     final labels = theme.textTheme.labelSmall?.copyWith(
       fontWeight: FontWeight.w700,
       letterSpacing: .5,
@@ -435,7 +569,7 @@ class NoteFolioCompare extends StatelessWidget {
                           opacity: .75,
                           child: SizedBox(
                             width: double.infinity,
-                            child: Text(before, style: style),
+                            child: NoteFolioText(before),
                           ),
                         ),
                       ),
@@ -443,7 +577,7 @@ class NoteFolioCompare extends StatelessWidget {
                         clipper: _SplitClipper(split, keepStart: true),
                         child: SizedBox(
                           width: double.infinity,
-                          child: Text(after, style: style),
+                          child: NoteFolioText(after),
                         ),
                       ),
                       Positioned(

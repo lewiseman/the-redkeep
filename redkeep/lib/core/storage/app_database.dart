@@ -29,6 +29,7 @@ part 'app_database.g.dart';
     Notes,
     NoteTags,
     NoteMediaOps,
+    NoteWebsites,
     DiaryEntries,
     DiaryDays,
     DiaryMediaOps,
@@ -44,7 +45,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   // Reset changes this generation before disposing editors. Old repositories
   // cannot write after cleanup, even when an async continuation finishes late.
@@ -89,6 +90,10 @@ class AppDatabase extends _$AppDatabase {
         }
         await _dropColumn('diary_entries', 'conversation');
         await migrator.createTable(aiUsageMonths);
+      }
+      if (from < 5) {
+        // Note websites live beside notes, outside their synced details.
+        await migrator.createTable(noteWebsites);
       }
     },
   );

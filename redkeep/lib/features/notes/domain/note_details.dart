@@ -35,34 +35,25 @@ class NoteDetails {
     this.tags = const [],
     this.attachments = const [],
     this.background = const {},
-    this.website = '',
-    this.websiteSourceHash = '',
   });
   final List<String> tags;
   final List<NoteAttachment> attachments;
   final Map<String, dynamic> background;
-  final String website, websiteSourceHash;
   bool get hasWriting =>
       attachments.isNotEmpty || tags.isNotEmpty || background.isNotEmpty;
   NoteDetails copy({
     List<String>? tags,
     List<NoteAttachment>? attachments,
     Map<String, dynamic>? background,
-    String? website,
-    String? websiteSourceHash,
   }) => NoteDetails(
     tags: tags ?? this.tags,
     attachments: attachments ?? this.attachments,
     background: background ?? this.background,
-    website: website ?? this.website,
-    websiteSourceHash: websiteSourceHash ?? this.websiteSourceHash,
   );
   Map<String, dynamic> toJson() => {
     'tags': tags,
     'attachments': [for (final a in attachments) a.toMap()],
     'background': background,
-    'website': website,
-    'websiteSourceHash': websiteSourceHash,
   };
   String encode() => jsonEncode(toJson());
   factory NoteDetails.decode(String raw) {
@@ -76,8 +67,6 @@ class NoteDetails {
     final tags = j['tags'] ?? <dynamic>[];
     final attachments = j['attachments'] ?? <dynamic>[];
     final bg = j['background'] ?? <String, dynamic>{};
-    final website = j['website'] ?? '';
-    final hash = j['websiteSourceHash'] ?? '';
     if (tags is! List ||
         tags.length > 24 ||
         tags.any(
@@ -87,11 +76,7 @@ class NoteDetails {
         attachments.length > 40 ||
         bg is! Map<String, dynamic> ||
         !bg.keys.every({'type', 'asset', 'image', 'image_source'}.contains) ||
-        bg.values.any((v) => v != null && v is! String) ||
-        website is! String ||
-        utf8.encode(website).length > 196608 ||
-        hash is! String ||
-        (hash.isNotEmpty && !RegExp(r'^[0-9a-f]{64}$').hasMatch(hash))) {
+        bg.values.any((v) => v != null && v is! String)) {
       throw const FormatException('Invalid note details');
     }
     if (bg['image'] != null &&
@@ -107,8 +92,6 @@ class NoteDetails {
         ),
       ),
       background: Map.unmodifiable(bg),
-      website: website,
-      websiteSourceHash: hash,
     );
   }
 }

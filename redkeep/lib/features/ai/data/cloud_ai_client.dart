@@ -67,10 +67,14 @@ class AiTransport {
     Future<void>? abort,
     bool Function(AiHttpResponse response)? retryWithout,
     Map<String, Object?>? Function()? fallbackBody,
+
+    /// Overrides [timeout] for one long call.
+    Duration? timeout,
   }) async {
     var response = await _withRetries(
       () => _jsonRequest(settings, method, path, body),
       abort,
+      timeout: timeout,
     );
     if (retryWithout != null &&
         fallbackBody != null &&
@@ -78,6 +82,7 @@ class AiTransport {
       response = await _withRetries(
         () => _jsonRequest(settings, method, path, fallbackBody()),
         abort,
+        timeout: timeout,
       );
     }
     return _success(response);
@@ -152,8 +157,9 @@ class AiTransport {
 
   Future<AiHttpResponse> _withRetries(
     http.BaseRequest Function(Future<void> trigger) Function() build,
-    Future<void>? abort,
-  ) async {
+    Future<void>? abort, {
+    Duration? timeout,
+  }) async {
     var cancelled = false;
     unawaited(abort?.then((_) => cancelled = true));
     for (var attempt = 1; ; attempt++) {
@@ -165,7 +171,11 @@ class AiTransport {
       }
       Duration? wait;
       try {
-        final response = await _sendOnce(build(), abort);
+        final response = await _sendOnce(
+          build(),
+          abort,
+          timeout ?? this.timeout,
+        );
         final retryable =
             response.status == 429 ||
             const {500, 502, 503, 504}.contains(response.status);
@@ -203,6 +213,7 @@ class AiTransport {
   Future<AiHttpResponse> _sendOnce(
     http.BaseRequest Function(Future<void> trigger) build,
     Future<void>? abort,
+    Duration timeout,
   ) async {
     final trigger = Completer<void>();
     var timedOut = false, cancelled = false;
@@ -317,6 +328,7 @@ class OpenAiCloudClient implements AiCloudClient {
       '/chat/completions',
       body: body(temperature: true),
       abort: abort,
+      timeout: request.timeout,
       // Some models only accept their default temperature.
       retryWithout: (r) =>
           r.status == 400 && r.text.toLowerCase().contains('temperature'),
@@ -517,6 +529,7 @@ class AnthropicCloudAdapter extends OpenAiCloudClient {
       '/messages',
       body: body(temperature: true),
       abort: abort,
+      timeout: request.timeout,
       retryWithout: (r) =>
           r.status == 400 && r.text.toLowerCase().contains('temperature'),
       fallbackBody: () => body(temperature: false),

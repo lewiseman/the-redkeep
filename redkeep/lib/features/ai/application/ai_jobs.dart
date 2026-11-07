@@ -151,6 +151,7 @@ class AiJobs extends Notifier<AiJobState> {
       topP: operation.topP,
       images: images,
       abort: abort,
+      timeout: operation.timeout,
     );
     return operation == AiOperation.noteScan ? _scanResult(text) : text;
   }

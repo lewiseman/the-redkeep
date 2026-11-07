@@ -52,12 +52,12 @@ class DriftNotesRepository implements NotesRepository {
     return _db
         .customSelect(
           '''SELECT id, title, substr(body, 1, ${NoteCollectionEntry.excerptCharacters}) AS excerpt,
-           updated_at, pinned,
-           json_remove(details, '\$.website', '\$.websiteSourceHash') AS card_details
+           updated_at, pinned, details AS card_details,
+           EXISTS (SELECT 1 FROM note_websites WHERE note_id = notes.id) AS has_website
          FROM notes WHERE ${conditions.join(' AND ')}
          ORDER BY pinned DESC, updated_at DESC, id''',
           variables: variables,
-          readsFrom: {_db.notes, _db.noteTags},
+          readsFrom: {_db.notes, _db.noteTags, _db.noteWebsites},
         )
         .watch()
         .map(
@@ -73,6 +73,7 @@ class DriftNotesRepository implements NotesRepository {
                 ),
                 pinned: row.read<int>('pinned') == 1,
                 details: NoteDetails.decode(row.read<String>('card_details')),
+                hasWebsite: row.read<int>('has_website') == 1,
               ),
           ],
         );
@@ -354,6 +355,9 @@ class DriftNotesRepository implements NotesRepository {
         throw const NoteException(NoteFailure.staleRevision);
       }
       await (_db.delete(_db.noteTags)..where((r) => r.noteId.equals(id))).go();
+      await (_db.delete(
+        _db.noteWebsites,
+      )..where((r) => r.noteId.equals(id))).go();
       await (_db.delete(_db.notes)..where((r) => r.id.equals(id))).go();
     });
   }

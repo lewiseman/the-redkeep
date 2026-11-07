@@ -22,7 +22,9 @@ import '../domain/note_question_contract.dart';
 import '../domain/note_scan_contract.dart';
 import '../domain/transform_contract.dart';
 import '../domain/website/website_contract.dart';
-import '../domain/website/website_render.dart';
+import '../domain/note_website.dart';
+import '../../ai/application/ai_cloud.dart';
+import '../../ai/domain/ai_provider.dart';
 import 'note_ai_sources.dart';
 import 'note_editor_controller.dart';
 import 'notes_providers.dart';
@@ -83,7 +85,6 @@ class NoteAiController {
     String intent = '',
     String topic = '',
     String description = '',
-    String theme = 'auto',
     String tone = 'light',
     NoteAttachment? image,
     String mode = 'describe',
@@ -151,22 +152,17 @@ class NoteAiController {
       case AiOperation.noteTemplate:
         prompt = NoteTemplateSource(topic).request();
       case AiOperation.noteWebsite:
-        final photos = note!.details.attachments
-            .where((a) => a.isImage)
-            .take(6)
-            .length;
-        final payload = WebsiteRequest(
-          noteId: id,
-          version: note.revision.toString(),
+        final request = WebsiteRequest(
           title: text.title,
-          content: text.body,
-          description: description,
-          theme: theme,
-          photos: photos,
+          body: text.body,
+          brief: description,
+          photos: note!.details.attachments
+              .where((a) => a.isImage)
+              .take(websiteMaxPhotos)
+              .length,
         );
-        prompt = payload.request();
-        source['payload'] = payload.encode();
-        source['photos'] = photos;
+        prompt = request.request();
+        source['brief'] = request.cleanBrief;
       case AiOperation.noteBackground:
         if (description.trim().isEmpty ||
             description.runes.length > 240 ||
@@ -269,6 +265,29 @@ class NoteAiController {
     final opened = await repo.openDocument(id);
     final editing = unsaved ? ref.read(noteEditorProvider(id)).value : null;
     var text = opened.note?.text ?? editing?.text ?? const PlainTextDocument();
+    if (job.operation == AiOperation.noteWebsite) {
+      // The website is kept beside the note; its text is never changed.
+      final note = opened.note!;
+      await ref
+          .read(noteWebsitesProvider)
+          .save(
+            NoteWebsite(
+              noteId: id,
+              html: await sanitizeWebsiteBounded(job.text!),
+              sourceHash: websiteContentHash(note.text.body),
+              brief: source['brief'] as String? ?? '',
+              model:
+                  ref
+                      .read(aiCloudSettingsProvider)
+                      .value
+                      ?.model(AiCapability.chat) ??
+                  '',
+              madeAt: ref.read(notesClockProvider)(),
+            ),
+          );
+      await _clearReviewedJob(job, scope);
+      return note;
+    }
     var details =
         opened.note?.details.copy(tags: opened.note!.tags) ??
         editing?.details ??
@@ -342,16 +361,6 @@ class NoteAiController {
           ..remove('asset');
         details = details.copy(
           background: {...background, 'image': path, 'image_source': 'local'},
-        );
-      case AiOperation.noteWebsite:
-        final page = await websitePageFromOutput(
-          job.operation.wireName,
-          job.text!,
-          source: source['payload'] as String,
-        );
-        details = details.copy(
-          website: page,
-          websiteSourceHash: websiteContentHash(text.body),
         );
       default:
         final range = TransformSource.decode(source['range'] as String);

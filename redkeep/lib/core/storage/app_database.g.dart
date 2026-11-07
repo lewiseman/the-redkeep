@@ -3182,6 +3182,416 @@ class NoteMediaOpsCompanion extends UpdateCompanion<NoteMediaOp> {
   }
 }
 
+class $NoteWebsitesTable extends NoteWebsites
+    with TableInfo<$NoteWebsitesTable, NoteWebsiteRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $NoteWebsitesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _noteIdMeta = const VerificationMeta('noteId');
+  @override
+  late final GeneratedColumn<String> noteId = GeneratedColumn<String>(
+    'note_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES notes (id)',
+    ),
+  );
+  static const VerificationMeta _htmlMeta = const VerificationMeta('html');
+  @override
+  late final GeneratedColumn<String> html = GeneratedColumn<String>(
+    'html',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sourceHashMeta = const VerificationMeta(
+    'sourceHash',
+  );
+  @override
+  late final GeneratedColumn<String> sourceHash = GeneratedColumn<String>(
+    'source_hash',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _briefMeta = const VerificationMeta('brief');
+  @override
+  late final GeneratedColumn<String> brief = GeneratedColumn<String>(
+    'brief',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _modelMeta = const VerificationMeta('model');
+  @override
+  late final GeneratedColumn<String> model = GeneratedColumn<String>(
+    'model',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _madeAtMeta = const VerificationMeta('madeAt');
+  @override
+  late final GeneratedColumn<int> madeAt = GeneratedColumn<int>(
+    'made_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    noteId,
+    html,
+    sourceHash,
+    brief,
+    model,
+    madeAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'note_websites';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<NoteWebsiteRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('note_id')) {
+      context.handle(
+        _noteIdMeta,
+        noteId.isAcceptableOrUnknown(data['note_id']!, _noteIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_noteIdMeta);
+    }
+    if (data.containsKey('html')) {
+      context.handle(
+        _htmlMeta,
+        html.isAcceptableOrUnknown(data['html']!, _htmlMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_htmlMeta);
+    }
+    if (data.containsKey('source_hash')) {
+      context.handle(
+        _sourceHashMeta,
+        sourceHash.isAcceptableOrUnknown(data['source_hash']!, _sourceHashMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceHashMeta);
+    }
+    if (data.containsKey('brief')) {
+      context.handle(
+        _briefMeta,
+        brief.isAcceptableOrUnknown(data['brief']!, _briefMeta),
+      );
+    }
+    if (data.containsKey('model')) {
+      context.handle(
+        _modelMeta,
+        model.isAcceptableOrUnknown(data['model']!, _modelMeta),
+      );
+    }
+    if (data.containsKey('made_at')) {
+      context.handle(
+        _madeAtMeta,
+        madeAt.isAcceptableOrUnknown(data['made_at']!, _madeAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_madeAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {noteId};
+  @override
+  NoteWebsiteRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return NoteWebsiteRow(
+      noteId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note_id'],
+      )!,
+      html: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}html'],
+      )!,
+      sourceHash: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_hash'],
+      )!,
+      brief: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}brief'],
+      )!,
+      model: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}model'],
+      )!,
+      madeAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}made_at'],
+      )!,
+    );
+  }
+
+  @override
+  $NoteWebsitesTable createAlias(String alias) {
+    return $NoteWebsitesTable(attachedDatabase, alias);
+  }
+}
+
+class NoteWebsiteRow extends DataClass implements Insertable<NoteWebsiteRow> {
+  final String noteId;
+  final String html;
+
+  /// SHA-256 of the note body the website was made from.
+  final String sourceHash;
+
+  /// The person's description of the website; may be empty.
+  final String brief;
+  final String model;
+  final int madeAt;
+  const NoteWebsiteRow({
+    required this.noteId,
+    required this.html,
+    required this.sourceHash,
+    required this.brief,
+    required this.model,
+    required this.madeAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['note_id'] = Variable<String>(noteId);
+    map['html'] = Variable<String>(html);
+    map['source_hash'] = Variable<String>(sourceHash);
+    map['brief'] = Variable<String>(brief);
+    map['model'] = Variable<String>(model);
+    map['made_at'] = Variable<int>(madeAt);
+    return map;
+  }
+
+  NoteWebsitesCompanion toCompanion(bool nullToAbsent) {
+    return NoteWebsitesCompanion(
+      noteId: Value(noteId),
+      html: Value(html),
+      sourceHash: Value(sourceHash),
+      brief: Value(brief),
+      model: Value(model),
+      madeAt: Value(madeAt),
+    );
+  }
+
+  factory NoteWebsiteRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return NoteWebsiteRow(
+      noteId: serializer.fromJson<String>(json['noteId']),
+      html: serializer.fromJson<String>(json['html']),
+      sourceHash: serializer.fromJson<String>(json['sourceHash']),
+      brief: serializer.fromJson<String>(json['brief']),
+      model: serializer.fromJson<String>(json['model']),
+      madeAt: serializer.fromJson<int>(json['madeAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'noteId': serializer.toJson<String>(noteId),
+      'html': serializer.toJson<String>(html),
+      'sourceHash': serializer.toJson<String>(sourceHash),
+      'brief': serializer.toJson<String>(brief),
+      'model': serializer.toJson<String>(model),
+      'madeAt': serializer.toJson<int>(madeAt),
+    };
+  }
+
+  NoteWebsiteRow copyWith({
+    String? noteId,
+    String? html,
+    String? sourceHash,
+    String? brief,
+    String? model,
+    int? madeAt,
+  }) => NoteWebsiteRow(
+    noteId: noteId ?? this.noteId,
+    html: html ?? this.html,
+    sourceHash: sourceHash ?? this.sourceHash,
+    brief: brief ?? this.brief,
+    model: model ?? this.model,
+    madeAt: madeAt ?? this.madeAt,
+  );
+  NoteWebsiteRow copyWithCompanion(NoteWebsitesCompanion data) {
+    return NoteWebsiteRow(
+      noteId: data.noteId.present ? data.noteId.value : this.noteId,
+      html: data.html.present ? data.html.value : this.html,
+      sourceHash: data.sourceHash.present
+          ? data.sourceHash.value
+          : this.sourceHash,
+      brief: data.brief.present ? data.brief.value : this.brief,
+      model: data.model.present ? data.model.value : this.model,
+      madeAt: data.madeAt.present ? data.madeAt.value : this.madeAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NoteWebsiteRow(')
+          ..write('noteId: $noteId, ')
+          ..write('html: $html, ')
+          ..write('sourceHash: $sourceHash, ')
+          ..write('brief: $brief, ')
+          ..write('model: $model, ')
+          ..write('madeAt: $madeAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(noteId, html, sourceHash, brief, model, madeAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is NoteWebsiteRow &&
+          other.noteId == this.noteId &&
+          other.html == this.html &&
+          other.sourceHash == this.sourceHash &&
+          other.brief == this.brief &&
+          other.model == this.model &&
+          other.madeAt == this.madeAt);
+}
+
+class NoteWebsitesCompanion extends UpdateCompanion<NoteWebsiteRow> {
+  final Value<String> noteId;
+  final Value<String> html;
+  final Value<String> sourceHash;
+  final Value<String> brief;
+  final Value<String> model;
+  final Value<int> madeAt;
+  final Value<int> rowid;
+  const NoteWebsitesCompanion({
+    this.noteId = const Value.absent(),
+    this.html = const Value.absent(),
+    this.sourceHash = const Value.absent(),
+    this.brief = const Value.absent(),
+    this.model = const Value.absent(),
+    this.madeAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  NoteWebsitesCompanion.insert({
+    required String noteId,
+    required String html,
+    required String sourceHash,
+    this.brief = const Value.absent(),
+    this.model = const Value.absent(),
+    required int madeAt,
+    this.rowid = const Value.absent(),
+  }) : noteId = Value(noteId),
+       html = Value(html),
+       sourceHash = Value(sourceHash),
+       madeAt = Value(madeAt);
+  static Insertable<NoteWebsiteRow> custom({
+    Expression<String>? noteId,
+    Expression<String>? html,
+    Expression<String>? sourceHash,
+    Expression<String>? brief,
+    Expression<String>? model,
+    Expression<int>? madeAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (noteId != null) 'note_id': noteId,
+      if (html != null) 'html': html,
+      if (sourceHash != null) 'source_hash': sourceHash,
+      if (brief != null) 'brief': brief,
+      if (model != null) 'model': model,
+      if (madeAt != null) 'made_at': madeAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  NoteWebsitesCompanion copyWith({
+    Value<String>? noteId,
+    Value<String>? html,
+    Value<String>? sourceHash,
+    Value<String>? brief,
+    Value<String>? model,
+    Value<int>? madeAt,
+    Value<int>? rowid,
+  }) {
+    return NoteWebsitesCompanion(
+      noteId: noteId ?? this.noteId,
+      html: html ?? this.html,
+      sourceHash: sourceHash ?? this.sourceHash,
+      brief: brief ?? this.brief,
+      model: model ?? this.model,
+      madeAt: madeAt ?? this.madeAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (noteId.present) {
+      map['note_id'] = Variable<String>(noteId.value);
+    }
+    if (html.present) {
+      map['html'] = Variable<String>(html.value);
+    }
+    if (sourceHash.present) {
+      map['source_hash'] = Variable<String>(sourceHash.value);
+    }
+    if (brief.present) {
+      map['brief'] = Variable<String>(brief.value);
+    }
+    if (model.present) {
+      map['model'] = Variable<String>(model.value);
+    }
+    if (madeAt.present) {
+      map['made_at'] = Variable<int>(madeAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NoteWebsitesCompanion(')
+          ..write('noteId: $noteId, ')
+          ..write('html: $html, ')
+          ..write('sourceHash: $sourceHash, ')
+          ..write('brief: $brief, ')
+          ..write('model: $model, ')
+          ..write('madeAt: $madeAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $DiaryEntriesTable extends DiaryEntries
     with TableInfo<$DiaryEntriesTable, DiaryEntryRow> {
   @override
@@ -6253,6 +6663,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $NotesTable notes = $NotesTable(this);
   late final $NoteTagsTable noteTags = $NoteTagsTable(this);
   late final $NoteMediaOpsTable noteMediaOps = $NoteMediaOpsTable(this);
+  late final $NoteWebsitesTable noteWebsites = $NoteWebsitesTable(this);
   late final $DiaryEntriesTable diaryEntries = $DiaryEntriesTable(this);
   late final $DiaryDaysTable diaryDays = $DiaryDaysTable(this);
   late final $DiaryMediaOpsTable diaryMediaOps = $DiaryMediaOpsTable(this);
@@ -6287,6 +6698,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     notes,
     noteTags,
     noteMediaOps,
+    noteWebsites,
     diaryEntries,
     diaryDays,
     diaryMediaOps,
@@ -7648,6 +8060,24 @@ final class $$NotesTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$NoteWebsitesTable, List<NoteWebsiteRow>>
+  _noteWebsitesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.noteWebsites,
+    aliasName: 'notes__id__note_websites__note_id',
+  );
+
+  $$NoteWebsitesTableProcessedTableManager get noteWebsitesRefs {
+    final manager = $$NoteWebsitesTableTableManager(
+      $_db,
+      $_db.noteWebsites,
+    ).filter((f) => f.noteId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_noteWebsitesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$NotesTableFilterComposer extends Composer<_$AppDatabase, $NotesTable> {
@@ -7719,6 +8149,31 @@ class $$NotesTableFilterComposer extends Composer<_$AppDatabase, $NotesTable> {
           }) => $$NoteTagsTableFilterComposer(
             $db: $db,
             $table: $db.noteTags,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> noteWebsitesRefs(
+    Expression<bool> Function($$NoteWebsitesTableFilterComposer f) f,
+  ) {
+    final $$NoteWebsitesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.noteWebsites,
+      getReferencedColumn: (t) => t.noteId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$NoteWebsitesTableFilterComposer(
+            $db: $db,
+            $table: $db.noteWebsites,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -7844,6 +8299,31 @@ class $$NotesTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> noteWebsitesRefs<T extends Object>(
+    Expression<T> Function($$NoteWebsitesTableAnnotationComposer a) f,
+  ) {
+    final $$NoteWebsitesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.noteWebsites,
+      getReferencedColumn: (t) => t.noteId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$NoteWebsitesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.noteWebsites,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$NotesTableTableManager
@@ -7859,7 +8339,7 @@ class $$NotesTableTableManager
           $$NotesTableUpdateCompanionBuilder,
           (Note, $$NotesTableReferences),
           Note,
-          PrefetchHooks Function({bool noteTagsRefs})
+          PrefetchHooks Function({bool noteTagsRefs, bool noteWebsitesRefs})
         > {
   $$NotesTableTableManager(_$AppDatabase db, $NotesTable table)
     : super(
@@ -7928,33 +8408,61 @@ class $$NotesTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({noteTagsRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [if (noteTagsRefs) db.noteTags],
-              addJoins: null,
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (noteTagsRefs)
-                    await $_getPrefetchedDataByColumns<
-                      Note,
-                      $NotesTable,
-                      NoteTag,
-                      $NoteTagsTable
-                    >(
-                      currentTable: table,
-                      referencedTable: $$NotesTableReferences
-                          ._noteTagsRefsTable(db),
-                      managerFromTypedResult: (p0) =>
-                          $$NotesTableReferences(db, table, p0).noteTagsRefs,
-                      currentColumn: 'id',
-                      referencedColumn: 'note_id',
-                      typedResults: items,
-                    ),
-                ];
+          prefetchHooksCallback:
+              ({noteTagsRefs = false, noteWebsitesRefs = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (noteTagsRefs) db.noteTags,
+                    if (noteWebsitesRefs) db.noteWebsites,
+                  ],
+                  addJoins: null,
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (noteTagsRefs)
+                        await $_getPrefetchedDataByColumns<
+                          Note,
+                          $NotesTable,
+                          NoteTag,
+                          $NoteTagsTable
+                        >(
+                          currentTable: table,
+                          referencedTable: $$NotesTableReferences
+                              ._noteTagsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$NotesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).noteTagsRefs,
+                          currentColumn: 'id',
+                          referencedColumn: 'note_id',
+                          typedResults: items,
+                        ),
+                      if (noteWebsitesRefs)
+                        await $_getPrefetchedDataByColumns<
+                          Note,
+                          $NotesTable,
+                          NoteWebsiteRow,
+                          $NoteWebsitesTable
+                        >(
+                          currentTable: table,
+                          referencedTable: $$NotesTableReferences
+                              ._noteWebsitesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$NotesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).noteWebsitesRefs,
+                          currentColumn: 'id',
+                          referencedColumn: 'note_id',
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
               },
-            );
-          },
         ),
       );
 }
@@ -7971,7 +8479,7 @@ typedef $$NotesTableProcessedTableManager =
       $$NotesTableUpdateCompanionBuilder,
       (Note, $$NotesTableReferences),
       Note,
-      PrefetchHooks Function({bool noteTagsRefs})
+      PrefetchHooks Function({bool noteTagsRefs, bool noteWebsitesRefs})
     >;
 typedef $$NoteTagsTableCreateCompanionBuilder = NoteTagsCompanion Function({
   required String noteId,
@@ -8376,6 +8884,342 @@ typedef $$NoteMediaOpsTableProcessedTableManager =
       ),
       NoteMediaOp,
       PrefetchHooks Function()
+    >;
+typedef $$NoteWebsitesTableCreateCompanionBuilder =
+    NoteWebsitesCompanion Function({
+      required String noteId,
+      required String html,
+      required String sourceHash,
+      Value<String> brief,
+      Value<String> model,
+      required int madeAt,
+      Value<int> rowid,
+    });
+typedef $$NoteWebsitesTableUpdateCompanionBuilder =
+    NoteWebsitesCompanion Function({
+      Value<String> noteId,
+      Value<String> html,
+      Value<String> sourceHash,
+      Value<String> brief,
+      Value<String> model,
+      Value<int> madeAt,
+      Value<int> rowid,
+    });
+
+final class $$NoteWebsitesTableReferences
+    extends BaseReferences<_$AppDatabase, $NoteWebsitesTable, NoteWebsiteRow> {
+  $$NoteWebsitesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $NotesTable _noteIdTable(_$AppDatabase db) =>
+      db.notes.createAlias('note_websites__note_id__notes__id');
+
+  $$NotesTableProcessedTableManager get noteId {
+    final $_column = $_itemColumn<String>('note_id')!;
+
+    final manager = $$NotesTableTableManager(
+      $_db,
+      $_db.notes,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_noteIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$NoteWebsitesTableFilterComposer
+    extends Composer<_$AppDatabase, $NoteWebsitesTable> {
+  $$NoteWebsitesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get html => $composableBuilder(
+    column: $table.html,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceHash => $composableBuilder(
+    column: $table.sourceHash,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get brief => $composableBuilder(
+    column: $table.brief,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get model => $composableBuilder(
+    column: $table.model,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get madeAt => $composableBuilder(
+    column: $table.madeAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$NotesTableFilterComposer get noteId {
+    final $$NotesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.noteId,
+      referencedTable: $db.notes,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$NotesTableFilterComposer(
+            $db: $db,
+            $table: $db.notes,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$NoteWebsitesTableOrderingComposer
+    extends Composer<_$AppDatabase, $NoteWebsitesTable> {
+  $$NoteWebsitesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get html => $composableBuilder(
+    column: $table.html,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceHash => $composableBuilder(
+    column: $table.sourceHash,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get brief => $composableBuilder(
+    column: $table.brief,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get model => $composableBuilder(
+    column: $table.model,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get madeAt => $composableBuilder(
+    column: $table.madeAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$NotesTableOrderingComposer get noteId {
+    final $$NotesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.noteId,
+      referencedTable: $db.notes,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$NotesTableOrderingComposer(
+            $db: $db,
+            $table: $db.notes,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$NoteWebsitesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $NoteWebsitesTable> {
+  $$NoteWebsitesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get html =>
+      $composableBuilder(column: $table.html, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceHash => $composableBuilder(
+    column: $table.sourceHash,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get brief =>
+      $composableBuilder(column: $table.brief, builder: (column) => column);
+
+  GeneratedColumn<String> get model =>
+      $composableBuilder(column: $table.model, builder: (column) => column);
+
+  GeneratedColumn<int> get madeAt =>
+      $composableBuilder(column: $table.madeAt, builder: (column) => column);
+
+  $$NotesTableAnnotationComposer get noteId {
+    final $$NotesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.noteId,
+      referencedTable: $db.notes,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$NotesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.notes,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$NoteWebsitesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $NoteWebsitesTable,
+          NoteWebsiteRow,
+          $$NoteWebsitesTableFilterComposer,
+          $$NoteWebsitesTableOrderingComposer,
+          $$NoteWebsitesTableAnnotationComposer,
+          $$NoteWebsitesTableCreateCompanionBuilder,
+          $$NoteWebsitesTableUpdateCompanionBuilder,
+          (NoteWebsiteRow, $$NoteWebsitesTableReferences),
+          NoteWebsiteRow,
+          PrefetchHooks Function({bool noteId})
+        > {
+  $$NoteWebsitesTableTableManager(_$AppDatabase db, $NoteWebsitesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$NoteWebsitesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$NoteWebsitesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$NoteWebsitesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> noteId = const Value.absent(),
+                Value<String> html = const Value.absent(),
+                Value<String> sourceHash = const Value.absent(),
+                Value<String> brief = const Value.absent(),
+                Value<String> model = const Value.absent(),
+                Value<int> madeAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => NoteWebsitesCompanion(
+                noteId: noteId,
+                html: html,
+                sourceHash: sourceHash,
+                brief: brief,
+                model: model,
+                madeAt: madeAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String noteId,
+                required String html,
+                required String sourceHash,
+                Value<String> brief = const Value.absent(),
+                Value<String> model = const Value.absent(),
+                required int madeAt,
+                Value<int> rowid = const Value.absent(),
+              }) => NoteWebsitesCompanion.insert(
+                noteId: noteId,
+                html: html,
+                sourceHash: sourceHash,
+                brief: brief,
+                model: model,
+                madeAt: madeAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$NoteWebsitesTable, NoteWebsiteRow>(table),
+                  $$NoteWebsitesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({noteId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (noteId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.noteId,
+                        referencedTable: $$NoteWebsitesTableReferences
+                            ._noteIdTable(db),
+                        referencedColumn: $$NoteWebsitesTableReferences
+                            ._noteIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$NoteWebsitesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $NoteWebsitesTable,
+      NoteWebsiteRow,
+      $$NoteWebsitesTableFilterComposer,
+      $$NoteWebsitesTableOrderingComposer,
+      $$NoteWebsitesTableAnnotationComposer,
+      $$NoteWebsitesTableCreateCompanionBuilder,
+      $$NoteWebsitesTableUpdateCompanionBuilder,
+      (NoteWebsiteRow, $$NoteWebsitesTableReferences),
+      NoteWebsiteRow,
+      PrefetchHooks Function({bool noteId})
     >;
 typedef $$DiaryEntriesTableCreateCompanionBuilder =
     DiaryEntriesCompanion Function({
@@ -10221,6 +11065,8 @@ class $AppDatabaseManager {
       $$NoteTagsTableTableManager(_db, _db.noteTags);
   $$NoteMediaOpsTableTableManager get noteMediaOps =>
       $$NoteMediaOpsTableTableManager(_db, _db.noteMediaOps);
+  $$NoteWebsitesTableTableManager get noteWebsites =>
+      $$NoteWebsitesTableTableManager(_db, _db.noteWebsites);
   $$DiaryEntriesTableTableManager get diaryEntries =>
       $$DiaryEntriesTableTableManager(_db, _db.diaryEntries);
   $$DiaryDaysTableTableManager get diaryDays =>

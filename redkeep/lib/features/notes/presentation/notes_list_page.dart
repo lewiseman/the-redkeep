@@ -350,7 +350,13 @@ class _NotesListPageState extends ConsumerState<NotesListPage> {
                               return NoteCard(
                                 entry: entry,
                                 index: index,
-                                onTap: () => context.go(noteLocation(entry.id)),
+                                // A note with a website opens on it.
+                                onTap: () => context.go(
+                                  entry.hasWebsite &&
+                                          !ref.read(notesFilterProvider).trash
+                                      ? noteWebsiteLocation(entry.id)
+                                      : noteLocation(entry.id),
+                                ),
                               );
                             },
                           ),

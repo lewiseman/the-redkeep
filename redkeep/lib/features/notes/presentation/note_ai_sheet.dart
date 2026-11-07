@@ -27,8 +27,10 @@ import '../domain/note_document.dart';
 import '../domain/note_help_contract.dart';
 import '../domain/note_image_contract.dart';
 import '../domain/note_question_contract.dart';
+import '../domain/note_rich_markdown.dart';
 import '../domain/note_scan_contract.dart';
 import '../domain/note_tag.dart';
+import '../domain/note_website.dart';
 import '../domain/transform_contract.dart';
 import 'note_ai_desk.dart';
 import 'note_ai_folio.dart';
@@ -36,8 +38,6 @@ import 'note_ai_loading.dart';
 import 'note_ai_widgets.dart';
 import 'note_writing_widgets.dart';
 import 'website/note_website_view.dart';
-import '../domain/website/website_render.dart';
-import 'website/website_theme_picker.dart';
 
 NoteAiTool noteToolForJob(AiJob job) => switch (job.operation) {
   AiOperation.noteTemplate => NoteAiTool.template,
@@ -47,8 +47,7 @@ NoteAiTool noteToolForJob(AiJob job) => switch (job.operation) {
   AiOperation.noteImage => NoteAiTool.image,
   AiOperation.noteScan => NoteAiTool.scan,
   AiOperation.noteBackground => NoteAiTool.background,
-  AiOperation.noteWebsite ||
-  AiOperation.noteMarkdown => NoteAiTool.presentation,
+  AiOperation.noteWebsite => NoteAiTool.presentation,
   _ => NoteAiTool.writing,
 };
 
@@ -78,19 +77,43 @@ class NoteAiToolPage extends ConsumerStatefulWidget {
 
 class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
   late final _input = TextEditingController(text: widget.initialQuery);
+
+  /// The note's current website, when this is the website tool.
+  NoteWebsite? get _website {
+    final id = widget.id;
+    if (widget.tool != NoteAiTool.presentation || id == null || !isNoteId(id)) {
+      return null;
+    }
+    return ref.watch(noteWebsiteProvider(id)).value;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    final id = widget.id;
+    // A new website starts from the last brief.
+    if (widget.tool == NoteAiTool.presentation && id != null && isNoteId(id)) {
+      ref.read(noteWebsitesProvider).get(id).then((website) {
+        if (mounted && website != null && _input.text.isEmpty) {
+          setState(() => _input.text = website.brief);
+        }
+      });
+    }
+  }
+
   final _question = TextEditingController();
   final _review = TextEditingController();
   final _tags = <String>{};
-  // The website option is paused; formatted text is the only one.
-  final _presentation = 'markdown';
   String _writing = 'rewrite-note',
       _tone = 'friendly',
       _imageMode = 'describe',
-      _theme = 'auto',
       _backgroundTone = 'light';
   String? _title, _error, _reviewedJob;
   NoteAttachment? _image;
   TextSelection? _selection;
+
+  /// The paragraphs chosen on the folio; [_selection] spans them.
+  Set<int> _passages = {};
   bool _working = false;
 
   /// The compare wipe: one shows the proposal, zero the original.
@@ -137,17 +160,12 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
     NoteAiTool.image => AiOperation.noteImage,
     NoteAiTool.scan => AiOperation.noteScan,
     NoteAiTool.background => AiOperation.noteBackground,
-    NoteAiTool.presentation =>
-      _presentation == 'website'
-          ? AiOperation.noteWebsite
-          : AiOperation.noteMarkdown,
+    NoteAiTool.presentation => AiOperation.noteWebsite,
     _ => AiOperation.values.firstWhere((o) => o.wireName == _writing),
   };
   bool _matches(AiJob job) =>
       job.operation.isNote &&
-      (noteToolForJob(job) == widget.tool ||
-          job.operation == AiOperation.noteMarkdown &&
-              widget.tool == NoteAiTool.writing) &&
+      noteToolForJob(job) == widget.tool &&
       (widget.tool == NoteAiTool.search ||
           widget.id == job.key ||
           widget.id == null);
@@ -166,7 +184,6 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
             : _question.text,
         topic: _input.text,
         description: _input.text,
-        theme: _theme,
         tone: _backgroundTone,
         image: _image,
         mode: _imageMode,
@@ -221,6 +238,7 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
     'expand-note' => 'Detail woven in',
     'tone-note' => 'Tone changed',
     'markdown-note' => 'Note organized',
+    'build-website' => 'Website ready',
     _ => widget.tool.landed,
   };
 
@@ -288,10 +306,15 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
   /// The end of the note fades in above the words the Maester would add.
   Widget _appendedPage(Widget fresh, {String? title}) {
     final subject = _subject();
-    final body = subject?.body.trim() ?? '';
-    final tail = body.length > 220
-        ? '…${body.substring(body.length - 220)}'
-        : body;
+    final body = subject?.body ?? '';
+    // The last two paragraphs, cut on paragraph lines so formatting holds.
+    final blocks = noteBlocks(body);
+    final tail = blocks.isEmpty
+        ? ''
+        : body.substring(
+            blocks[blocks.length > 2 ? blocks.length - 2 : 0].start,
+            blocks.last.end,
+          );
     final empty = subject == null || subject.title.trim().isEmpty;
     return _page(
       body: tail,
@@ -394,20 +417,23 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
                     ?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 12),
-              SelectableText(
-                subject.body,
-                style: Theme.of(context).textTheme.bodyMedium
-                    ?.copyWith(height: 1.5),
-                onSelectionChanged: (selection, cause) {
-                  if (cause == SelectionChangedCause.longPress ||
-                      cause == SelectionChangedCause.drag ||
-                      cause == SelectionChangedCause.tap) {
-                    setState(
-                      () =>
-                          _selection = selection.isCollapsed ? null : selection,
-                    );
-                  }
-                },
+              NoteFolioPassages(
+                body: subject.body,
+                selected: _passages,
+                onChanged: (chosen) => setState(() {
+                  final blocks = noteBlocks(subject.body);
+                  _passages = chosen;
+                  _selection = chosen.isEmpty
+                      ? null
+                      : TextSelection(
+                          baseOffset:
+                              blocks[chosen.reduce((a, b) => a < b ? a : b)]
+                                  .start,
+                          extentOffset:
+                              blocks[chosen.reduce((a, b) => a > b ? a : b)]
+                                  .end,
+                        );
+                }),
               ),
             ],
           ),
@@ -450,8 +476,8 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
       if (widget.tool == NoteAiTool.writing) ...[
         Text(
           _selection == null
-              ? 'Long-press the page above to work on one passage.'
-              : 'Only the selected passage will change.',
+              ? 'Tap paragraphs above to work on just those.'
+              : 'Only the chosen paragraphs will change.',
           style: Theme.of(context).textTheme.bodySmall
               ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
@@ -459,7 +485,10 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
           Align(
             alignment: AlignmentDirectional.centerStart,
             child: TextButton(
-              onPressed: () => setState(() => _selection = null),
+              onPressed: () => setState(() {
+                _selection = null;
+                _passages = {};
+              }),
               child: const Text('Use whole note'),
             ),
           ),
@@ -543,28 +572,33 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
         ),
       ],
       if (widget.tool == NoteAiTool.presentation) ...[
-        if (_presentation == 'website') ...[
-          WebsiteThemeSwatches(
-            selected: _theme,
-            auto: true,
-            onSelected: (v) => setState(() => _theme = v),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _input,
-            maxLength: 240,
-            decoration: const InputDecoration(
-              labelText: 'Describe the website',
+        if (_website case final website?)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Text(
+              website.isOutdatedFor(note?.text.body ?? '')
+                  ? 'Your text changed since the current website was made. A new one replaces it; your text stays as it is.'
+                  : 'A new website replaces the current one. Your text stays as it is.',
             ),
           ),
-          const NoteAiDetails(
-            'Your note text stays intact. Only the title, text, chosen theme and number of photos are used. Photos stay on this device.',
-            title: 'What is used',
+        _label('What should it be like?'),
+        NoteAiBackdropIdeas(
+          ideas: noteWebsiteIdeas,
+          value: _input.text,
+          onChanged: (v) => setState(() => _input.text = v),
+        ),
+        TextField(
+          key: const ValueKey('notes-ai-website-brief'),
+          controller: _input,
+          maxLength: 240,
+          decoration: const InputDecoration(
+            labelText: 'Describe the website (optional)',
           ),
-        ] else
-          const Text(
-            'Give your note headings, lists and emphasis. You will see it before anything changes.',
-          ),
+        ),
+        const NoteAiDetails(
+          'Your note text is not changed; the website is kept beside it. The title, text, this description and the number of photos are sent. Photos stay on this device. A long note can take a few minutes.',
+          title: 'What is used',
+        ),
       ],
       if (widget.tool == NoteAiTool.summary)
         const Text(
@@ -585,6 +619,8 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
           NoteAiTool.metadata => 'Suggest title & tags',
           NoteAiTool.scan => 'Read the page',
           NoteAiTool.background => 'Paint it',
+          NoteAiTool.presentation =>
+            _website == null ? 'Build the website' : 'Build a new website',
           _ => 'Write it on the page',
         }),
       ),
@@ -865,23 +901,15 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
       );
     } else if (job.operation == AiOperation.noteWebsite) {
       result.add(
-        FutureBuilder<String>(
-          future: websitePageFromOutput(
-            job.operation.wireName,
-            job.text!,
-            source: source['payload'] as String,
+        ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: SizedBox(
+            height: 460,
+            child: NoteWebsiteView(
+              html: job.text!,
+              photos: note?.note?.details.attachments ?? const [],
+            ),
           ),
-          builder: (_, snapshot) => snapshot.hasError
-              ? const Text('This website could not be shown safely.')
-              : snapshot.data == null
-              ? const Text('Preparing website…')
-              : SizedBox(
-                  height: 420,
-                  child: NoteWebsiteView(
-                    html: snapshot.data!,
-                    photos: note?.note?.details.attachments ?? const [],
-                  ),
-                ),
         ),
       );
     } else if (job.operation == AiOperation.noteScan) {
@@ -961,11 +989,7 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
         _folio(
           status: 'Proposal',
           child: _appendedPage(
-            Text(
-              template.body,
-              style: Theme.of(context).textTheme.bodyMedium
-                  ?.copyWith(height: 1.5),
-            ),
+            NoteFolioText(template.body),
             title: template.title,
           ),
         ),
@@ -978,11 +1002,7 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
             body: '',
             footer: NoteFreshInk(
               label: 'IN A FEW LINES',
-              child: SelectableText(
-                job.text!,
-                style: Theme.of(context).textTheme.bodyMedium
-                    ?.copyWith(height: 1.5),
-              ),
+              child: NoteFolioText(job.text!),
             ),
           ),
         ),
@@ -1007,7 +1027,7 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
               ),
               const SizedBox(height: 14),
               if (range == null)
-                SelectableText(job.text!)
+                NoteFolioText(job.text!)
               else
                 NoteFolioCompare(
                   key: const ValueKey('notes-ai-compare'),
@@ -1076,11 +1096,12 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
     builder: (context, value, _) => _folio(
       status: 'Where it lands',
       child: _appendedPage(
-        Text(
-          value.text.trim().isEmpty ? '…' : value.text.trim(),
-          maxLines: 8,
-          overflow: TextOverflow.fade,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.5),
+        // Added words are kept as plain words, exactly as they will land.
+        NoteFolioText(
+          value.text.trim().isEmpty
+              ? '…'
+              : markdownFromPlainText(value.text.trim()),
+          lines: 8,
         ),
       ),
     ),

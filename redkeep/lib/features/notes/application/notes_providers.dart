@@ -3,11 +3,13 @@ import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/storage_providers.dart';
+import '../data/drift_note_websites.dart';
 import '../data/drift_notes_repository.dart';
 import '../data/platform_note_link_launcher.dart';
 import '../domain/note_link_launcher.dart';
 import '../domain/note_document.dart';
 import '../domain/note_collection_entry.dart';
+import '../domain/note_website.dart';
 import '../domain/notes_repository.dart';
 import '../domain/notes_query.dart';
 
@@ -25,6 +27,18 @@ final notesRepositoryProvider = Provider<NotesRepository>(
     clock: ref.watch(notesClockProvider),
   ),
 );
+
+/// Websites kept beside notes on this device.
+final noteWebsitesProvider = Provider<DriftNoteWebsites>(
+  (ref) => DriftNoteWebsites(ref.watch(appDatabaseProvider)),
+);
+
+/// The note's website, or null when it has none.
+final noteWebsiteProvider = StreamProvider.autoDispose
+    .family<NoteWebsite?, String>(
+      (ref, id) => ref.watch(noteWebsitesProvider).watch(id),
+    );
+
 final notesListProvider = StreamProvider.autoDispose<List<NoteListing>>(
   (ref) => ref
       .watch(notesRepositoryProvider)

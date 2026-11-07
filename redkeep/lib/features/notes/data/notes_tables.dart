@@ -29,3 +29,22 @@ class NoteMediaOps extends Table {
   @override
   Set<Column> get primaryKey => {path};
 }
+
+/// A note's generated website, kept beside the note and never in its text or
+/// synced details. Local to this device.
+@DataClassName('NoteWebsiteRow')
+class NoteWebsites extends Table {
+  TextColumn get noteId => text().references(Notes, #id)();
+  TextColumn get html => text()();
+
+  /// SHA-256 of the note body the website was made from.
+  TextColumn get sourceHash => text()();
+
+  /// The person's description of the website; may be empty.
+  TextColumn get brief => text().withDefault(const Constant(''))();
+  TextColumn get model => text().withDefault(const Constant(''))();
+  IntColumn get madeAt => integer()();
+
+  @override
+  Set<Column> get primaryKey => {noteId};
+}

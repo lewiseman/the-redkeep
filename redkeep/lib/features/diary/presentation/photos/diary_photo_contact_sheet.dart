@@ -14,6 +14,7 @@ class DiaryPhotoContactSheet extends StatelessWidget {
     required this.onSelect,
     required this.onReorder,
     required this.onAdd,
+    this.showAdd = true,
   });
 
   final List<DiaryContactPhoto> photos;
@@ -22,6 +23,9 @@ class DiaryPhotoContactSheet extends StatelessWidget {
   final ValueChanged<int> onSelect;
   final ReorderCallback onReorder;
   final VoidCallback? onAdd;
+
+  /// Hides the add button entirely, as in a story's preview.
+  final bool showAdd;
 
   @override
   Widget build(BuildContext context) {
@@ -80,24 +84,26 @@ class DiaryPhotoContactSheet extends StatelessWidget {
                       ),
                 ),
               ),
-              const SizedBox(width: 6),
-              DiaryInkAction(
-                label: 'Add more photos',
-                tooltip: 'Add more photos',
-                onPressed: onAdd,
-                child: SizedBox(
-                  width: 48,
-                  child: Center(
-                    child: DiaryInkGlyph(
-                      symbol: DiaryInkSymbol.add,
-                      color: palette.ink.withValues(
-                        alpha: onAdd == null ? .35 : .85,
+              if (showAdd) ...[
+                const SizedBox(width: 6),
+                DiaryInkAction(
+                  label: 'Add more photos',
+                  tooltip: 'Add more photos',
+                  onPressed: onAdd,
+                  child: SizedBox(
+                    width: 48,
+                    child: Center(
+                      child: DiaryInkGlyph(
+                        symbol: DiaryInkSymbol.add,
+                        color: palette.ink.withValues(
+                          alpha: onAdd == null ? .35 : .85,
+                        ),
+                        size: 25,
                       ),
-                      size: 25,
                     ),
                   ),
                 ),
-              ),
+              ],
             ],
           ),
         ),

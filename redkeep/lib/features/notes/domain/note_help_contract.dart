@@ -3,21 +3,13 @@ import 'dart:convert';
 import 'note_document.dart';
 import 'note_tag.dart';
 
-/// N02: optional title/tag suggestions and starting ideas.
+/// N02: optional title/tag suggestions.
 const noteMetadataOperation = 'suggest-note-metadata';
-const noteIdeasOperation = 'suggest-note-ideas';
 const noteHelpContract = 1;
 const noteHelpInputBytes = 2000;
 const noteHelpOutputBytes = 1536;
 const noteTitleChars = 80;
 const noteTagChars = 24;
-const noteIdeaChars = 100;
-const noteIdeaTopicChars = 120;
-const noteIdeaContextNotes = 3;
-const noteIdeaExcerptChars = 240;
-
-/// The handle key for idea tasks, which belong to no note.
-const noteIdeasKey = 'note-ideas';
 
 /// The tag picker's palette; suggested tags must use one of these.
 const noteTagEmojis = [
@@ -231,120 +223,12 @@ class NoteMetadataSuggestions {
   }
 }
 
-class NoteIdeaContext {
-  const NoteIdeaContext({
-    required this.noteId,
-    required this.title,
-    required this.excerpt,
-  });
-  final String noteId, title, excerpt;
-
-  /// The disclosed excerpt: the title and the start of the body, whitespace
-  /// collapsed, up to [noteIdeaExcerptChars] characters.
-  factory NoteIdeaContext.fromNote(NoteDocument note) {
-    final body = _collapse(note.text.body);
-    final runes = body.runes.toList();
-    final title = _collapse(note.text.title);
-    return NoteIdeaContext(
-      noteId: note.id,
-      title: title.runes.length > noteTitleChars
-          ? String.fromCharCodes(title.runes.take(noteTitleChars))
-          : title,
-      excerpt: runes.length > noteIdeaExcerptChars
-          ? String.fromCharCodes(runes.take(noteIdeaExcerptChars))
-          : body,
-    );
-  }
-  Map<String, dynamic> toJson() => {
-    'noteId': noteId,
-    'title': title,
-    'excerpt': excerpt,
-  };
-}
-
-/// An explicit request for starting ideas: an optional topic and at most
-/// three notes the user selected. With neither, nothing personal is sent.
-class NoteIdeaSource {
-  const NoteIdeaSource({this.topic = '', this.notes = const []});
-  final String topic;
-  final List<NoteIdeaContext> notes;
-
-  String request() {
-    final cleanTopic = _collapse(topic);
-    if (!_plain(cleanTopic, noteIdeaTopicChars, empty: true) ||
-        notes.length > noteIdeaContextNotes) {
-      throw const FormatException(
-        'Use a topic of at most 120 characters and up to 3 notes.',
-      );
-    }
-    final value = jsonEncode({
-      'topic': cleanTopic,
-      'notes': [
-        for (final (i, note) in notes.indexed)
-          {'id': 'n$i', 'title': note.title, 'excerpt': note.excerpt},
-      ],
-    });
-    if (utf8.encode(value).length > noteHelpInputBytes) {
-      throw const FormatException(
-        'The selected notes exceed 2,000 UTF-8 bytes. Choose fewer notes.',
-      );
-    }
-    return value;
-  }
-
-  String encode() => jsonEncode({
-    'topic': topic,
-    'notes': [for (final note in notes) note.toJson()],
-  });
-  factory NoteIdeaSource.decode(String raw) {
-    final json = jsonDecode(raw);
-    if (json is! Map || json['topic'] is! String || json['notes'] is! List) {
-      throw const FormatException('Invalid idea source');
-    }
-    return NoteIdeaSource(
-      topic: json['topic'] as String,
-      notes: [
-        for (final note in json['notes'] as List)
-          if (note is Map &&
-              note['noteId'] is String &&
-              note['title'] is String &&
-              note['excerpt'] is String)
-            NoteIdeaContext(
-              noteId: note['noteId'] as String,
-              title: note['title'] as String,
-              excerpt: note['excerpt'] as String,
-            )
-          else
-            throw const FormatException('Invalid idea context'),
-      ],
-    );
-  }
-}
-
-/// Throws [FormatException] for a broken envelope; drops repeats.
-List<String> parseNoteIdeas(String text) {
-  final json = jsonDecode(text);
-  if (json is! Map ||
-      json.keys.length != 1 ||
-      json['ideas'] is! List ||
-      (json['ideas'] as List).isEmpty) {
-    throw const FormatException('Invalid ideas');
-  }
-  final seen = <String>{};
-  return [
-    for (final value in json['ideas'] as List)
-      if (!_plain(value, noteIdeaChars))
-        throw const FormatException('Invalid idea')
-      else if (seen.add(_collapse(value as String).toLowerCase()))
-        _collapse(value),
-  ];
-}
-
 /// A starting skeleton for a new, unsaved note. Only [topic] is sent.
 const noteTemplateOperation = 'suggest-note-template';
 const noteTemplateOutputBytes = 1800;
 const noteTemplateBodyBytes = 1200;
 const noteTemplateLines = 30;
+const noteTemplateTopicChars = 120;
 
 class NoteTemplateSource {
   const NoteTemplateSource(this.topic);
@@ -353,7 +237,7 @@ class NoteTemplateSource {
   /// Throws [FormatException] for an empty, long or multi-line purpose.
   String request() {
     final clean = _collapse(topic);
-    if (!_plain(clean, noteIdeaTopicChars)) {
+    if (!_plain(clean, noteTemplateTopicChars)) {
       throw const FormatException(
         'Describe what the note is for in one line of at most 120 characters.',
       );

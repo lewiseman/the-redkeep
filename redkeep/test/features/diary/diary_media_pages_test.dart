@@ -4,6 +4,7 @@ import 'package:redkeep/features/companion/application/companion_controller.dart
 import 'package:redkeep/features/sync/application/sync_providers.dart';
 import 'package:redkeep/app/app_router.dart';
 
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -18,10 +19,9 @@ import 'package:redkeep/features/diary/application/diary_providers.dart';
 import 'package:redkeep/features/diary/application/diary_media_providers.dart';
 import 'package:redkeep/features/diary/data/diary_photo_store.dart';
 import 'package:redkeep/features/diary/data/drift_diary_repository.dart';
+import 'package:redkeep/features/diary/domain/diary_document.dart';
 import 'package:redkeep/features/diary/domain/diary_period.dart';
 import 'package:redkeep/features/diary/presentation/add_diary_photos_page.dart';
-import 'package:redkeep/features/diary/presentation/photos/diary_photo_entry_book.dart';
-import 'package:redkeep/features/diary/presentation/photos/diary_reflection_desk.dart';
 
 import '../../support/pump_app.dart';
 
@@ -83,7 +83,7 @@ void main() {
     await db.close();
   });
   testWidgets(
-    'photo story moves through offline reflection and review, deduplicates, and saves photos only',
+    'photo story is one captioned photos page, deduplicates, and saves',
     (tester) async {
       final db = AppDatabase(NativeDatabase.memory());
       final repo = DriftDiaryRepository(db, clock: () => DateTime(2026, 11, 4));
@@ -171,24 +171,33 @@ void main() {
             .join(' | '),
       );
       expect(find.byKey(const ValueKey('diary-photo-caption-1')), findsNothing);
-      await tester.tap(find.byKey(const ValueKey('diary-section-reflect')));
+      expect(find.text('Generate questions'), findsNothing);
+      expect(find.byKey(const ValueKey('diary-section-reflect')), findsNothing);
+      await tester.enterText(
+        find.byKey(const ValueKey('diary-photo-caption-0')),
+        'Beach day',
+      );
+      await tester.pump();
+      bool captionFocused() => tester
+          .widget<EditableText>(
+            find.descendant(
+              of: find.byKey(const ValueKey('diary-photo-caption-0')),
+              matching: find.byType(EditableText),
+            ),
+          )
+          .focusNode
+          .hasFocus;
+      expect(captionFocused(), isTrue);
+      // The keyboard opening must not rebuild the caption field.
+      tester.view.viewInsets = const FakeViewPadding(bottom: 400);
       await tester.pumpAndSettle();
-      expect(find.byType(DiaryReflectionDesk), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('diary-section-photos')));
+      expect(captionFocused(), isTrue);
+      tester.view.resetViewInsets();
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Just the photos'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Just the photos'));
-      await tester.pumpAndSettle();
-      expect(find.byType(DiaryPhotoEntryBook), findsOneWidget);
       tester.view.physicalSize = const Size(320, 480);
       scale.value = 3;
       await tester.pumpAndSettle();
-      for (final stage in ['photos', 'reflect', 'review']) {
-        await tester.tap(find.byKey(ValueKey('diary-section-$stage')));
-        await tester.pumpAndSettle();
-        expect(tester.takeException(), isNull);
-      }
+      expect(tester.takeException(), isNull);
       await tester.ensureVisible(
         find.byKey(const ValueKey('diary-photo-save')),
       );
@@ -216,7 +225,127 @@ void main() {
             .join(' | '),
       );
       expect(entry!.entry!.photos.length, 1);
-      expect(entry.entry!.text.body, isEmpty);
+      expect(entry.entry!.photos.single.caption, 'Beach day');
+      expect(entry.entry!.photos.single.reflections, isEmpty);
+
+      // Reopened, the saved story is a preview until Edit.
+      Future<void> reopen(DiaryEntry story) async {
+        await tester.pumpWidget(const SizedBox());
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              syncEnabledProvider.overrideWithValue(false),
+              companionControllerProvider.overrideWith(() => TestConnection()),
+              appDatabaseProvider.overrideWithValue(db),
+              diaryRepositoryProvider.overrideWithValue(repo),
+              diaryPhotoStoreProvider.overrideWithValue(
+                DiaryPhotoStore(
+                  db: db,
+                  supportDirectory: () => Future.value(root),
+                ),
+              ),
+            ],
+            child: MaterialApp(
+              home: MediaQuery(
+                data: const MediaQueryData(disableAnimations: true),
+                child: Navigator(
+                  onGenerateRoute: (_) => MaterialPageRoute<void>(
+                    builder: (_) => const Scaffold(body: Text('Diary')),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        tester.view.physicalSize = const Size(390, 844);
+        scale.value = 1;
+        final navigator = tester.state<NavigatorState>(
+          find.byType(Navigator).last,
+        );
+        unawaited(
+          navigator.push(
+            MaterialPageRoute<bool>(
+              builder: (_) => AddDiaryPhotosPage(
+                date: DiaryPeriod(2026, 11, 4),
+                story: story,
+              ),
+            ),
+          ),
+        );
+        for (
+          var i = 0;
+          i < 50 &&
+              find
+                  .byKey(const ValueKey('diary-photo-caption-preview-0'))
+                  .evaluate()
+                  .isEmpty;
+          i++
+        ) {
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 10)),
+          );
+          await tester.pump();
+        }
+        await tester.pumpAndSettle();
+      }
+
+      await reopen(entry.entry!);
+      expect(find.text('Beach day'), findsOneWidget);
+      expect(find.byKey(const ValueKey('diary-photo-caption-0')), findsNothing);
+      expect(find.byKey(const ValueKey('diary-photo-save')), findsNothing);
+      expect(find.byTooltip('Remove photo 1'), findsNothing);
+      expect(find.byTooltip('Add more photos'), findsNothing);
+
+      await tester.tap(find.byKey(const ValueKey('diary-photo-edit')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('diary-photo-edit')), findsNothing);
+      expect(find.byTooltip('Add more photos'), findsOneWidget);
+      await tester.enterText(
+        find.byKey(const ValueKey('diary-photo-caption-0')),
+        'Unsaved',
+      );
+      await tester.pump();
+
+      // Back leaves the editor for the preview and drops the change.
+      await tester.tap(find.byKey(const ValueKey('diary-photo-cancel-edit')));
+      for (
+        var i = 0;
+        i < 50 &&
+            find
+                .byKey(const ValueKey('diary-photo-caption-preview-0'))
+                .evaluate()
+                .isEmpty;
+        i++
+      ) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 10)),
+        );
+        await tester.pump();
+      }
+      await tester.pumpAndSettle();
+      expect(find.text('Beach day'), findsOneWidget);
+      expect(find.text('Unsaved'), findsNothing);
+
+      await tester.tap(find.byKey(const ValueKey('diary-photo-edit')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('diary-photo-caption-0')),
+        'Sunset swim',
+      );
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('diary-photo-save')));
+      for (var i = 0; i < 50; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 10)),
+        );
+        await tester.pump();
+        entry = await tester.runAsync(() => repo.openDocument('b' * 32));
+        if (entry?.entry?.photos.single.caption == 'Sunset swim') break;
+      }
+      expect(entry!.entry!.photos.single.caption, 'Sunset swim');
+      await tester.pumpAndSettle();
+      expect(find.text('Diary'), findsOneWidget);
+
       await tester.pumpWidget(const SizedBox());
       await tester.pumpAndSettle();
       await tester.runAsync(() async {

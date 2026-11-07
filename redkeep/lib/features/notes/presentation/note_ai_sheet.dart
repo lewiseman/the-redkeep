@@ -36,7 +36,6 @@ import '../domain/website/website_render.dart';
 import 'website/website_theme_picker.dart';
 
 NoteAiTool noteToolForJob(AiJob job) => switch (job.operation) {
-  AiOperation.noteIdeas => NoteAiTool.ideas,
   AiOperation.noteTemplate => NoteAiTool.template,
   AiOperation.noteMetadata => NoteAiTool.metadata,
   AiOperation.noteQuestion => NoteAiTool.search,
@@ -77,26 +76,6 @@ Future<void> showNoteAiTools(
     await context.push('/settings/brain/history');
   }
 }
-
-Future<String?> showNoteIdeas(BuildContext context) =>
-    showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      showDragHandle: true,
-      backgroundColor: noteAiPaper(context),
-      constraints: BoxConstraints(
-        maxWidth: 720,
-        maxHeight: MediaQuery.sizeOf(context).height * .94,
-      ),
-      builder: (sheetContext) => SizedBox(
-        height: MediaQuery.sizeOf(context).height * .86,
-        child: NoteAiToolPage(
-          tool: NoteAiTool.ideas,
-          onUseIdea: (idea) => Navigator.of(sheetContext).pop(idea),
-        ),
-      ),
-    );
 
 class _NoteToolNavigator extends StatefulWidget {
   const _NoteToolNavigator({
@@ -268,15 +247,9 @@ class _NoteToolMenu extends ConsumerWidget {
 }
 
 class NoteAiToolPage extends ConsumerStatefulWidget {
-  const NoteAiToolPage({
-    super.key,
-    required this.tool,
-    this.id,
-    this.onUseIdea,
-  });
+  const NoteAiToolPage({super.key, required this.tool, this.id});
   final NoteAiTool tool;
   final String? id;
-  final ValueChanged<String>? onUseIdea;
   @override
   ConsumerState<NoteAiToolPage> createState() => _NoteAiToolPageState();
 }
@@ -285,9 +258,7 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
   final _input = TextEditingController();
   final _question = TextEditingController();
   final _review = TextEditingController();
-  final _chosenNotes = <String>{};
   final _tags = <String>{};
-  List<NoteDocument> _notes = const [];
   String _writing = 'rewrite-note',
       _tone = 'friendly',
       _imageMode = 'describe',
@@ -297,25 +268,11 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
   String? _title, _error, _reviewedJob;
   NoteAttachment? _image;
   TextSelection? _selection;
-  bool _personal = false, _working = false, _showBefore = false;
+  bool _working = false, _showBefore = false;
   @override
   void initState() {
     super.initState();
-    scheduleMicrotask(() async {
-      await ref.read(aiJobsProvider.notifier).restore();
-      if (!mounted) return;
-      try {
-        final notes = await ref.read(noteAiControllerProvider).notes();
-        if (mounted) setState(() => _notes = notes);
-      } catch (_) {
-        if (mounted) {
-          setState(
-            () => _error =
-                'Notes could not be loaded. Reopen this tool to retry.',
-          );
-        }
-      }
-    });
+    scheduleMicrotask(() => ref.read(aiJobsProvider.notifier).restore());
   }
 
   @override
@@ -365,21 +322,13 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
       (noteToolForJob(job) == widget.tool ||
           job.operation == AiOperation.noteMarkdown &&
               widget.tool == NoteAiTool.writing) &&
-      (widget.tool == NoteAiTool.ideas ||
-          widget.tool == NoteAiTool.search ||
+      (widget.tool == NoteAiTool.search ||
           widget.id == job.key ||
           widget.id == null);
   Future<void> _generate() => _run(() async {
     FocusScope.of(context).unfocus();
     final actions = ref.read(noteAiControllerProvider);
-    if (widget.tool == NoteAiTool.ideas) {
-      await actions.ideas(
-        _input.text,
-        _personal
-            ? _notes.where((n) => _chosenNotes.contains(n.id)).toList()
-            : const [],
-      );
-    } else if (widget.tool == NoteAiTool.search) {
+    if (widget.tool == NoteAiTool.search) {
       await actions.search(_input.text);
     } else {
       await actions.start(
@@ -515,38 +464,6 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
         ? null
         : ref.watch(noteDocumentProvider(widget.id!)).value?.note;
     return [
-      if (widget.tool == NoteAiTool.ideas) ...[
-        TextField(
-          controller: _input,
-          maxLength: 120,
-          decoration: const InputDecoration(labelText: 'Topic (optional)'),
-        ),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: const Text('Use notes I choose'),
-          value: _personal,
-          onChanged: (v) => setState(() => _personal = v),
-        ),
-        if (_personal) ...[
-          const Text(
-            'Choose up to three notes. Only these titles and excerpts will be used.',
-          ),
-          for (final n in _notes)
-            CheckboxListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(noteTitle(n.text.title)),
-              subtitle: Text(NoteIdeaContext.fromNote(n).excerpt),
-              value: _chosenNotes.contains(n.id),
-              onChanged: (value) => setState(() {
-                if (value == true && _chosenNotes.length < 3) {
-                  _chosenNotes.add(n.id);
-                } else {
-                  _chosenNotes.remove(n.id);
-                }
-              }),
-            ),
-        ],
-      ],
       if (widget.tool == NoteAiTool.search)
         TextField(
           key: const ValueKey('notes-ai-search-field'),
@@ -719,7 +636,6 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
         onPressed: _generate,
         icon: const Icon(Icons.auto_awesome_outlined),
         label: Text(switch (widget.tool) {
-          NoteAiTool.ideas => 'Suggest ideas',
           NoteAiTool.search => 'Ask your notes',
           NoteAiTool.summary => 'Summarize',
           NoteAiTool.metadata => 'Suggest title & tags',
@@ -877,18 +793,6 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
       ];
     }
     final source = noteTaskSource(job.source);
-    if (job.operation == AiOperation.noteIdeas) {
-      return [
-        for (final idea in parseNoteIdeas(job.text!))
-          Padding(
-            padding: const EdgeInsets.only(top: 12),
-            child: OutlinedButton(
-              onPressed: () => _useIdea(idea),
-              child: Text(idea),
-            ),
-          ),
-      ];
-    }
     if (job.operation == AiOperation.noteQuestion) {
       final selection = RecallQuestionSelection.decode(
         source['payload'] as String,
@@ -1136,26 +1040,6 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
     ]);
     return result;
   }
-
-  Future<void> _useIdea(String idea) => _run(() async {
-    await ref.read(aiJobsProvider.notifier).clear();
-    if (!mounted) return;
-    if (widget.onUseIdea != null) {
-      widget.onUseIdea!(idea);
-      return;
-    }
-    final id = await ref.read(notesActionsProvider.notifier).create();
-    if (id == null) return;
-    await ref
-        .read(notesRepositoryProvider)
-        .putDraft(
-          id: id,
-          text: PlainTextDocument(title: idea),
-          baseRevision: 0,
-          expectedDraftRevision: null,
-        );
-    if (mounted) context.push(noteLocation(id, edit: true));
-  });
 }
 
 class NotePriorContentPage extends ConsumerStatefulWidget {

@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../../core/storage/app_database.dart';
 import '../domain/ai_job.dart';
+import '../domain/ai_operation.dart';
 
 abstract interface class ProtectedAiTasks {
   Future<String?> read();
@@ -48,9 +49,14 @@ class AiJobStore {
 
   Future<AiJob?> load() => _serial(() async {
     final raw = await protected.read();
-    return raw == null
-        ? null
-        : AiJob.fromJson(Map<String, dynamic>.from(jsonDecode(raw) as Map));
+    if (raw == null) return null;
+    final json = Map<String, dynamic>.from(jsonDecode(raw) as Map);
+    // A task kind that no longer exists can never be resumed; drop it.
+    if (!AiOperation.values.asNameMap().containsKey(json['operation'])) {
+      await protected.write(null);
+      return null;
+    }
+    return AiJob.fromJson(json);
   });
   Future<void> save(AiJob job, int generation) => _serial(() async {
     void check() {
@@ -124,8 +130,7 @@ class AiJobStore {
                 .millisecondsSinceEpoch;
             return [
               for (final row in rows)
-                if (row.created >= cutoff)
-                  ?_receipt(row.metadata),
+                if (row.created >= cutoff) ?_receipt(row.metadata),
             ];
           });
 

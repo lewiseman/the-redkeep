@@ -22,15 +22,6 @@ Future<bool> noteAiSourceCurrent(
 ) async {
   final source = noteTaskSource(raw);
   final repo = ref.read(notesRepositoryProvider);
-  if (operation == AiOperation.noteIdeas) {
-    for (final entry in (source['selected'] as Map? ?? {}).entries) {
-      final opened = await repo.openDocument(entry.key as String);
-      if (!opened.available || opened.note!.revision != entry.value) {
-        return false;
-      }
-    }
-    return true;
-  }
   if (operation == AiOperation.noteQuestion) {
     final selection = RecallQuestionSelection.decode(
       source['payload'] as String,
@@ -70,8 +61,6 @@ void validateNoteAiOutput(
         text,
         NoteMetadataSource.decode(source['payload'] as String),
       );
-    case AiOperation.noteIdeas:
-      parseNoteIdeas(text);
     case AiOperation.noteTemplate:
       NoteTemplate.parse(text);
     case AiOperation.noteQuestion:

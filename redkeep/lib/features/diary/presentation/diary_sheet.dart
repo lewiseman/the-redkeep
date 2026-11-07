@@ -326,7 +326,7 @@ class _DiaryDayContentState extends ConsumerState<DiaryDayContent> {
                   onLongPress: canEditEntries
                       ? () => context.push(
                           day.entries[i].photos.isNotEmpty
-                              ? '${diaryEntryLocation(day.date, day.entries[i].id)}/photos'
+                              ? '${diaryEntryLocation(day.date, day.entries[i].id)}/photos?edit=1'
                               : diaryEntryLocation(
                                   day.date,
                                   day.entries[i].id,

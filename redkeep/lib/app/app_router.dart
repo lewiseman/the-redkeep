@@ -182,6 +182,7 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
                               )!,
                               id: state.pathParameters['id']!,
                             ),
+                            edit: state.uri.queryParameters['edit'] == '1',
                           ),
                         ),
                       ),

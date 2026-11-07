@@ -83,7 +83,7 @@ class DiaryEntryPage extends ConsumerWidget {
                                 ),
                               )
                             : () => context.go(
-                                '${diaryEntryLocation(address.date, address.id)}/photos',
+                                '${diaryEntryLocation(address.date, address.id)}/photos?edit=1',
                               ),
                         child: const Text('Edit entry'),
                       ),

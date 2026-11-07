@@ -40,24 +40,6 @@ class NoteAiController {
     ];
   }
 
-  Future<void> ideas(String topic, List<NoteDocument> selected) async {
-    final payload = NoteIdeaSource(
-      topic: topic,
-      notes: [for (final n in selected) NoteIdeaContext.fromNote(n)],
-    );
-    await ref
-        .read(aiJobsProvider.notifier)
-        .start(
-          AiOperation.noteIdeas,
-          'note-ideas',
-          payload.request(),
-          jsonEncode({
-            'payload': payload.encode(),
-            'selected': {for (final n in selected) n.id: n.revision},
-          }),
-        );
-  }
-
   Future<void> search(String question) async {
     final items = await notes();
     final result = await ref

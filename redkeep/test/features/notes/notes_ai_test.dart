@@ -45,9 +45,7 @@ void main() {
       '${operation.wireName} rejects a malformed result without changing writing',
       () async {
         h.remote.output = '<script>untrusted output</script>';
-        if (operation == AiOperation.noteIdeas) {
-          await actions().ideas('', []);
-        } else if (operation == AiOperation.noteQuestion) {
+        if (operation == AiOperation.noteQuestion) {
           await actions().search('tomatoes');
         } else if (operation == AiOperation.noteTemplate) {
           final id = 'c' * 32;
@@ -154,12 +152,12 @@ void main() {
       await actions().start(AiOperation.noteRewrite, notesTestId);
       final reviewed = job();
       await h.scope.read(aiJobsProvider.notifier).clear();
-      h.remote.output = '{"ideas":["A garden plan"]}';
-      await actions().ideas('', []);
+      h.remote.output = '{"status":"answered","answer":"Water the tomatoes.","citations":["s0"]}';
+      await actions().search('What did I plan for tomatoes?');
       final newer = job();
       await actions().apply(reviewed);
       expect(job().id, newer.id);
-      expect(job().operation, AiOperation.noteIdeas);
+      expect(job().operation, AiOperation.noteQuestion);
       expect(
         (await h.repository.openDocument(notesTestId)).note!.text.body,
         reviewed.text,
@@ -187,19 +185,6 @@ void main() {
     final undone = (await h.repository.openDocument(notesTestId)).note!;
     expect(undone.text.title, 'Garden');
     expect(undone.tags, ['travel']);
-  });
-
-  test('ideas disclose selected excerpts only and generate no writing automatically', () async {
-    final n = (await h.repository.openDocument(notesTestId)).note!;
-    h.remote.output = '{"ideas":["A plan for the raised bed"]}';
-    await actions().ideas('Gardening', []);
-    final generic =
-        jsonDecode(h.remote.submissions.single['prompt'] as String) as Map;
-    expect(generic['notes'], isEmpty);
-    await h.scope.read(aiJobsProvider.notifier).clear();
-    await actions().ideas('Gardening', [n]);
-    expect(h.remote.submissions.last['prompt'], contains('Plant tomatoes'));
-    expect((await h.repository.watchNotes().first).length, 1);
   });
 
   test('template result enters the new draft and survives recovery without committing', () async {
@@ -484,22 +469,25 @@ void main() {
     expect(h.remote.events.any((e) => e.endsWith('/cancel')), isTrue);
   });
 
-  test('compatible text tools use the chosen provider with the migrated prompt', () async {
-    h.scope.dispose();
-    h.scope = h.createScope(connected: false);
-    h.aiProvider.reply = h.remote.output;
-    await h.scope
-        .read(aiPreferencesRepositoryProvider)
-        .setTaskRoute(
-          AiOperation.noteRewrite,
-          AiRoute.provider(testAiProvider.id, 'test-model'),
-        );
-    await actions().start(AiOperation.noteRewrite, notesTestId);
-    expect(job().provider, 'provider');
-    expect(job().phase, 'completed');
-    expect(h.remote.submissions, isEmpty);
-    expect(h.aiProvider.requests.single.system, contains('Preserve facts'));
-  });
+  test(
+    'compatible text tools use the chosen provider with the migrated prompt',
+    () async {
+      h.scope.dispose();
+      h.scope = h.createScope(connected: false);
+      h.aiProvider.reply = h.remote.output;
+      await h.scope
+          .read(aiPreferencesRepositoryProvider)
+          .setTaskRoute(
+            AiOperation.noteRewrite,
+            AiRoute.provider(testAiProvider.id, 'test-model'),
+          );
+      await actions().start(AiOperation.noteRewrite, notesTestId);
+      expect(job().provider, 'provider');
+      expect(job().phase, 'completed');
+      expect(h.remote.submissions, isEmpty);
+      expect(h.aiProvider.requests.single.system, contains('Preserve facts'));
+    },
+  );
 
   test(
     'metadata filters sensitive tags and reuses existing plain-tag spelling',

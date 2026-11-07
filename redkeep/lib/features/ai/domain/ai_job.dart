@@ -95,19 +95,21 @@ class AiJob {
     if (sensitive) ...{'prompt': prompt, 'source': source, 'text': text},
   };
   factory AiJob.fromJson(Map<String, dynamic> j) {
-    if (j['id'] is! String ||
+    final operation = AiOperation.values.asNameMap()[j['operation']];
+    if (operation == null ||
+        j['id'] is! String ||
         !RegExp(r'^[A-Za-z0-9_-]{8,80}$').hasMatch(j['id'] as String) ||
         !{'device', 'companion', 'provider'}.contains(j['provider']) ||
         j['created'] is! int ||
         j['key'] is! String ||
         (j['source'] as String? ?? '').length > 131072 ||
         utf8.encode(j['prompt'] as String? ?? '').length >
-            AiOperation.values.byName(j['operation'] as String).inputBytes) {
+            operation.inputBytes) {
       throw const FormatException('Invalid protected AI task');
     }
     return AiJob(
       id: j['id'] as String,
-      operation: AiOperation.values.byName(j['operation'] as String),
+      operation: operation,
       key: j['key'] as String,
       created: j['created'] as int,
       provider: j['provider'] as String,

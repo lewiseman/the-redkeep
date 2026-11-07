@@ -51,7 +51,7 @@ void main() {
           );
           expect(
             find.byKey(const ValueKey('notes-assistant-ideas')),
-            findsOneWidget,
+            findsNothing,
           );
           expect(
             find.byKey(const ValueKey('notes-assistant-search')),
@@ -170,57 +170,6 @@ void main() {
       }
     },
   );
-
-  testWidgets('choosing an idea creates an unsaved note with that title', (
-    tester,
-  ) async {
-    h.protected.value = jsonEncode(
-      AiJob(
-        id: 'ideas-task-123',
-        operation: AiOperation.noteIdeas,
-        key: 'note-ideas',
-        created: DateTime.now().millisecondsSinceEpoch,
-        provider: 'device',
-        source: '{"payload":"{}","selected":{}}',
-        phase: 'completed',
-        text: '{"ideas":["A plan for the raised bed"]}',
-      ).json(),
-    );
-    final id = 'c' * 32;
-    try {
-      await pumpApp(
-        tester,
-        notes: h.repository,
-        database: h.db,
-        tasks: h.protected,
-        noteId: () => id,
-        initialLocation: '/notes',
-      );
-      await tester.tap(find.byKey(const ValueKey('notes-assistant-ideas')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('A plan for the raised bed'));
-      await tester.pumpAndSettle();
-      final opened = await h.repository.openDocument(id);
-      expect(opened.note, isNull);
-      expect(opened.draft!.text.title, 'A plan for the raised bed');
-      expect(find.byTooltip('AI tools'), findsOneWidget);
-      await tester.tap(find.byTooltip('AI tools'));
-      await tester.pumpAndSettle();
-      expect(
-        find.byKey(const ValueKey('note-assistant-template')),
-        findsOneWidget,
-      );
-      expect(find.byKey(const ValueKey('note-assistant-scan')), findsOneWidget);
-      expect(
-        find.byKey(const ValueKey('note-assistant-background')),
-        findsOneWidget,
-      );
-      expect(tester.takeException(), isNull);
-    } finally {
-      await tester.pumpWidget(const SizedBox());
-      await tester.pumpAndSettle();
-    }
-  });
 
   testWidgets(
     'editing attachments keeps a complete draft until the note is saved',

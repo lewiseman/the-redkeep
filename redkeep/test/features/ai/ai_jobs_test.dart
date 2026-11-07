@@ -322,17 +322,20 @@ void main() {
     expect(message, contains('rate limit'));
     expect(message, isNot(contains(testAiProvider.token)));
   });
-  test('cancelling aborts the provider request and fences its result', () async {
-    await routeToProvider();
-    aiProvider.gate = Completer<void>();
-    final running = start();
-    await until(() => aiProvider.requests.isNotEmpty);
-    await scope.read(aiJobsProvider.notifier).cancel();
-    await running;
-    expect(aiProvider.aborted, isTrue);
-    expect(scope.read(aiJobsProvider).job!.phase, 'cancelled');
-    expect(scope.read(aiJobsProvider).job!.text, isNull);
-  });
+  test(
+    'cancelling aborts the provider request and fences its result',
+    () async {
+      await routeToProvider();
+      aiProvider.gate = Completer<void>();
+      final running = start();
+      await until(() => aiProvider.requests.isNotEmpty);
+      await scope.read(aiJobsProvider.notifier).cancel();
+      await running;
+      expect(aiProvider.aborted, isTrue);
+      expect(scope.read(aiJobsProvider).job!.phase, 'cancelled');
+      expect(scope.read(aiJobsProvider).job!.text, isNull);
+    },
+  );
   test('leaving the app aborts the provider request', () async {
     await routeToProvider();
     aiProvider.gate = Completer<void>();
@@ -342,21 +345,24 @@ void main() {
     await running;
     expect(aiProvider.aborted, isTrue);
   });
-  test('interrupted provider work is never resent without an explicit retry', () async {
-    await routeToProvider();
-    await start();
-    final job = scope.read(aiJobsProvider).job!;
-    protected.value = jsonEncode(job.copy(phase: 'running').json());
-    scope.dispose();
-    aiProvider.requests.clear();
-    scope = container(connected: false);
-    await scope.read(aiJobsProvider.notifier).restore();
-    expect(scope.read(aiJobsProvider).job!.phase, 'interrupted');
-    expect(aiProvider.requests, isEmpty);
-    await scope.read(aiJobsProvider.notifier).retry();
-    expect(scope.read(aiJobsProvider).job!.phase, 'completed');
-    expect(aiProvider.requests, hasLength(1));
-  });
+  test(
+    'interrupted provider work is never resent without an explicit retry',
+    () async {
+      await routeToProvider();
+      await start();
+      final job = scope.read(aiJobsProvider).job!;
+      protected.value = jsonEncode(job.copy(phase: 'running').json());
+      scope.dispose();
+      aiProvider.requests.clear();
+      scope = container(connected: false);
+      await scope.read(aiJobsProvider.notifier).restore();
+      expect(scope.read(aiJobsProvider).job!.phase, 'interrupted');
+      expect(aiProvider.requests, isEmpty);
+      await scope.read(aiJobsProvider.notifier).retry();
+      expect(scope.read(aiJobsProvider).job!.phase, 'completed');
+      expect(aiProvider.requests, hasLength(1));
+    },
+  );
   test('a saved task from the removed phone backend still restores', () async {
     await routeToProvider();
     await start();
@@ -368,6 +374,19 @@ void main() {
     expect(scope.read(aiJobsProvider).loaded, isTrue);
     expect(scope.read(aiJobsProvider).job!.phase, 'interrupted');
     expect(scope.read(aiJobsProvider).job!.destinationLabel, 'Phone');
+  });
+  test('a saved task of a removed kind is dropped on restore', () async {
+    await routeToProvider();
+    await start();
+    final saved = scope.read(aiJobsProvider).job!.json();
+    protected.value = jsonEncode({...saved, 'operation': 'noteIdeas'});
+    scope.dispose();
+    scope = container(connected: false);
+    await scope.read(aiJobsProvider.notifier).restore();
+    expect(scope.read(aiJobsProvider).loaded, isTrue);
+    expect(scope.read(aiJobsProvider).job, isNull);
+    expect(scope.read(aiJobsProvider).message, isNull);
+    expect(protected.value, isNull);
   });
 
   test('connected computer without writing readiness reports failure without sending or falling back', () async {

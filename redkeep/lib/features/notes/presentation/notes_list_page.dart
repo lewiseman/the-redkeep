@@ -1,8 +1,6 @@
 import 'note_tag_strip.dart';
-import 'note_ai_sheet.dart';
 import 'note_ai_widgets.dart';
 import '../domain/note_tag.dart';
-import '../domain/note_document.dart';
 import '../../recall/application/recall_search.dart';
 import '../../ai/application/ai_lifecycle.dart';
 
@@ -282,43 +280,13 @@ class _NotesListPageState extends ConsumerState<NotesListPage> {
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(20, 12, 20, 6),
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            final narrow =
-                                MediaQuery.sizeOf(context).width < 350 ||
-                                MediaQuery.textScalerOf(context).scale(14) > 20;
-                            final ideas = NoteAiToolCard(
-                              key: const ValueKey('notes-assistant-ideas'),
-                              tool: NoteAiTool.ideas,
-                              horizontal: narrow,
-                              onTap: _ideas,
-                            );
-                            final search = NoteAiToolCard(
-                              key: const ValueKey('notes-assistant-search'),
-                              tool: NoteAiTool.search,
-                              horizontal: narrow,
-                              onTap: () => context.push('/notes/ai-search'),
-                            );
-                            return narrow
-                                ? Column(
-                                    children: [
-                                      ideas,
-                                      const SizedBox(height: 10),
-                                      search,
-                                    ],
-                                  )
-                                : IntrinsicHeight(
-                                    child: Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.stretch,
-                                      children: [
-                                        Expanded(child: ideas),
-                                        const SizedBox(width: 10),
-                                        Expanded(child: search),
-                                      ],
-                                    ),
-                                  );
-                          },
+                        child: NoteAiToolCard(
+                          key: const ValueKey('notes-assistant-search'),
+                          tool: NoteAiTool.search,
+                          horizontal:
+                              MediaQuery.sizeOf(context).width < 350 ||
+                              MediaQuery.textScalerOf(context).scale(14) > 20,
+                          onTap: () => context.push('/notes/ai-search'),
                         ),
                       ),
                     ),
@@ -455,22 +423,6 @@ class _NotesListPageState extends ConsumerState<NotesListPage> {
         onPressed: busy ? null : _create,
       ),
     );
-  }
-
-  Future<void> _ideas() async {
-    final idea = await showNoteIdeas(context);
-    if (idea == null || !mounted) return;
-    final id = await ref.read(notesActionsProvider.notifier).create();
-    if (id == null) return;
-    await ref
-        .read(notesRepositoryProvider)
-        .putDraft(
-          id: id,
-          text: PlainTextDocument(title: idea),
-          baseRevision: 0,
-          expectedDraftRevision: null,
-        );
-    if (mounted) context.go(noteLocation(id, edit: true));
   }
 
   Widget _message(

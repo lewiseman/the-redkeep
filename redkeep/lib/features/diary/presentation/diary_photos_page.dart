@@ -8,8 +8,11 @@ import 'add_diary_photos_page.dart';
 
 /// An addressable media editor uses the same repository authority as text.
 class DiaryPhotosPage extends ConsumerWidget {
-  const DiaryPhotosPage({super.key, required this.address});
+  const DiaryPhotosPage({super.key, required this.address, this.edit = false});
   final DiaryAddress address;
+
+  /// Opens a saved story in the editor instead of its preview.
+  final bool edit;
   @override
   Widget build(BuildContext context, WidgetRef ref) => ref
       .watch(diaryDocumentProvider(address.id))
@@ -38,6 +41,7 @@ class DiaryPhotosPage extends ConsumerWidget {
             story: entry,
             newItemUuid: address.id,
             readOnly: !creating && !ref.watch(syncCanEditProvider),
+            startEditing: edit,
           );
         },
       );

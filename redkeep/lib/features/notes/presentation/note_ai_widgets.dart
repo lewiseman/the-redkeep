@@ -2,13 +2,6 @@ import 'package:flutter/material.dart';
 
 /// One visual language from the note toolbox through to the reviewed result.
 enum NoteAiTool {
-  ideas(
-    'Note ideas',
-    'Choose a topic to get note ideas.',
-    'Note ideas',
-    'Start a new note',
-    Color(0xFFB5683F),
-  ),
   search(
     'AI note search',
     'Ask a question and get an answer from your notes.',
@@ -270,17 +263,6 @@ class _ToolPainter extends CustomPainter {
         );
         lines(44, 34, 18, 3);
         sparkle(64, 63);
-      case NoteAiTool.ideas:
-        sheet(10, 28, 39, 39);
-        lines(17, 40, 22, 3);
-        canvas.drawCircle(const Offset(54, 26), 13, Paint()..color = paper);
-        canvas.drawCircle(const Offset(54, 26), 13, stroke);
-        line(48, 39, 60, 39);
-        line(49, 44, 59, 44);
-        line(54, 8, 54, 3);
-        line(72, 26, 77, 26);
-        line(69, 12, 73, 8);
-        sparkle(69, 53);
       case NoteAiTool.search || NoteAiTool.thoughtSearch:
         sheet(12, 11, 39, 50);
         sheet(18, 17, 39, 50, tinted: true);

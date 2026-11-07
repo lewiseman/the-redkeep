@@ -58,14 +58,6 @@ enum AiOperation {
     1536,
     noteMetadataSystem,
   ),
-  noteIdeas(
-    'suggest-note-ideas',
-    true,
-    'noteHelpContract',
-    320,
-    1536,
-    noteIdeasSystem,
-  ),
   noteTemplate(
     'suggest-note-template',
     true,
@@ -122,7 +114,6 @@ enum AiOperation {
           noteClarify => 'Grammar / clarity',
           noteMarkdown => 'Format note',
           noteMetadata => 'Title & tag ideas',
-          noteIdeas => 'Note ideas',
           noteTemplate => 'Starting template',
           noteQuestion => 'AI note search',
           noteImage => 'Ask about an image',
@@ -153,12 +144,8 @@ enum AiOperation {
 
   double get temperature => switch (this) {
     thoughtReflection => .4,
-    noteIdeas => .8,
     dailyQuestion || noteTemplate => .7,
     _ => 0,
   };
-  double get topP =>
-      this == dailyQuestion || this == noteIdeas || this == noteTemplate
-      ? .95
-      : 1;
+  double get topP => this == dailyQuestion || this == noteTemplate ? .95 : 1;
 }

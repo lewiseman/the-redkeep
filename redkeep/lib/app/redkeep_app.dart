@@ -1,6 +1,8 @@
 import '../features/sync/presentation/sync_host.dart';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_quill/flutter_quill.dart' show FlutterQuillLocalizations;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/presentation/redkeep_theme.dart';
@@ -49,6 +51,11 @@ class RedkeepApp extends ConsumerWidget {
         AppTheme.dark => ThemeMode.dark,
       },
       themeAnimationDuration: Duration.zero,
+      // The note editor's built-in strings (link and selection menus).
+      localizationsDelegates: const [
+        ...GlobalMaterialLocalizations.delegates,
+        FlutterQuillLocalizations.delegate,
+      ],
       builder: (context, child) => RenderingPolicyHost(
         // Remain static until the stored policy is known.
         preferences: appearance.loaded

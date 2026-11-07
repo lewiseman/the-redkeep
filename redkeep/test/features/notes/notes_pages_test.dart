@@ -9,6 +9,8 @@ import 'dart:async';
 
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_quill/flutter_quill.dart'
+    show ChangeSource, QuillController;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -27,6 +29,8 @@ import '../../support/fake_appearance_repository.dart';
 import '../../support/pump_app.dart';
 
 import 'package:redkeep/features/notes/presentation/note_read_page.dart';
+
+import 'note_body_test_helpers.dart';
 
 const id = '11111111111111111111111111111111';
 
@@ -124,8 +128,7 @@ void main() {
   );
 
   Finder bodyField() => find.byKey(const ValueKey('note-body'));
-  String bodyText(WidgetTester tester) =>
-      tester.widget<TextField>(bodyField()).controller!.text;
+  String bodyText(WidgetTester tester) => noteBodyText(tester);
   String path(GoRouter router) =>
       router.routeInformationProvider.value.uri.path;
 
@@ -219,7 +222,7 @@ void main() {
         );
         await tester.pumpAndSettle();
         expect(paperFold(tester), 0);
-        await tester.enterText(bodyField(), 'Changed writing');
+        await enterNoteBody(tester, 'Changed writing');
         await tester.pumpAndSettle();
         await tap(tester, 'Done');
         expect(path(router), noteLocation(id));
@@ -255,10 +258,7 @@ void main() {
     await tap(tester, 'Create note');
     expect(router.routeInformationProvider.value.uri.path, noteLocation(id));
     await tester.enterText(find.byKey(const ValueKey('note-title')), 'My note');
-    await tester.enterText(
-      find.byKey(const ValueKey('note-body')),
-      'Hello 👩🏽‍💻\nHabari • 中文',
-    );
+    await enterNoteBody(tester, 'Hello 👩🏽‍💻\nHabari • 中文');
     await tester.pumpAndSettle();
     await tap(tester, 'Done');
     expect(bodyField(), findsNothing);
@@ -276,10 +276,7 @@ void main() {
       'Hello 👩🏽‍💻\nHabari • 中文',
     );
     await tap(tester, 'Edit note');
-    await tester.enterText(
-      find.byKey(const ValueKey('note-body')),
-      'Revised writing',
-    );
+    await enterNoteBody(tester, 'Revised writing');
     await tester.pumpAndSettle();
     await tap(tester, 'Done');
     expect((await repo.openDocument(id)).note!.revision, 2);
@@ -324,7 +321,7 @@ void main() {
       await tap(tester, 'Create note');
       expect(path(router), noteLocation(ids[1]));
       await tester.enterText(find.byKey(const ValueKey('note-title')), 'Kept');
-      await tester.enterText(bodyField(), 'Saved by going back');
+      await enterNoteBody(tester, 'Saved by going back');
       await tester.pumpAndSettle();
       // The system back gesture or button.
       await tester.binding.handlePopRoute();
@@ -352,7 +349,7 @@ void main() {
     );
     await startEditing(tester);
     repo.failSave = true;
-    await tester.enterText(bodyField(), 'Retain this buffer');
+    await enterNoteBody(tester, 'Retain this buffer');
     await tester.pumpAndSettle();
     await tap(tester, 'Close editor');
     expect(path(router), noteLocation(id));
@@ -382,7 +379,7 @@ void main() {
       noteId: () => '33333333333333333333333333333333',
     );
     await startEditing(tester);
-    await tester.enterText(bodyField(), 'My conflicting words');
+    await enterNoteBody(tester, 'My conflicting words');
     await repo.organize(id, 1, pinned: true, tags: []);
     await tester.pumpAndSettle();
     await tap(tester, 'Done');
@@ -485,10 +482,7 @@ void main() {
           router.go(noteLocation(id));
           await tester.pumpAndSettle();
           await startEditing(tester);
-          await tester.enterText(
-            find.byKey(const ValueKey('note-body')),
-            'Large text writing 👩🏽‍💻',
-          );
+          await enterNoteBody(tester, 'Large text writing 👩🏽‍💻');
           await tester.pumpAndSettle();
           await tap(tester, 'Done');
           expect(find.text('Saved revision 2'), findsOneWidget);
@@ -512,13 +506,7 @@ void main() {
       router.go(noteLocation(id));
       await tester.pumpAndSettle();
       await startEditing(tester);
-      expect(
-        tester
-            .widget<TextField>(find.byKey(const ValueKey('note-body')))
-            .controller!
-            .text,
-        text,
-      );
+      expect(noteBodyText(tester), text);
       expect(tester.takeException(), isNull);
     },
   );
@@ -535,7 +523,7 @@ void main() {
       notes: repo,
     );
     await startEditing(tester);
-    await tester.enterText(bodyField(), 'First buffer');
+    await enterNoteBody(tester, 'First buffer');
     await tester.pumpAndSettle();
     router.go(noteLocation(other));
     await tester.pumpAndSettle();
@@ -544,7 +532,7 @@ void main() {
     await tester.pump(NoteEditorController.autosaveDelay);
     await tester.pumpAndSettle();
     expect((await repo.openDocument(id)).note!.text.body, 'First buffer');
-    await tester.enterText(bodyField(), 'Second buffer');
+    await enterNoteBody(tester, 'Second buffer');
     await tester.pumpAndSettle();
     router.go(noteLocation(id));
     await tester.pumpAndSettle();
@@ -567,7 +555,7 @@ void main() {
     );
     await startEditing(tester);
     repo.failSave = true;
-    await tester.enterText(bodyField(), 'Memory retained across navigation');
+    await enterNoteBody(tester, 'Memory retained across navigation');
     await tester.pumpAndSettle();
     router.go('/notes');
     await tester.pumpAndSettle();
@@ -741,6 +729,180 @@ void main() {
     await tester.pumpAndSettle();
     await tap(tester, 'Delete permanently');
     expect((await repo.openDocument(id)).note, isNull);
+  });
+
+  group('rich writing', () {
+    Future<QuillController> openForWriting(
+      WidgetTester tester,
+      String body,
+    ) async {
+      await seed(body: body);
+      await pumpApp(tester, initialLocation: noteLocation(id), notes: repo);
+      await startEditing(tester);
+      return richBody(tester);
+    }
+
+    Future<void> pressEnter(WidgetTester tester, QuillController c) async {
+      final at = c.selection.baseOffset;
+      c.replaceText(at, 0, '\n', TextSelection.collapsed(offset: at + 1));
+      await tester.pump();
+    }
+
+    Future<void> type(
+      WidgetTester tester,
+      QuillController c,
+      String text,
+    ) async {
+      final at = c.selection.baseOffset;
+      c.replaceText(
+        at,
+        0,
+        text,
+        TextSelection.collapsed(offset: at + text.length),
+      );
+      await tester.pump();
+    }
+
+    noteTest('Markdown symbols are not shown while writing', (tester) async {
+      final c = await openForWriting(
+        tester,
+        '# Plan\n- [ ] milk\n- [x] bread\nsome **bold** words',
+      );
+      final plain = c.document.toPlainText();
+      expect(plain, 'Plan\nmilk\nbread\nsome bold words\n');
+      expect(noteBodyText(tester), contains('- [x] bread'));
+    });
+
+    noteTest('Enter continues a checklist; Enter on an empty item ends it', (
+      tester,
+    ) async {
+      final c = await openForWriting(tester, '- [ ] milk');
+      c.updateSelection(
+        const TextSelection.collapsed(offset: 4),
+        ChangeSource.local,
+      );
+      await pressEnter(tester, c);
+      await type(tester, c, 'eggs');
+      expect(noteBodyText(tester), '- [ ] milk\n- [ ] eggs');
+      await pressEnter(tester, c);
+      expect(noteBodyText(tester), '- [ ] milk\n- [ ] eggs\n- [ ] ');
+      await pressEnter(tester, c);
+      await type(tester, c, 'done');
+      expect(noteBodyText(tester), '- [ ] milk\n- [ ] eggs\ndone');
+      await tap(tester, 'Close editor');
+      expect(
+        (await repo.openDocument(id)).note!.text.body,
+        '- [ ] milk\n- [ ] eggs\ndone',
+      );
+    });
+
+    noteTest('tapping a checkbox ticks the item', (tester) async {
+      await openForWriting(tester, '- [ ] milk');
+      await tester.tap(find.byIcon(Icons.check_box_outline_blank));
+      await tester.pumpAndSettle();
+      expect(noteBodyText(tester), '- [x] milk');
+    });
+
+    noteTest('the keyboard row formats where the caret is', (tester) async {
+      final c = await openForWriting(tester, 'Groceries\nmilk');
+      addTearDown(tester.view.reset);
+      // Keyboard down: a floating capsule with the note tools.
+      expect(find.byKey(const ValueKey('note-format-capsule')), findsOneWidget);
+      expect(find.byTooltip('Bold'), findsNothing);
+      await tester.tap(find.byTooltip('Format text'));
+      tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+      await tester.pumpAndSettle();
+      // Keyboard up: one row on top of it, formatting first.
+      expect(find.byKey(const ValueKey('note-format-row')), findsOneWidget);
+      final row = tester.getRect(find.byKey(const ValueKey('note-format-row')));
+      expect(
+        row.bottom,
+        moreOrLessEquals(
+          (tester.view.physicalSize.height - 300) /
+              tester.view.devicePixelRatio,
+        ),
+      );
+
+      c.updateSelection(
+        const TextSelection.collapsed(offset: 2),
+        ChangeSource.local,
+      );
+      await tester.pump();
+      await tester.tap(find.byTooltip('Heading'));
+      await tester.pump();
+      expect(noteBodyText(tester), '# Groceries\nmilk');
+      await tester.tap(find.byTooltip('Smaller heading'));
+      await tester.pump();
+      expect(noteBodyText(tester), '## Groceries\nmilk');
+      await tester.tap(find.byTooltip('Normal text'));
+      await tester.pump();
+      expect(noteBodyText(tester), 'Groceries\nmilk');
+
+      c.updateSelection(
+        const TextSelection.collapsed(offset: 11),
+        ChangeSource.local,
+      );
+      await tester.pump();
+      await tester.tap(find.byTooltip('Checklist'));
+      await tester.pump();
+      expect(noteBodyText(tester), 'Groceries\n- [ ] milk');
+      await tester.tap(find.byTooltip('Checklist'));
+      await tester.pump();
+      expect(noteBodyText(tester), 'Groceries\nmilk');
+      await tester.tap(find.byTooltip('Bulleted list'));
+      await tester.pump();
+      expect(noteBodyText(tester), 'Groceries\n- milk');
+      await tester.tap(find.byTooltip('Numbered list'));
+      await tester.pump();
+      expect(noteBodyText(tester), 'Groceries\n1. milk');
+
+      c.updateSelection(
+        const TextSelection(baseOffset: 0, extentOffset: 9),
+        ChangeSource.local,
+      );
+      await tester.pump();
+      await tester.tap(find.byTooltip('Bold'));
+      await tester.pump();
+      await tester.tap(find.byTooltip('Italic'));
+      await tester.pump();
+      expect(noteBodyText(tester), '***Groceries***\n1. milk');
+
+      await tester.tap(find.byTooltip('Hide keyboard'));
+      tester.view.viewInsets = FakeViewPadding.zero;
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('note-format-capsule')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    noteTest('the paper runs to the bottom with the tools over it', (
+      tester,
+    ) async {
+      await openForWriting(tester, 'short');
+      final screen = tester.getSize(find.byType(MaterialApp));
+      final paper = tester.getRect(find.byType(NotePaper));
+      final tools = tester.getRect(
+        find.byKey(const ValueKey('note-format-capsule')),
+      );
+      expect(paper.bottom, screen.height);
+      expect(tools.bottom, lessThanOrEqualTo(screen.height));
+      expect(tools.top, greaterThan(paper.top));
+    });
+
+    noteTest('formatting the editor cannot show is edited as plain text', (
+      tester,
+    ) async {
+      const table = '| a | b |\n|---|---|\n| 1 | 2 |';
+      await seed(body: table);
+      await pumpApp(tester, initialLocation: noteLocation(id), notes: repo);
+      await startEditing(tester);
+      expect(tester.widget(noteBody()), isA<TextField>());
+      expect(noteBodyText(tester), table);
+      expect(find.textContaining("editor can't show"), findsOneWidget);
+      expect(find.byTooltip('Format text'), findsNothing);
+      await tap(tester, 'Close editor');
+      expect((await repo.openDocument(id)).note!.text.body, table);
+      expect((await repo.openDocument(id)).note!.revision, 1);
+    });
   });
 }
 

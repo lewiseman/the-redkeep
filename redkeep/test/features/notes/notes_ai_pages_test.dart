@@ -18,6 +18,8 @@ import '../../support/pump_app.dart';
 
 import 'package:redkeep/features/notes/presentation/note_read_page.dart';
 
+import 'note_body_test_helpers.dart';
+
 void main() {
   late NotesAiHarness h;
   setUp(() async {
@@ -240,10 +242,7 @@ void main() {
         );
         await startEditing(tester);
         expect(find.text('Page.png'), findsOneWidget);
-        await tester.enterText(
-          find.byKey(const ValueKey('note-body')),
-          'My own revised words',
-        );
+        await enterNoteBody(tester, 'My own revised words');
         await tester.pumpAndSettle();
         await tester.tap(find.byTooltip('Remove attachment'));
         await tester.pumpAndSettle();
@@ -303,13 +302,7 @@ void main() {
         router.go(noteLocation(notesTestId));
         await tester.pumpAndSettle();
         await startEditing(tester);
-        expect(
-          (tester
-                  .widget<TextField>(find.byKey(const ValueKey('note-body')))
-                  .controller!)
-              .text,
-          notesTestBody,
-        );
+        expect(noteBodyText(tester), notesTestBody);
         expect(tester.takeException(), isNull);
       } finally {
         await tester.pumpWidget(const SizedBox());

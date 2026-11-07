@@ -33,6 +33,7 @@ class NotePaper extends StatefulWidget {
     this.controller,
     this.maxWidth = 720,
     this.maxHeight = 820,
+    this.bottomPadding = 0,
   }) : assert(maxWidth > 0),
        assert(maxHeight > 0);
 
@@ -50,6 +51,9 @@ class NotePaper extends StatefulWidget {
 
   /// Zero is the folded card; one is flat paper filling the entire viewport.
   final ValueChanged<double>? onExpansionChanged;
+
+  /// Extra room below the content, e.g. for tools floating over the paper.
+  final double bottomPadding;
 
   @override
   State<NotePaper> createState() => _NotePaperState();
@@ -401,6 +405,7 @@ class _NotePaperState extends State<NotePaper>
                                     compact ? 16 : 24,
                                     24 +
                                         fold +
+                                        widget.bottomPadding +
                                         MediaQuery.paddingOf(context).bottom,
                                   ),
                                   sliver: SliverMainAxisGroup(

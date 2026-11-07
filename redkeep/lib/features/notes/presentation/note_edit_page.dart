@@ -1,5 +1,11 @@
+import 'dart:async';
+
 import 'note_ai_sheet.dart';
 import 'note_app_bar.dart';
+import 'note_format_bar.dart';
+import 'note_markdown_preview.dart';
+import 'note_typography.dart';
+import '../domain/note_rich_markdown.dart';
 import 'note_scene.dart';
 import 'note_media_widgets.dart';
 import 'note_tag_picker.dart';
@@ -9,6 +15,7 @@ import '../../voice/presentation/voice_capture_page.dart';
 import '../../voice/application/voice_receipts.dart';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -40,7 +47,18 @@ class NoteEditView extends ConsumerStatefulWidget {
 
 class _NoteEditViewState extends ConsumerState<NoteEditView> {
   final _title = TextEditingController();
+
+  /// Plain text editing, for notes the rich editor can't represent safely.
   final _body = TextEditingController();
+
+  /// Rich editing: the note's Markdown shown as formatted text.
+  QuillController? _rich;
+  final _richFocus = FocusNode(debugLabel: 'note-body');
+  final _richScroll = ScrollController();
+  StreamSubscription<DocChange>? _richChanges;
+
+  /// The Markdown the rich editor last stood for.
+  String _richMarkdown = '';
   bool _loaded = false;
   bool _leaving = false;
   bool _dictating = false;
@@ -49,6 +67,10 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
   @override
   void initState() {
     super.initState();
+    // The keyboard row offers formatting only while the body has the caret.
+    _richFocus.addListener(() {
+      if (mounted) setState(() {});
+    });
     // Leaving the app saves too; there is no separate draft to fall back on.
     _lifecycle = AppLifecycleListener(
       onHide: _saveQuietly,
@@ -106,6 +128,10 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
     _lifecycle.dispose();
     _title.dispose();
     _body.dispose();
+    _richChanges?.cancel();
+    _rich?.dispose();
+    _richFocus.dispose();
+    _richScroll.dispose();
     super.dispose();
   }
 
@@ -115,7 +141,8 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
       if (!_loaded || next.value == null) return;
       final text = next.value!.text;
       if (_title.text != text.title) _title.text = text.title;
-      if (_body.text != text.body) _body.text = text.body;
+      // AI results, sync imports, dictation and Discard replace the body.
+      if (_bodyText != text.body) setState(() => _loadBody(text.body));
     });
     final editor = ref.watch(noteEditorProvider(widget.id));
     final value = editor.value;
@@ -128,6 +155,10 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
     // exactly as reading showed them.
     final saved = ref.watch(noteDocumentProvider(widget.id)).value?.note;
     final details = value?.details ?? saved?.details ?? const NoteDetails();
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+    // Room for the floating tools; on top of the keyboard the paper simply
+    // ends above them.
+    final toolsExtent = keyboardOpen ? 0.0 : NoteFormatBar.capsuleExtent;
     final paperColor = NoteColors.fromBackground(
       Theme.of(context).colorScheme,
       details.background,
@@ -141,38 +172,6 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
           if (!didPop) _finish(widget.onBack);
         },
         child: Scaffold(
-          bottomNavigationBar: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              child: Wrap(
-                spacing: 8,
-                children: [
-                  IconButton.filled(
-                    tooltip: 'Attach files',
-                    icon: const Icon(Icons.file_present_outlined),
-                    onPressed: value == null || readOnly ? null : _attach,
-                  ),
-                  IconButton.filled(
-                    tooltip: 'Dictate a note',
-                    icon: const Icon(Icons.mic_none_rounded),
-                    onPressed: value == null || readOnly || _dictating
-                        ? null
-                        : _dictate,
-                  ),
-                  IconButton.filled(
-                    tooltip: 'Add checkbox',
-                    icon: const Icon(Icons.list_outlined),
-                    onPressed: value == null || readOnly ? null : _checkbox,
-                  ),
-                  IconButton.filled(
-                    tooltip: 'Edit tags',
-                    icon: const Icon(Icons.sell_outlined),
-                    onPressed: value == null || readOnly ? null : _tags,
-                  ),
-                ],
-              ),
-            ),
-          ),
           appBar: NoteAppBar(
             backTooltip: 'Close editor',
             onBack: () => _finish(widget.onBack),
@@ -185,6 +184,7 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
               NoteBarEntrance(
                 child: IconButton(
                   tooltip: 'Choose note background',
+                  style: noteBarButtonStyle(context),
                   icon: const Icon(Icons.color_lens_outlined),
                   onPressed: value == null || readOnly ? null : _background,
                 ),
@@ -192,186 +192,260 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
             ],
           ),
           body: SafeArea(
-            child: editor.when(
-              loading: () => NotePaper(
-                key: widget.paperKey,
-                color: paperColor,
-                isPreviewMode: false,
-                readOnly: true,
-                onEdit: () {},
-                children: [
-                  SliverToBoxAdapter(
-                    child: Semantics(
-                      label: 'Opening editor…',
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
+            // The paper runs to the bottom edge; the tools float over it.
+            bottom: false,
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      bottom: keyboardOpen ? NoteFormatBar.rowHeight : 0,
+                    ),
+                    child: editor.when(
+                      loading: () => NotePaper(
+                        key: widget.paperKey,
+                        color: paperColor,
+                        isPreviewMode: false,
+                        readOnly: true,
+                        bottomPadding: toolsExtent,
+                        onEdit: () {},
                         children: [
-                          Text(
-                            noteTitle(saved?.text.title ?? ''),
-                            style: _titleStyle,
+                          SliverToBoxAdapter(
+                            child: Semantics(
+                              label: 'Opening editor…',
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Text(
+                                    noteTitle(saved?.text.title ?? ''),
+                                    style: _titleStyle,
+                                  ),
+                                  if (saved?.tags.isNotEmpty == true) ...[
+                                    const SizedBox(height: 20),
+                                    _NoteTagWrap(tags: saved!.tags),
+                                  ],
+                                  const SizedBox(height: 20),
+                                  if (saved?.text.body.isNotEmpty == true)
+                                    NoteMarkdownPreview(text: saved!.text.body),
+                                ],
+                              ),
+                            ),
                           ),
-                          if (saved?.tags.isNotEmpty == true) ...[
-                            const SizedBox(height: 20),
-                            _NoteTagWrap(tags: saved!.tags),
-                          ],
-                          const SizedBox(height: 20),
-                          Text(saved?.text.body ?? '', style: _bodyStyle),
                         ],
+                      ),
+                      error: (_, _) => SingleChildScrollView(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const Text('This note is missing or was deleted.'),
+                            OutlinedButton(
+                              onPressed: () =>
+                                  ref.invalidate(noteEditorProvider(widget.id)),
+                              child: const Text('Retry loading'),
+                            ),
+                            FilledButton(
+                              onPressed: () =>
+                                  context.go(AppDestination.notes.location),
+                              child: const Text('Return to Notes'),
+                            ),
+                          ],
+                        ),
+                      ),
+                      data: (state) {
+                        if (!_loaded) {
+                          _title.text = state.text.title;
+                          _loadBody(state.text.body);
+                          _loaded = true;
+                        }
+                        _rich?.readOnly = readOnly;
+                        return NotePaper(
+                          key: widget.paperKey,
+                          color: paperColor,
+                          isPreviewMode: false,
+                          readOnly: readOnly,
+                          bottomPadding: toolsExtent,
+                          onEdit: () {},
+                          children: [
+                            SliverToBoxAdapter(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  NoteAttachmentStrip(
+                                    attachments: state.details.attachments,
+                                    onRemove: readOnly
+                                        ? null
+                                        : (index) => controller.editDetails(
+                                            state.details.copy(
+                                              attachments: [
+                                                ...state.details.attachments,
+                                              ]..removeAt(index),
+                                            ),
+                                          ),
+                                  ),
+                                  if (readOnly)
+                                    const Text(
+                                      'This device is add-only. Reclaim primary in Sync & devices to edit.',
+                                    ),
+                                  TextField(
+                                    key: const ValueKey('note-title'),
+                                    controller: _title,
+                                    enabled: !readOnly,
+                                    style: _titleStyle,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Title',
+                                      hintText: 'Note Title…',
+                                      floatingLabelBehavior:
+                                          FloatingLabelBehavior.never,
+                                      border: InputBorder.none,
+                                      enabledBorder: InputBorder.none,
+                                      focusedBorder: InputBorder.none,
+                                      filled: false,
+                                      contentPadding: EdgeInsets.zero,
+                                    ),
+                                    maxLines: null,
+                                    textCapitalization:
+                                        TextCapitalization.sentences,
+                                    onChanged: (_) => _edit(controller),
+                                  ),
+                                  // Same order and gaps as reading, so text stays put.
+                                  if (state.details.tags.isNotEmpty) ...[
+                                    const SizedBox(height: 20),
+                                    _NoteTagWrap(tags: state.details.tags),
+                                  ],
+                                  const SizedBox(height: 20),
+                                  if (_rich case final rich?)
+                                    QuillEditor(
+                                      key: const ValueKey('note-body'),
+                                      controller: rich,
+                                      focusNode: _richFocus,
+                                      scrollController: _richScroll,
+                                      config: QuillEditorConfig(
+                                        // The paper scrolls; the editor just grows.
+                                        scrollable: false,
+                                        placeholder: 'Write your note…',
+                                        customStyles: NoteTypography.of(context)
+                                            .editor(),
+                                        minHeight: 120,
+                                        textCapitalization:
+                                            TextCapitalization.sentences,
+                                      ),
+                                    )
+                                  else ...[
+                                    if (_body.text.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: 12,
+                                        ),
+                                        child: Text(
+                                          'This note has formatting the editor can\'t show, so you\'re editing its text directly.',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .labelSmall,
+                                        ),
+                                      ),
+                                    TextField(
+                                      key: const ValueKey('note-body'),
+                                      controller: _body,
+                                      enabled: !readOnly,
+                                      style: _bodyStyle,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Body',
+                                        hintText: 'Write your note…',
+                                        alignLabelWithHint: true,
+                                        floatingLabelBehavior:
+                                            FloatingLabelBehavior.never,
+                                        border: InputBorder.none,
+                                        enabledBorder: InputBorder.none,
+                                        focusedBorder: InputBorder.none,
+                                        filled: false,
+                                        contentPadding: EdgeInsets.zero,
+                                      ),
+                                      minLines: 5,
+                                      maxLines: null,
+                                      keyboardType: TextInputType.multiline,
+                                      textCapitalization:
+                                          TextCapitalization.sentences,
+                                      onChanged: (_) => _edit(controller),
+                                    ),
+                                  ],
+                                  const SizedBox(height: 24),
+                                  Semantics(
+                                    liveRegion: true,
+                                    child: Text(
+                                      state.message ??
+                                          (state.saving
+                                              ? 'Saving…'
+                                              : state.dirty
+                                              ? 'Unsaved changes'
+                                              : state.baseRevision > 0
+                                              ? 'Saved'
+                                              : ''),
+                                      key: const ValueKey('note-save-status'),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelSmall,
+                                    ),
+                                  ),
+                                  if (state.conflict) ...[
+                                    const SizedBox(height: 12),
+                                    Wrap(
+                                      spacing: 12,
+                                      runSpacing: 8,
+                                      children: [
+                                        OutlinedButton(
+                                          onPressed: state.saving
+                                              ? null
+                                              : () async {
+                                                  final id = await controller
+                                                      .saveCopy();
+                                                  if (context.mounted &&
+                                                      id != null) {
+                                                    context.go(
+                                                      noteLocation(id),
+                                                    );
+                                                  }
+                                                },
+                                          child: const Text('Save a copy'),
+                                        ),
+                                        OutlinedButton(
+                                          onPressed: state.saving
+                                              ? null
+                                              : () => _discard(controller),
+                                          child: const Text('Discard changes'),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                if (value != null)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: NoteBarEntrance(
+                      child: NoteFormatBar(
+                        keyboardOpen: keyboardOpen,
+                        controller: _richFocus.hasFocus ? _rich : null,
+                        onAttach: readOnly ? null : _attach,
+                        onDictate: readOnly || _dictating ? null : _dictate,
+                        onTags: readOnly ? null : _tags,
+                        onFormat: _rich == null || readOnly
+                            ? null
+                            : _richFocus.requestFocus,
+                        onHideKeyboard: () => FocusScope.of(context).unfocus(),
                       ),
                     ),
                   ),
-                ],
-              ),
-              error: (_, _) => SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Text('This note is missing or was deleted.'),
-                    OutlinedButton(
-                      onPressed: () =>
-                          ref.invalidate(noteEditorProvider(widget.id)),
-                      child: const Text('Retry loading'),
-                    ),
-                    FilledButton(
-                      onPressed: () =>
-                          context.go(AppDestination.notes.location),
-                      child: const Text('Return to Notes'),
-                    ),
-                  ],
-                ),
-              ),
-              data: (state) {
-                if (!_loaded) {
-                  _title.text = state.text.title;
-                  _body.text = state.text.body;
-                  _loaded = true;
-                }
-                return NotePaper(
-                  key: widget.paperKey,
-                  color: paperColor,
-                  isPreviewMode: false,
-                  readOnly: readOnly,
-                  onEdit: () {},
-                  children: [
-                    SliverToBoxAdapter(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          NoteAttachmentStrip(
-                            attachments: state.details.attachments,
-                            onRemove: readOnly
-                                ? null
-                                : (index) => controller.editDetails(
-                                    state.details.copy(
-                                      attachments: [
-                                        ...state.details.attachments,
-                                      ]..removeAt(index),
-                                    ),
-                                  ),
-                          ),
-                          if (readOnly)
-                            const Text(
-                              'This device is add-only. Reclaim primary in Sync & devices to edit.',
-                            ),
-                          TextField(
-                            key: const ValueKey('note-title'),
-                            controller: _title,
-                            enabled: !readOnly,
-                            style: _titleStyle,
-                            decoration: const InputDecoration(
-                              labelText: 'Title',
-                              hintText: 'Note Title…',
-                              floatingLabelBehavior:
-                                  FloatingLabelBehavior.never,
-                              border: InputBorder.none,
-                              enabledBorder: InputBorder.none,
-                              focusedBorder: InputBorder.none,
-                              filled: false,
-                              contentPadding: EdgeInsets.zero,
-                            ),
-                            maxLines: null,
-                            textCapitalization: TextCapitalization.sentences,
-                            onChanged: (_) => _edit(controller),
-                          ),
-                          // Same order and gaps as reading, so text stays put.
-                          if (state.details.tags.isNotEmpty) ...[
-                            const SizedBox(height: 20),
-                            _NoteTagWrap(tags: state.details.tags),
-                          ],
-                          const SizedBox(height: 20),
-                          TextField(
-                            key: const ValueKey('note-body'),
-                            controller: _body,
-                            enabled: !readOnly,
-                            style: _bodyStyle,
-                            decoration: const InputDecoration(
-                              labelText: 'Body',
-                              hintText: 'Write your note…',
-                              alignLabelWithHint: true,
-                              floatingLabelBehavior:
-                                  FloatingLabelBehavior.never,
-                              border: InputBorder.none,
-                              enabledBorder: InputBorder.none,
-                              focusedBorder: InputBorder.none,
-                              filled: false,
-                              contentPadding: EdgeInsets.zero,
-                            ),
-                            minLines: 5,
-                            maxLines: null,
-                            keyboardType: TextInputType.multiline,
-                            textCapitalization: TextCapitalization.sentences,
-                            onChanged: (_) => _edit(controller),
-                          ),
-                          const SizedBox(height: 24),
-                          Semantics(
-                            liveRegion: true,
-                            child: Text(
-                              state.message ??
-                                  (state.saving
-                                      ? 'Saving…'
-                                      : state.dirty
-                                      ? 'Unsaved changes'
-                                      : state.baseRevision > 0
-                                      ? 'Saved'
-                                      : ''),
-                              key: const ValueKey('note-save-status'),
-                              style: Theme.of(context).textTheme.labelSmall,
-                            ),
-                          ),
-                          if (state.conflict) ...[
-                            const SizedBox(height: 12),
-                            Wrap(
-                              spacing: 12,
-                              runSpacing: 8,
-                              children: [
-                                OutlinedButton(
-                                  onPressed: state.saving
-                                      ? null
-                                      : () async {
-                                          final id = await controller
-                                              .saveCopy();
-                                          if (context.mounted && id != null) {
-                                            context.go(noteLocation(id));
-                                          }
-                                        },
-                                  child: const Text('Save a copy'),
-                                ),
-                                OutlinedButton(
-                                  onPressed: state.saving
-                                      ? null
-                                      : () => _discard(controller),
-                                  child: const Text('Discard changes'),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ],
-                );
-              },
+              ],
             ),
           ),
         ),
@@ -437,19 +511,6 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
         .read(noteEditorProvider(widget.id).notifier)
         .editDetails(latest.details.copy(tags: tags));
   });
-  void _checkbox() {
-    final selection = _body.selection;
-    final start = selection.isValid ? selection.start : _body.text.length;
-    final end = selection.isValid ? selection.end : start;
-    final prefix = start == 0 || _body.text[start - 1] == '\n' ? '' : '\n';
-    final inserted = '$prefix- [ ] ';
-    _body.value = TextEditingValue(
-      text: _body.text.replaceRange(start, end, inserted),
-      selection: TextSelection.collapsed(offset: start + inserted.length),
-    );
-    _edit(ref.read(noteEditorProvider(widget.id).notifier));
-  }
-
   Future<void> _dictate() async {
     if (_dictating) return;
     setState(() => _dictating = true);
@@ -472,7 +533,7 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
       if (!mounted) return;
       if (accepted) {
         final next = ref.read(noteEditorProvider(widget.id)).requireValue;
-        _body.text = next.text.body;
+        setState(() => _loadBody(next.text.body));
         if (await editor.save()) {
           await ref.read(voiceReceiptsProvider).consume('note');
         }
@@ -491,7 +552,40 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
   }
 
   void _edit(NoteEditorController controller) =>
-      controller.edit(PlainTextDocument(title: _title.text, body: _body.text));
+      controller.edit(PlainTextDocument(title: _title.text, body: _bodyText));
+
+  /// The note body as Markdown, from whichever editor is showing it.
+  String get _bodyText => _rich != null ? _richMarkdown : _body.text;
+
+  /// Shows [markdown] in the rich editor when it round-trips safely there,
+  /// otherwise as plain text. Nothing about the note is converted until the
+  /// writer changes it.
+  void _loadBody(String markdown) {
+    final delta = markdown.length <= NoteMarkdownPreview.maxCharacters
+        ? richFromMarkdown(markdown)
+        : null;
+    _richChanges?.cancel();
+    _richChanges = null;
+    if (delta == null) {
+      _rich?.dispose();
+      _rich = null;
+      _body.text = markdown;
+      return;
+    }
+    final document = Document.fromDelta(delta);
+    final rich = _rich ??= QuillController(
+      document: document,
+      selection: const TextSelection.collapsed(offset: 0),
+    );
+    if (!identical(rich.document, document)) rich.document = document;
+    _richMarkdown = markdown;
+    _richChanges = rich.document.changes.listen((_) {
+      final written = markdownFromRich(rich.document.toDelta());
+      if (written == _richMarkdown) return;
+      _richMarkdown = written;
+      _edit(ref.read(noteEditorProvider(widget.id).notifier));
+    });
+  }
 
   Future<void> _discard(NoteEditorController controller) async {
     final confirmed = await showDialog<bool>(

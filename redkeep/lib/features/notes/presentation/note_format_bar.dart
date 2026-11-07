@@ -8,8 +8,7 @@ import '../../../core/presentation/rendering_policy.dart';
 /// With the keyboard down it is a small capsule floating over the paper with
 /// the note tools. With the keyboard up it sits on top of the keyboard as one
 /// row: formatting first, then the note tools and a way to hide the keyboard.
-/// Formatting is offered only while the rich [controller] has the caret; a
-/// note edited as plain text gets only the note tools.
+/// Formatting is offered while the rich [controller] has the caret.
 class NoteFormatBar extends StatelessWidget {
   const NoteFormatBar({
     super.key,

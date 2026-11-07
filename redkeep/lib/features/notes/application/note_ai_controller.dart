@@ -1,4 +1,7 @@
 import 'dart:convert';
+
+import '../domain/note_rich_markdown.dart';
+
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
@@ -270,8 +273,11 @@ class NoteAiController {
         opened.note?.details.copy(tags: opened.note!.tags) ??
         editing?.details ??
         const NoteDetails();
-    String append(String value) =>
-        [if (text.body.isNotEmpty) text.body, value].join('\n\n');
+    // AI answers and scanned pages are plain words, never formatting.
+    String append(String value) => [
+      if (text.body.isNotEmpty) text.body,
+      markdownFromPlainText(value),
+    ].join('\n\n');
     switch (job.operation) {
       case AiOperation.noteMetadata:
         final suggestions = NoteMetadataSuggestions.parse(
@@ -292,7 +298,10 @@ class NoteAiController {
         final template = NoteTemplate.parse(job.text!);
         text = PlainTextDocument(
           title: text.title.trim().isEmpty ? template.title : text.title,
-          body: append(template.body),
+          body: [
+            if (text.body.isNotEmpty) text.body,
+            template.body,
+          ].join('\n\n'),
         );
       case AiOperation.noteScan:
         final scan = NoteScanResult.parse(job.text!);
@@ -353,6 +362,9 @@ class NoteAiController {
           title: text.title,
           body: range.replace(job.text!),
         );
+    }
+    if (!richCompatible(text.body)) {
+      throw const FormatException(richIncompatibleMessage);
     }
     if (unsaved) {
       if (ref.read(noteEditorProvider(id)).value?.editVersion != expectedEdit ||

@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../domain/note_rich_markdown.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/note_document.dart';
@@ -315,7 +317,8 @@ class NoteEditorController extends AsyncNotifier<NoteEditorState> {
         title: _text.title,
         body: [
           if (_text.body.isNotEmpty) _text.body,
-          transcript.trim(),
+          // Speech is plain words; nothing in it may read as formatting.
+          markdownFromPlainText(transcript.trim()),
         ].join('\n\n'),
       ),
     );

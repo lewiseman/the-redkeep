@@ -9,7 +9,8 @@ import 'package:markdown/markdown.dart' as md;
 /// does now, so nothing a reader sees can change by opening it for editing.
 
 /// The rich document for [markdown], or null when the note uses anything the
-/// rich editor cannot represent faithfully (it is then edited as plain text).
+/// rich editor cannot represent faithfully. AI writing that fails this check
+/// is rejected; see [richIncompatibleMessage].
 Delta? richFromMarkdown(String markdown) {
   if (markdown.contains('\r') || markdown.contains('\t')) return null;
   final lines = <_Line>[];
@@ -25,6 +26,45 @@ Delta? richFromMarkdown(String markdown) {
   if (written != markdown && _html(written) != rendered) return null;
   return delta;
 }
+
+/// Shown when AI writing uses Markdown the editor can't show.
+const richIncompatibleMessage =
+    'The AI used formatting the note editor can’t show, so nothing was '
+    'applied. Try again.';
+
+/// Whether [markdown] opens in the rich editor exactly as it reads.
+bool richCompatible(String markdown) => richFromMarkdown(markdown) != null;
+
+/// [text] as plain paragraphs, escaped so nothing in it reads as formatting.
+/// Use it for words that are not Markdown, such as speech or a scanned page.
+String markdownFromPlainText(String text) {
+  final delta = Delta();
+  for (final line in _plainLines(text)) {
+    if (line.isNotEmpty) delta.insert(line);
+    delta.insert('\n');
+  }
+  return markdownFromRich(delta);
+}
+
+/// The rich document for any stored note. Markdown outside the core opens
+/// as its literal text, so every note can be edited in the rich editor.
+Delta richDocumentFor(String markdown) {
+  final rich = richFromMarkdown(markdown);
+  if (rich != null) return rich;
+  final delta = Delta();
+  for (final line in markdown.replaceAll('\r\n', '\n').split('\n')) {
+    if (line.isNotEmpty) delta.insert(line.replaceAll('\r', ''));
+    delta.insert('\n');
+  }
+  return delta;
+}
+
+Iterable<String> _plainLines(String text) => text
+    .replaceAll('\r\n', '\n')
+    .replaceAll('\r', '\n')
+    .replaceAll('\t', ' ')
+    .split('\n')
+    .map((line) => line.trim());
 
 RegExp _unescaped(String pattern) => RegExp('(^|[^\\\\])$pattern');
 final _tag = RegExp(r'<([a-zA-Z][a-zA-Z0-9]*)');

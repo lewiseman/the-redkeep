@@ -4,7 +4,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-enum _NoteAction { pin, background, tags, preview, delete }
+enum _NoteAction { pin, background, tags, delete }
 
 /// An anchored menu that dismisses before dispatching a note action.
 class NoteActionsMenu extends StatelessWidget {
@@ -16,13 +16,9 @@ class NoteActionsMenu extends StatelessWidget {
     required this.onTags,
     required this.onDelete,
     this.style,
-    this.onPreview,
-    this.preview = false,
   });
 
   final bool isPinned;
-  final bool preview;
-  final VoidCallback? onPreview;
   final VoidCallback? onTogglePin;
   final VoidCallback? onBackground;
   final VoidCallback? onTags;
@@ -76,8 +72,6 @@ class NoteActionsMenu extends StatelessWidget {
             onBackground?.call();
           case _NoteAction.tags:
             onTags?.call();
-          case _NoteAction.preview:
-            onPreview?.call();
           case _NoteAction.delete:
             onDelete?.call();
         }
@@ -116,15 +110,6 @@ class NoteActionsMenu extends StatelessWidget {
             subtitle: 'Choose or create',
           ),
         ),
-        if (onPreview != null)
-          PopupMenuItem(
-            value: _NoteAction.preview,
-            child: _ActionRow(
-              icon: Icons.article_outlined,
-              title: preview ? 'Show plain text' : 'Markdown preview',
-              subtitle: 'Reading view',
-            ),
-          ),
         PopupMenuDivider(height: 16, color: colors.outlineVariant),
         PopupMenuItem(
           value: _NoteAction.delete,

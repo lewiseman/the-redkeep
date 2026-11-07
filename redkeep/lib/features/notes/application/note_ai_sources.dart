@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import '../domain/note_rich_markdown.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../ai/domain/ai_operation.dart';
@@ -65,7 +67,9 @@ void validateNoteAiOutput(
         NoteMetadataSource.decode(source['payload'] as String),
       );
     case AiOperation.noteTemplate:
-      NoteTemplate.parse(text);
+      if (!richCompatible(NoteTemplate.parse(text).body)) {
+        throw const FormatException(richIncompatibleMessage);
+      }
     case AiOperation.noteQuestion:
       RecallQuestionAnswer.parse(
         text,
@@ -84,6 +88,9 @@ void validateNoteAiOutput(
         throw const FormatException(
           'The model returned an invalid note result.',
         );
+      }
+      if (operation != AiOperation.noteSummary && !richCompatible(text)) {
+        throw const FormatException(richIncompatibleMessage);
       }
   }
 }

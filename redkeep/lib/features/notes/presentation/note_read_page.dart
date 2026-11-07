@@ -48,7 +48,6 @@ class NoteReadView extends ConsumerStatefulWidget {
 
 class _NoteReadViewState extends ConsumerState<NoteReadView> {
   String? _error;
-  bool _preview = true;
   bool _showWebsiteText = false;
   final _paper = NotePaperController();
   ValueNotifier<double> get _expansion => widget.expansion;
@@ -156,9 +155,6 @@ class _NoteReadViewState extends ConsumerState<NoteReadView> {
                                   ? null
                                   : () => _background(note),
                               onDelete: busy ? null : () => _delete(note),
-                              onPreview: () =>
-                                  setState(() => _preview = !_preview),
-                              preview: _preview,
                             ),
                           ),
                   ),
@@ -400,25 +396,10 @@ class _NoteReadViewState extends ConsumerState<NoteReadView> {
                                 ),
                               ],
                               const SizedBox(height: 20),
-                              if (_preview &&
-                                  note.text.body.length <=
-                                      NoteMarkdownPreview.maxCharacters &&
-                                  '\n'.allMatches(note.text.body).length <
-                                      NoteMarkdownPreview.maxLines)
-                                NoteMarkdownPreview(
-                                  key: ValueKey(note.revision),
-                                  text: note.text.body,
-                                )
-                              else
-                                SelectableText(
-                                  note.text.body.isEmpty
-                                      ? 'This note is empty.'
-                                      : note.text.body,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    height: 1.6,
-                                  ),
-                                ),
+                              NoteMarkdownPreview(
+                                key: ValueKey(note.revision),
+                                text: note.text.body,
+                              ),
                               const SizedBox(height: 24),
                               Text(
                                 'Saved revision ${note.revision}',

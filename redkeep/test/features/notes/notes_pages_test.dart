@@ -1,4 +1,5 @@
 import 'package:redkeep/features/notes/presentation/note_markdown_preview.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:redkeep/features/assets/presentation/local_artwork.dart';
 import 'package:redkeep/features/notes/presentation/note_card.dart';
 import 'package:redkeep/features/notes/presentation/note_paper_surface.dart';
@@ -10,7 +11,7 @@ import 'dart:async';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart'
-    show ChangeSource, QuillController;
+    show ChangeSource, QuillController, QuillEditor;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -493,7 +494,7 @@ void main() {
   }
 
   noteTest(
-    'large plain-text body opens for reading and editing without transformation',
+    'a large body opens formatted for reading and in the rich editor without transformation',
     (tester) async {
       final text = List.filled(5000, 'Unicode 👩🏽‍💻 e\u0301 中文\n').join();
       await seed(body: text);
@@ -502,10 +503,11 @@ void main() {
         initialLocation: noteLocation(id),
         notes: repo,
       );
-      expect(find.text(text), findsOneWidget);
+      expect(find.byType(MarkdownBody), findsOneWidget);
       router.go(noteLocation(id));
       await tester.pumpAndSettle();
       await startEditing(tester);
+      expect(tester.widget(noteBody()), isA<QuillEditor>());
       expect(noteBodyText(tester), text);
       expect(tester.takeException(), isNull);
     },
@@ -888,17 +890,16 @@ void main() {
       expect(tools.top, greaterThan(paper.top));
     });
 
-    noteTest('formatting the editor cannot show is edited as plain text', (
+    noteTest('formatting the editor cannot show still opens in the rich editor, unchanged until edited', (
       tester,
     ) async {
       const table = '| a | b |\n|---|---|\n| 1 | 2 |';
       await seed(body: table);
       await pumpApp(tester, initialLocation: noteLocation(id), notes: repo);
       await startEditing(tester);
-      expect(tester.widget(noteBody()), isA<TextField>());
-      expect(noteBodyText(tester), table);
-      expect(find.textContaining("editor can't show"), findsOneWidget);
-      expect(find.byTooltip('Format text'), findsNothing);
+      expect(tester.widget(noteBody()), isA<QuillEditor>());
+      expect(richBody(tester).document.toPlainText(), '$table\n');
+      expect(find.textContaining("editor can't show"), findsNothing);
       await tap(tester, 'Close editor');
       expect((await repo.openDocument(id)).note!.text.body, table);
       expect((await repo.openDocument(id)).note!.revision, 1);

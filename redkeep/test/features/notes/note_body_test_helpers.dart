@@ -3,7 +3,7 @@ import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:redkeep/features/notes/domain/note_rich_markdown.dart';
 
-/// The note body editor: rich for the core Markdown, plain text otherwise.
+/// The note body editor. Notes always open in the rich editor.
 Finder noteBody() => find.byKey(const ValueKey('note-body'));
 
 /// Replaces the body as a writer would, in whichever editor is showing.

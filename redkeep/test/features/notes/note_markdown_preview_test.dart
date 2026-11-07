@@ -131,20 +131,12 @@ void main() {
     }
   }
 
-  testWidgets('long content has an explicit complete-plain-text fallback', (
+  testWidgets('long content is still shown formatted, never as plain text', (
     tester,
   ) async {
-    for (final text in ['x' * 32001, List.filled(1001, 'line').join('\n')]) {
-      await preview(tester, text, _Launcher());
-      expect(find.byType(MarkdownBody), findsNothing);
-      expect(find.textContaining('Switch to plain text'), findsOneWidget);
-    }
-    await preview(
-      tester,
-      List.filled(900, 'Some **writing**.\n').join(),
-      _Launcher(),
-    );
+    await preview(tester, List.filled(1200, 'Some **writing**.').join('\n'), _Launcher());
     expect(find.byType(MarkdownBody), findsOneWidget);
+    expect(find.textContaining('plain text'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

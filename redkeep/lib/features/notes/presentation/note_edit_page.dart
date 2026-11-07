@@ -52,9 +52,6 @@ class NoteEditView extends ConsumerStatefulWidget {
 class _NoteEditViewState extends ConsumerState<NoteEditView> {
   final _title = TextEditingController();
 
-  /// Plain text editing, for notes the rich editor can't represent safely.
-  final _body = TextEditingController();
-
   /// Rich editing: the note's Markdown shown as formatted text.
   QuillController? _rich;
   final _richFocus = FocusNode(debugLabel: 'note-body');
@@ -137,7 +134,6 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
     _recall.flushSoon();
     _lifecycle.dispose();
     _title.dispose();
-    _body.dispose();
     _richChanges?.cancel();
     _rich?.dispose();
     _richFocus.dispose();
@@ -340,45 +336,7 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
                                         textCapitalization:
                                             TextCapitalization.sentences,
                                       ),
-                                    )
-                                  else ...[
-                                    if (_body.text.isNotEmpty)
-                                      Padding(
-                                        padding: const EdgeInsets.only(
-                                          bottom: 12,
-                                        ),
-                                        child: Text(
-                                          'This note has formatting the editor can\'t show, so you\'re editing its text directly.',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .labelSmall,
-                                        ),
-                                      ),
-                                    TextField(
-                                      key: const ValueKey('note-body'),
-                                      controller: _body,
-                                      enabled: !readOnly,
-                                      style: _bodyStyle,
-                                      decoration: const InputDecoration(
-                                        labelText: 'Body',
-                                        hintText: 'Write your note…',
-                                        alignLabelWithHint: true,
-                                        floatingLabelBehavior:
-                                            FloatingLabelBehavior.never,
-                                        border: InputBorder.none,
-                                        enabledBorder: InputBorder.none,
-                                        focusedBorder: InputBorder.none,
-                                        filled: false,
-                                        contentPadding: EdgeInsets.zero,
-                                      ),
-                                      minLines: 5,
-                                      maxLines: null,
-                                      keyboardType: TextInputType.multiline,
-                                      textCapitalization:
-                                          TextCapitalization.sentences,
-                                      onChanged: (_) => _edit(controller),
                                     ),
-                                  ],
                                   const SizedBox(height: 24),
                                   Semantics(
                                     liveRegion: true,
@@ -565,25 +523,16 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
   void _edit(NoteEditorController controller) =>
       controller.edit(PlainTextDocument(title: _title.text, body: _bodyText));
 
-  /// The note body as Markdown, from whichever editor is showing it.
-  String get _bodyText => _rich != null ? _richMarkdown : _body.text;
+  /// The note body as Markdown.
+  String get _bodyText => _richMarkdown;
 
-  /// Shows [markdown] in the rich editor when it round-trips safely there,
-  /// otherwise as plain text. Nothing about the note is converted until the
-  /// writer changes it.
+  /// Shows [markdown] in the rich editor. Markdown outside what the editor
+  /// supports opens as its literal text. Nothing about the note is converted
+  /// until the writer changes it.
   void _loadBody(String markdown) {
-    final delta = markdown.length <= NoteMarkdownPreview.maxCharacters
-        ? richFromMarkdown(markdown)
-        : null;
     _richChanges?.cancel();
     _richChanges = null;
-    if (delta == null) {
-      _rich?.dispose();
-      _rich = null;
-      _body.text = markdown;
-      return;
-    }
-    final document = Document.fromDelta(delta);
+    final document = Document.fromDelta(richDocumentFor(markdown));
     final rich = _rich ??= QuillController(
       document: document,
       selection: const TextSelection.collapsed(offset: 0),
@@ -630,7 +579,6 @@ const _titleStyle = TextStyle(
   height: 1.3,
   fontWeight: FontWeight.bold,
 );
-const _bodyStyle = TextStyle(fontSize: 16, height: 1.6);
 
 /// The note's tags as reading lays them out.
 class _NoteTagWrap extends StatelessWidget {

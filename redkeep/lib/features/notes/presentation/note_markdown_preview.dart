@@ -6,12 +6,10 @@ import '../application/notes_providers.dart';
 import '../domain/note_link_launcher.dart';
 import 'note_typography.dart';
 
-/// Bound synchronous Markdown parsing/layout; plain text remains unlimited.
+/// A note's reading view: its Markdown, formatted as the editor shows it.
 class NoteMarkdownPreview extends ConsumerStatefulWidget {
   const NoteMarkdownPreview({super.key, required this.text});
   final String text;
-  static const maxCharacters = 32000;
-  static const maxLines = 1000;
   @override
   ConsumerState<NoteMarkdownPreview> createState() =>
       _NoteMarkdownPreviewState();
@@ -22,12 +20,6 @@ class _NoteMarkdownPreviewState extends ConsumerState<NoteMarkdownPreview> {
   bool _opening = false;
   @override
   Widget build(BuildContext context) {
-    if (widget.text.length > NoteMarkdownPreview.maxCharacters ||
-        '\n'.allMatches(widget.text).length >= NoteMarkdownPreview.maxLines) {
-      return const Text(
-        'This note is too long for Markdown preview. Switch to plain text to read the complete note.',
-      );
-    }
     // The same text the editor shows, so reading and writing match.
     final typography = NoteTypography.of(context);
     return Column(
@@ -73,14 +65,14 @@ class _NoteMarkdownPreviewState extends ConsumerState<NoteMarkdownPreview> {
       final opened = await ref.read(noteLinkLauncherProvider).open(uri);
       if (mounted) {
         setState(
-          () => _message = opened ? null : 'This link could not be opened. Try again or use plain text to copy it.',
+          () => _message = opened
+              ? null
+              : 'This link could not be opened. Try again.',
         );
       }
     } catch (_) {
       if (mounted) {
-        setState(
-          () => _message = 'This link could not be opened. Try again or use plain text to copy it.',
-        );
+        setState(() => _message = 'This link could not be opened. Try again.');
       }
     } finally {
       _opening = false;

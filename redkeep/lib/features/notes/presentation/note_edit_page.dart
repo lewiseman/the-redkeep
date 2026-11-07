@@ -1,5 +1,10 @@
 import 'dart:async';
 
+import '../../recall/application/recall_controller.dart';
+
+import 'package:redkeep/features/ai/application/ai_cloud.dart';
+import 'package:redkeep/features/ai/domain/ai_provider.dart';
+
 import 'note_ai_sheet.dart';
 import 'note_app_bar.dart';
 import 'note_format_bar.dart';
@@ -12,7 +17,6 @@ import 'note_tag_picker.dart';
 import '../data/note_media_store.dart';
 import '../domain/note_colors.dart';
 import '../../voice/presentation/voice_capture_page.dart';
-import '../../voice/application/voice_receipts.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
@@ -67,6 +71,7 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
   @override
   void initState() {
     super.initState();
+    _recall = ref.read(recallControllerProvider.notifier);
     // The keyboard row offers formatting only while the body has the caret.
     _richFocus.addListener(() {
       if (mounted) setState(() {});
@@ -97,6 +102,9 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
     });
   }
 
+  /// Captured up front: indexing is nudged after the page is gone.
+  late final RecallController _recall;
+
   void _saveQuietly() {
     if (!mounted) return;
     final editor = ref.read(noteEditorProvider(widget.id));
@@ -125,6 +133,8 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
 
   @override
   void dispose() {
+    // Leaving the editor indexes the note soon, instead of after each pause.
+    _recall.flushSoon();
     _lifecycle.dispose();
     _title.dispose();
     _body.dispose();
@@ -437,6 +447,9 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
                         controller: _richFocus.hasFocus ? _rich : null,
                         onAttach: readOnly ? null : _attach,
                         onDictate: readOnly || _dictating ? null : _dictate,
+                        showDictate: ref
+                            .watch(aiCapabilitiesProvider)
+                            .contains(AiCapability.transcription),
                         onTags: readOnly ? null : _tags,
                         onFormat: _rich == null || readOnly
                             ? null
@@ -534,9 +547,7 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
       if (accepted) {
         final next = ref.read(noteEditorProvider(widget.id)).requireValue;
         setState(() => _loadBody(next.text.body));
-        if (await editor.save()) {
-          await ref.read(voiceReceiptsProvider).consume('note');
-        }
+        await editor.save();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

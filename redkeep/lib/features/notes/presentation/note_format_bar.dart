@@ -20,6 +20,7 @@ class NoteFormatBar extends StatelessWidget {
     required this.onTags,
     required this.onFormat,
     required this.onHideKeyboard,
+    this.showDictate = true,
   });
 
   /// Height of the row on top of the keyboard.
@@ -32,6 +33,9 @@ class NoteFormatBar extends StatelessWidget {
   final QuillController? controller;
   final VoidCallback? onAttach;
   final VoidCallback? onDictate;
+
+  /// False when the AI provider has no speech-to-text.
+  final bool showDictate;
   final VoidCallback? onTags;
 
   /// Brings the keyboard (and its formatting row) up; null without rich text.
@@ -68,11 +72,12 @@ class NoteFormatBar extends StatelessWidget {
       icon: Icons.attach_file_rounded,
       onPressed: onAttach,
     ),
-    _Tool(
-      tooltip: 'Dictate a note',
-      icon: Icons.mic_none_rounded,
-      onPressed: onDictate,
-    ),
+    if (showDictate)
+      _Tool(
+        tooltip: 'Dictate a note',
+        icon: Icons.mic_none_rounded,
+        onPressed: onDictate,
+      ),
     _Tool(tooltip: 'Edit tags', icon: Icons.sell_outlined, onPressed: onTags),
   ];
 

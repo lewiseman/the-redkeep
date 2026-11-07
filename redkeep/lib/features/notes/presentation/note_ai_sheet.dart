@@ -53,7 +53,7 @@ Future<void> showNoteAiTools(
   String id, {
   bool editor = false,
 }) async {
-  final openHistory = await showModalBottomSheet<bool>(
+  await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
@@ -65,27 +65,15 @@ Future<void> showNoteAiTools(
     ),
     builder: (sheetContext) => SizedBox(
       height: MediaQuery.sizeOf(context).height * .86,
-      child: _NoteToolNavigator(
-        id: id,
-        editor: editor,
-        onHistory: () => Navigator.of(sheetContext).pop(true),
-      ),
+      child: _NoteToolNavigator(id: id, editor: editor),
     ),
   );
-  if (openHistory == true && context.mounted) {
-    await context.push('/settings/brain/history');
-  }
 }
 
 class _NoteToolNavigator extends StatefulWidget {
-  const _NoteToolNavigator({
-    required this.id,
-    required this.editor,
-    required this.onHistory,
-  });
+  const _NoteToolNavigator({required this.id, required this.editor});
   final String id;
   final bool editor;
-  final VoidCallback onHistory;
   @override
   State<_NoteToolNavigator> createState() => _NoteToolNavigatorState();
 }
@@ -102,7 +90,6 @@ class _NoteToolNavigatorState extends State<_NoteToolNavigator> {
           id: widget.id,
           editor: widget.editor,
           onClose: () => Navigator.of(context).pop(),
-          onHistory: widget.onHistory,
         ),
       ),
     ),
@@ -114,11 +101,10 @@ class _NoteToolMenu extends ConsumerWidget {
     required this.id,
     required this.editor,
     required this.onClose,
-    required this.onHistory,
   });
   final String id;
   final bool editor;
-  final VoidCallback onClose, onHistory;
+  final VoidCallback onClose;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final opened = ref.watch(noteDocumentProvider(id));
@@ -221,17 +207,6 @@ class _NoteToolMenu extends ConsumerWidget {
                     if (canEdit) NoteAiTool.background,
                   ]),
                 ],
-                if (!draft)
-                  TextButton.icon(
-                    onPressed: () => open(NotePriorContentPage(id: id)),
-                    icon: const Icon(Icons.history_rounded),
-                    label: const Text('Prior content / recovery'),
-                  ),
-                TextButton.icon(
-                  onPressed: onHistory,
-                  icon: const Icon(Icons.receipt_long_outlined),
-                  label: const Text('AI task history'),
-                ),
               ],
             ),
           ),
@@ -263,21 +238,22 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
   final _question = TextEditingController();
   final _review = TextEditingController();
   final _tags = <String>{};
+  // The website option is paused; formatted text is the only one.
+  final _presentation = 'markdown';
   String _writing = 'rewrite-note',
       _tone = 'friendly',
       _imageMode = 'describe',
-      _presentation = 'website',
       _theme = 'auto',
       _backgroundTone = 'light';
   String? _title, _error, _reviewedJob;
   NoteAttachment? _image;
   TextSelection? _selection;
   bool _working = false, _showBefore = false;
-  @override
-  void initState() {
-    super.initState();
-    scheduleMicrotask(() => ref.read(aiJobsProvider.notifier).restore());
-  }
+
+  String get _scope => noteAiScope(widget.tool.name, widget.id);
+
+  /// This page's request. Leaving the page cancels it.
+  AiJobsProvider get _jobs => aiJobsProvider(_scope);
 
   @override
   void dispose() {
@@ -333,11 +309,12 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
     FocusScope.of(context).unfocus();
     final actions = ref.read(noteAiControllerProvider);
     if (widget.tool == NoteAiTool.search) {
-      await actions.search(_input.text);
+      await actions.search(_input.text, scope: _scope);
     } else {
       await actions.start(
         _operation,
         widget.id!,
+        scope: _scope,
         intent: _writing == 'tone-note'
             ? writingTones[_tone]!.$3
             : _question.text,
@@ -358,6 +335,7 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
         .read(noteAiControllerProvider)
         .apply(
           job,
+          scope: _scope,
           title: _title,
           tags: _tags.toList(),
           reviewedText:
@@ -369,43 +347,15 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
     if (!mounted) return;
     _reviewedJob = null;
     if (result != null && job.operation == AiOperation.noteMetadata) {
-      final prior =
-          (await ref.read(notesRepositoryProvider).priorContent(result.id))
-              .first;
-      if (!mounted) return;
-      final repository = ref.read(notesRepositoryProvider);
-      final messenger = ScaffoldMessenger.of(context);
-      messenger.showSnackBar(
-        SnackBar(
-          content: const Text('Title and tags updated.'),
-          action: SnackBarAction(
-            label: 'Undo',
-            onPressed: () async {
-              try {
-                await repository.restorePriorContent(
-                  result.id,
-                  prior.id,
-                  result.revision,
-                );
-              } catch (_) {
-                if (messenger.mounted) {
-                  messenger.showSnackBar(
-                    const SnackBar(
-                      content: Text('This note changed, so it was not undone.'),
-                    ),
-                  );
-                }
-              }
-            },
-          ),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Title and tags updated.')));
     }
     if (mounted) Navigator.of(context).maybePop();
   });
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(aiJobsProvider);
+    final state = ref.watch(_jobs);
     final job = state.job;
     final mine = job != null && _matches(job);
     if (widget.id != null && isNoteId(widget.id!)) {
@@ -425,7 +375,7 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
               tool: widget.tool,
               phase: mine ? job.phase : 'preparing',
               onCancel: mine && !job.terminal
-                  ? ref.read(aiJobsProvider.notifier).cancel
+                  ? ref.read(_jobs.notifier).cancel
                   : null,
             )
           : null,
@@ -436,29 +386,7 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
             child: Semantics(liveRegion: true, child: Text(_error!)),
           ),
         if (state.message != null) Text(state.message!),
-        if (job != null && !mine) ...[
-          const Text(
-            'Another AI task is open. Review or clear it before starting another.',
-            key: ValueKey('notes-ai-occupied'),
-          ),
-          if (job.operation.isNote)
-            TextButton(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) =>
-                      NoteAiToolPage(tool: noteToolForJob(job), id: job.key),
-                ),
-              ),
-              child: const Text('Open current task'),
-            ),
-          OutlinedButton(
-            onPressed: () => context.push('/settings/brain'),
-            child: const Text('Open Grand Maestar'),
-          ),
-        ] else if (mine)
-          ..._task(job, state)
-        else
-          ..._form(),
+        if (mine) ..._task(job, state) else ..._form(),
       ],
     );
   }
@@ -601,11 +529,6 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
         ),
       ],
       if (widget.tool == NoteAiTool.presentation) ...[
-        NoteAiChoices(
-          choices: const {'website': 'Website', 'markdown': 'Formatted text'},
-          selected: _presentation,
-          onChanged: (String v) => setState(() => _presentation = v),
-        ),
         if (_presentation == 'website') ...[
           WebsiteThemeSwatches(
             selected: _theme,
@@ -694,7 +617,7 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
       overlay: analyzing
           ? NoteScanReading(
               phase: 'running',
-              onStop: ref.read(aiJobsProvider.notifier).cancel,
+              onStop: ref.read(_jobs.notifier).cancel,
             )
           : path == null || compact
           ? null
@@ -740,11 +663,11 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
         ),
   );
   List<Widget> _task(AiJob job, AiJobState state) {
-    final controller = ref.read(aiJobsProvider.notifier);
+    final controller = ref.read(_jobs.notifier);
     final complete = job.phase == 'completed' && job.text != null;
     return [
       Text(
-        '${job.operation.label} · ${job.phase} · ${job.destinationLabel}',
+        '${job.operation.label} · ${job.phase}',
         style: Theme.of(context).textTheme.labelSmall,
       ),
       if (job.operation == AiOperation.noteScan)
@@ -755,18 +678,15 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
         spacing: 8,
         runSpacing: 8,
         children: [
-          if (!state.busy &&
-              !complete &&
-              job.phase != 'cancelled' &&
-              job.phase != 'expired')
+          if (!state.busy && !complete && job.phase != 'cancelled')
             OutlinedButton(
               onPressed: controller.retry,
-              child: const Text('Retry / retrieve'),
+              child: const Text('Try again'),
             ),
           if (!job.terminal)
             OutlinedButton(
               onPressed: controller.cancel,
-              child: const Text('Cancel task'),
+              child: const Text('Cancel'),
             ),
           TextButton(
             onPressed: () => _run(() async {
@@ -779,7 +699,7 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
                 });
               }
             }),
-            child: Text(complete ? 'Reject / clear preview' : 'Clear task'),
+            child: Text(complete ? 'Reject / clear preview' : 'Clear'),
           ),
         ],
       ),
@@ -1042,118 +962,5 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
         ),
     ]);
     return result;
-  }
-}
-
-class NotePriorContentPage extends ConsumerStatefulWidget {
-  const NotePriorContentPage({super.key, required this.id});
-  final String id;
-  @override
-  ConsumerState<NotePriorContentPage> createState() =>
-      _NotePriorContentPageState();
-}
-
-class _NotePriorContentPageState extends ConsumerState<NotePriorContentPage> {
-  int _revision = 0;
-  String? _error;
-  @override
-  Widget build(BuildContext context) {
-    final note = ref.watch(noteDocumentProvider(widget.id)).value?.note;
-    return Scaffold(
-      appBar: AppBar(title: const Text('Prior content / recovery')),
-      body: FutureBuilder<List<NotePriorContent>>(
-        key: ValueKey(_revision),
-        future: ref.read(notesRepositoryProvider).priorContent(widget.id),
-        builder: (context, snapshot) => ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            if (_error != null) Text(_error!),
-            if (snapshot.data?.isEmpty == true)
-              const Text('No prior content saved on this device.'),
-            for (final prior in snapshot.data ?? const <NotePriorContent>[])
-              ExpansionTile(
-                title: Text(prior.operation),
-                subtitle: Text(prior.created.toLocal().toString()),
-                children: [
-                  SelectableText('${prior.title}\n\n${prior.body}'),
-                  OutlinedButton(
-                    onPressed: () =>
-                        Clipboard.setData(ClipboardData(text: prior.body)),
-                    child: const Text('Copy prior content'),
-                  ),
-                  FilledButton(
-                    onPressed:
-                        note != null &&
-                            note.revision == prior.appliedRevision &&
-                            ref.watch(syncCanEditProvider)
-                        ? () async {
-                            try {
-                              await ref
-                                  .read(notesRepositoryProvider)
-                                  .restorePriorContent(
-                                    widget.id,
-                                    prior.id,
-                                    note.revision,
-                                  );
-                              if (mounted) setState(() => _revision++);
-                            } catch (_) {
-                              if (mounted) {
-                                setState(
-                                  () => _error = 'This note changed. Prior content is still available to copy.',
-                                );
-                              }
-                            }
-                          }
-                        : null,
-                    child: const Text('Restore prior content'),
-                  ),
-                ],
-              ),
-            TextButton(
-              onPressed: () async {
-                final remove = await showDialog<bool>(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('Remove recovery copies?'),
-                    content: const Text('Your current note stays saved.'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, false),
-                        child: const Text('Keep'),
-                      ),
-                      FilledButton(
-                        onPressed: () => Navigator.pop(context, true),
-                        child: const Text('Remove copies'),
-                      ),
-                    ],
-                  ),
-                );
-                if (remove == true) {
-                  await ref
-                      .read(notesRepositoryProvider)
-                      .clearPriorContent(widget.id);
-                  if (mounted) setState(() => _revision++);
-                }
-              },
-              child: const Text('Remove recovery copies'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class RetainedNoteAiPage extends ConsumerWidget {
-  const RetainedNoteAiPage({super.key});
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final job = ref.watch(aiJobsProvider).job;
-    return job?.operation.isNote == true
-        ? NoteAiToolPage(tool: noteToolForJob(job!), id: job.key)
-        : Scaffold(
-            appBar: AppBar(title: const Text('Notes AI')),
-            body: const Center(child: Text('No retained note task.')),
-          );
   }
 }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../ai/application/ai_jobs.dart';
 import '../../ai/domain/ai_operation.dart';
@@ -43,10 +42,12 @@ class _FlowReflectionState extends ConsumerState<FlowReflection> {
 
   @override
   Widget build(BuildContext context) {
-    ref.watch(thoughtReflectionConsumerProvider);
+    final consumer = thoughtReflectionConsumerProvider(widget.id);
+    final jobs = aiJobsProvider(flowReflectionScope(widget.id));
+    ref.watch(consumer);
     final reflections = ref.watch(thoughtReflectionsProvider(widget.id));
     final saveMessage = ref.watch(reflectionMessagesProvider)[widget.id];
-    final jobState = ref.watch(aiJobsProvider);
+    final jobState = ref.watch(jobs);
     final job = jobState.job;
     final ours =
         job?.operation == AiOperation.thoughtReflection &&
@@ -130,37 +131,27 @@ class _FlowReflectionState extends ConsumerState<FlowReflection> {
               Text('Reflection: ${job!.phase}'),
               if (job.phase == 'completed' && saveMessage != null)
                 TextButton(
-                  onPressed: _working
-                      ? null
-                      : () => _run(ref.read(thoughtReflectionConsumerProvider)),
+                  onPressed: _working ? null : () => _run(ref.read(consumer)),
                   child: const Text('Retry saving reflection'),
                 ),
               if (!job.terminal)
                 TextButton(
-                  onPressed: () =>
-                      _run(ref.read(aiJobsProvider.notifier).cancel),
+                  onPressed: () => _run(ref.read(jobs.notifier).cancel),
                   child: const Text('Cancel reflection'),
                 ),
               if (!jobState.busy && job.phase != 'completed')
                 TextButton(
-                  onPressed: () =>
-                      _run(ref.read(aiJobsProvider.notifier).retry),
+                  onPressed: () => _run(ref.read(jobs.notifier).retry),
                   child: const Text('Retry reflection'),
                 ),
               if (job.terminal)
                 TextButton(
                   onPressed: () => _run(
-                    () => ref
-                        .read(aiJobsProvider.notifier)
-                        .clearIfCurrent(job.id),
+                    () => ref.read(jobs.notifier).clearIfCurrent(job.id),
                   ),
                   child: const Text('Clear reflection task'),
                 ),
-            ] else if (job != null)
-              const Text(
-                'Another AI task is open. Finish or clear it before asking for a reflection.',
-              )
-            else
+            ] else
               Center(
                 child: TextButton(
                   key: const ValueKey('flow-reflect'),
@@ -195,13 +186,6 @@ class _FlowReflectionState extends ConsumerState<FlowReflection> {
                   ),
                 ),
               ),
-            Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: TextButton(
-                onPressed: () => context.push('/settings/brain/history'),
-                child: const Text('AI task history'),
-              ),
-            ),
           ],
         ),
       ),

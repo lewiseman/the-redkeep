@@ -17,7 +17,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../../app/storage_providers.dart';
 import '../../../core/storage/app_database.dart';
-import '../../voice/data/voice_store.dart';
+import '../../ai/data/ai_provider_store.dart';
 import '../domain/note_details.dart';
 
 final noteMediaStoreProvider = Provider<NoteMediaStore>(
@@ -43,9 +43,9 @@ class NoteMediaStore {
     final work = _pickerTail.then((_) async {
       if (!reset) _check();
       if (value == null) {
-        await VoiceStore.storage.delete(key: pickerKey);
+        await SecureAiProviders.storage.delete(key: pickerKey);
       } else {
-        await VoiceStore.storage.write(key: pickerKey, value: value);
+        await SecureAiProviders.storage.write(key: pickerKey, value: value);
       }
     });
     _pickerTail = work.then<void>((_) {}, onError: (Object _) {});
@@ -187,7 +187,7 @@ class NoteMediaStore {
   Future<Map<String, dynamic>?> _pendingPicker() async {
     _check();
     await _pickerTail;
-    final raw = await VoiceStore.storage.read(key: pickerKey);
+    final raw = await SecureAiProviders.storage.read(key: pickerKey);
     if (raw == null) return null;
     final value = jsonDecode(raw);
     if (value is! Map<String, dynamic> ||
@@ -285,11 +285,7 @@ class NoteMediaStore {
     _check();
     final keep = <String>{};
     for (final row
-        in await db
-            .customSelect(
-              'SELECT details FROM notes UNION ALL SELECT details FROM note_ai_recoveries',
-            )
-            .get()) {
+        in await db.customSelect('SELECT details FROM notes').get()) {
       final details = NoteDetails.decode(row.read<String>('details'));
       keep.addAll(details.attachments.map((a) => a.path));
       if (details.background['image'] case final String path) keep.add(path);

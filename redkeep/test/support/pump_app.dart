@@ -3,13 +3,9 @@ import 'package:redkeep/features/voice/application/voice_coordination.dart';
 import 'package:redkeep/features/voice/application/voice_capture.dart';
 import 'package:drift/native.dart';
 import 'package:redkeep/core/storage/app_database.dart';
-import 'package:redkeep/features/companion/application/companion_controller.dart';
-import 'package:redkeep/features/ai/application/ai_jobs.dart';
 import 'package:redkeep/features/recall/application/recall_controller.dart';
 
 import 'fake_ai.dart';
-
-import 'package:redkeep/features/voice/application/phone_voice.dart';
 
 import 'package:redkeep/features/ai/application/ai_lifecycle.dart';
 import 'package:redkeep/features/appearance/application/appearance_typography.dart';
@@ -40,7 +36,8 @@ import 'fake_ai_provider.dart';
 import 'fake_required_assets.dart';
 import 'fake_onboarding_repository.dart';
 
-import 'package:redkeep/features/ai/application/ai_providers.dart';
+import 'package:redkeep/features/ai/application/ai_cloud.dart';
+import 'package:redkeep/features/ai/domain/ai_provider.dart';
 import 'package:redkeep/features/diary/application/diary_reader_day.dart';
 import 'package:redkeep/features/diary/domain/diary_period.dart';
 
@@ -62,9 +59,8 @@ Future<GoRouter> pumpApp(
   FakeAiProviderClient? aiProvider,
   bool aiEnabled = false,
   AppDatabase? database,
-  CompanionState? companion,
-  MemoryAiTasks? tasks,
-  GuideVoice? guideVoice,
+  AiCloudSettings? aiSettings = testAiSettings,
+  FakeEmbedder? embedder,
   VoiceCapture Function(String)? voiceCapture,
 }) async {
   final db = database ?? AppDatabase(NativeDatabase.memory());
@@ -78,16 +74,8 @@ Future<GoRouter> pumpApp(
         if (voiceCapture != null)
           voiceCaptureFactoryProvider.overrideWithValue(voiceCapture),
         appDatabaseProvider.overrideWithValue(db),
-        companionControllerProvider.overrideWith(
-          () => TestConnection(
-            companion ?? const CompanionState(phase: CompanionPhase.idle),
-          ),
-        ),
-        protectedAiTasksProvider.overrideWithValue(tasks ?? MemoryAiTasks()),
         recallVectorsProvider.overrideWith((ref) async => MemoryVectors()),
-        recallEmbedderProvider.overrideWithValue(FakeEmbedder()),
-        if (guideVoice != null)
-          guideVoiceProvider.overrideWithValue(guideVoice),
+        recallEmbedderProvider.overrideWithValue(embedder ?? FakeEmbedder()),
         syncEnabledProvider.overrideWithValue(false),
         aiEnabledProvider.overrideWithValue(aiEnabled),
         appearanceFontLoaderProvider.overrideWithValue(fontLoader),
@@ -116,9 +104,9 @@ Future<GoRouter> pumpApp(
           noteMediaStoreProvider.overrideWithValue(noteMedia),
         if (noteId != null) noteIdProvider.overrideWithValue(noteId),
         protectedAiProvidersProvider.overrideWithValue(
-          MemoryAiProviders(saved: const [testAiProvider]),
+          MemoryAiProviders(saved: aiSettings),
         ),
-        aiProviderClientProvider.overrideWithValue(
+        aiCloudClientProvider.overrideWithValue(
           aiProvider ?? FakeAiProviderClient(),
         ),
         if (initialLocation != null)

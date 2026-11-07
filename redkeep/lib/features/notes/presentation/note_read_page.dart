@@ -305,11 +305,6 @@ class _NoteReadViewState extends ConsumerState<NoteReadView> {
                                                             websiteSourceHash:
                                                                 '',
                                                           ),
-                                                      taskId:
-                                                          'remove-website-${DateTime.now().microsecondsSinceEpoch}',
-                                                      operation:
-                                                          'remove-website',
-                                                      retainPrior: false,
                                                     ),
                                               ),
                                               child: const Text(
@@ -501,9 +496,6 @@ class _NoteReadViewState extends ConsumerState<NoteReadView> {
             note.revision,
             text: note.text,
             details: note.details.copy(background: background),
-            taskId: 'background-${DateTime.now().microsecondsSinceEpoch}',
-            operation: 'background',
-            retainPrior: false,
           ),
     );
   }
@@ -570,9 +562,6 @@ class _NoteReadViewState extends ConsumerState<NoteReadView> {
             note.revision,
             text: note.text,
             details: note.details.copy(website: page),
-            taskId: 'website-look-${DateTime.now().microsecondsSinceEpoch}',
-            operation: 'website-look',
-            retainPrior: false,
           );
     });
   }

@@ -4,46 +4,32 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:redkeep/core/storage/app_database.dart';
-import 'package:redkeep/features/ai/domain/ai_job.dart';
-import 'package:redkeep/features/ai/domain/ai_operation.dart';
+import 'package:redkeep/features/ai/domain/ai_provider.dart';
 import 'package:redkeep/features/diary/data/drift_diary_repository.dart';
 import 'package:redkeep/features/diary/domain/diary_period.dart';
-import 'package:redkeep/features/diary/domain/diary_ai_contract.dart';
 import 'package:redkeep/features/diary/domain/diary_document.dart';
 
-import '../../support/fake_ai.dart';
+import '../../support/fake_ai_provider.dart';
 import '../../support/pump_app.dart';
-import '../ai/ai_jobs_test.dart' show dayOutput;
+
+const dayOutput =
+    '{"title":"Garden morning","mood":{"value":"calm","evidence":"felt calm"},"themes":[{"label":"Gardening","evidence":"planting the garden"}]}';
 
 void main() {
   final date = DiaryPeriod(2026, 11, 4);
   late AppDatabase db;
   late DriftDiaryRepository diary;
-  late MemoryAiTasks tasks;
+  late FakeAiProviderClient ai;
   setUp(() async {
     db = AppDatabase(NativeDatabase.memory());
     diary = DriftDiaryRepository(db, clock: () => DateTime.utc(2026, 11, 4));
-    final entry = await diary.save(
+    await diary.save(
       id: 'a' * 32,
       date: date,
       text: const DiaryText(body: 'I felt calm while planting the garden.'),
       expectedRevision: 0,
     );
-    final source = DiarySuggestionSource.fromEntries(date, [entry]);
-    tasks = MemoryAiTasks()
-      ..value = jsonEncode(
-        AiJob(
-          id: 'synthetic-job',
-          operation: AiOperation.diaryDetails,
-          key: date.key,
-          created: DateTime.now().millisecondsSinceEpoch,
-          provider: 'device',
-          source: source.encode(),
-          prompt: source.request(),
-          phase: 'completed',
-          text: dayOutput,
-        ).json(),
-      );
+    ai = FakeAiProviderClient(dayOutput);
   });
   tearDown(() => db.close());
   Future<void> tap(WidgetTester tester, Finder finder) async {
@@ -53,18 +39,27 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  Future<void> open(WidgetTester tester) async {
+  /// Opens the sheet and asks for suggestions from the fake provider.
+  Future<void> ask(WidgetTester tester) async {
     await pumpApp(
       tester,
       initialLocation: '/diary/${date.key}/title',
       aiEnabled: true,
       database: db,
       diary: diary,
-      tasks: tasks,
+      aiProvider: ai,
     );
     await tester.pump(const Duration(milliseconds: 100));
     await tap(tester, find.byKey(const ValueKey('diary-day-ai')));
-    await tester.pumpAndSettle();
+    await tap(tester, find.byKey(const ValueKey('diary-ai-generate')));
+    for (var i = 0; i < 10; i++) {
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+      await tester.pumpAndSettle();
+    }
+  }
+
+  Future<void> open(WidgetTester tester) async {
+    await ask(tester);
     expect(find.byKey(const ValueKey('diary-ai-title')), findsOneWidget);
   }
 
@@ -138,19 +133,8 @@ void main() {
   testWidgets('a failed task explains itself without technical words', (
     tester,
   ) async {
-    final old = AiJob.fromJson(
-      jsonDecode(tasks.value!) as Map<String, dynamic>,
-    );
-    tasks.value = jsonEncode(old.copy(phase: 'failed').json());
-    await pumpApp(
-      tester,
-      initialLocation: '/diary/${date.key}/title',
-      aiEnabled: true,
-      database: db,
-      diary: diary,
-      tasks: tasks,
-    );
-    await tap(tester, find.byKey(const ValueKey('diary-day-ai')));
+    ai.failure = const AiProviderFailure(AiProviderFailureKind.unavailable);
+    await ask(tester);
     expect(find.text('I couldn’t finish'), findsOneWidget);
     expect(find.textContaining('Your details are unchanged.'), findsOneWidget);
     expect(find.text('Generate again'), findsOneWidget);
@@ -191,7 +175,7 @@ void main() {
       aiEnabled: true,
       database: db,
       diary: diary,
-      tasks: tasks,
+      aiProvider: ai,
     );
     await tester.pump(const Duration(milliseconds: 100));
     final themes = find.byKey(const ValueKey('diary-day-themes-field'));
@@ -234,35 +218,21 @@ void main() {
     await tester.pumpAndSettle();
   });
   testWidgets(
-    'computer suggestions for a brief good day expose all three review fields',
+    'suggestions for a brief good day expose all three review fields',
     (tester) async {
-      final entry = await diary.save(
+      await diary.save(
         id: 'a' * 32,
         date: date,
         text: const DiaryText(body: 'today was a good day'),
         expectedRevision: 1,
       );
-      final source = DiarySuggestionSource.fromEntries(date, [entry]);
-      tasks.value = jsonEncode(
-        AiJob(
-          id: 'computer-good-day',
-          operation: AiOperation.diaryDetails,
-          key: date.key,
-          created: DateTime.now().millisecondsSinceEpoch,
-          provider: 'companion',
-          source: source.encode(),
-          prompt: source.request(),
-          accepted: true,
-          phase: 'completed',
-          text: jsonEncode({
-            'title': 'A happy day',
-            'mood': {'value': 'happy', 'evidence': 'a good day'},
-            'themes': [
-              {'label': 'Positivity', 'evidence': 'a good day'},
-            ],
-          }),
-        ).json(),
-      );
+      ai.reply = jsonEncode({
+        'title': 'A happy day',
+        'mood': {'value': 'happy', 'evidence': 'a good day'},
+        'themes': [
+          {'label': 'Positivity', 'evidence': 'a good day'},
+        ],
+      });
       await open(tester);
       expect(find.byKey(const ValueKey('diary-ai-title')), findsOneWidget);
       expect(find.byKey(const ValueKey('diary-ai-mood')), findsOneWidget);
@@ -274,31 +244,14 @@ void main() {
     },
   );
   testWidgets(
-    'empty computer fields have explicit explanations instead of disappearing',
+    'empty suggested fields have explicit explanations instead of disappearing',
     (tester) async {
-      final old = AiJob.fromJson(
-        jsonDecode(tasks.value!) as Map<String, dynamic>,
-      );
-      tasks.value = jsonEncode(
-        old
-            .copy(
-              text: jsonEncode({
-                'title': '',
-                'mood': {'value': 'calm', 'evidence': 'felt calm'},
-                'themes': [],
-              }),
-            )
-            .json(),
-      );
-      await pumpApp(
-        tester,
-        initialLocation: '/diary/${date.key}/title',
-        aiEnabled: true,
-        database: db,
-        diary: diary,
-        tasks: tasks,
-      );
-      await tap(tester, find.byKey(const ValueKey('diary-day-ai')));
+      ai.reply = jsonEncode({
+        'title': '',
+        'mood': {'value': 'calm', 'evidence': 'felt calm'},
+        'themes': [],
+      });
+      await ask(tester);
       expect(find.text('Title: No title was suggested.'), findsOneWidget);
       expect(find.text('Themes: No themes were suggested.'), findsOneWidget);
       expect(find.textContaining('left out'), findsNothing);
@@ -309,29 +262,12 @@ void main() {
   testWidgets(
     'a rejected title explains the single omission while preserving the mood',
     (tester) async {
-      final old = AiJob.fromJson(
-        jsonDecode(tasks.value!) as Map<String, dynamic>,
-      );
-      tasks.value = jsonEncode(
-        old
-            .copy(
-              text: jsonEncode({
-                'title': 'Winning the lottery',
-                'mood': {'value': 'calm', 'evidence': 'felt calm'},
-                'themes': [],
-              }),
-            )
-            .json(),
-      );
-      await pumpApp(
-        tester,
-        initialLocation: '/diary/${date.key}/title',
-        aiEnabled: true,
-        database: db,
-        diary: diary,
-        tasks: tasks,
-      );
-      await tap(tester, find.byKey(const ValueKey('diary-day-ai')));
+      ai.reply = jsonEncode({
+        'title': 'Winning the lottery',
+        'mood': {'value': 'calm', 'evidence': 'felt calm'},
+        'themes': [],
+      });
+      await ask(tester);
       expect(
         find.text(
           'Title: The suggestion could not be matched to this day’s writing.',

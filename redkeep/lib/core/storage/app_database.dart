@@ -21,15 +21,13 @@ part 'app_database.g.dart';
 @DriftDatabase(
   tables: [
     AiPreferencesTable,
-    AiJobReceipts,
+    AiUsageMonths,
     RecallQueue,
     RecallManifests,
-    DailyQuestions,
     AppearanceSettings,
     OnboardingCompletion,
     Notes,
     NoteTags,
-    NoteAiRecoveries,
     NoteMediaOps,
     DiaryEntries,
     DiaryDays,
@@ -46,7 +44,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   // Reset changes this generation before disposing editors. Old repositories
   // cannot write after cleanup, even when an async continuation finishes late.
@@ -66,7 +64,9 @@ class AppDatabase extends _$AppDatabase {
         // Phone AI is gone. Old Phone and Auto choices fall back to the
         // computer, the default for an empty `routes`.
         await customStatement('DROP TABLE IF EXISTS brain_assignments');
-        await migrator.addColumn(aiPreferencesTable, aiPreferencesTable.routes);
+        await customStatement(
+          "ALTER TABLE ai_preferences_table ADD COLUMN routes TEXT NOT NULL DEFAULT '{}'",
+        );
         await customStatement(
           'ALTER TABLE ai_preferences_table DROP COLUMN mode',
         );
@@ -78,8 +78,27 @@ class AppDatabase extends _$AppDatabase {
         // Notes no longer have drafts.
         await customStatement('DROP TABLE IF EXISTS note_drafts');
       }
+      if (from < 4) {
+        // One cloud provider: no stored tasks, routes, daily questions,
+        // reply voices, diary conversations or note recovery copies.
+        await customStatement('DROP TABLE IF EXISTS ai_job_receipts');
+        await customStatement('DROP TABLE IF EXISTS daily_questions');
+        await customStatement('DROP TABLE IF EXISTS note_ai_recoveries');
+        for (final column in ['routes', 'daily_questions', 'reply_voice']) {
+          await _dropColumn('ai_preferences_table', column);
+        }
+        await _dropColumn('diary_entries', 'conversation');
+        await migrator.createTable(aiUsageMonths);
+      }
     },
   );
+
+  Future<void> _dropColumn(String table, String column) async {
+    final columns = await customSelect('PRAGMA table_info($table)').get();
+    if (columns.any((c) => c.read<String>('name') == column)) {
+      await customStatement('ALTER TABLE $table DROP COLUMN $column');
+    }
+  }
 }
 
 /// Lazy path lookup; SQLite work runs on Drift's managed background isolate.

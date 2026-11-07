@@ -149,7 +149,7 @@ void main() {
       y,
       ...List.filled(1022, 0.0),
     ];
-    final profile = RecallProfile.models.first;
+    const profile = RecallProfile('openai:test-embed', 1024);
     expect(await vectors.open(profile), isTrue);
     await vectors.put('one', vector(1, 0), 'garden', {
       'kind': 'note',
@@ -174,7 +174,10 @@ void main() {
     expect(matches.first.similarity, closeTo(1, .0001));
     expect(matches.last.similarity, closeTo(.5, .0001));
     expect(await vectors.nearest(vector(1, 0), 'diary'), isEmpty);
-    expect(await vectors.open(RecallProfile.models.last), isTrue);
+    expect(
+      await vectors.open(const RecallProfile('openai:other-embed', 1024)),
+      isTrue,
+    );
     expect(await vectors.nearest(vector(1, 0), 'note'), isEmpty);
     await vectors.open(profile);
     expect((await vectors.nearest(vector(1, 0), 'note')).length, 2);

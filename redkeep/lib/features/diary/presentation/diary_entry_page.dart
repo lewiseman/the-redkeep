@@ -63,14 +63,6 @@ class DiaryEntryPage extends ConsumerWidget {
                           style: DiaryTypography.of(context).body,
                         ),
                       const SizedBox(height: 16),
-                      if (entry.conversation != null)
-                        ActionChip(
-                          avatar: const Icon(Icons.forum_outlined, size: 18),
-                          label: const Text('Conversation'),
-                          onPressed: () => context.push(
-                            '${diaryEntryLocation(address.date, address.id)}/conversation',
-                          ),
-                        ),
                       OutlinedButton(
                         onPressed: !ref.watch(syncCanEditProvider)
                             ? null

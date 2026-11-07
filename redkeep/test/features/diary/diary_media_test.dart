@@ -10,19 +10,11 @@ import 'package:redkeep/features/diary/data/diary_photo_store.dart';
 import 'package:redkeep/features/diary/data/diary_photo_stories.dart';
 import 'package:redkeep/features/diary/domain/diary_document.dart';
 import 'package:redkeep/features/diary/domain/diary_photo.dart';
-import 'package:redkeep/features/diary/domain/diary_ai_conversation.dart';
 import 'package:redkeep/features/diary/domain/diary_period.dart';
 import 'package:redkeep/features/sync/data/drift_sync_collection.dart';
 
 const id = '11111111111111111111111111111111';
 final date = DiaryPeriod(2026, 11, 4);
-final turn = DiaryAiConversation(
-  turns: const [
-    {'speaker': 'assistant', 'text': 'Assistant private words'},
-    {'speaker': 'user', 'text': 'Original spoken words'},
-  ],
-  createdAt: DateTime.utc(2026, 11, 4),
-);
 void main() {
   late AppDatabase db;
   late DriftDiaryRepository repo;
@@ -94,41 +86,6 @@ void main() {
         (await repo.openDocument(id)).entry!.photos.single.caption,
         'My caption',
       );
-    },
-  );
-  test(
-    'photo-only and turn-only entries are valid; text editing preserves turns',
-    () async {
-      final saved = await repo.saveConversation(
-        id: id,
-        date: date,
-        conversation: turn,
-        expectedRevision: 0,
-      );
-      expect(saved.text.isEmpty, isTrue);
-      expect((await repo.watchEntries(search: 'spoken').first), isEmpty);
-      final edited = await repo.save(
-        id: id,
-        date: date,
-        text: const DiaryText(body: 'Reviewed draft'),
-        expectedRevision: 1,
-      );
-      expect(edited.conversation!.turns, turn.turns);
-      expect(
-        (await repo.openDocument(id)).entry!.conversation!.turns,
-        turn.turns,
-      );
-      await expectLater(
-        repo.saveConversation(
-          id: id,
-          date: date,
-          conversation: turn,
-          body: 'stale',
-          expectedRevision: 1,
-        ),
-        throwsException,
-      );
-      expect((await repo.openDocument(id)).entry!.text.body, 'Reviewed draft');
     },
   );
   test('failed save deletes staged copies; committed removal is journaled and retryable', () async {

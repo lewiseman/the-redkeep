@@ -209,30 +209,6 @@ void main() {
     },
   );
 
-  diaryTest('the editor placeholder is the question it was opened with', (
-    tester,
-  ) async {
-    const question = 'Which moment would you like to remember?';
-    final router = await pumpApp(
-      tester,
-      initialLocation: '/diary',
-      diaryDay: date,
-      diary: repo,
-      diaryId: () => id,
-    );
-    await tap(tester, 'Write an entry');
-    expect(find.text('Start writing about your day…'), findsOneWidget);
-    expect(find.text(question), findsNothing);
-    goDiaryDay(tester, router, date);
-    await tester.pumpAndSettle();
-    unawaited(
-      router.push(diaryEntryLocation(date, id, edit: true), extra: question),
-    );
-    await tester.pumpAndSettle();
-    expect(find.text(question), findsOneWidget);
-    expect(find.text('Start writing about your day…'), findsNothing);
-  });
-
   diaryTest(
     'empty day → durable create → committed read/edit → confirmed delete and unavailable old route',
     (tester) async {

@@ -17,7 +17,6 @@ import 'package:redkeep/features/diary/application/diary_paper_providers.dart';
 import 'package:redkeep/features/diary/application/diary_providers.dart';
 import 'package:redkeep/features/diary/data/diary_photo_store.dart';
 import 'package:redkeep/features/diary/data/drift_diary_repository.dart';
-import 'package:redkeep/features/diary/domain/diary_ai_conversation.dart';
 import 'package:redkeep/features/diary/domain/diary_document.dart';
 import 'package:redkeep/features/diary/domain/diary_period.dart';
 import 'package:redkeep/features/diary/domain/diary_photo.dart';
@@ -211,7 +210,7 @@ void main() {
 
   for (final photo in [false, true]) {
     testWidgets(
-      'long pressing a ${photo ? 'photo' : 'conversation'} entry uses the matching editor',
+      'long pressing a ${photo ? 'photo' : 'text'} entry uses the matching editor',
       (tester) async {
         final db = AppDatabase(NativeDatabase.memory());
         final entry = DiaryEntry(
@@ -229,14 +228,6 @@ void main() {
                   ),
                 ]
               : const [],
-          conversation: photo
-              ? null
-              : DiaryAiConversation(
-                  turns: const [
-                    {'speaker': 'user', 'text': 'Saved words.'},
-                  ],
-                  createdAt: DateTime(2026, 11, 2),
-                ),
         );
         final router = GoRouter(
           initialLocation: '/diary',
@@ -281,7 +272,7 @@ void main() {
           await tester.longPress(
             photo
                 ? find.byKey(const ValueKey('diary-photo-story-$_first'))
-                : find.text('Conversation'),
+                : find.text('Saved words.'),
           );
           await tester.pumpAndSettle();
           expect(

@@ -9,7 +9,6 @@ class DiaryEntries extends Table {
   TextColumn get periodKey => text()();
   TextColumn get body => text()();
   TextColumn get photos => text().withDefault(const Constant('[]'))();
-  TextColumn get conversation => text().nullable()();
   IntColumn get revision =>
       integer().customConstraint('NOT NULL CHECK (revision > 0)')();
   IntColumn get createdAt => integer()();

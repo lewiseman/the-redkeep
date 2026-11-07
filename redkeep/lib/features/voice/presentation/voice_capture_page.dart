@@ -1,5 +1,3 @@
-import '../application/voice_receipts.dart';
-
 import 'voice_ui.dart';
 import '../application/voice_coordination.dart';
 
@@ -33,7 +31,7 @@ class _VoiceCapturePageState extends ConsumerState<VoiceCapturePage>
   String _lastTranscript = '';
   final _owner = Object();
   late VoiceActive _lease;
-  bool _saving = false, _restored = false, _autoStarted = false;
+  bool _saving = false, _autoStarted = false;
   @override
   void initState() {
     super.initState();
@@ -44,18 +42,13 @@ class _VoiceCapturePageState extends ConsumerState<VoiceCapturePage>
     _mic = widget.permission ?? MicPermission();
     _mic.addListener(_permissionChanged);
     unawaited(_mic.check());
-    unawaited(
-      _capture.restore().whenComplete(() {
-        _restored = true;
-        _maybeStart();
-      }),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeStart());
   }
 
-  /// Opening the page starts listening straight away, unless a retained
-  /// recording needs reviewing first or the microphone is not allowed yet.
+  /// Opening the page starts listening straight away, unless the microphone
+  /// is not allowed yet.
   void _maybeStart() {
-    if (!mounted || _autoStarted || !_restored || !_mic.granted) return;
+    if (!mounted || _autoStarted || !_mic.granted) return;
     if (_capture.id != null || _capture.phase != CapturePhase.idle) return;
     _autoStarted = true;
     try {
@@ -128,14 +121,9 @@ class _VoiceCapturePageState extends ConsumerState<VoiceCapturePage>
         }
       }
       if (widget.target == 'flow') {
-        await _capture.persist();
-        await ref
-            .read(voiceReceiptsProvider)
-            .consume(widget.target, source: _capture.store);
-        await _capture.discard(notifyComputer: false);
+        await _capture.discard();
       } else {
         _capture.text = text;
-        await _capture.persist();
       }
       if (mounted) Navigator.of(context).pop(text);
     } catch (_) {
@@ -196,12 +184,10 @@ class _VoiceCapturePageState extends ConsumerState<VoiceCapturePage>
     }
     final (action, onAction) = !reviewable && _capture.id != null
         ? (
-            _capture.accepted
-                ? 'Retrieve'
-                : _capture.bytes > 0
-                ? 'Retry'
-                : 'Try again',
-            () => _withLease(_capture.retry),
+            _capture.canTranscribeAgain ? 'Retry' : 'Try again',
+            () => _withLease(
+              _capture.canTranscribeAgain ? _capture.retry : _capture.start,
+            ),
           )
         : _capture.canTranscribeAgain
         ? ('Transcribe again', () => _withLease(_capture.transcribeAgain))
@@ -252,7 +238,7 @@ class _VoiceCapturePageState extends ConsumerState<VoiceCapturePage>
             _saving ? null : _use,
           )
         : waiting
-        ? ('Close · keep for recovery', () => Navigator.of(context).pop())
+        ? ('Cancel', () => Navigator.of(context).pop())
         : ('Close', () => Navigator.of(context).pop());
     return PopScope(
       canPop: !active && !_saving,
@@ -309,7 +295,6 @@ class _VoiceCapturePageState extends ConsumerState<VoiceCapturePage>
                   onChanged: (value) {
                     _capture.text = value;
                     _lastTranscript = value;
-                    unawaited(_capture.persist());
                   },
                 ),
               )

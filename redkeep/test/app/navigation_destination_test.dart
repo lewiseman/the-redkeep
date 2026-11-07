@@ -2,44 +2,46 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:redkeep/app/navigation_destination.dart';
 
 void main() {
-  test('AI history routes are addressable through gates and reject invalid task IDs', () {
-    for (final path in [
-      '/settings/brain/history',
-      '/settings/brain/history/task_123-abc',
-      '/settings/brain/providers',
-      '/settings/brain/providers/provider-test',
-      '/settings/brain/providers/add/openai',
-      '/settings/brain/tasks',
-    ]) {
-      expect(validatedNavigationLocation(path), path);
-      final gated = navigationRedirect(
-        Uri.parse(path),
-        startupReady: false,
-        onboardingComplete: false,
-      )!;
-      final welcomed = navigationRedirect(
-        Uri.parse(gated),
-        startupReady: true,
-        onboardingComplete: false,
-      )!;
-      expect(
-        navigationRedirect(
-          Uri.parse(welcomed),
+  test(
+    'Grand Maestar is addressable through gates; old AI sub-pages are not',
+    () {
+      for (final path in ['/settings/brain']) {
+        expect(validatedNavigationLocation(path), path);
+        final gated = navigationRedirect(
+          Uri.parse(path),
+          startupReady: false,
+          onboardingComplete: false,
+        )!;
+        final welcomed = navigationRedirect(
+          Uri.parse(gated),
           startupReady: true,
-          onboardingComplete: true,
-        ),
-        path,
-      );
-    }
-    for (final path in [
-      '/settings/brain/history/short',
-      '/settings/brain/history/task%2F1234',
-      '/settings/brain/history/task_1234?prompt=private',
-      '/settings/brain/history/task_1234/extra',
-    ]) {
-      expect(validatedNavigationLocation(path), '/unavailable');
-    }
-  });
+          onboardingComplete: false,
+        )!;
+        expect(
+          navigationRedirect(
+            Uri.parse(welcomed),
+            startupReady: true,
+            onboardingComplete: true,
+          ),
+          path,
+        );
+      }
+      for (final path in [
+        '/settings/brain/history',
+        '/settings/brain/providers',
+        '/settings/brain/tasks',
+        '/settings/brain/voices',
+        '/notes/ai-task',
+        '/diary/2026-11-04/talk',
+        '/settings/brain/history/short',
+        '/settings/brain/history/task%2F1234',
+        '/settings/brain/history/task_1234?prompt=private',
+        '/settings/brain/history/task_1234/extra',
+      ]) {
+        expect(validatedNavigationLocation(path), '/unavailable');
+      }
+    },
+  );
   String? redirect(
     String location, {
     bool ready = true,
@@ -160,12 +162,7 @@ void main() {
 
   test('note IDs survive both gates; there is no editing address, and reject malformed input', () {
     const id = '0123456789abcdef0123456789abcdef';
-    for (final path in [
-      '/notes',
-      '/notes/ai-search',
-      '/notes/ai-task',
-      '/notes/$id',
-    ]) {
+    for (final path in ['/notes', '/notes/ai-search', '/notes/$id']) {
       expect(validatedNavigationLocation(path), path);
       final startup = redirect(path, ready: false)!;
       final welcome = redirect(startup, complete: false)!;

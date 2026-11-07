@@ -1,122 +1,64 @@
-import '../../flow/application/flow_providers.dart';
-import '../../flow/domain/thought_reflection_contract.dart';
-import '../../recall/domain/recall_question_contract.dart';
-import '../../notes/application/note_ai_sources.dart';
-import '../../notes/domain/note_background_contract.dart';
-import '../../notes/data/note_media_store.dart';
-import '../../voice/application/voice_coordination.dart';
-import '../../diary/domain/diary_photo_question_contract.dart';
-import '../../diary/domain/diary_history_contract.dart';
-import '../../diary/data/diary_photo_question_store.dart';
-import '../../diary/data/prepare_diary_image.dart';
-import '../../diary/data/diary_photo_store.dart';
-import '../../diary/application/diary_providers.dart';
-
-import 'dart:typed_data';
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math';
+import 'dart:typed_data';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/storage_providers.dart';
-import '../../companion/application/companion_controller.dart';
-import '../../companion/data/companion_protocol.dart';
-import '../../diary/domain/diary_ai_contract.dart';
 import '../../diary/application/diary_ai_sources.dart';
-import '../../diary/domain/diary_period.dart';
-import '../../diary/domain/daily_question_contract.dart';
+import '../../diary/application/diary_providers.dart';
+import '../../diary/data/diary_photo_question_store.dart';
+import '../../diary/data/diary_photo_store.dart';
+import '../../diary/data/prepare_diary_image.dart';
+import '../../diary/domain/diary_ai_contract.dart';
+import '../../diary/domain/diary_history_contract.dart';
+import '../../diary/domain/diary_photo_question_contract.dart';
+import '../../flow/application/flow_providers.dart';
+import '../../flow/domain/thought_reflection_contract.dart';
+import '../../notes/application/note_ai_sources.dart';
+import '../../notes/data/note_media_store.dart';
+import '../../notes/domain/note_background_contract.dart';
+import '../../recall/domain/recall_question_contract.dart';
 import '../../sync/application/sync_providers.dart'
     show writingSessionEpochProvider;
-import '../data/ai_job_store.dart';
 import '../domain/ai_job.dart';
 import '../domain/ai_operation.dart';
-import '../domain/ai_preferences.dart';
 import '../domain/ai_provider.dart';
-import '../domain/ai_route.dart';
-import 'ai_preferences.dart';
-import 'ai_providers.dart';
+import 'ai_cloud.dart';
 
-final protectedAiTasksProvider = Provider<ProtectedAiTasks>(
-  (ref) => SecureAiTasks(),
-);
-final aiJobStoreProvider = Provider<AiJobStore>(
-  (ref) => AiJobStore(
-    ref.watch(appDatabaseProvider),
-    ref.watch(protectedAiTasksProvider),
-    clock: ref.watch(aiClockProvider),
-  ),
-);
-final aiClockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
-final aiIdProvider = Provider<String Function()>(
-  (ref) => () {
-    final random = Random.secure();
-    return List.generate(
-      16,
-      (_) => random.nextInt(256).toRadixString(16).padLeft(2, '0'),
-    ).join();
-  },
-);
-final aiJobsProvider = NotifierProvider<AiJobs, AiJobState>(AiJobs.new);
+export 'ai_cloud.dart' show aiClockProvider, aiIdProvider;
 
-/// Picks one destination for this task. A failed or unready destination is
-/// reported, never replaced by another one.
-({AiRoute route, AiProviderConnection? provider}) resolveAiRoute({
-  required AiOperation operation,
-  required AiPreferences preferences,
-  required bool connected,
-  required List<AiProviderConnection> providers,
-}) {
-  final route = preferences.routeFor(operation);
-  if (route.isCompanion) {
-    if (!connected) {
-      throw CompanionFailure(
-        operation.supportsProvider ? 'UNAVAILABLE' : 'UNSUPPORTED',
-        operation.supportsProvider
-            ? 'Connect your computer or choose a provider in Grand Maestar.'
-            : 'This feature needs your computer. Connect it in Grand Maestar.',
-      );
-    }
-    return (route: route, provider: null);
-  }
-  final provider = providers.where((p) => p.id == route.providerId).firstOrNull;
-  if (provider == null) {
-    throw const CompanionFailure(
-      'NOT_READY',
-      'The provider for this task is gone. Choose another in Grand Maestar.',
-    );
-  }
-  return (route: route, provider: provider);
-}
+/// One request per page. [scope] names the page that owns it; when nothing
+/// watches that page's jobs any more, the request is aborted and its result
+/// discarded. Nothing is persisted or resumed.
+final aiJobsProvider = NotifierProvider.autoDispose
+    .family<AiJobs, AiJobState, String>(AiJobs.new);
+typedef AiJobsProvider = NotifierProvider<AiJobs, AiJobState>;
 
 class AiJobState {
-  const AiJobState({
-    this.job,
-    this.busy = false,
-    this.message,
-    this.loaded = false,
-  });
+  const AiJobState({this.job, this.busy = false, this.message});
   final AiJob? job;
-  final bool busy, loaded;
+  final bool busy;
   final String? message;
 }
 
 class AiJobs extends Notifier<AiJobState> {
+  AiJobs(this.scope);
+  final String scope;
   int _epoch = 0;
   late int _dataGeneration;
-  bool _foreground = true;
-  bool _working = false;
-  Completer<void>? _providerAbort;
-  void _abortProvider() {
-    final abort = _providerAbort;
+  Completer<void>? _abort;
+
+  void _abortRequest() {
+    final abort = _abort;
     if (abort != null && !abort.isCompleted) abort.complete();
+    _abort = null;
   }
 
-  Future<void>? _restore;
   bool _alive(int epoch) =>
       ref.mounted &&
       epoch == _epoch &&
-      _foreground &&
       !ref.read(appDatabaseProvider).writingBlocked &&
       ref.read(appDatabaseProvider).writingGeneration == _dataGeneration;
 
@@ -126,145 +68,34 @@ class AiJobs extends Notifier<AiJobState> {
     _dataGeneration = ref.read(appDatabaseProvider).writingGeneration;
     ref.onDispose(() {
       _epoch++;
-      _abortProvider();
+      _abortRequest();
     });
     return const AiJobState();
-  }
-
-  Future<void> restore() =>
-      _restore ??= _restoreTask().whenComplete(() => _restore = null);
-  Future<void> _restoreTask() async {
-    if (_working || !_foreground) return;
-    final epoch = _epoch;
-    _working = true;
-    try {
-      var job = state.loaded
-          ? state.job
-          : await ref.read(aiJobStoreProvider).load();
-      if (!_alive(epoch)) return;
-      if (job != null &&
-          ref.read(aiClockProvider)().millisecondsSinceEpoch >= job.expires) {
-        job = AiJob.fromJson({
-          ...job.json(sensitive: false),
-          'phase': 'expired',
-        });
-      }
-      // Only the companion can resume work. Nothing is ever resent silently.
-      if (job != null && job.provider != 'companion' && !job.terminal) {
-        job = job.copy(phase: 'interrupted');
-      }
-      state = AiJobState(job: job, loaded: true);
-      if (job != null) {
-        await _save(job, epoch);
-        if (job.provider == 'companion' && (!job.terminal || job.ackPending)) {
-          await _companion(job, epoch, submit: false);
-        }
-      }
-      await _ackReceipts();
-    } catch (error) {
-      if (_alive(epoch)) {
-        state = AiJobState(job: state.job, message: _message(error));
-      }
-    } finally {
-      _working = false;
-    }
-  }
-
-  Future<bool> available(AiOperation operation) async {
-    try {
-      final preferences = await ref
-          .read(aiPreferencesRepositoryProvider)
-          .read();
-      final target = resolveAiRoute(
-        operation: operation,
-        preferences: preferences,
-        connected:
-            ref.read(companionControllerProvider).phase ==
-            CompanionPhase.connected,
-        providers: await _providersFor(operation, preferences),
-      );
-      if (target.provider == null) _checkCapability(operation);
-      return true;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  /// Companion tasks must keep working if protected storage is unavailable.
-  Future<List<AiProviderConnection>> _providersFor(
-    AiOperation operation,
-    AiPreferences preferences,
-  ) async => preferences.routeFor(operation).isCompanion
-      ? const []
-      : await ref.read(aiProvidersProvider.future);
-
-  TrustedComputer _computer(AiJob job) {
-    final connection = ref.read(companionControllerProvider);
-    final computer = connection.selected;
-    if (connection.phase != CompanionPhase.connected ||
-        computer == null ||
-        !computer.enabled ||
-        computer.id != job.computerId ||
-        computer.deviceId != job.deviceId) {
-      throw const CompanionFailure(
-        'UNAVAILABLE',
-        'Reconnect the computer that accepted this task to retrieve it.',
-      );
-    }
-    return computer;
-  }
-
-  void _checkCapability(AiOperation operation) {
-    final status = ref.read(companionControllerProvider).status;
-    final capability = (status?['capabilities'] as List? ?? [])
-        .whereType<Map>()
-        .where((c) => c['id'] == operation.capabilityId)
-        .firstOrNull;
-    if (status?['recovery'] != 1 ||
-        (operation.contractKey.isNotEmpty &&
-            capability?[operation.contractKey] != operation.contractVersion) ||
-        capability?['operations'] is! List ||
-        !(capability!['operations'] as List).contains(operation.wireName)) {
-      throw const CompanionFailure(
-        'INCOMPATIBLE_VERSION',
-        'Update the companion to support this AI operation.',
-      );
-    }
-    if (capability['implemented'] != true ||
-        !['ready', 'busy'].contains(capability['status'])) {
-      throw CompanionFailure(
-        'NOT_READY',
-        operation == AiOperation.photoQuestions
-            ? 'Load Qwen3-VL in Journal Companion for photo questions.'
-            : 'Load a writing model on your computer.',
-      );
-    }
   }
 
   Future<void> start(
     AiOperation operation,
     String key,
     String prompt,
-    String source, {
-    Object? voiceOwner,
-  }) async {
-    if (_working || !_foreground) return;
-    if (ref.read(voiceActiveProvider) &&
-        !(operation == AiOperation.conversation &&
-            ref.read(voiceActiveProvider.notifier).owns(voiceOwner))) {
-      state = AiJobState(
-        job: state.job,
-        loaded: state.loaded,
-        message: 'Finish the voice session before starting another AI task.',
-      );
-      return;
-    }
-    await restore();
-    if (!ref.mounted || !state.loaded || state.job != null || _working) return;
+    String source,
+  ) async {
+    if (state.busy) return;
     final epoch = ++_epoch;
-    _working = true;
-    state = const AiJobState(busy: true, loaded: true);
+    _abortRequest();
+    final abort = _abort = Completer<void>();
+    var job = AiJob(
+      id: ref.read(aiIdProvider)(),
+      operation: operation,
+      key: key,
+      prompt: prompt,
+      source: source,
+      phase: 'running',
+    );
+    state = AiJobState(job: job, busy: true);
     try {
+      if (!operation.available) {
+        throw const AiProviderFailure(AiProviderFailureKind.unsupported);
+      }
       if (prompt.trim().isEmpty ||
           utf8.encode(prompt).length > operation.inputBytes ||
           source.length > 131072) {
@@ -272,94 +103,197 @@ class AiJobs extends Notifier<AiJobState> {
           'This request is too large. Nothing was shortened or sent.',
         );
       }
-      final preferences = await ref
-          .read(aiPreferencesRepositoryProvider)
-          .read();
-      if (!_alive(epoch)) return;
-      final connection = ref.read(companionControllerProvider);
-      final providers = await _providersFor(operation, preferences);
-      if (!_alive(epoch)) return;
-      final target = resolveAiRoute(
-        operation: operation,
-        preferences: preferences,
-        connected: connection.phase == CompanionPhase.connected,
-        providers: providers,
-      );
-      final provider = target.provider;
-      if (provider == null) _checkCapability(operation);
-      final job = AiJob(
-        id: ref.read(aiIdProvider)(),
-        operation: operation,
-        key: key,
-        created: ref.read(aiClockProvider)().millisecondsSinceEpoch,
-        provider: provider == null ? 'companion' : 'provider',
-        computerId: provider == null ? connection.selected!.id : '',
-        deviceId: provider == null ? connection.selected!.deviceId : '',
-        modelId: target.route.model ?? '',
-        providerId: provider?.id ?? '',
-        providerName: provider?.name ?? '',
-        prompt: prompt,
-        source: source,
-      );
-      final reader = ref.read(diaryAiSourcesProvider);
-      final valid = switch (operation) {
-        AiOperation.diaryDetails => await reader.current(
-          DiarySuggestionSource.decode(source),
-        ),
-        AiOperation.dailyQuestion =>
-          DiaryPeriod.fromComponents(ref.read(aiClockProvider)()).key == key &&
-              await reader.questionCurrent(DailyQuestionSource.decode(source)),
-        AiOperation.photoQuestions => true,
-        AiOperation.thoughtReflection => await _reflectionCurrent(
-          ThoughtReflectionSource.decode(source),
-        ),
-        AiOperation.thoughtQuestion => await _thoughtQuestionCurrent(
-          RecallQuestionSelection.decode(source),
-        ),
-        AiOperation.history => await _historyCurrent(
-          DiaryHistorySelection.decode(source),
-        ),
-        AiOperation.conversation => await _conversationCurrent(source),
-        _ => await noteAiSourceCurrent(ref, operation, source),
-      };
-      if (!valid) {
+      if (!await _current(operation, source)) {
         throw const FormatException(
-          'Your entries changed. Nothing was sent; ask again.',
+          'Your writing changed. Nothing was sent; ask again.',
         );
       }
-      await _save(job, epoch);
       if (!_alive(epoch)) return;
-      if (provider == null) {
-        await _companion(job, epoch, submit: true);
-      } else {
-        await _provider(job, provider, epoch);
-      }
+      final text = await _send(job, abort.future);
+      if (!_alive(epoch)) return;
+      _validate(job, text);
+      job = job.copy(phase: 'completed', text: text);
+      state = AiJobState(job: job);
     } catch (error) {
-      if (_alive(epoch)) {
-        state = AiJobState(
-          job: state.job,
-          loaded: true,
-          message: _message(error),
-        );
-      }
+      if (!_alive(epoch)) return;
+      final cancelled =
+          error is AiProviderFailure &&
+          error.kind == AiProviderFailureKind.cancelled;
+      state = AiJobState(
+        job: job.copy(phase: cancelled ? 'cancelled' : 'failed'),
+        message: cancelled ? null : aiErrorMessage(error),
+      );
     } finally {
-      _working = false;
-      if (_alive(epoch) && state.busy) {
-        state = AiJobState(
-          job: state.job,
-          loaded: true,
-          message: state.message,
-        );
-      }
+      if (identical(_abort, abort)) _abort = null;
     }
   }
 
-  Future<void> _save(AiJob job, int epoch) async {
-    if (!_alive(epoch)) return;
-    await ref.read(aiJobStoreProvider).save(job, _dataGeneration);
-    if (_alive(epoch)) {
-      state = AiJobState(job: job, busy: !job.terminal, loaded: true);
+  Future<String> _send(AiJob job, Future<void> abort) async {
+    final cloud = ref.read(aiCloudProvider);
+    final operation = job.operation;
+    if (operation == AiOperation.noteBackground) {
+      return _noteBackground(job, abort);
     }
+    final images = switch (operation) {
+      AiOperation.noteImage || AiOperation.noteScan => [
+        AiImageInput(await _noteUpload(job), mime: 'image/png'),
+      ],
+      AiOperation.photoQuestions => [
+        AiImageInput(await _photoUpload(job), mime: 'image/png'),
+      ],
+      _ => const <AiImageInput>[],
+    };
+    final text = await cloud.chat(
+      system: operation.system,
+      user: _userMessage(operation, job.prompt),
+      outputTokens: operation.outputTokens,
+      temperature: operation.temperature,
+      topP: operation.topP,
+      images: images,
+      abort: abort,
+    );
+    return operation == AiOperation.noteScan ? _scanResult(text) : text;
+  }
+
+  static String _userMessage(AiOperation operation, String prompt) {
+    switch (operation) {
+      case AiOperation.noteSummary:
+        return jsonEncode({'note': prompt});
+      case AiOperation.thoughtReflection:
+        return jsonEncode({'thought': prompt});
+      case AiOperation.noteScan:
+        return 'Transcribe this page.';
+      case AiOperation.noteImage:
+        final value = jsonDecode(prompt) as Map;
+        return switch (value['mode']) {
+          'question' =>
+            'Question about the image (answer in "answer"): ${jsonEncode(value['question'])}',
+          'explain' =>
+            'Explain what this image appears to show (put it in "answer").',
+          _ => 'Describe this image. Leave "answer" empty.',
+        };
+      case AiOperation.photoQuestions:
+        final value = jsonDecode(prompt) as Map;
+        final caption = (value['caption'] as String? ?? '').trim();
+        final avoid = (value['avoid'] as List? ?? const []).cast<String>();
+        return [
+          caption.isEmpty
+              ? 'The person gave no caption.'
+              : "The person's own caption (context from them, not from the photo; use it only for the questions, never in observations): ${jsonEncode(caption)}",
+          if (avoid.isNotEmpty) ...[
+            'The person has already seen these questions. Write different ones that ask about something else:',
+            for (final question in avoid) '- ${jsonEncode(question)}',
+          ],
+          'Write reflection questions for this photo.',
+        ].join('\n');
+      default:
+        return prompt;
+    }
+  }
+
+  /// Cloud models only read the page; there is no second reader to compare.
+  static String _scanResult(String text) {
+    try {
+      final value = jsonDecode(text);
+      if (value is Map) {
+        return jsonEncode({
+          'text': value['text'],
+          'readable': value['readable'],
+          'check': null,
+        });
+      }
+    } on FormatException {
+      /* Rejected by validation. */
+    }
+    return text;
+  }
+
+  Future<String> _noteBackground(AiJob job, Future<void> abort) async {
+    final request = jsonDecode(job.prompt) as Map;
+    final tone = request['tone'] == 'dark'
+        ? 'Dark and low in contrast, so light text stays readable.'
+        : 'Light, soft and low in contrast, so dark text stays readable.';
+    final png = await ref
+        .read(aiCloudProvider)
+        .generateImage(
+          'A calm, subtle full-page background for a personal note: '
+          '${request['prompt']}. $tone No text, letters, logos or watermarks.',
+          abort: abort,
+        );
+    if (png.length < 24 || png[0] != 0x89 || png[1] != 0x50) {
+      throw const FormatException(
+        'The generated image was not a PNG. Nothing was applied.',
+      );
+    }
+    final data = ByteData.sublistView(png);
+    final text = jsonEncode({
+      'width': data.getUint32(16),
+      'height': data.getUint32(20),
+      'bytes': png.length,
+      'sha256': sha256.convert(png).toString(),
+      'seed': 0,
+    });
+    final meta = NoteBackgroundResult.parse(text);
+    if (!meta.matches(png, meta.sha256)) {
+      throw const FormatException(
+        'The generated image failed verification. Nothing was applied.',
+      );
+    }
+    await ref.read(noteMediaStoreProvider).write(png, identity: job.id);
+    return text;
+  }
+
+  Future<Uint8List> _noteUpload(AiJob job) async {
+    final source = noteTaskSource(job.source);
+    final file = await ref
+        .read(noteMediaStoreProvider)
+        .resolve(source['upload'] as String);
+    if (file == null) {
+      throw const FormatException(
+        'The prepared image is missing. Choose the image again.',
+      );
+    }
+    final bytes = await file.readAsBytes();
+    if (sha256.convert(bytes).toString() != source['imageSha']) {
+      throw const FormatException(
+        'The prepared image changed. Nothing was sent.',
+      );
+    }
+    return bytes;
+  }
+
+  Future<Uint8List> _photoUpload(AiJob job) async {
+    final source = jsonDecode(job.source) as Map;
+    final bytes = await ref
+        .read(diaryPhotoQuestionStoreProvider)
+        .readUpload(source['upload'] as String);
+    if (bytes == null ||
+        await DiaryPhotoStore.digest(bytes) != source['imageSha']) {
+      throw const FormatException(
+        'The photo prepared for this request is missing. Generate questions again.',
+      );
+    }
+    return bytes;
+  }
+
+  Future<bool> _current(AiOperation operation, String source) async {
+    final reader = ref.read(diaryAiSourcesProvider);
+    return switch (operation) {
+      AiOperation.diaryDetails => await reader.current(
+        DiarySuggestionSource.decode(source),
+      ),
+      AiOperation.photoQuestions => true,
+      AiOperation.thoughtReflection => await _reflectionCurrent(
+        ThoughtReflectionSource.decode(source),
+      ),
+      AiOperation.thoughtQuestion => await _thoughtQuestionCurrent(
+        RecallQuestionSelection.decode(source),
+      ),
+      AiOperation.history => await _historyCurrent(
+        DiaryHistorySelection.decode(source),
+      ),
+      _ => await noteAiSourceCurrent(ref, operation, source),
+    };
   }
 
   void _validate(AiJob job, String text) {
@@ -379,8 +313,6 @@ class AiJobs extends Notifier<AiJobState> {
         );
       case AiOperation.diaryDetails:
         DiarySuggestions.parse(text, DiarySuggestionSource.decode(job.source));
-      case AiOperation.dailyQuestion:
-        DailyQuestion.parse(text, DailyQuestionSource.decode(job.source));
       case AiOperation.photoQuestions:
         DiaryPhotoQuestions.parse(text);
       case AiOperation.history:
@@ -389,227 +321,8 @@ class AiJobs extends Notifier<AiJobState> {
           DiaryHistorySelection.decode(job.source),
         );
       default:
-        if (job.operation.isNote) {
-          validateNoteAiOutput(job.operation, text, job.source);
-          return;
-        }
-        if (text.trim().isEmpty ||
-            RegExp(r'[\x00-\x08\x0b\x0c\x0e-\x1f]').hasMatch(text)) {
-          throw const FormatException('Invalid conversation draft');
-        }
+        validateNoteAiOutput(job.operation, text, job.source);
     }
-  }
-
-  Future<void> _provider(
-    AiJob job,
-    AiProviderConnection connection,
-    int epoch,
-  ) async {
-    final abort = Completer<void>();
-    _providerAbort = abort;
-    try {
-      final operation = job.operation;
-      final answer = await ref
-          .read(aiProviderClientProvider)
-          .complete(
-            connection,
-            AiCompletionRequest(
-              model: job.modelId,
-              system: operation.system,
-              user: switch (operation) {
-                AiOperation.noteSummary => jsonEncode({'note': job.prompt}),
-                AiOperation.thoughtReflection => jsonEncode({
-                  'thought': job.prompt,
-                }),
-                _ => job.prompt,
-              },
-              outputTokens: operation.outputTokens,
-              temperature: operation.temperature,
-              topP: operation.topP,
-            ),
-            abort: abort.future,
-          );
-      if (!_alive(epoch)) return;
-      final text = stripSurroundingCodeFence(answer);
-      _validate(job, text);
-      await _save(job.copy(phase: 'completed', text: text), epoch);
-    } finally {
-      if (identical(_providerAbort, abort)) _providerAbort = null;
-    }
-  }
-
-  Future<void> _companion(AiJob job, int epoch, {required bool submit}) async {
-    final client = CompanionClient(ref.read(companionTransportProvider));
-    final computer = _computer(job);
-    if (job.terminal) {
-      await client.authenticated(computer, 'POST', '/v1/jobs/${job.id}/ack');
-      await _save(job.copy(ackPending: false), epoch);
-      return;
-    }
-    if (job.cancelWanted) {
-      await client.authenticated(
-        computer,
-        'POST',
-        '/v1/jobs/${job.id}/cancel',
-        body: {'operation': job.operation.wireName},
-      );
-      submit = false;
-    }
-    var response = await client.authenticated(
-      computer,
-      submit ? 'POST' : 'GET',
-      submit
-          ? (job.operation.imageInput ? '/v1/image-jobs' : '/v1/jobs')
-          : '/v1/jobs/${job.id}',
-      body: submit
-          ? {
-              'id': job.id,
-              'operation': job.operation.wireName,
-              'prompt': job.prompt,
-              'expires': job.expires,
-              if (job.operation.imageInput)
-                'image': job.operation.isNote
-                    ? await _noteUpload(job)
-                    : await _photoUpload(job),
-            }
-          : null,
-    );
-    while (_alive(epoch)) {
-      if (response['id'] != job.id ||
-          response['operation'] != job.operation.wireName ||
-          response['device'] != job.deviceId) {
-        throw const FormatException('The computer returned a mismatched task.');
-      }
-      final phase = response['state'];
-      if (phase is! String ||
-          !{
-            'queued',
-            'running',
-            'completed',
-            'failed',
-            'cancelled',
-            'expired',
-            'interrupted',
-          }.contains(phase)) {
-        throw const FormatException(
-          'The computer returned an invalid task state.',
-        );
-      }
-      if (job.operation == AiOperation.photoQuestions &&
-          response['model'] != jsonDecode(job.source)['model']) {
-        throw const FormatException(
-          'The computer returned a different photo model. Generate questions again.',
-        );
-      }
-      var next = job.copy(accepted: true, phase: phase);
-      if (phase == 'completed') {
-        final text = response['text'];
-        if (text is! String) {
-          throw const FormatException(
-            'The result is no longer on the computer. Clear this task and ask again.',
-          );
-        }
-        _validate(job, text);
-        if (job.operation == AiOperation.noteBackground) {
-          await _collectNoteBackground(job, text, client, computer);
-          if (!_alive(epoch)) return;
-        }
-        next = next.copy(text: text);
-      }
-      if (next.terminal) {
-        next = next.copy(ackPending: response['acknowledged'] != true);
-      }
-      await _save(next, epoch);
-      job = next;
-      if (next.terminal) {
-        if (next.ackPending && _alive(epoch)) {
-          try {
-            await client.authenticated(
-              computer,
-              'POST',
-              '/v1/jobs/${job.id}/ack',
-            );
-            await _save(job.copy(ackPending: false), epoch);
-          } catch (_) {
-            /* Protected result and pending receipt survive. */
-          }
-        }
-        return;
-      }
-      await Future<void>.delayed(const Duration(milliseconds: 700));
-      if (!_alive(epoch)) return;
-      response = await client.authenticated(
-        _computer(job),
-        'GET',
-        '/v1/jobs/${job.id}',
-      );
-    }
-  }
-
-  Future<String> _noteUpload(AiJob job) async {
-    final source = noteTaskSource(job.source);
-    final file = await ref
-        .read(noteMediaStoreProvider)
-        .resolve(source['upload'] as String);
-    if (file == null) {
-      throw const FormatException(
-        'The prepared image is missing. Clear this task and choose the image again.',
-      );
-    }
-    final bytes = await file.readAsBytes();
-    if (await hexHash(bytes) != source['imageSha']) {
-      throw const FormatException(
-        'The prepared image changed. Nothing was sent.',
-      );
-    }
-    return base64Encode(bytes);
-  }
-
-  Future<void> _collectNoteBackground(
-    AiJob job,
-    String text,
-    CompanionClient client,
-    TrustedComputer computer,
-  ) async {
-    final meta = NoteBackgroundResult.parse(text);
-    final store = ref.read(noteMediaStoreProvider);
-    final path = backgroundPreviewPath(job.id, text);
-    final existing = await store.resolve(path);
-    if (existing != null &&
-        meta.matches(
-          await existing.readAsBytes(),
-          await hexHash(await existing.readAsBytes()),
-        )) {
-      return;
-    }
-    final result = await client.authenticated(
-      computer,
-      'GET',
-      '/v1/image-jobs/${job.id}/result',
-    );
-    final bytes = result['image'] is String
-        ? base64Decode(result['image'] as String)
-        : Uint8List(0);
-    if (result['id'] != job.id || !meta.matches(bytes, await hexHash(bytes))) {
-      throw const FormatException(
-        'The generated image failed verification. Nothing was applied.',
-      );
-    }
-    await store.write(bytes, identity: job.id);
-  }
-
-  Future<String> _photoUpload(AiJob job) async {
-    final bytes = await ref
-        .read(diaryPhotoQuestionStoreProvider)
-        .readUpload(jsonDecode(job.source)['upload'] as String);
-    if (bytes == null ||
-        await DiaryPhotoStore.digest(bytes) !=
-            jsonDecode(job.source)['imageSha']) {
-      throw const FormatException(
-        'The photo prepared for this task is missing. Generate questions again.',
-      );
-    }
-    return base64Encode(bytes);
   }
 
   Future<void> startDiaryPhotoQuestions({
@@ -620,24 +333,17 @@ class AiJobs extends Notifier<AiJobState> {
     int group = -1,
     List<String> avoid = const [],
   }) async {
+    if (state.busy) return;
     final generation = ref.read(appDatabaseProvider).writingGeneration;
     try {
-      if (state.job != null ||
-          _working ||
-          !_foreground ||
-          ref.read(voiceActiveProvider)) {
-        throw StateError(
-          'Another AI session is open. Finish it before asking about photos.',
+      final settings = await ref.read(aiCloudSettingsProvider.future);
+      if (settings == null || !settings.supports(AiCapability.vision)) {
+        throw AiProviderFailure(
+          settings == null
+              ? AiProviderFailureKind.notConfigured
+              : AiProviderFailureKind.unsupported,
         );
       }
-      if (ref.read(companionControllerProvider).phase !=
-          CompanionPhase.connected) {
-        throw const CompanionFailure(
-          'UNSUPPORTED',
-          'Photo questions need your computer. Connect it in Grand Maestar.',
-        );
-      }
-      _checkCapability(AiOperation.photoQuestions);
       final bytes = await prepareImageBytes(photo);
       if (!ref.mounted ||
           generation != ref.read(appDatabaseProvider).writingGeneration ||
@@ -657,15 +363,7 @@ class AiJobs extends Notifier<AiJobState> {
         avoid: avoid,
       );
       DiaryPhotoQuestionSource.decode(source.encode());
-      final model =
-          (ref.read(companionControllerProvider).status?['capabilities']
-                          as List? ??
-                      [])
-                  .whereType<Map>()
-                  .where((c) => c['id'] == 'vision')
-                  .firstOrNull?['model']
-              as String? ??
-          '';
+      final model = settings.model(AiCapability.chat) ?? '';
       await start(
         AiOperation.photoQuestions,
         photoSha,
@@ -680,11 +378,7 @@ class AiJobs extends Notifier<AiJobState> {
     } catch (e) {
       if (ref.mounted &&
           generation == ref.read(appDatabaseProvider).writingGeneration) {
-        state = AiJobState(
-          job: state.job,
-          loaded: state.loaded,
-          message: _message(e),
-        );
+        state = AiJobState(job: state.job, message: aiErrorMessage(e));
       }
     }
   }
@@ -710,20 +404,6 @@ class AiJobs extends Notifier<AiJobState> {
     return true;
   }
 
-  Future<bool> _conversationCurrent(String raw) async {
-    final source = jsonDecode(raw) as Map;
-    final entry =
-        (await ref
-                .read(diaryRepositoryProvider)
-                .openDocument(source['id'] as String))
-            .entry;
-    if (source['new'] == true && entry == null) return true;
-    return entry != null &&
-        entry.deletedAt == null &&
-        entry.revision == source['revision'] &&
-        jsonEncode(entry.conversation?.turns) == jsonEncode(source['turns']);
-  }
-
   Future<bool> _historyCurrent(DiaryHistorySelection source) async {
     for (final s in source.sources) {
       final entry =
@@ -739,144 +419,52 @@ class AiJobs extends Notifier<AiJobState> {
     return true;
   }
 
+  /// Sends the same request again. Only failed or cancelled requests retry.
   Future<void> retry() async {
     final job = state.job;
-    if (job == null || _working || !_foreground) return;
-    if (job.provider == 'companion' && !job.terminal) {
-      final epoch = ++_epoch;
-      _working = true;
-      try {
-        await _companion(
-          job,
-          epoch,
-          submit: !job.accepted && job.prompt.isNotEmpty,
-        );
-      } catch (error) {
-        if (_alive(epoch)) {
-          state = AiJobState(
-            job: state.job,
-            loaded: true,
-            message: _message(error),
-          );
-        }
-      } finally {
-        _working = false;
-      }
-    } else if (job.prompt.isNotEmpty) {
-      await clear();
-      if (ref.mounted && state.job == null) {
-        await start(job.operation, job.key, job.prompt, job.source);
-      }
+    if (job == null || state.busy || job.phase == 'completed') return;
+    if (job.operation == AiOperation.photoQuestions) {
+      // The prepared upload is still on disk under the same source.
+      state = const AiJobState();
     }
+    await start(job.operation, job.key, job.prompt, job.source);
   }
 
   Future<void> cancel() async {
     final job = state.job;
-    final epoch = ++_epoch;
-    _abortProvider();
-    if (job == null || !_alive(epoch)) return;
-    var next = job.copy(cancelWanted: true);
-    await _save(next, epoch);
-    if (job.provider == 'companion' && !job.terminal) {
-      try {
-        await CompanionClient(ref.read(companionTransportProvider))
-            .authenticated(
-              _computer(job),
-              'POST',
-              '/v1/jobs/${job.id}/cancel',
-              body: {'operation': job.operation.wireName},
-            );
-        next = next.copy(phase: 'cancelled', ackPending: true);
-      } catch (error) {
-        if (_alive(epoch)) {
-          state = AiJobState(job: next, loaded: true, message: _message(error));
-        }
-        return;
-      }
-    } else {
-      next = next.copy(phase: job.terminal ? job.phase : 'cancelled');
-    }
-    await _save(next, epoch);
+    _epoch++;
+    _abortRequest();
+    if (job == null || !ref.mounted) return;
+    state = AiJobState(job: job.terminal ? job : job.copy(phase: 'cancelled'));
   }
 
-  Future<void> clear() => _clear();
-
-  Future<void> clearIfCurrent(String id) => _clear(expectedId: id);
-
-  Future<void> _clear({String? expectedId}) async {
-    var job = state.job;
-    if (job == null || expectedId != null && job.id != expectedId) return;
-    final targetId = job.id;
-    final generation = _dataGeneration;
-    if (!job.terminal) {
-      await cancel();
-      job = state.job;
-    }
-    if (!ref.mounted ||
-        job == null ||
-        !job.terminal ||
-        job.id != targetId ||
-        state.job?.id != targetId ||
-        !_alive(_epoch)) {
-      return;
-    }
-    final epoch = ++_epoch;
-    await ref.read(aiJobStoreProvider).release(job, generation);
-    if (!_alive(epoch) || state.job?.id != targetId) return;
-    if (job.operation == AiOperation.photoQuestions) {
+  Future<void> clear() async {
+    final job = state.job;
+    _epoch++;
+    _abortRequest();
+    if (!ref.mounted) return;
+    state = const AiJobState();
+    if (job?.operation == AiOperation.photoQuestions) {
       try {
         await ref
             .read(diaryPhotoQuestionStoreProvider)
-            .deleteUpload(jsonDecode(job.source)['upload'] as String);
+            .deleteUpload(jsonDecode(job!.source)['upload'] as String);
       } catch (_) {
         /* Expiry cleanup retries. */
       }
     }
-    if (ref.mounted) state = const AiJobState(loaded: true);
-    await _ackReceipts();
   }
 
-  Future<void> retryAcknowledgements() => _ackReceipts();
-
-  Future<void> _ackReceipts() async {
-    for (final job
-        in await ref.read(aiJobStoreProvider).pendingAcknowledgements()) {
-      if (!_foreground || !ref.mounted) return;
-      try {
-        await CompanionClient(ref.read(companionTransportProvider))
-            .authenticated(_computer(job), 'POST', '/v1/jobs/${job.id}/ack');
-        await ref.read(aiJobStoreProvider).acknowledge(job);
-      } catch (_) {
-        /* Try after the original computer reconnects. */
-      }
-    }
+  Future<void> clearIfCurrent(String id) async {
+    if (state.job?.id == id) await clear();
   }
-
-  Future<void> stopForReset() async {
-    _foreground = false;
-    _epoch++;
-    _abortProvider();
-    if (ref.mounted) state = const AiJobState();
-  }
-
-  void foreground(bool value) {
-    _foreground = value;
-    if (!value) {
-      ++_epoch;
-      _abortProvider();
-      if (ref.mounted) state = AiJobState(job: state.job, loaded: state.loaded);
-    } else {
-      unawaited(restore());
-    }
-  }
-
-  String _message(Object error) => switch (error) {
-    CompanionFailure() => error.message,
-    AiProviderFailure() => error.message,
-    FormatException() => error.message,
-    DailyQuestionRejected() => error.message,
-    RecallAnswerRejected() => error.message,
-    ThoughtReflectionRejected() => error.message,
-    _ => 'Could not finish the AI task. Your writing is safe. Unlock the phone and retry.',
-  };
 }
+
+String aiErrorMessage(Object error) => switch (error) {
+  AiProviderFailure() => error.message,
+  FormatException() => error.message,
+  RecallAnswerRejected() => error.message,
+  ThoughtReflectionRejected() => error.message,
+  StateError() => error.message,
+  _ => 'Could not finish the AI request. Your writing is safe. Try again.',
+};

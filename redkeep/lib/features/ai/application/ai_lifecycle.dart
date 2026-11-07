@@ -1,9 +1,7 @@
-import '../../flow/application/flow_ai.dart';
 import '../../notes/application/notes_providers.dart';
 import '../../../app/navigation_destination.dart';
 import '../../notes/presentation/website/website_assets.dart';
 import '../../notes/data/note_media_store.dart';
-import '../../voice/application/voice_receipts.dart';
 
 import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart'
@@ -22,16 +20,11 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../../../app/storage_providers.dart';
-import '../../companion/application/companion_controller.dart';
 import '../../recall/application/recall_controller.dart';
-import '../domain/ai_operation.dart';
-import '../data/legacy_phone_ai_cleanup.dart';
-import 'ai_jobs.dart';
+import 'ai_cloud.dart';
 import 'ai_preferences.dart';
-import 'ai_providers.dart';
 
 /// A consumed boundary for offline shell tests. Production starts only inside
 /// the writing shell, after startup and onboarding have completed.
@@ -54,20 +47,15 @@ final aiResetProvider = Provider<Future<void> Function()>(
   (ref) => () async {
     if (!ref.read(aiEnabledProvider)) return;
     await ref.read(voiceActiveProvider.notifier).stopAll();
-    await ref.read(aiJobsProvider.notifier).stopForReset();
     await ref.read(recallControllerProvider.notifier).stopForReset();
-    await ref.read(aiJobStoreProvider).clear();
     await ref.read(aiProviderStoreProvider).clear();
-    ref.invalidate(aiProvidersProvider);
-    await ref.read(voiceStoreProvider).clearAll();
+    ref.invalidate(aiCloudSettingsProvider);
     await DiaryPickerRecovery().reset();
     clearNoteWebsiteCache();
     await ref.read(noteMediaStoreProvider).clearAll();
     await ref.read(diaryPhotoStoreProvider).clearAll();
     await ref.read(diaryPhotoQuestionStoreProvider).clearAll();
     ref.invalidate(diaryPhotoQuestionProvider);
-    ref.invalidate(thoughtReflectionConsumerProvider);
-    ref.invalidate(thoughtReflectionsRepositoryProvider);
     await (await ref.read(recallVectorsProvider.future)).reset();
     // The existing durable account-reset marker remains until these operations
     // and the primary-database clear have all succeeded. Repeating is safe.
@@ -82,16 +70,12 @@ final aiResumeAfterResetProvider = Provider<void Function()>(
     ref.invalidate(noteMediaStoreProvider);
     ref.invalidate(diaryPhotoStoreProvider);
     ref.invalidate(diaryPhotoQuestionStoreProvider);
-    ref.invalidate(voiceReceiptsProvider);
-    ref.invalidate(voiceStoreProvider);
     final active = ref.read(aiForegroundProvider);
-    ref.read(aiJobsProvider.notifier).foreground(active);
     ref.read(recallControllerProvider.notifier).foreground(active);
     if (active) {
       unawaited(
         ref.read(noteMediaStoreProvider).reconcile().catchError((_) {}),
       );
-      unawaited(ref.read(voiceReceiptsProvider).drain().catchError((_) {}));
     }
   },
 );
@@ -112,12 +96,6 @@ class _AiLifecycleHostState extends ConsumerState<AiLifecycleHost>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && ref.read(aiEnabledProvider)) {
         _foreground(ref.read(aiForegroundProvider));
-        unawaited(ref.read(voiceStoreProvider).cleanup().catchError((_) {}));
-        unawaited(
-          getApplicationSupportDirectory()
-              .then(removeLegacyPhoneAiFiles)
-              .catchError((_) {}),
-        );
         unawaited(_recoverPicker().then((_) => _recoverNotePicker()));
         unawaited(
           ref.read(diaryPhotoStoreProvider).reconcile().catchError((_) {}),
@@ -173,11 +151,7 @@ class _AiLifecycleHostState extends ConsumerState<AiLifecycleHost>
 
   void _foreground(bool active) {
     ref.read(aiForegroundProvider.notifier).set(active);
-    ref.read(aiJobsProvider.notifier).foreground(active);
     ref.read(recallControllerProvider.notifier).foreground(active);
-    if (active) {
-      unawaited(ref.read(voiceReceiptsProvider).drain().catchError((_) {}));
-    }
   }
 
   @override
@@ -201,8 +175,6 @@ class _AiLifecycleHostState extends ConsumerState<AiLifecycleHost>
     if (!ref.watch(aiEnabledProvider)) return widget.child;
     ref.watch(aiPreferencesProvider);
     ref.watch(recallControllerProvider);
-    ref.watch(diaryPhotoQuestionProvider);
-    ref.watch(thoughtReflectionConsumerProvider);
     ref.watch(diaryPhotoStoreProvider);
     ref.listen(diaryMediaChangesProvider, (_, _) {
       scheduleMicrotask(() {
@@ -212,30 +184,6 @@ class _AiLifecycleHostState extends ConsumerState<AiLifecycleHost>
           );
         }
       });
-    });
-    ref.listen(companionControllerProvider, (previous, next) {
-      if (next.phase == CompanionPhase.connected &&
-          previous?.phase != next.phase) {
-        scheduleMicrotask(() {
-          if (mounted) {
-            unawaited(ref.read(aiJobsProvider.notifier).restore());
-            unawaited(
-              ref.read(voiceReceiptsProvider).drain().catchError((_) {}),
-            );
-          }
-        });
-      }
-    });
-    ref.listen(aiPreferencesProvider, (_, next) {
-      if (next.value?.dailyQuestions == false &&
-          ref.read(aiJobsProvider).job?.operation ==
-              AiOperation.dailyQuestion) {
-        scheduleMicrotask(() async {
-          if (!mounted) return;
-          await ref.read(aiJobsProvider.notifier).cancel();
-          if (mounted) await ref.read(aiJobsProvider.notifier).clear();
-        });
-      }
     });
     return widget.child;
   }

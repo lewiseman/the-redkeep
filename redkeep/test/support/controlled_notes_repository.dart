@@ -81,27 +81,5 @@ class ControlledNotesRepository implements NotesRepository {
     int expectedRevision, {
     required PlainTextDocument text,
     required NoteDetails details,
-    required String taskId,
-    required String operation,
-    bool retainPrior = true,
-  }) => inner.applyProposal(
-    id,
-    expectedRevision,
-    text: text,
-    details: details,
-    taskId: taskId,
-    operation: operation,
-    retainPrior: retainPrior,
-  );
-  @override
-  Future<List<NotePriorContent>> priorContent(String id) =>
-      inner.priorContent(id);
-  @override
-  Future<void> restorePriorContent(
-    String id,
-    int recoveryId,
-    int expectedRevision,
-  ) => inner.restorePriorContent(id, recoveryId, expectedRevision);
-  @override
-  Future<void> clearPriorContent(String id) => inner.clearPriorContent(id);
+  }) => inner.applyProposal(id, expectedRevision, text: text, details: details);
 }

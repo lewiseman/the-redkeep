@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:drift/drift.dart' show Variable;
@@ -6,13 +7,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:redkeep/app/storage_providers.dart';
 import 'package:redkeep/core/storage/app_database.dart';
+import 'package:redkeep/features/ai/application/ai_cloud.dart';
 import 'package:redkeep/features/ai/application/ai_jobs.dart';
-import 'package:redkeep/features/ai/domain/ai_job.dart';
 import 'package:redkeep/features/ai/domain/ai_operation.dart';
-import 'package:redkeep/features/ai/application/ai_preferences.dart';
-import 'package:redkeep/features/ai/application/ai_providers.dart';
-import 'package:redkeep/features/ai/domain/ai_route.dart';
-import 'package:redkeep/features/companion/application/companion_controller.dart';
+import 'package:redkeep/features/ai/domain/ai_provider.dart';
 import 'package:redkeep/features/flow/application/flow_ai.dart';
 import 'package:redkeep/features/flow/application/flow_providers.dart';
 import 'package:redkeep/features/flow/data/drift_flow_repository.dart';
@@ -27,7 +25,6 @@ import 'package:redkeep/features/sync/data/drift_sync_store.dart';
 
 import '../../support/fake_ai.dart';
 import '../../support/fake_ai_provider.dart';
-import '../../support/notes_ai_harness.dart' show NotesTransport;
 
 const thoughtId = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 const thoughtText =
@@ -48,68 +45,41 @@ void main() {
   late AppDatabase db;
   late DriftFlowRepository flow;
   late DriftThoughtReflections reflections;
-  late MemoryAiTasks protected;
-  late NotesTransport remote;
   late FakeAiProviderClient aiProvider;
   late ProviderContainer scope;
-  CompanionState connection({bool compatible = true}) => CompanionState(
-    phase: CompanionPhase.connected,
-    computers: [syntheticComputer()],
-    selectedId: 'computer-1',
-    status: {
-      'recovery': 1,
-      'capabilities': [
-        {
-          'id': 'text',
-          'implemented': true,
-          'status': 'ready',
-          'reflectionContract': compatible ? 1 : 0,
-          'thoughtQuestionContract': compatible ? 1 : 0,
-          'operations': ['reflect-thought', 'answer-thought-question'],
-        },
-      ],
-    },
-  );
-  ProviderContainer createScope({
-    bool connected = true,
-    bool compatible = true,
-  }) => ProviderContainer(
-    overrides: [
-      appDatabaseProvider.overrideWithValue(db),
-      flowRepositoryProvider.overrideWithValue(flow),
-      aiClockProvider.overrideWithValue(() => now),
-      protectedAiTasksProvider.overrideWithValue(protected),
-      companionTransportProvider.overrideWithValue(remote),
-      companionControllerProvider.overrideWith(
-        () => TestConnection(
-          connected
-              ? connection(compatible: compatible)
-              : const CompanionState(phase: CompanionPhase.idle),
-        ),
-      ),
-      syncEnabledProvider.overrideWithValue(false),
-      syncCanEditProvider.overrideWithValue(false),
-      protectedAiProvidersProvider.overrideWithValue(
-        MemoryAiProviders(saved: const [testAiProvider]),
-      ),
-      aiProviderClientProvider.overrideWithValue(aiProvider),
-      recallVectorsProvider.overrideWith((_) async => MemoryVectors()),
-      recallEmbedderProvider.overrideWithValue(FakeEmbedder()),
-    ],
-  );
+  ProviderContainer createScope({AiCloudSettings? settings = testAiSettings}) =>
+      ProviderContainer(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(db),
+          flowRepositoryProvider.overrideWithValue(flow),
+          aiClockProvider.overrideWithValue(() => now),
+          syncEnabledProvider.overrideWithValue(false),
+          syncCanEditProvider.overrideWithValue(false),
+          protectedAiProvidersProvider.overrideWithValue(
+            MemoryAiProviders(saved: settings),
+          ),
+          aiCloudClientProvider.overrideWithValue(aiProvider),
+          recallVectorsProvider.overrideWith((_) async => MemoryVectors()),
+          recallEmbedderProvider.overrideWithValue(FakeEmbedder()),
+        ],
+      );
   Future<Thought> save({String id = thoughtId, String body = thoughtText}) =>
       flow.save(id: id, body: body, expectedRevision: 0);
+
+  /// Stands in for the open thought page.
+  ProviderSubscription<Object?> openThought() =>
+      scope.listen(thoughtReflectionConsumerProvider(thoughtId), (_, _) {});
+  AiJobState reflection() =>
+      scope.read(aiJobsProvider(flowReflectionScope(thoughtId)));
+  AiJobState question() => scope.read(aiJobsProvider(flowSearchJobScope));
   setUp(() {
     db = AppDatabase(NativeDatabase.memory());
     flow = DriftFlowRepository(db, clock: () => now);
     reflections = DriftThoughtReflections(db, clock: () => now);
-    protected = MemoryAiTasks();
-    remote = NotesTransport()..output = reflectionText;
-    aiProvider = FakeAiProviderClient();
+    aiProvider = FakeAiProviderClient(reflectionText);
     scope = createScope();
   });
   tearDown(() async {
-    await scope.read(aiJobsProvider.notifier).stopForReset();
     scope.dispose();
     await db.close();
   });
@@ -206,67 +176,6 @@ void main() {
     );
   });
 
-  test('companion completion is saved locally before snapshot release, even without the Flow page', () async {
-    final thought = await save();
-    scope.read(thoughtReflectionConsumerProvider);
-    await scope.read(flowAiProvider).reflect(thoughtId);
-    await drain(
-      () => protected.value == null && scope.read(aiJobsProvider).job == null,
-    );
-    expect(
-      (await reflections.watch(thought).first).proposal!.text,
-      reflectionText,
-    );
-    expect(remote.submissions.single['operation'], 'reflect-thought');
-    expect(remote.submissions.single['prompt'], thoughtText);
-    final receipt =
-        (await scope.read(aiJobStoreProvider).watchHistory().first).single;
-    expect(receipt.operation, AiOperation.thoughtReflection);
-    expect(receipt.prompt, isEmpty);
-    expect(receipt.source, isEmpty);
-    expect(receipt.text, isNull);
-  });
-
-  test('restored completed reflections are consumed once; interrupted phone work never restarts itself', () async {
-    final thought = await save();
-    final source = ThoughtReflectionSource.fromThought(thought);
-    protected.value = jsonEncode(
-      AiJob(
-        id: 'restored-result',
-        operation: AiOperation.thoughtReflection,
-        key: thoughtId,
-        created: now.millisecondsSinceEpoch,
-        provider: 'device',
-        prompt: thoughtText,
-        source: source.encode(),
-        phase: 'completed',
-        text: reflectionText,
-      ).json(),
-    );
-    scope.read(thoughtReflectionConsumerProvider);
-    await scope.read(aiJobsProvider.notifier).restore();
-    await drain(() => protected.value == null);
-    expect(await db.select(db.flowReflections).get(), hasLength(1));
-    expect(aiProvider.requests, isEmpty);
-    protected.value = jsonEncode(
-      AiJob(
-        id: 'interrupted-task',
-        operation: AiOperation.thoughtReflection,
-        key: thoughtId,
-        created: now.millisecondsSinceEpoch,
-        provider: 'device',
-        prompt: thoughtText,
-        source: source.encode(),
-        phase: 'running',
-      ).json(),
-    );
-    scope.dispose();
-    scope = createScope(connected: false);
-    await scope.read(aiJobsProvider.notifier).restore();
-    expect(scope.read(aiJobsProvider).job!.phase, 'interrupted');
-    expect(aiProvider.requests, isEmpty);
-  });
-
   test('secondary devices can keep local reflections while thought editing remains blocked', () async {
     final thought = await save();
     final values = DriftSyncKeyValueStore(db);
@@ -285,51 +194,65 @@ void main() {
     );
   });
 
-  test('a durable consumed receipt prevents a dismissed reflection reappearing after snapshot recovery', () async {
-    final thought = await save();
-    await scope.read(flowAiProvider).reflect(thoughtId);
-    final job = scope.read(aiJobsProvider).job!;
-    await reflections.propose(
-      job.id,
-      ThoughtReflectionSource.fromThought(thought),
-      job.text!,
-    );
-    await reflections.remove(job.id);
-    // Saving refreshed status must preserve the durable consumed marker.
-    await scope.read(aiJobsProvider.notifier).restore();
-    expect(
-      (await db.select(db.aiJobReceipts).getSingle()).resultConsumed,
-      isTrue,
-    );
-    scope.read(thoughtReflectionConsumerProvider);
-    await drain(() => protected.value == null);
-    expect(await db.select(db.flowReflections).get(), isEmpty);
-  });
+  test(
+    'a finished reflection is saved while its thought page is open',
+    () async {
+      final thought = await save();
+      openThought();
+      await scope.read(flowAiProvider).reflect(thoughtId);
+      await drain(() => reflection().job == null);
+      expect(
+        (await reflections.watch(thought).first).proposal!.text,
+        reflectionText,
+      );
+      final request = aiProvider.requests.single;
+      expect(request.system, contains('single plain sentence'));
+      expect(jsonDecode(request.user), {'thought': thoughtText});
+    },
+  );
+
+  test(
+    'leaving the thought page aborts the reflection and saves nothing',
+    () async {
+      await save();
+      final page = openThought();
+      aiProvider.gate = Completer<void>();
+      unawaited(scope.read(flowAiProvider).reflect(thoughtId));
+      await drain(() => aiProvider.requests.isNotEmpty);
+      page.close();
+      await pumpEventQueue();
+      expect(aiProvider.aborted, isTrue);
+      aiProvider.gate!.complete();
+      await pumpEventQueue();
+      expect(await db.select(db.flowReflections).get(), isEmpty);
+    },
+  );
 
   test(
     'capture continues during generation and edits reject a late reflection',
     () async {
       await save();
-      scope.read(thoughtReflectionConsumerProvider);
-      remote.queued = true;
+      openThought();
+      aiProvider.gate = Completer<void>();
       final pending = scope.read(flowAiProvider).reflect(thoughtId);
-      await drain(() => remote.submissions.isNotEmpty);
+      await drain(() => aiProvider.requests.isNotEmpty);
       await save(id: 'b' * 32, body: 'A new passing thought.');
       await flow.save(
         id: thoughtId,
         body: 'The original thought changed.',
         expectedRevision: 1,
       );
-      remote.task!['state'] = 'completed';
-      remote.task!['text'] = reflectionText;
+      aiProvider.gate!.complete();
       await pending;
       await drain(
         () => scope.read(reflectionMessagesProvider)[thoughtId] != null,
       );
       expect(await db.select(db.flowReflections).get(), isEmpty);
-      final active = scope.read(aiJobsProvider).job!;
-      await scope.read(aiJobsProvider.notifier).clearIfCurrent('an-older-task');
-      expect(scope.read(aiJobsProvider).job!.id, active.id);
+      final active = reflection().job!;
+      await scope
+          .read(aiJobsProvider(flowReflectionScope(thoughtId)).notifier)
+          .clearIfCurrent('an-older-task');
+      expect(reflection().job!.id, active.id);
       expect(
         (await flow.openDocument('b' * 32)).thought!.body,
         'A new passing thought.',
@@ -337,29 +260,8 @@ void main() {
     },
   );
 
-  test(
-    'provider reflection uses its chosen route and migrated prompt',
-    () async {
-      await save();
-      scope.dispose();
-      scope = createScope(connected: false);
-      aiProvider.reply = reflectionText;
-      await scope
-          .read(aiPreferencesRepositoryProvider)
-          .setTaskRoute(
-            AiOperation.thoughtReflection,
-            AiRoute.provider(testAiProvider.id, 'test-model'),
-          );
-      await scope.read(flowAiProvider).reflect(thoughtId);
-      expect(scope.read(aiJobsProvider).job!.phase, 'completed');
-      final request = aiProvider.requests.single;
-      expect(request.system, contains('single plain sentence'));
-      expect(jsonDecode(request.user), {'thought': thoughtText});
-      expect(remote.submissions, isEmpty);
-    },
-  );
-
   test('Flow questions use bounded thought-only excerpts, validate citations and reject changed sources before submission', () async {
+    scope.listen(aiJobsProvider(flowSearchJobScope), (_, _) {});
     await save(body: 'Plant tulips by the garden fence.');
     await save(id: 'b' * 32, body: 'Buy bread on Saturday.');
     final selection = await scope
@@ -374,10 +276,11 @@ void main() {
       ),
       isFalse,
     );
-    remote.output = '{"status":"answered","answer":"You wrote to plant tulips by the garden fence.","citations":["s0"]}';
+    aiProvider.reply = '{"status":"answered","answer":"You wrote to plant tulips by the garden fence.","citations":["s0"]}';
     await scope.read(flowAiProvider).ask(selection);
-    final job = scope.read(aiJobsProvider).job!;
+    final job = question().job!;
     expect(job.operation, AiOperation.thoughtQuestion);
+    expect(aiProvider.requests.single.system, contains('Flow'));
     expect(
       RecallQuestionAnswer.parse(job.text!, selection).citations.single.uuid,
       thoughtId,
@@ -389,51 +292,26 @@ void main() {
       ),
       throwsA(isA<RecallAnswerRejected>()),
     );
-    await scope.read(aiJobsProvider.notifier).clear();
+    await scope.read(aiJobsProvider(flowSearchJobScope).notifier).clear();
     await flow.save(
       id: thoughtId,
       body: 'A changed garden.',
       expectedRevision: 1,
     );
     await scope.read(flowAiProvider).ask(selection);
-    expect(remote.submissions, hasLength(1));
-    expect(scope.read(aiJobsProvider).message, contains('changed'));
-  });
-
-  test('provider questions use their route; no matches, removed providers, old companions and occupied slots send nothing', () async {
-    await save(body: 'Garden tulips by the fence.');
-    scope.dispose();
-    scope = createScope(connected: false);
-    final preferences = scope.read(aiPreferencesRepositoryProvider);
-    await preferences.setDefaultRoute(
-      AiRoute.provider(testAiProvider.id, 'test-model'),
-    );
-    aiProvider.reply = '{"status":"insufficient","answer":"Do not display this invented explanation","citations":[]}';
-    final selection = await scope.read(flowAiProvider).select('garden');
-    await scope.read(flowAiProvider).ask(selection);
-    expect(scope.read(aiJobsProvider).job!.phase, 'completed');
-    expect(aiProvider.requests.single.system, contains('Flow'));
-    expect(
-      RecallQuestionAnswer.parse(
-        scope.read(aiJobsProvider).job!.text!,
-        selection,
-      ).text,
-      isNot(contains('invented')),
-    );
-    final existing = scope.read(aiJobsProvider).job!.id;
-    await scope.read(flowAiProvider).reflect(thoughtId);
-    expect(scope.read(aiJobsProvider).job!.id, existing);
+    expect(aiProvider.requests, hasLength(1));
+    expect(question().message, contains('changed'));
     final empty = await scope.read(flowAiProvider).select('volcanoes');
     expect(() => scope.read(flowAiProvider).ask(empty), throwsFormatException);
-    await scope.read(aiJobsProvider.notifier).clear();
-    await preferences.setDefaultRoute(const AiRoute.provider('gone', 'model'));
-    await scope.read(flowAiProvider).reflect(thoughtId);
-    expect(scope.read(aiJobsProvider).job, isNull);
-    await preferences.setDefaultRoute(const AiRoute.companion());
+  });
+
+  test('without a provider nothing is sent', () async {
+    await save();
     scope.dispose();
-    scope = createScope(compatible: false);
+    scope = createScope(settings: null);
+    openThought();
     await scope.read(flowAiProvider).reflect(thoughtId);
-    expect(scope.read(aiJobsProvider).message, contains('Update'));
-    expect(remote.submissions, isEmpty);
+    expect(reflection().message, contains('Grand Maestar'));
+    expect(aiProvider.requests, isEmpty);
   });
 }

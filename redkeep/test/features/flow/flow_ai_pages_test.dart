@@ -1,18 +1,11 @@
-import 'dart:convert';
-
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:redkeep/core/storage/app_database.dart';
-import 'package:redkeep/features/ai/domain/ai_job.dart';
-import 'package:redkeep/features/ai/domain/ai_operation.dart';
 import 'package:redkeep/features/appearance/domain/appearance_preferences.dart';
-import 'package:redkeep/features/ai/data/ai_preferences_repository.dart';
-import 'package:redkeep/features/ai/domain/ai_route.dart';
 import 'package:redkeep/features/flow/data/drift_flow_repository.dart';
 import 'package:redkeep/features/flow/data/drift_thought_reflections.dart';
 import 'package:redkeep/features/flow/domain/thought_reflection_contract.dart';
-import 'package:redkeep/features/recall/domain/recall_question_contract.dart';
 
 import '../../support/fake_ai.dart';
 import '../../support/fake_appearance_repository.dart';
@@ -28,11 +21,9 @@ const answer =
 void main() {
   late AppDatabase db;
   late DriftFlowRepository flow;
-  late MemoryAiTasks tasks;
   setUp(() async {
     db = AppDatabase(NativeDatabase.memory());
     flow = DriftFlowRepository(db, clock: DateTime.now);
-    tasks = MemoryAiTasks();
     await flow.save(id: id, body: body, expectedRevision: 0);
   });
   tearDown(() => db.close());
@@ -57,9 +48,15 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// Presses the keyboard's search key.
+  Future<void> submit(WidgetTester tester) async {
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await settleQuestion(tester);
+  }
+
   for (final simple in [false, true]) {
     testWidgets(
-      'local reflection review, explicit Flow answers and shared history at 320px/3x; simple=$simple',
+      'local reflection review and explicit Flow answers at 320px/3x; simple=$simple',
       (tester) async {
         tester.view.physicalSize = const Size(320, 760);
         tester.view.devicePixelRatio = 1;
@@ -83,18 +80,12 @@ void main() {
           ThoughtReflectionSource.fromThought(thought),
           reflection,
         );
-        await tester.runAsync(
-          () => AiPreferencesRepository(db).setDefaultRoute(
-            AiRoute.provider(testAiProvider.id, 'test-model'),
-          ),
-        );
         final aiProvider = FakeAiProviderClient(answer);
         final router = await pumpApp(
           tester,
           initialLocation: '/flow/$id',
           database: db,
           flow: flow,
-          tasks: tasks,
           aiEnabled: true,
           repository: appearance,
           aiProvider: aiProvider,
@@ -114,6 +105,8 @@ void main() {
             'Where are the tulips?',
           );
           await settleQuestion(tester);
+          expect(find.byKey(const ValueKey('flow-ask-ai')), findsNothing);
+          await submit(tester);
           expect(aiProvider.requests, isEmpty);
           await tester.scrollUntilVisible(
             find.byKey(const ValueKey('flow-ask-ai')),
@@ -162,25 +155,7 @@ void main() {
           expect(find.text('“Where are the tulips?”'), findsOneWidget);
           expect(find.text(answerText), findsOneWidget);
           expect(aiProvider.requests, hasLength(1));
-          FocusManager.instance.primaryFocus?.unfocus();
-          await tester.pumpAndSettle();
-          await tester.tap(find.byTooltip('AI task history'));
-          await tester.pumpAndSettle();
-          expect(router.state.uri.path, '/settings/brain/history');
-          await tap(tester, find.textContaining('Flow question ·'));
-          await tester.scrollUntilVisible(
-            find.byKey(const ValueKey('flow-answer-text')),
-            200,
-            scrollable: find.byType(Scrollable).first,
-          );
-          expect(find.text(answerText), findsOneWidget);
-          expect(aiProvider.requests, hasLength(1));
-          await tap(tester, find.text('Clear task'));
-          expect(
-            find.textContaining('preview is no longer retained'),
-            findsOneWidget,
-          );
-          expect(find.text(answerText), findsNothing);
+          expect(find.byTooltip('AI task history'), findsNothing);
           expect(
             (await tester.runAsync(
               () => db.select(db.flowReflections).getSingle(),
@@ -198,47 +173,43 @@ void main() {
   }
 
   testWidgets(
-    'search restores its protected question, marks edited citations, and disables deleted sources without generation',
+    'typing filters by keyword; only the search key embeds the query and offers AI',
     (tester) async {
-      final thought = (await flow.openDocument(id)).thought!;
-      final selection = RecallQuestionSelection.select(
-        kind: RecallKind.thought,
-        question: 'Where are the tulips?',
-        today: DateTime.now(),
-        items: RecallItem.thoughts([thought]),
-      );
-      tasks.value = jsonEncode(
-        AiJob(
-          id: 'restored-question',
-          operation: AiOperation.thoughtQuestion,
-          key: 'thought-search',
-          created: DateTime.now().millisecondsSinceEpoch,
-          provider: 'device',
-          prompt: selection.request(),
-          source: selection.encode(),
-          phase: 'completed',
-          text: answer,
-        ).json(),
-      );
+      final embedder = FakeEmbedder();
+      final aiProvider = FakeAiProviderClient(answer);
       await pumpApp(
         tester,
         initialLocation: '/flow/search',
         database: db,
         flow: flow,
         aiEnabled: true,
-        tasks: tasks,
+        aiProvider: aiProvider,
+        embedder: embedder,
       );
       try {
-        expect(
-          tester
-              .widget<TextField>(
-                find.byKey(const ValueKey('flow-search-field')),
-              )
-              .controller!
-              .text,
-          'Where are the tulips?',
+        await tester.enterText(
+          find.byKey(const ValueKey('flow-search-field')),
+          'tulips',
         );
+        await settleQuestion(tester);
+        expect(find.text(body), findsOneWidget);
+        expect(embedder.batches, isEmpty);
+        expect(find.byKey(const ValueKey('flow-ask-ai')), findsNothing);
+
+        await submit(tester);
+        expect(embedder.batches.expand((b) => b), contains('tulips'));
+        await tap(tester, find.byKey(const ValueKey('flow-ask-ai')));
+        for (
+          var i = 0;
+          i < 20 &&
+              find.byKey(const ValueKey('flow-answer-text')).evaluate().isEmpty;
+          i++
+        ) {
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+        await tester.pumpAndSettle();
         expect(find.text(answerText), findsOneWidget);
+
         await flow.save(
           id: id,
           body: 'Plant tulips near the house.',
@@ -257,7 +228,7 @@ void main() {
           find.ancestor(of: label, matching: find.byType(ListTile)),
         );
         expect(tile.onTap, isNull);
-        expect(find.text(answerText), findsOneWidget);
+        expect(aiProvider.requests, hasLength(1));
         expect(tester.takeException(), isNull);
       } finally {
         await tester.pumpWidget(const SizedBox());

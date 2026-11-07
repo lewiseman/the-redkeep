@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:redkeep/app/bottom_navbar.dart';
 import 'package:redkeep/app/more_page.dart';
 import 'package:redkeep/features/appearance/presentation/appearance_page.dart';
-import 'package:redkeep/features/companion/presentation/companion_page.dart';
 import 'package:redkeep/features/flow/presentation/flow_page.dart';
 import 'package:redkeep/features/flow/presentation/flow_search_page.dart';
 import 'package:redkeep/features/flow/presentation/thought_read_page.dart';
@@ -37,12 +36,6 @@ void main() {
     final router = await pumpApp(tester, initialLocation: '/more');
     for (final location in [
       '/settings/brain',
-      '/settings/brain/providers',
-      '/settings/brain/providers/add/openai',
-      '/settings/brain/providers/provider-test',
-      '/settings/brain/tasks',
-      '/settings/brain/help',
-      '/settings/brain/history/task_123-abc',
       '/flow/$thought',
       '/flow/$thought/edit',
     ]) {
@@ -70,12 +63,6 @@ void main() {
   final journeys = <(String, String, List<(String, bool)>, Type)>[
     ('Appearance from More', '/more', [('/settings', true)], MorePage),
     ('Grand Maestar from More', '/more', [('/settings/brain', true)], MorePage),
-    (
-      'a Grand Maestar sub-page',
-      '/more',
-      [('/settings/brain', true), ('/settings/brain/help', true)],
-      CompanionPage,
-    ),
     ('a thought from Flow', '/flow', [('/flow/$thought', false)], FlowPage),
     (
       'a thought from search',

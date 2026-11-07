@@ -63,35 +63,19 @@ String _destination(String location) {
   }
   if (const {
     '/notes/ai-search',
-    '/notes/ai-task',
     '/diary/search',
     '/flow/search',
-    '/settings/brain/providers',
-    '/settings/brain/tasks',
-    '/settings/brain/history',
-    '/settings/brain/scan',
-    '/settings/brain/computers',
-    '/settings/brain/preferences',
-    '/settings/brain/voices',
-    '/settings/brain/help',
-    '/settings/brain/details',
   }.contains(location)) {
     return location;
   }
-  if (RegExp(
-    r'^/settings/brain/(?:history|providers)/[A-Za-z0-9_-]{8,80}$|'
-    r'^/settings/brain/providers/add/[a-z]{2,20}$',
-  ).hasMatch(location)) {
-    return location;
-  }
-  final diaryTitle = RegExp(r'^/diary/([a-z0-9-]+)/(?:title|talk)$')
+  final diaryTitle = RegExp(r'^/diary/([a-z0-9-]+)/title$')
       .firstMatch(location);
   if (diaryTitle != null && DiaryPeriod.tryParse(diaryTitle[1]!) != null) {
     return location;
   }
   // A diary day itself is reader state at /diary, never an address.
   final diary = RegExp(
-    r'^/diary/(?:calendar/([a-z0-9-]+)|([a-z0-9-]+)/entries/[0-9a-f]{32}(?:/(?:edit|photos|conversation))?)$',
+    r'^/diary/(?:calendar/([a-z0-9-]+)|([a-z0-9-]+)/entries/[0-9a-f]{32}(?:/(?:edit|photos))?)$',
   ).firstMatch(location);
   if (diary != null && DiaryPeriod.tryParse((diary[1] ?? diary[2])!) != null) {
     return location;
@@ -132,7 +116,6 @@ String _gate(String path, String destination) =>
     Uri(path: path, queryParameters: {'continue': destination}).toString();
 
 String diaryTitleLocation(DiaryPeriod date) => '/diary/${date.key}/title';
-String diaryTalkLocation(DiaryPeriod date) => '/diary/${date.key}/talk';
 String diaryCalendarLocation(DiaryPeriod date) => '/diary/calendar/${date.key}';
 String diaryEntryLocation(DiaryPeriod date, String id, {bool edit = false}) =>
     isDiaryId(id)

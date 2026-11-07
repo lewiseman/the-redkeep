@@ -26,6 +26,10 @@ import 'notes_providers.dart';
 
 final noteAiControllerProvider = Provider((ref) => NoteAiController(ref));
 
+/// Each notes AI tool page owns its request; leaving the page cancels it.
+String noteAiScope(String tool, String? noteId) =>
+    'note-ai:$tool:${noteId ?? ''}';
+
 class NoteAiController {
   NoteAiController(this.ref);
   final Ref ref;
@@ -40,7 +44,7 @@ class NoteAiController {
     ];
   }
 
-  Future<void> search(String question) async {
+  Future<void> search(String question, {required String scope}) async {
     final items = await notes();
     final result = await ref
         .read(recallControllerProvider.notifier)
@@ -60,7 +64,7 @@ class NoteAiController {
       );
     }
     await ref
-        .read(aiJobsProvider.notifier)
+        .read(aiJobsProvider(scope).notifier)
         .start(
           AiOperation.noteQuestion,
           'note-search',
@@ -72,6 +76,7 @@ class NoteAiController {
   Future<void> start(
     AiOperation operation,
     String id, {
+    required String scope,
     String intent = '',
     String topic = '',
     String description = '',
@@ -221,29 +226,25 @@ class NoteAiController {
         source['range'] = range.encode();
     }
     await ref
-        .read(aiJobsProvider.notifier)
+        .read(aiJobsProvider(scope).notifier)
         .start(operation, id, prompt, jsonEncode(source));
   }
 
-  Future<void> _clearReviewedJob(AiJob job) async {
-    if (ref.mounted && ref.read(aiJobsProvider).job?.id == job.id) {
-      await ref.read(aiJobsProvider.notifier).clear();
+  Future<void> _clearReviewedJob(AiJob job, String scope) async {
+    if (ref.mounted && ref.read(aiJobsProvider(scope)).job?.id == job.id) {
+      await ref.read(aiJobsProvider(scope).notifier).clear();
     }
   }
 
   Future<NoteDocument?> apply(
     AiJob job, {
+    required String scope,
     String? title,
     List<String> tags = const [],
     String? reviewedText,
   }) async {
     if (job.phase != 'completed' || job.text == null || !job.operation.isNote) {
       return null;
-    }
-    if (ref.read(aiClockProvider)().millisecondsSinceEpoch >= job.expires) {
-      throw const FormatException(
-        'This preview expired. Clear it and generate a new preview.',
-      );
     }
     validateNoteAiOutput(job.operation, job.text!, job.source);
     final source = noteTaskSource(job.source);
@@ -368,7 +369,7 @@ class NoteAiController {
           'The result is in this note but could not be saved yet.',
         );
       }
-      await _clearReviewedJob(job);
+      await _clearReviewedJob(job, scope);
       return null;
     }
     final saved = await repo.applyProposal(
@@ -376,10 +377,8 @@ class NoteAiController {
       source['revision'] as int,
       text: text,
       details: details,
-      taskId: job.id,
-      operation: job.operation.wireName,
     );
-    await _clearReviewedJob(job);
+    await _clearReviewedJob(job, scope);
     return saved;
   }
 }

@@ -1,4 +1,4 @@
-import 'package:redkeep/features/companion/presentation/companion_page.dart';
+import 'package:redkeep/features/ai/presentation/ai_settings_page.dart';
 
 import 'dart:io';
 
@@ -42,7 +42,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Grand Maestar'));
     await tester.pumpAndSettle();
-    expect(find.byType(CompanionPage), findsOneWidget);
+    expect(find.byType(AiSettingsPage), findsOneWidget);
     expect(find.text('Phone'), findsNothing);
     expect(aiProvider.requests, isEmpty);
     router.pop();
@@ -138,7 +138,7 @@ void main() {
           expect(
             label == 'Appearance'
                 ? find.byType(AppearancePage)
-                : find.byType(CompanionPage),
+                : find.byType(AiSettingsPage),
             findsOneWidget,
           );
           router.pop();

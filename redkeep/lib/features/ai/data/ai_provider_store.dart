@@ -3,46 +3,50 @@ import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../domain/ai_provider.dart';
-import 'ai_job_store.dart' show SecureAiTasks;
 
 abstract interface class ProtectedAiProviders {
   Future<String?> read();
   Future<void> write(String? value);
 }
 
-/// Tokens stay in the Keychain or Keystore, outside Drift, backups and sync.
+/// The key stays in the Keychain or Keystore, outside Drift, backups and sync.
 class SecureAiProviders implements ProtectedAiProviders {
-  static const _key = 'redkeep.ai.providers.v1';
-  static const FlutterSecureStorage _storage = SecureAiTasks.storage;
+  static const _key = 'redkeep.ai.cloud.v1';
+  static const storage = FlutterSecureStorage(
+    aOptions: AndroidOptions(
+      storageNamespace: 'redkeep_companion',
+      resetOnError: false,
+    ),
+    iOptions: IOSOptions(
+      accountName: 'redkeep.companion',
+      accessibility: KeychainAccessibility.unlocked_this_device,
+      synchronizable: false,
+    ),
+  );
   @override
-  Future<String?> read() => _storage.read(key: _key);
+  Future<String?> read() => storage.read(key: _key);
   @override
   Future<void> write(String? value) => value == null
-      ? _storage.delete(key: _key)
-      : _storage.write(key: _key, value: value);
+      ? storage.delete(key: _key)
+      : storage.write(key: _key, value: value);
 }
 
 class AiProviderStore {
   AiProviderStore(this.protected);
   final ProtectedAiProviders protected;
 
-  Future<List<AiProviderConnection>> read() async {
+  Future<AiCloudSettings?> read() async {
     final raw = await protected.read();
-    if (raw == null) return const [];
+    if (raw == null) return null;
     try {
-      final values = jsonDecode(raw);
-      if (values is! List) return const [];
-      return [
-        for (final value in values) ?AiProviderConnection.tryParse(value),
-      ];
+      return AiCloudSettings.tryParse(jsonDecode(raw));
     } on FormatException {
-      return const [];
+      return null;
     }
   }
 
-  Future<void> write(List<AiProviderConnection> connections) => protected.write(
-    jsonEncode([for (final connection in connections) connection.toJson()]),
-  );
+  Future<void> write(AiCloudSettings settings) =>
+      protected.write(jsonEncode(settings.toJson()));
 
   Future<void> clear() => protected.write(null);
 }

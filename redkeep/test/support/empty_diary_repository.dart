@@ -1,5 +1,4 @@
 import 'package:redkeep/features/diary/domain/diary_photo.dart';
-import 'package:redkeep/features/diary/domain/diary_ai_conversation.dart';
 import 'package:redkeep/features/diary/domain/diary_period.dart';
 import 'package:redkeep/features/diary/domain/diary_day_details.dart';
 import 'package:redkeep/features/diary/domain/diary_document.dart';
@@ -47,14 +46,6 @@ class EmptyDiaryRepository implements DiaryRepository {
     required DiaryPeriod date,
     required List<DiaryPhoto> photos,
     required int expectedRevision,
-  }) => Future.error(StateError('Inject writing repository'));
-  @override
-  Future<DiaryEntry> saveConversation({
-    required String id,
-    required DiaryPeriod date,
-    required DiaryAiConversation conversation,
-    required int expectedRevision,
-    String? body,
   }) => Future.error(StateError('Inject writing repository'));
   @override
   Future<void> deleteEntry(String id, int expectedRevision) async =>

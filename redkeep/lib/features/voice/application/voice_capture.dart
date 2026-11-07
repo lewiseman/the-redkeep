@@ -1,15 +1,14 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
+import 'dart:io' hide BytesBuilder;
+import 'dart:typed_data';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
-import 'package:redkeep/features/companion/data/companion_protocol.dart';
 
-import '../data/voice_connection.dart';
-import '../data/voice_store.dart';
+import '../../ai/domain/ai_provider.dart';
 import '../data/pcm_recorder.dart';
 
 enum CapturePhase {
@@ -22,111 +21,84 @@ enum CapturePhase {
   error,
 }
 
+/// Sends a WAV recording to speech-to-text. Completing the abort future
+/// cancels the request.
+typedef VoiceTranscriber = Future<String> Function(
+  Uint8List wav,
+  double seconds,
+  Future<void> abort,
+);
+
+/// The recorder's format: 16 kHz, mono, 16-bit little-endian PCM.
+const voiceSampleRate = 16000;
+const _bytesPerSecond = voiceSampleRate * 2;
+
+/// Ten minutes of audio stays under common 25 MB upload limits.
+const voiceMaxDuration = Duration(minutes: 10);
+
+Uint8List wavFromPcm(Uint8List pcm) {
+  final header = ByteData(44);
+  void ascii(int offset, String value) {
+    for (var i = 0; i < value.length; i++) {
+      header.setUint8(offset + i, value.codeUnitAt(i));
+    }
+  }
+
+  ascii(0, 'RIFF');
+  header.setUint32(4, 36 + pcm.length, Endian.little);
+  ascii(8, 'WAVE');
+  ascii(12, 'fmt ');
+  header.setUint32(16, 16, Endian.little);
+  header.setUint16(20, 1, Endian.little);
+  header.setUint16(22, 1, Endian.little);
+  header.setUint32(24, voiceSampleRate, Endian.little);
+  header.setUint32(28, _bytesPerSecond, Endian.little);
+  header.setUint16(32, 2, Endian.little);
+  header.setUint16(34, 16, Endian.little);
+  ascii(36, 'data');
+  header.setUint32(40, pcm.length, Endian.little);
+  return (BytesBuilder(copy: false)
+        ..add(header.buffer.asUint8List())
+        ..add(pcm))
+      .takeBytes();
+}
+
+/// Records speech, then turns it into text with one request. Nothing is
+/// summarized or rewritten, and nothing is kept after the page closes.
 class VoiceCapture extends ChangeNotifier {
   VoiceCapture({
     required this.target,
-    required this.computer,
-    VoiceStore? store,
-    CompanionTransport Function()? transportFactory,
-  }) : store = store ?? VoiceStore(),
-       transportFactory = transportFactory ?? PinnedCompanionTransport.new;
+    required this.transcribe,
+    PcmRecorder? recorder,
+    Future<Directory> Function()? directory,
+    bool? supported,
+  }) : _mic = recorder ?? PcmRecorder(),
+       _directory = directory ?? getTemporaryDirectory,
+       _supported = supported ?? Platform.isAndroid;
   final String target;
-  final TrustedComputer Function() computer;
-  final VoiceStore store;
-  final CompanionTransport Function() transportFactory;
+  final VoiceTranscriber transcribe;
+  final PcmRecorder _mic;
+  final Future<Directory> Function() _directory;
+  final bool _supported;
   static const methods = MethodChannel('redkeep/pcm');
+
   CapturePhase phase = CapturePhase.idle;
-  String? message, id, computerId, deviceId, interruption;
+  String? message, id, interruption;
   String? _thoughtId;
-  bool canTranscribeAgain = false;
-  bool accepted = false, disposed = false, _finishing = false;
+  bool canTranscribeAgain = false, disposed = false;
   double level = 0;
   String text = '', prefix = '';
-  List<String> previousIds = [];
-
-  /// The journal identity survives explicit speech retries and continuations.
-  /// Server task IDs change when audio is resubmitted; a Flow thought does not.
-  String? get thoughtId => _thoughtId ?? previousIds.firstOrNull ?? id;
-  bool _discarding = false;
-  int _generation = 0;
-  int created = 0, bytes = 0, _frames = 0, _acked = 0;
+  int bytes = 0;
   File? audio;
-  WebSocket? _socket;
-  final _mic = PcmRecorder();
-  StreamSubscription<dynamic>? _network;
   Timer? _limit;
-  final _segments = <int, String>{};
-  Completer<void>? _ready;
-  Completer<void>? _drained;
-  Future<void> _saves = Future.value();
+  Completer<void>? _abort;
+  int _generation = 0;
+
+  /// A Flow thought keeps one identity across retries and continuations.
+  String? get thoughtId => _thoughtId ?? id;
   bool get recording => phase == CapturePhase.recording;
   void update() {
     if (!disposed) notifyListeners();
-  }
-
-  Future<void> persist() {
-    if (id == null || disposed || _discarding) return Future.value();
-    final value = {
-      'id': id,
-      'computer': computerId,
-      'device': deviceId,
-      'created': created,
-      'text': text,
-      'accepted': accepted,
-      'canTranscribeAgain': canTranscribeAgain,
-      'interruption': interruption,
-      'prefix': prefix,
-      'previousIds': List<String>.from(previousIds),
-      'thoughtId': thoughtId,
-    };
-    _saves = _saves.catchError((_) {}).then((_) => store.save(target, value));
-    return _saves;
-  }
-
-  Future<void> restore() async {
-    final generation = ++_generation;
-    phase = CapturePhase.connecting;
-    message = 'Checking for a retained recording…';
-    update();
-    try {
-      final data = await store.load(target);
-      unawaited(store.cleanup().catchError((_) {}));
-      if (disposed || generation != _generation) return;
-      if (data == null) {
-        phase = CapturePhase.idle;
-        message = null;
-        update();
-        return;
-      }
-      id = data['id'] as String;
-      computerId = data['computer'] as String?;
-      deviceId = data['device'] as String?;
-      created = data['created'] as int;
-      text = data['text'] as String? ?? '';
-      prefix = data['prefix'] as String? ?? '';
-      previousIds = (data['previousIds'] as List? ?? []).cast<String>();
-      _thoughtId =
-          data['thoughtId'] as String? ?? previousIds.firstOrNull ?? id;
-      final safeId = RegExp(r'^[a-zA-Z0-9_-]{8,80}$');
-      if (!safeId.hasMatch(id!) ||
-          !safeId.hasMatch(_thoughtId!) ||
-          previousIds.length > 32 ||
-          previousIds.any((id) => !safeId.hasMatch(id))) {
-        throw const FormatException('Invalid retained audio identity');
-      }
-      accepted = data['accepted'] == true;
-      canTranscribeAgain = data['canTranscribeAgain'] == true;
-      interruption = data['interruption'] as String?;
-      audio = File('${(await store.directory()).path}/$id.pcm');
-      bytes = await audio!.exists() ? await audio!.length() : 0;
-      phase = text.isNotEmpty ? CapturePhase.review : CapturePhase.error;
-      message = 'Recovered recording. Retrieve accepted work, or resend retained audio explicitly. Nothing has been saved to your journal.';
-      update();
-    } catch (_) {
-      fail(
-        'Could not unlock the voice draft. Unlock the phone and reopen this screen.',
-      );
-    }
   }
 
   void fail(String value) {
@@ -136,72 +108,53 @@ class VoiceCapture extends ChangeNotifier {
     update();
   }
 
-  TrustedComputer _trusted() {
-    final c = computer();
-    if (!c.enabled ||
-        (computerId != null &&
-            (computerId != c.id || deviceId != c.deviceId))) {
-      throw const CompanionFailure(
-        'UNAUTHORIZED',
-        'This recording belongs to another pairing. Restore that pairing or discard this recording.',
-      );
-    }
-    return c;
-  }
-
   Future<void> start() async {
-    if (disposed || id != null || phase == CapturePhase.connecting) return;
-    if (!Platform.isAndroid) {
-      fail(
-        'Microphone capture currently requires Android. Saved diary conversations can still be reviewed here.',
-      );
+    if (disposed || recording || phase == CapturePhase.connecting) return;
+    if (!_supported) {
+      fail('Microphone capture currently requires Android.');
       return;
     }
     final generation = ++_generation;
     phase = CapturePhase.connecting;
     message = 'Checking microphone permission…';
+    interruption = null;
     update();
     try {
       if (await methods.invokeMethod<bool>('permission') != true) {
-        throw const CompanionFailure(
-          'PERMISSION_DENIED',
-          'Microphone permission was denied. Allow it in Android app settings, then retry.',
+        throw PlatformException(
+          code: 'PERMISSION_DENIED',
+          message: 'Microphone permission was denied. Allow it in Android app settings, then retry.',
         );
       }
       if (disposed || generation != _generation) return;
-      final c = _trusted();
+      await _deleteAudio();
       id = const Uuid().v4().replaceAll('-', '');
-      _thoughtId ??= previousIds.firstOrNull ?? id;
-      computerId = c.id;
-      deviceId = c.deviceId;
-      created = DateTime.now().millisecondsSinceEpoch;
-      audio = File('${(await store.directory()).path}/$id.pcm');
-      await persist();
+      _thoughtId ??= id;
+      final directory = Directory('${(await _directory()).path}/voice');
+      await directory.create(recursive: true);
+      audio = File('${directory.path}/$id.pcm');
+      bytes = 0;
+      canTranscribeAgain = false;
       if (disposed || generation != _generation) return;
-      await _connect(c);
-      if (disposed || generation != _generation) {
-        await _close();
-        return;
-      }
       phase = CapturePhase.recording;
-      message = 'Listening in English · words appear after short pauses';
+      message = 'Listening · your words appear when you stop';
       update();
       await _mic.start(
         path: audio!.path,
         onData: (event) {
-          if (!_finishing && !_discarding) {
-            bytes += event.length;
-            _send(event);
-            final samples = ByteData.sublistView(event);
-            double energy = 0;
-            for (var i = 0; i + 1 < event.length; i += 2) {
-              final v = samples.getInt16(i, Endian.little) / 32768;
-              energy += v * v;
-            }
-            level = (math.sqrt(energy / math.max(1, event.length / 2)) * 8)
-                .clamp(0, 1);
-            update();
+          if (!recording) return;
+          bytes += event.length;
+          final samples = ByteData.sublistView(event);
+          double energy = 0;
+          for (var i = 0; i + 1 < event.length; i += 2) {
+            final v = samples.getInt16(i, Endian.little) / 32768;
+            energy += v * v;
           }
+          level = (math.sqrt(energy / math.max(1, event.length / 2)) * 8).clamp(
+            0,
+            1,
+          );
+          update();
         },
         onStopped: () {
           if (recording) unawaited(stop());
@@ -216,483 +169,137 @@ class VoiceCapture extends ChangeNotifier {
         },
       );
       if (disposed || generation != _generation) {
-        await _stopMic();
-        await _close();
+        await _mic.stop();
         return;
       }
-      _limit = Timer(const Duration(minutes: 10), () => unawaited(stop()));
+      _limit = Timer(voiceMaxDuration, () => unawaited(stop()));
     } catch (e) {
-      await _stopMic();
-      await _close();
+      await _mic.stop().catchError((_) {});
       if (disposed || generation != _generation) return;
-      await _resetUnrecordedAttempt();
       fail(
-        e is CompanionFailure
-            ? e.message
-            : e is PlatformException
+        e is PlatformException
             ? e.message ?? 'Microphone unavailable.'
-            : 'Could not reach speech on your computer. Load Whisper and Silero VAD, then retry.',
+            : 'Could not start the microphone.',
       );
     }
   }
 
-  Future<void> _connect(TrustedComputer c) async {
-    _frames = 0;
-    _acked = 0;
-    _segments.clear();
-    _ready = Completer<void>();
-    // Consume errors immediately even if connection setup fails before awaiting.
-    _ready!.future.ignore();
-    _socket = await connectVoice(c, id!);
-    _network = _socket!.listen(
-      (raw) {
-        try {
-          if (raw is! String || utf8.encode(raw).length > 65536) {
-            throw const FormatException();
-          }
-          final event = jsonDecode(raw) as Map<String, dynamic>;
-          if (!{
-            'ready',
-            'ack',
-            'segment',
-            'accepted',
-            'job',
-            'error',
-          }.contains(event['type'])) {
-            throw const FormatException('Unknown speech event');
-          }
-          switch (event['type']) {
-            case 'ready':
-              if (event['sampleRate'] != 16000 ||
-                  event['channels'] != 1 ||
-                  event['format'] != 's16le') {
-                throw const FormatException('Unsupported speech stream');
-              }
-              if (!(_ready?.isCompleted ?? true)) _ready!.complete();
-            case 'ack':
-              final next = event['next'] as int;
-              if (next < _acked || next > _frames) {
-                throw const FormatException();
-              }
-              _acked = next;
-              if (_acked == _frames && !(_drained?.isCompleted ?? true)) {
-                _drained!.complete();
-              }
-            case 'segment':
-              final segment = event['segment'] as Map;
-              if (segment['id'] is! int ||
-                  segment['id'] < 0 ||
-                  segment['id'] > 10000 ||
-                  segment['text'] is! String ||
-                  utf8.encode(segment['text']).length > 65536) {
-                throw const FormatException('Invalid speech segment');
-              }
-              _segments[segment['id'] as int] = segment['text'] as String;
-              text = [
-                prefix,
-                _segments.values
-                    .map((s) => s.trim())
-                    .where((s) => s.isNotEmpty)
-                    .join(' '),
-              ].where((s) => s.trim().isNotEmpty).join(' ');
-              update();
-              unawaited(
-                persist().catchError((_) {
-                  fail(
-                    'Could not protect the transcript. Stop recording and keep the original audio.',
-                  );
-                }),
-              );
-            case 'accepted':
-              accepted = true;
-              phase = CapturePhase.processing;
-              message = 'Accepted on your computer. You can close this screen and retrieve the result later.';
-              update();
-              unawaited(
-                persist().catchError((_) {
-                  fail(
-                    'Could not protect the transcript. Keep the original recording.',
-                  );
-                }),
-              );
-            case 'job':
-              final job = Map<String, dynamic>.from(event['job'] as Map);
-              unawaited(
-                _consumeJob(job).catchError((_) {
-                  fail(
-                    'Invalid speech result or protected storage failure. Retain the audio and retry.',
-                  );
-                }),
-              );
-              if (!(_ready?.isCompleted ?? true)) _ready!.complete();
-            case 'error':
-              final error = CompanionFailure(
-                event['code'] as String,
-                event['message'] as String,
-              );
-              if (!(_ready?.isCompleted ?? true)) _ready!.completeError(error);
-              fail(error.message);
-              unawaited(_stopMic());
-          }
-        } catch (_) {
-          fail('Invalid speech response. Keep the recording and retry.');
-          unawaited(_stopMic());
-        }
-      },
-      onError: (_) {
-        _disconnected();
-      },
-      onDone: _disconnected,
-    );
-    await _ready!.future.timeout(const Duration(seconds: 15));
-  }
-
-  void _disconnected() {
-    if (disposed ||
-        phase == CapturePhase.review ||
-        phase == CapturePhase.error) {
-      return;
-    }
-    if (!(_ready?.isCompleted ?? true)) {
-      _ready!.completeError(
-        const CompanionFailure('UNAVAILABLE', 'Speech connection closed.'),
-      );
-    }
-    if (recording) unawaited(_stopMic());
-    if (phase != CapturePhase.review) {
-      fail(
-        accepted
-            ? 'Connection closed. Your accepted task can be retrieved from the computer.'
-            : 'Connection interrupted before acceptance. Retained phone audio can be resent explicitly.',
-      );
-    }
-  }
-
-  void _send(Uint8List pcm) {
-    if (_socket?.readyState != WebSocket.open) return;
-    // At most two seconds can be in flight. Stop the microphone instead of
-    // building an unlimited mobile/network buffer or silently dropping speech.
-    if (_frames - _acked >= 20) {
-      unawaited(_stopMic());
-      fail(
-        'The computer fell behind. Recording stopped; resend retained audio to transcribe the complete recording.',
-      );
-      _socket?.close();
-      return;
-    }
-    final frame = Uint8List(pcm.length + 4);
-    ByteData.sublistView(frame).setUint32(0, _frames++, Endian.big);
-    frame.setRange(4, frame.length, pcm);
-    _socket!.add(frame);
-  }
-
-  Future<void> _stopMic() async {
-    _limit?.cancel();
-    await _mic.stop();
-    level = 0;
-  }
-
-  Future<void> _waitFrames() async {
-    if (_acked == _frames) return;
-    _drained = Completer<void>();
-    await _drained!.future.timeout(const Duration(seconds: 10));
-  }
-
+  /// Stops recording and transcribes it.
   Future<void> stop() async {
-    if (!recording || _finishing) return;
+    if (!recording) return;
+    _limit?.cancel();
     phase = CapturePhase.stopping;
+    level = 0;
     update();
     try {
-      await _stopMic();
-      _finishing = true;
-      await _finish();
+      await _mic.stop();
     } catch (_) {
-      fail(
-        'Recording stopped before acceptance. Retry sends the complete retained audio.',
-      );
-    } finally {
-      _finishing = false;
-      await persist();
+      /* The file still holds what was recorded. */
     }
+    if (disposed) return;
+    await _transcribe();
   }
 
-  Future<void> _finish() async {
-    final pcm = await audio!.readAsBytes();
-    if (pcm.isEmpty ||
-        pcm.length != bytes ||
-        _socket?.readyState != WebSocket.open) {
-      throw const FormatException();
-    }
-    await _waitFrames();
-    phase = CapturePhase.processing;
-    message =
-        'Uploading · not accepted until the computer confirms complete audio';
-    update();
-    _socket!.add(
-      jsonEncode({
-        'type': 'finish',
-        'bytes': pcm.length,
-        'frames': _frames,
-        'sha256': await hexHash(pcm),
-      }),
-    );
-  }
-
-  Future<void> retry() async {
-    if (id == null ||
-        recording ||
-        phase == CapturePhase.connecting ||
-        phase == CapturePhase.processing) {
+  Future<void> _transcribe() async {
+    final generation = ++_generation;
+    final file = audio;
+    if (file == null || !await file.exists() || await file.length() < 3200) {
+      phase = text.isEmpty ? CapturePhase.error : CapturePhase.review;
+      message = interruption ?? 'Nothing was recorded. Try again.';
+      update();
       return;
     }
-    phase = CapturePhase.connecting;
-    message = 'Checking accepted work…';
+    phase = CapturePhase.processing;
+    message = 'Turning your words into text…';
     update();
-    final transport = transportFactory();
+    final abort = _abort = Completer<void>();
     try {
-      final c = _trusted();
-      try {
-        final job = await CompanionClient(transport)
-            .authenticated(c, 'GET', '/v1/voice/$id');
-        await _consumeJob(job);
-        return;
-      } on CompanionFailure catch (e) {
-        if (e.code != 'NOT_FOUND' || accepted) rethrow;
-      }
-      if (audio == null ||
-          !await audio!.exists() ||
-          await audio!.length() == 0) {
-        if (await _resetUnrecordedAttempt()) {
-          phase = CapturePhase.idle;
-          message = 'Recording did not start; no audio was captured. Load speech on the computer, then tap Record.';
-          update();
-          return;
-        }
-        throw const CompanionFailure(
-          'NO_AUDIO',
-          'Original audio is unavailable. Review recovered text or discard this session.',
-        );
-      }
-      bytes = 0;
-      await _close();
-      await _connect(c);
-      if (accepted || phase == CapturePhase.review) return;
-      final pcm = await audio!.readAsBytes();
-      for (var offset = 0; offset < pcm.length; offset += 3200) {
-        final ackDeadline = DateTime.now().add(const Duration(seconds: 15));
-        while (_frames - _acked >= 8) {
-          if (DateTime.now().isAfter(ackDeadline)) {
-            throw const CompanionFailure(
-              'TIMEOUT',
-              'The computer stopped acknowledging audio. Keep the recording and retry.',
-            );
-          }
-          await Future<void>.delayed(const Duration(milliseconds: 20));
-          if (_socket?.readyState != WebSocket.open) {
-            throw const FormatException();
-          }
-        }
-        final chunk = Uint8List.sublistView(
-          pcm,
-          offset,
-          math.min(offset + 3200, pcm.length),
-        );
-        bytes += chunk.length;
-        _send(chunk);
-      }
-      await _finish();
-    } catch (e) {
-      fail(
-        e is CompanionFailure
-            ? e.message
-            : 'Could not retrieve or resend the recording. Keep it and retry.',
+      final pcm = await file.readAsBytes();
+      final spoken = await transcribe(
+        wavFromPcm(pcm),
+        pcm.length / _bytesPerSecond,
+        abort.future,
       );
-    } finally {
-      transport.close();
-    }
-  }
-
-  Future<void> _consumeJob(Map<String, dynamic> job) async {
-    if (job['id'] != id || job['device'] != deviceId) {
-      throw const FormatException();
-    }
-    accepted = job['accepted'] == true;
-    canTranscribeAgain = [
-      'failed',
-      'cancelled',
-      'expired',
-    ].contains(job['state']);
-    if (job['state'] == 'completed' && job['acknowledged'] != true) {
-      final segments = job['segments'] as List;
+      if (disposed || generation != _generation) return;
       text = [
-        prefix,
-        segments
-            .map((s) => (s as Map)['text'] as String)
-            .map((s) => s.trim())
-            .where((s) => s.isNotEmpty)
-            .join(' '),
-      ].where((s) => s.trim().isNotEmpty).join(' ');
-      phase = CapturePhase.review;
-      message = text.isEmpty
-          ? 'No speech detected. Silence is never replaced with sample text.'
-          : 'Correct any words before using this transcript. Nothing has been saved.';
-    } else if (['queued', 'running'].contains(job['state'])) {
+        if (prefix.trim().isNotEmpty) prefix.trim(),
+        if (spoken.trim().isNotEmpty) spoken.trim(),
+      ].join('\n\n');
+      canTranscribeAgain = true;
+      phase = text.isEmpty ? CapturePhase.error : CapturePhase.review;
+      message = text.isEmpty ? 'No words were heard. Try again.' : interruption;
+      update();
+    } catch (error) {
+      if (disposed || generation != _generation) return;
+      canTranscribeAgain = true;
       phase = CapturePhase.error;
-      message = 'Accepted work is still processing. Tap Retrieve again shortly; it continues if this app closes.';
-    } else {
-      phase = CapturePhase.error;
-      message =
-          'Recording ${job['state']}. Review any retained text or discard this session.';
+      message = error is AiProviderFailure
+          ? error.message
+          : 'Could not turn the recording into text. Try again.';
+      update();
+    } finally {
+      if (identical(_abort, abort)) _abort = null;
     }
-    if (interruption != null) message = '$interruption ${message ?? ''}';
-    update();
-    await persist();
   }
 
-  /// Called only after a failed startup or a verified NOT_FOUND response.
-  /// Never delete nonempty audio, reviewed text, or an accepted task receipt.
-  Future<bool> _resetUnrecordedAttempt() async {
-    if (accepted ||
-        bytes > 0 ||
-        text.trim().isNotEmpty ||
-        prefix.trim().isNotEmpty ||
-        previousIds.isNotEmpty) {
-      return false;
-    }
-    final file = audio;
-    if (file != null && await file.exists() && await file.length() > 0) {
-      return false;
-    }
-    await _saves.catchError((_) {});
-    await store.clear(target);
-    id = null;
-    _thoughtId = null;
-    computerId = null;
-    deviceId = null;
-    audio = null;
-    canTranscribeAgain = false;
-    return true;
-  }
+  /// Sends the same recording again.
+  Future<void> retry() => transcribeAgain();
 
   Future<void> transcribeAgain() async {
-    if (!canTranscribeAgain ||
-        disposed ||
-        recording ||
-        audio == null ||
-        id == null) {
-      return;
-    }
-    canTranscribeAgain = false;
-    phase = CapturePhase.connecting;
-    update();
-    try {
-      final original = audio!;
-      if (!await original.exists()) {
-        fail(
-          'The original phone audio has expired or is unavailable. Review retained text or discard this session.',
-        );
-        return;
-      }
-      await _close();
-      final nextId = const Uuid().v4().replaceAll('-', '');
-      final copy = await original.copy(
-        '${(await store.directory()).path}/$nextId.pcm',
-      );
-      if (disposed) return;
-      previousIds.add(id!);
-      id = nextId;
-      audio = copy;
-      accepted = false;
-      canTranscribeAgain = false;
-      created = DateTime.now().millisecondsSinceEpoch;
-      text = prefix;
-      phase = CapturePhase.error;
-      await persist();
-      // This is an explicit new task using retained original audio. A normal
-      // reconnect always retrieves the old ID and cannot rerun it accidentally.
-      await retry();
-    } catch (_) {
-      fail(
-        'Could not retry the retained audio. Keep the recording and try again.',
-      );
-    }
+    if (recording || phase == CapturePhase.processing) return;
+    await _transcribe();
   }
 
+  /// Keeps the reviewed words and adds a new recording after them.
   Future<void> continueRecording(String reviewed) async {
-    if (phase != CapturePhase.review || id == null || disposed) return;
-    interruption = null;
-    prefix = reviewed.trim();
-    previousIds.add(id!);
-    _thoughtId ??= previousIds.first;
-    id = null;
-    accepted = false;
-    bytes = 0;
-    await _close();
-    phase = CapturePhase.idle;
+    prefix = reviewed;
+    text = reviewed;
     await start();
   }
 
-  Future<void> discard({bool notifyComputer = true}) async {
+  Future<void> discard() async {
     _generation++;
-    _discarding = true;
-    phase = CapturePhase.stopping;
-    // Taken before awaiting: a second tap or a finishing recording can clear
-    // [id] meanwhile.
-    final current = id, previous = [...previousIds];
-    await _stopMic();
-    await _close();
-    if (current != null) {
-      final transport = transportFactory();
-      try {
-        if (notifyComputer) {
-          final c = _trusted();
-          final client = CompanionClient(transport);
-          await client.authenticated(c, 'POST', '/v1/voice/$current/cancel');
-          await client.authenticated(c, 'POST', '/v1/voice/$current/ack');
-        }
-      } catch (_) {
-        /* Local deletion is immediate; remote work expires in 24h. */
-      } finally {
-        transport.close();
-      }
-      await store.deleteAudio(current);
-    }
-    for (final id in previous) {
-      await store.deleteAudio(id);
-    }
-    await _saves.catchError((_) {});
-    await store.clear(target);
+    _stopRequest();
+    _limit?.cancel();
+    await _mic.stop().catchError((_) {});
+    await _deleteAudio();
     id = null;
-    computerId = null;
-    deviceId = null;
-    text = '';
-    interruption = null;
-    prefix = '';
-    previousIds = [];
     _thoughtId = null;
-    _discarding = false;
-    accepted = false;
-    canTranscribeAgain = false;
+    text = '';
+    prefix = '';
     bytes = 0;
-    _segments.clear();
-    phase = CapturePhase.idle;
+    canTranscribeAgain = false;
+    interruption = null;
     message = null;
+    level = 0;
+    phase = CapturePhase.idle;
     update();
   }
 
-  Future<void> _close() async {
-    await _network?.cancel();
-    _network = null;
-    await _socket?.close();
-    _socket = null;
+  void _stopRequest() {
+    final abort = _abort;
+    if (abort != null && !abort.isCompleted) abort.complete();
+    _abort = null;
   }
 
+  Future<void> _deleteAudio() async {
+    final file = audio;
+    audio = null;
+    try {
+      if (file != null && await file.exists()) await file.delete();
+    } catch (_) {
+      /* The temporary directory is cleared by the system. */
+    }
+  }
+
+  /// Leaving the page cancels any request and deletes the recording.
   @override
   void dispose() {
     disposed = true;
+    _generation++;
+    _stopRequest();
     _limit?.cancel();
-    unawaited(_stopMic());
-    unawaited(_close());
+    unawaited(_mic.stop().catchError((_) {}).then((_) => _deleteAudio()));
     super.dispose();
   }
 }

@@ -5,8 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:redkeep/core/storage/app_database.dart';
 import 'package:redkeep/features/appearance/domain/appearance_preferences.dart';
 import 'package:redkeep/features/assets/presentation/local_artwork.dart';
-import 'package:redkeep/features/ai/data/ai_preferences_repository.dart';
-import 'package:redkeep/features/ai/domain/ai_route.dart';
 import 'package:redkeep/features/flow/data/drift_flow_repository.dart';
 
 import '../../support/fake_appearance_repository.dart';
@@ -99,13 +97,8 @@ void main() {
         );
         addTearDown(appearance.close);
         final assets = _RecordingAssets();
-        await tester.runAsync(
-          () => AiPreferencesRepository(db).setDefaultRoute(
-            AiRoute.provider(testAiProvider.id, 'test-model'),
-          ),
-        );
         final aiProvider = FakeAiProviderClient(_reflection);
-        final router = await pumpApp(
+        await pumpApp(
           tester,
           initialLocation: '/flow/$_id',
           flow: flow,
@@ -174,8 +167,7 @@ void main() {
           final thought = (await flow.openDocument(_id)).thought!;
           expect(thought.body, _body);
           expect(thought.revision, 1);
-          await tap(tester, find.text('AI task history'));
-          expect(router.state.uri.path, '/settings/brain/history');
+          expect(find.text('AI task history'), findsNothing);
           expect(tester.takeException(), isNull);
         } finally {
           await tester.pumpWidget(const SizedBox());

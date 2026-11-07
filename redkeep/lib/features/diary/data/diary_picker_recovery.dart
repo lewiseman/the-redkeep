@@ -5,7 +5,7 @@ import 'dart:io';
 
 import 'package:image_picker/image_picker.dart';
 
-import '../../voice/data/voice_store.dart';
+import '../../ai/data/ai_provider_store.dart';
 
 /// Android can destroy the activity while the gallery is open. Keep its diary
 /// address separately from the picker result; never attach it to another day.
@@ -29,7 +29,7 @@ class DiaryPickerRecovery {
   }
 
   Future<Map<String, dynamic>?> read() async {
-    final raw = await VoiceStore.storage.read(key: _key);
+    final raw = await SecureAiProviders.storage.read(key: _key);
     if (raw == null) return null;
     try {
       final data = jsonDecode(raw) as Map<String, dynamic>;
@@ -49,7 +49,7 @@ class DiaryPickerRecovery {
 
   Future<void> begin(String date, String id) => _serial(() async {
     if (_generation != _epoch) return;
-    await VoiceStore.storage.write(
+    await SecureAiProviders.storage.write(
       key: _key,
       value: jsonEncode({
         'date': date,
@@ -77,7 +77,10 @@ class DiaryPickerRecovery {
     };
     await _serial(() async {
       if (_generation == _epoch) {
-        await VoiceStore.storage.write(key: _key, value: jsonEncode(recovered));
+        await SecureAiProviders.storage.write(
+          key: _key,
+          value: jsonEncode(recovered),
+        );
       }
     });
     return recovered;
@@ -96,10 +99,12 @@ class DiaryPickerRecovery {
   }
 
   Future<void> clear() => _serial(() async {
-    if (_generation == _epoch) await VoiceStore.storage.delete(key: _key);
+    if (_generation == _epoch) {
+      await SecureAiProviders.storage.delete(key: _key);
+    }
   });
   Future<void> reset() async {
     _epoch++;
-    await _serial(() => VoiceStore.storage.delete(key: _key));
+    await _serial(() => SecureAiProviders.storage.delete(key: _key));
   }
 }

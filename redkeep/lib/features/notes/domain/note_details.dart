@@ -112,20 +112,3 @@ class NoteDetails {
     );
   }
 }
-
-class NotePriorContent {
-  const NotePriorContent({
-    required this.id,
-    required this.noteId,
-    required this.operation,
-    required this.title,
-    required this.body,
-    required this.details,
-    required this.appliedRevision,
-    required this.created,
-  });
-  final int id, appliedRevision;
-  final String noteId, operation, title, body;
-  final NoteDetails details;
-  final DateTime created;
-}

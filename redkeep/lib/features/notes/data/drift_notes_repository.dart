@@ -374,9 +374,6 @@ class DriftNotesRepository implements NotesRepository {
     int expectedRevision, {
     required PlainTextDocument text,
     required NoteDetails details,
-    required String taskId,
-    required String operation,
-    bool retainPrior = true,
   }) => _db.transaction(() async {
     await checkWritingAccess(_db, _generation);
     _validate(id);
@@ -385,15 +382,8 @@ class DriftNotesRepository implements NotesRepository {
     if (!opened.available || opened.note!.revision != expectedRevision) {
       throw const NoteException(NoteFailure.staleRevision);
     }
-    final old = opened.note!;
     if (text.isEmpty && !details.hasWriting) {
       throw const NoteException(NoteFailure.empty);
-    }
-    if (await (_db.select(
-          _db.noteAiRecoveries,
-        )..where((r) => r.taskId.equals(taskId))).getSingleOrNull() !=
-        null) {
-      throw const NoteException(NoteFailure.staleRevision);
     }
     final now = _clock().toUtc().millisecondsSinceEpoch;
     await (_db.update(_db.notes)..where((r) => r.id.equals(id))).write(
@@ -406,77 +396,8 @@ class DriftNotesRepository implements NotesRepository {
       ),
     );
     await _putTags(id, details.tags);
-    if (retainPrior) {
-      await _db
-          .into(_db.noteAiRecoveries)
-          .insert(
-            NoteAiRecoveriesCompanion.insert(
-              noteId: id,
-              taskId: taskId,
-              operation: operation,
-              title: old.text.title,
-              body: old.text.body,
-              details: old.details.copy(tags: old.tags).encode(),
-              appliedRevision: expectedRevision + 1,
-              created: now,
-            ),
-          );
-      await _db.customStatement(
-        'DELETE FROM note_ai_recoveries WHERE id NOT IN (SELECT id FROM note_ai_recoveries ORDER BY id DESC LIMIT 10)',
-      );
-    }
     return (await openDocument(id)).note!;
   });
-
-  @override
-  Future<List<NotePriorContent>> priorContent(String id) async => [
-    for (final r
-        in await (_db.select(_db.noteAiRecoveries)
-              ..where((r) => r.noteId.equals(id))
-              ..orderBy([(r) => OrderingTerm.desc(r.id)]))
-            .get())
-      NotePriorContent(
-        id: r.id,
-        noteId: r.noteId,
-        operation: r.operation,
-        title: r.title,
-        body: r.body,
-        details: NoteDetails.decode(r.details),
-        appliedRevision: r.appliedRevision,
-        created: DateTime.fromMillisecondsSinceEpoch(r.created, isUtc: true),
-      ),
-  ];
-
-  @override
-  Future<void> restorePriorContent(
-    String id,
-    int recoveryId,
-    int expectedRevision,
-  ) => _db.transaction(() async {
-    final prior = (await priorContent(id))
-        .where((r) => r.id == recoveryId)
-        .firstOrNull;
-    if (prior == null || prior.appliedRevision != expectedRevision) {
-      throw const NoteException(NoteFailure.staleRevision);
-    }
-    await applyProposal(
-      id,
-      expectedRevision,
-      text: PlainTextDocument(title: prior.title, body: prior.body),
-      details: prior.details,
-      taskId: 'restore-$recoveryId-$expectedRevision',
-      operation: 'restore',
-      retainPrior: false,
-    );
-  });
-
-  @override
-  Future<void> clearPriorContent(String id) async {
-    await checkWritingAccess(_db, _generation, recoveryOnly: true);
-    await (_db.delete(
-      _db.noteAiRecoveries,
-    )..where((r) => r.noteId.equals(id))).go();
-  }
 
   NoteDocument _note(Note r, List<String> tags) => NoteDocument(
     id: r.id,

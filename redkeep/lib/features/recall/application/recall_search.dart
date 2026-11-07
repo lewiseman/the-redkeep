@@ -5,7 +5,7 @@ import '../../../app/storage_providers.dart';
 
 import '../../ai/application/ai_lifecycle.dart';
 import '../../ai/application/ai_preferences.dart';
-import '../../companion/application/companion_controller.dart';
+import '../../ai/application/ai_cloud.dart';
 import '../../diary/application/diary_providers.dart';
 import '../../diary/domain/diary_document.dart';
 import '../../diary/domain/diary_period.dart';
@@ -27,6 +27,8 @@ final _writingRevisionProvider = StreamProvider.autoDispose<int>((ref) async* {
 List<RecallSource> currentRecallSources(AsyncValue<RecallSearch> result) =>
     result.isLoading ? const [] : result.value?.sources ?? const [];
 
+/// One submitted search. Each call embeds the query, so callers pass only
+/// queries the person submitted, never text while it is being typed.
 typedef RecallQuery = ({String query, String kind});
 final recallSearchProvider = FutureProvider.autoDispose
     .family<RecallSearch, RecallQuery>((ref, request) async {
@@ -36,14 +38,9 @@ final recallSearchProvider = FutureProvider.autoDispose
       ref.watch(aiPreferencesProvider);
       ref.watch(_writingRevisionProvider);
       ref.watch(aiForegroundProvider);
-      ref.watch(
-        companionControllerProvider.select(
-          (c) => (c.phase, RecallProfile.fromStatus(c.status)?.id),
-        ),
-      );
+      ref.watch(aiCloudSettingsProvider);
       ref.watch(recallControllerProvider.select((s) => s.revision));
-      await Future<void>.delayed(const Duration(milliseconds: 350));
-      if (!ref.mounted) return const RecallSearch([]);
+      // Only submitted searches reach here, so there is no typing delay.
       return ref
           .read(recallControllerProvider.notifier)
           .search(

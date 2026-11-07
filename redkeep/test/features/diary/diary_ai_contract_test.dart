@@ -7,7 +7,6 @@ import 'package:redkeep/features/diary/data/drift_diary_repository.dart';
 import 'package:redkeep/features/diary/domain/diary_period.dart';
 import 'package:redkeep/features/diary/domain/diary_document.dart';
 import 'package:redkeep/features/diary/domain/diary_ai_contract.dart';
-import 'package:redkeep/features/diary/domain/daily_question_contract.dart';
 
 void main() {
   final date = DiaryPeriod(2026, 11, 4);
@@ -147,68 +146,6 @@ void main() {
     expect(rejected.dropped, 2);
   });
 
-  test(
-    'daily selection is bounded and basis changes when saved text changes',
-    () {
-      final items = [
-        for (var i = 0; i < 6; i++) entry('today$i', 'Garden observation $i'),
-      ];
-      final older = [
-        for (var i = 0; i < 12; i++)
-          entry('older$i', 'An earlier observation $i', day: date.shift(-1)),
-      ];
-      final source = DailyQuestionSource.select(
-        today: date.key,
-        day: (key) => key == date.key
-            ? items
-            : key == date.shift(-1)!.key
-            ? older
-            : const [],
-        avoid: ['What stood out yesterday?'],
-      );
-      expect(source.today.length, 4);
-      expect(source.prior.length, 8);
-      expect(utf8.encode(source.request()).length, lessThanOrEqualTo(2000));
-      final edited = [
-        entry('today0', 'Different writing', revision: 2),
-        ...items.skip(1),
-      ];
-      expect(dailyQuestionBasis(date.key, edited), isNot(source.basis));
-      expect(source.request(), isNot(contains('today0')));
-      expect(source.request(), isNot(contains(date.key)));
-      final question = DailyQuestion.parse(
-        jsonEncode({
-          'question': 'What did you notice in the garden?',
-          'source': 't0',
-          'evidence': 'Garden observation',
-        }),
-        source,
-      );
-      expect(question.grounded, isTrue);
-      expect(
-        () => DailyQuestion.parse(
-          jsonEncode({
-            'question': 'What stood out yesterday?',
-            'source': '',
-            'evidence': '',
-          }),
-          source,
-        ),
-        throwsA(isA<DailyQuestionRejected>()),
-      );
-      expect(
-        () => DailyQuestion.parse(
-          jsonEncode({
-            'question': 'How is the garden today?',
-            'source': 'p0',
-            'evidence': 'earlier observation',
-          }),
-          source,
-        ),
-        throwsA(isA<DailyQuestionRejected>()),
-      );
-    },
-  );
   test(
     'AI-derived day save validates entry provenance inside the transaction',
     () async {

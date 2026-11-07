@@ -5,37 +5,15 @@ import 'package:crypto/crypto.dart';
 
 String recallHash(String text) => sha256.convert(utf8.encode(text)).toString();
 
+/// One embedding model's index. The vector file and manifests follow [id],
+/// so changing provider or model starts a fresh index.
 class RecallProfile {
-  const RecallProfile(this.model, this.artifact, this.quantization);
-  final String model, artifact, quantization;
-  int get dimensions => 1024;
-  String get id =>
-      'journal-embed-v1:$artifact:$quantization:dim-$dimensions:llamacpp-last-l2:document-raw-v1:qwen-query-v1:chunks-utf8-4000-v1:filters-v1';
-  static const models = [
-    RecallProfile(
-      'qwen3-embedding-0.6b-q8_0@370f27d7550e0def9b39c1f16d3fbaa13aa67728',
-      '06507c7b42688469c4e7298b0a1e16deff06caf291cf0a5b278c308249c3e439',
-      'q8_0',
-    ),
-    RecallProfile(
-      'qwen3-embedding-0.6b-f16@370f27d7550e0def9b39c1f16d3fbaa13aa67728',
-      '421a27e58d165478cc7acb984a688c2aa41404968b0203e7cd743ece44c54340',
-      'f16',
-    ),
-  ];
-  static RecallProfile? fromStatus(Map<String, dynamic>? status) {
-    for (final c in (status?['capabilities'] as List? ?? []).whereType<Map>()) {
-      if (c['id'] == 'embedding' &&
-          c['implemented'] == true &&
-          ['ready', 'busy'].contains(c['status']) &&
-          c['dimensions'] == 1024 &&
-          c['operations'] is List &&
-          (c['operations'] as List).contains('embed')) {
-        return models.where((m) => m.model == c['model']).firstOrNull;
-      }
-    }
-    return null;
-  }
+  const RecallProfile(this.key, this.dimensions);
+
+  /// `provider:model`.
+  final String key;
+  final int dimensions;
+  String get id => 'redkeep-cloud-v1:$key:dim-$dimensions:chunks-utf8-4000-v1';
 }
 
 class RecallSource {

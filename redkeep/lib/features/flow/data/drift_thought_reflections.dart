@@ -87,10 +87,6 @@ class DriftThoughtReflections {
     String text,
   ) => db.transaction(() async {
     _check();
-    final receipt = await (db.select(
-      db.aiJobReceipts,
-    )..where((r) => r.id.equals(taskId))).getSingleOrNull();
-    if (receipt?.resultConsumed == true) return;
     if (!source.matches(await _thought(source.id))) {
       throw const ThoughtReflectionRejected(
         'This thought changed. The reflection was not saved.',
@@ -123,8 +119,6 @@ class DriftThoughtReflections {
             created: clock().millisecondsSinceEpoch,
           ),
         );
-    await (db.update(db.aiJobReceipts)..where((r) => r.id.equals(taskId)))
-        .write(const AiJobReceiptsCompanion(resultConsumed: Value(true)));
   });
 
   Future<void> keep(ThoughtReflection reflection) => db.transaction(() async {

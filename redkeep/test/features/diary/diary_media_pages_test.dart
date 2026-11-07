@@ -1,6 +1,3 @@
-import '../../support/fake_ai.dart';
-
-import 'package:redkeep/features/companion/application/companion_controller.dart';
 import 'package:redkeep/features/sync/application/sync_providers.dart';
 import 'package:redkeep/app/app_router.dart';
 
@@ -67,7 +64,7 @@ void main() {
             .onPressed !=
         null;
     expect(enabled('Add photos'), isTrue);
-    expect(enabled('Talk to your diary'), isTrue);
+    expect(enabled('Dictate'), isTrue);
     expect(find.byKey(const ValueKey('diary-title')), findsNothing);
     await tester.enterText(find.byKey(const ValueKey('diary-body')), 'Words');
     await tester.pump();
@@ -77,7 +74,7 @@ void main() {
     expect(enabled('Add photos'), isTrue);
     await tester.enterText(find.byKey(const ValueKey('diary-body')), 'Words');
     await tester.pump();
-    expect(enabled('Talk to your diary'), isFalse);
+    expect(enabled('Dictate'), isTrue, reason: 'Dictation adds to writing.');
     await tester.pumpWidget(const SizedBox());
     await tester.pumpAndSettle();
     await db.close();
@@ -114,7 +111,6 @@ void main() {
         ProviderScope(
           overrides: [
             syncEnabledProvider.overrideWithValue(false),
-            companionControllerProvider.overrideWith(() => TestConnection()),
             appDatabaseProvider.overrideWithValue(db),
             diaryRepositoryProvider.overrideWithValue(repo),
             diaryPhotoStoreProvider.overrideWithValue(
@@ -235,7 +231,6 @@ void main() {
           ProviderScope(
             overrides: [
               syncEnabledProvider.overrideWithValue(false),
-              companionControllerProvider.overrideWith(() => TestConnection()),
               appDatabaseProvider.overrideWithValue(db),
               diaryRepositoryProvider.overrideWithValue(repo),
               diaryPhotoStoreProvider.overrideWithValue(

@@ -1,5 +1,8 @@
 import '../../voice/presentation/voice_capture_page.dart';
 
+import 'package:redkeep/features/ai/application/ai_cloud.dart';
+import 'package:redkeep/features/ai/domain/ai_provider.dart';
+
 import 'dart:math' as math;
 
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
@@ -395,6 +398,9 @@ class _FlowPageState extends ConsumerState<FlowPage> {
             focusNode: _focus,
             onSend: _send,
             onMicrophone: _capturingVoice ? null : _captureThought,
+            microphone: ref
+                .watch(aiCapabilitiesProvider)
+                .contains(AiCapability.transcription),
             onChanged: ref.read(flowEditorProvider(null).notifier).edit,
             enabled: !state.saving,
             saving: state.saving,

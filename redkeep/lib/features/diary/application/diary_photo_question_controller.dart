@@ -1,6 +1,7 @@
 import '../../ai/application/ai_lifecycle.dart';
 import '../../voice/application/voice_coordination.dart';
-import '../../companion/application/companion_controller.dart';
+import '../../ai/application/ai_cloud.dart';
+import '../../ai/domain/ai_provider.dart';
 
 import 'dart:async';
 import 'dart:convert';
@@ -44,22 +45,19 @@ class DiaryPhotoQuestionState {
   final int revision;
 }
 
-/// I02: moves finished photo questions out of the shared task slot into the
-/// local cache, then frees the slot for the next photo. It runs app-wide, so
-/// a result that arrives after the photo page closed is still kept.
+/// The photo page's AI requests. Closing the page cancels them.
+const diaryPhotoJobScope = 'diary-photos';
+
+/// I02: moves finished photo questions into the local cache, then sends the
+/// next photo. It lives as long as the photo page: leaving the page cancels
+/// the request in progress and drops the rest.
 class DiaryPhotoQuestionController extends Notifier<DiaryPhotoQuestionState> {
   DiaryPhotoQuestionStore get _store =>
       ref.read(diaryPhotoQuestionStoreProvider);
   bool _pruned = false;
   final _contexts = <String, String>{};
   String get _model =>
-      (ref.read(companionControllerProvider).status?['capabilities'] as List? ??
-                  [])
-              .whereType<Map>()
-              .where((c) => c['id'] == 'vision')
-              .firstOrNull?['model']
-          as String? ??
-      '';
+      ref.read(aiCloudSettingsProvider).value?.model(AiCapability.chat) ?? '';
   String _context(DiaryPhotoAsk ask) =>
       diaryPhotoCacheKey(ask.photoSha, ask.caption, _model);
   bool currentCaption(String sha, String caption) =>
@@ -87,7 +85,7 @@ class DiaryPhotoQuestionController extends Notifier<DiaryPhotoQuestionState> {
       if (!active) scheduleMicrotask(() => unawaited(_next()));
     });
     ref.listen(
-      aiJobsProvider,
+      aiJobsProvider(diaryPhotoJobScope),
       (_, next) => scheduleMicrotask(() {
         if (ref.mounted) unawaited(_consume(next));
       }),
@@ -166,7 +164,7 @@ class DiaryPhotoQuestionController extends Notifier<DiaryPhotoQuestionState> {
   }) async {
     await load(photos);
     if (!ref.mounted) return;
-    final summary = ref.read(aiJobsProvider);
+    final summary = ref.read(aiJobsProvider(diaryPhotoJobScope));
     final waiting = {for (final ask in _queue) ask.photoSha};
     final fresh = [
       for (final ask in photos)
@@ -181,7 +179,7 @@ class DiaryPhotoQuestionController extends Notifier<DiaryPhotoQuestionState> {
       _set(
         messages: {
           ...state.messages,
-          for (final ask in fresh) ask.photoSha: 'Another AI request is still open. Finish or clear it in More → Grand Maestar, then generate again.',
+          for (final ask in fresh) ask.photoSha: 'Another AI request is still open. Wait for it, then generate again.',
         },
       );
       return;
@@ -214,9 +212,9 @@ class DiaryPhotoQuestionController extends Notifier<DiaryPhotoQuestionState> {
     _queue.clear();
     _queueDates.clear();
     _set();
-    final summary = ref.read(aiJobsProvider);
+    final summary = ref.read(aiJobsProvider(diaryPhotoJobScope));
     if (summary.handle?.isDiaryPhoto == true && !summary.terminal) {
-      await ref.read(aiJobsProvider.notifier).cancel();
+      await ref.read(aiJobsProvider(diaryPhotoJobScope).notifier).cancel();
     }
   }
 
@@ -229,7 +227,7 @@ class DiaryPhotoQuestionController extends Notifier<DiaryPhotoQuestionState> {
         ref.read(voiceActiveProvider)) {
       return;
     }
-    final summary = ref.read(aiJobsProvider);
+    final summary = ref.read(aiJobsProvider(diaryPhotoJobScope));
     // Busy with the previous photo: [_consume] calls back when it's done.
     if (summary.handle != null || summary.busy) return;
     _sending = true;
@@ -273,7 +271,7 @@ class DiaryPhotoQuestionController extends Notifier<DiaryPhotoQuestionState> {
     String caption = '',
   }) async {
     if (photo.isEmpty || state.shuffling.containsKey(photoSha)) return false;
-    final summary = ref.read(aiJobsProvider);
+    final summary = ref.read(aiJobsProvider(diaryPhotoJobScope));
     if (summary.handle != null || summary.busy || _queue.isNotEmpty) {
       return false;
     }
@@ -292,7 +290,7 @@ class DiaryPhotoQuestionController extends Notifier<DiaryPhotoQuestionState> {
     if (avoid.isEmpty) return false;
     _set(shuffling: {...state.shuffling, photoSha: group});
     await ref
-        .read(aiJobsProvider.notifier)
+        .read(aiJobsProvider(diaryPhotoJobScope).notifier)
         .startDiaryPhotoQuestions(
           date: date,
           photoSha: photoSha,
@@ -302,7 +300,7 @@ class DiaryPhotoQuestionController extends Notifier<DiaryPhotoQuestionState> {
           avoid: avoid,
         );
     if (!ref.mounted) return false;
-    final next = ref.read(aiJobsProvider);
+    final next = ref.read(aiJobsProvider(diaryPhotoJobScope));
     if (next.handle?.noteId == photoSha && next.handle!.isDiaryPhoto) {
       return true;
     }
@@ -318,7 +316,7 @@ class DiaryPhotoQuestionController extends Notifier<DiaryPhotoQuestionState> {
     String caption = '',
   }) async {
     _message(photoSha, null);
-    final summary = ref.read(aiJobsProvider.notifier);
+    final summary = ref.read(aiJobsProvider(diaryPhotoJobScope).notifier);
     await summary.startDiaryPhotoQuestions(
       date: date,
       photoSha: photoSha,
@@ -326,15 +324,15 @@ class DiaryPhotoQuestionController extends Notifier<DiaryPhotoQuestionState> {
       caption: caption,
     );
     if (!ref.mounted) return;
-    final next = ref.read(aiJobsProvider);
+    final next = ref.read(aiJobsProvider(diaryPhotoJobScope));
     if (next.handle == null && next.message != null) {
       _message(photoSha, next.message);
     } else if (next.handle?.noteId != photoSha) {
       _message(
         photoSha,
         next.handle == null
-            ? 'Your computer is still finishing the previous request. Try again in a moment.'
-            : 'Another AI request is still open. Finish or clear it in More → Grand Maestar, then ask again.',
+            ? 'The previous request is still finishing. Try again in a moment.'
+            : 'Another AI request is still open. Wait for it, then ask again.',
       );
     }
   }
@@ -363,7 +361,7 @@ class DiaryPhotoQuestionController extends Notifier<DiaryPhotoQuestionState> {
     if (handle == null || !handle.isDiaryPhoto || summary.busy) return;
     if (!summary.terminal || _consuming == handle.id) return;
     _consuming = handle.id;
-    final controller = ref.read(aiJobsProvider.notifier);
+    final controller = ref.read(aiJobsProvider(diaryPhotoJobScope).notifier);
     final sha = handle.noteId;
     String? message;
     DiaryPhotoQuestionSource? source;
@@ -407,7 +405,9 @@ class DiaryPhotoQuestionController extends Notifier<DiaryPhotoQuestionState> {
       if (question == null) {
         _message(
           sha,
-          summary.phase == 'cancelled' ? null : 'Your computer didn’t come up with a different question this time.',
+          summary.phase == 'cancelled'
+              ? null
+              : 'The AI didn’t come up with a different question this time.',
         );
       }
       await _next();
@@ -426,20 +426,13 @@ class DiaryPhotoQuestionController extends Notifier<DiaryPhotoQuestionState> {
           _set(questions: {...state.questions, sha: questions});
         }
       } catch (_) {
-        message = 'Your computer returned something that was not usable. The usual questions are still here.';
+        message = 'The AI returned something that was not usable. The usual questions are still here.';
       }
     } else if (summary.phase != 'completed') {
       message = switch (summary.phase) {
         'cancelled' => 'Stopped. The usual questions are still here.',
-        'expired' => 'That request expired. Ask again for new questions.',
-        'interrupted' =>
-          'Your computer stopped before finishing. Ask again when it’s ready.',
-        // Vision not ready, or the prepared photo is gone: say exactly why.
-        _
-            when summary.message?.contains('Qwen3-VL') == true ||
-                summary.message?.contains('photo prepared') == true =>
-          summary.message!,
-        _ => 'Your computer couldn’t look at this photo. The usual questions are still here.',
+        _ when summary.message != null => summary.message!,
+        _ => 'The AI couldn’t look at this photo. The usual questions are still here.',
       };
     }
     await controller.clear();
@@ -456,14 +449,15 @@ class DiaryPhotoQuestionController extends Notifier<DiaryPhotoQuestionState> {
 }
 
 final diaryPhotoQuestionProvider =
-    NotifierProvider<DiaryPhotoQuestionController, DiaryPhotoQuestionState>(
-      DiaryPhotoQuestionController.new,
-    );
+    NotifierProvider.autoDispose<
+      DiaryPhotoQuestionController,
+      DiaryPhotoQuestionState
+    >(DiaryPhotoQuestionController.new);
 
 extension PhotoTaskState on AiJobState {
   PhotoTaskHandle? get handle => job == null ? null : PhotoTaskHandle(job!);
   bool get terminal => job?.terminal ?? false;
-  String get phase => job?.phase ?? (loaded ? 'idle' : 'restoring');
+  String get phase => job?.phase ?? 'idle';
   String? get text => job?.text;
 }
 

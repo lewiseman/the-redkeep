@@ -1,7 +1,6 @@
 import '../domain/diary_media_validation.dart';
 import '../domain/diary_ai_contract.dart';
 import '../domain/diary_photo.dart';
-import '../domain/diary_ai_conversation.dart';
 
 import 'dart:convert';
 
@@ -30,7 +29,7 @@ class DriftDiaryRepository implements DiaryRepository {
   Stream<Set<DiaryPeriod>> watchSavedPeriods() => _db
       .customSelect(
         '''SELECT period_key FROM diary_entries
-       WHERE deleted_at IS NULL AND (length(trim(body)) > 0 OR photos <> '[]' OR conversation IS NOT NULL)
+       WHERE deleted_at IS NULL AND (length(trim(body)) > 0 OR photos <> '[]')
        UNION SELECT period_key FROM diary_days
        WHERE length(trim(heading)) > 0 OR mood IS NOT NULL OR themes <> '[]' ''',
         readsFrom: {_db.diaryEntries, _db.diaryDays},
@@ -279,7 +278,6 @@ class DriftDiaryRepository implements DiaryRepository {
         createdAt: old?.createdAt ?? now,
         updatedAt: now,
         photos: old?.photos ?? const [],
-        conversation: old?.conversation,
       );
     });
   }
@@ -297,27 +295,11 @@ class DriftDiaryRepository implements DiaryRepository {
     photos: photos,
   );
 
-  @override
-  Future<DiaryEntry> saveConversation({
-    required String id,
-    required DiaryPeriod date,
-    required DiaryAiConversation conversation,
-    required int expectedRevision,
-    String? body,
-  }) => _saveRich(
-    id: id,
-    date: date,
-    expectedRevision: expectedRevision,
-    conversation: conversation,
-    body: body,
-  );
-
   Future<DiaryEntry> _saveRich({
     required String id,
     required DiaryPeriod date,
     required int expectedRevision,
     List<DiaryPhoto>? photos,
-    DiaryAiConversation? conversation,
     String? body,
   }) => _db.transaction(() async {
     _validate(id);
@@ -336,12 +318,10 @@ class DriftDiaryRepository implements DiaryRepository {
         old == null && expectedRevision != 0) {
       throw const DiaryException(DiaryFailure.staleRevision);
     }
-    if (photos != null && (photos.isEmpty || old?.conversation != null) ||
-        conversation != null &&
-            (!conversation.hasUserTurn || old?.photos.isNotEmpty == true)) {
+    if (photos != null && photos.isEmpty) {
       throw const DiaryException(DiaryFailure.empty);
     }
-    validateDiaryMedia(photos ?? const [], conversation);
+    validateDiaryMedia(photos ?? const []);
     final now = DateTime.fromMillisecondsSinceEpoch(
       _clock().millisecondsSinceEpoch,
       isUtc: true,
@@ -359,9 +339,6 @@ class DriftDiaryRepository implements DiaryRepository {
             body: text,
             photos: Value(
               jsonEncode([for (final photo in newPhotos) photo.toJson()]),
-            ),
-            conversation: Value(
-              conversation == null ? null : jsonEncode(conversation.toJson()),
             ),
             revision: expectedRevision + 1,
             createdAt: (old?.createdAt ?? now).millisecondsSinceEpoch,
@@ -438,20 +415,11 @@ class DriftDiaryRepository implements DiaryRepository {
     }
   }
 
-  DiaryAiConversation? _conversation(String? raw) {
-    try {
-      return raw == null ? null : DiaryAiConversation.tryParse(jsonDecode(raw));
-    } catch (_) {
-      return null;
-    }
-  }
-
   DiaryEntry _entry(DiaryEntryRow r) => DiaryEntry(
     id: r.id,
     date: DiaryPeriod.tryParse(r.periodKey)!,
     text: DiaryText(body: r.body),
     photos: _photos(r.photos),
-    conversation: _conversation(r.conversation),
     revision: r.revision,
     createdAt: DateTime.fromMillisecondsSinceEpoch(r.createdAt, isUtc: true),
     updatedAt: DateTime.fromMillisecondsSinceEpoch(r.updatedAt, isUtc: true),

@@ -23,18 +23,6 @@ class NoteTags extends Table {
   Set<Column> get primaryKey => {noteId, tag};
 }
 
-class NoteAiRecoveries extends Table {
-  IntColumn get id => integer().autoIncrement()();
-  TextColumn get noteId => text()();
-  TextColumn get taskId => text().unique()();
-  TextColumn get operation => text()();
-  TextColumn get title => text()();
-  TextColumn get body => text()();
-  TextColumn get details => text()();
-  IntColumn get appliedRevision => integer()();
-  IntColumn get created => integer()();
-}
-
 class NoteMediaOps extends Table {
   TextColumn get path => text()();
   IntColumn get created => integer()();

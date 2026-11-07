@@ -2,7 +2,8 @@ import '../features/sync/presentation/sync_host.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:flutter_quill/flutter_quill.dart' show FlutterQuillLocalizations;
+import 'package:flutter_quill/flutter_quill.dart'
+    show FlutterQuillLocalizations;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/presentation/redkeep_theme.dart';

@@ -39,15 +39,5 @@ abstract interface class NotesRepository {
     int expectedRevision, {
     required PlainTextDocument text,
     required NoteDetails details,
-    required String taskId,
-    required String operation,
-    bool retainPrior = true,
   });
-  Future<List<NotePriorContent>> priorContent(String id);
-  Future<void> restorePriorContent(
-    String id,
-    int recoveryId,
-    int expectedRevision,
-  );
-  Future<void> clearPriorContent(String id);
 }

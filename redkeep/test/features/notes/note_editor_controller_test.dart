@@ -172,8 +172,6 @@ void main() {
       1,
       text: const PlainTextDocument(body: 'From AI'),
       details: const NoteDetails(),
-      taskId: 'task-1',
-      operation: 'rewrite-note',
     );
     await Future<void>.delayed(const Duration(milliseconds: 50));
     expect(state().text.body, 'From AI');

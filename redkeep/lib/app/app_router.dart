@@ -1,22 +1,12 @@
-import '../features/ai/presentation/ai_history_page.dart';
+import '../features/ai/presentation/ai_settings_page.dart';
 import '../features/notes/presentation/note_ai_sheet.dart';
 import '../features/notes/presentation/note_ai_widgets.dart';
 import '../features/diary/presentation/diary_photos_page.dart';
-import '../features/voice/presentation/diary_conversation_page.dart';
-import '../features/voice/presentation/diary_talk_page.dart';
 import '../features/flow/presentation/flow_search_page.dart';
-import '../features/companion/presentation/companion_page.dart';
-import '../features/companion/presentation/companion_pairing.dart';
-import '../features/companion/presentation/companion_detail_pages.dart';
-import '../features/companion/presentation/companion_preferences_page.dart';
-import '../features/voice/presentation/reply_voice_page.dart';
 import '../features/ai/application/ai_lifecycle.dart';
 import '../features/sync/application/sync_providers.dart';
 import 'writing_shell.dart';
 import 'more_page.dart';
-import '../features/ai/presentation/ai_provider_detail_page.dart';
-import '../features/ai/presentation/ai_providers_page.dart';
-import '../features/ai/presentation/ai_tasks_page.dart';
 import '../features/flow/presentation/flow_page.dart';
 import '../features/flow/presentation/thought_read_page.dart';
 import '../features/flow/presentation/thought_edit_page.dart';
@@ -115,15 +105,6 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
                     ),
                   ),
                   GoRoute(
-                    path: ':date/talk',
-                    pageBuilder: (context, state) {
-                      final date = DiaryPeriod.tryParse(
-                        state.pathParameters['date']!,
-                      )!;
-                      return _page(state, DiaryTalkPage(date: date));
-                    },
-                  ),
-                  GoRoute(
                     path: ':date/title',
                     pageBuilder: (context, state) => _page(
                       state,
@@ -149,9 +130,6 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
                           )!,
                           id: state.pathParameters['id']!,
                         ),
-                        question: state.extra is String
-                            ? state.extra as String
-                            : null,
                       ),
                     ),
                   ),
@@ -185,20 +163,6 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
                           ),
                         ),
                       ),
-                      GoRoute(
-                        path: 'conversation',
-                        pageBuilder: (context, state) => _page(
-                          state,
-                          DiaryConversationPage(
-                            address: (
-                              date: DiaryPeriod.tryParse(
-                                state.pathParameters['date']!,
-                              )!,
-                              id: state.pathParameters['id']!,
-                            ),
-                          ),
-                        ),
-                      ),
                     ],
                   ),
                 ],
@@ -219,11 +183,6 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
                             : '',
                       ),
                     ),
-                  ),
-                  GoRoute(
-                    path: 'ai-task',
-                    pageBuilder: (context, state) =>
-                        _page(state, const RetainedNoteAiPage()),
                   ),
                   // Editing is a state of this page, not a route of its own.
                   GoRoute(
@@ -287,100 +246,7 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
                     path: 'brain',
                     parentNavigatorKey: fullPage,
                     pageBuilder: (context, state) =>
-                        _page(state, const CompanionPage()),
-                    routes: [
-                      GoRoute(
-                        path: 'history',
-                        parentNavigatorKey: fullPage,
-                        pageBuilder: (context, state) =>
-                            _page(state, const AiHistoryPage()),
-                        routes: [
-                          GoRoute(
-                            path: ':id',
-                            parentNavigatorKey: fullPage,
-                            pageBuilder: (context, state) => _page(
-                              state,
-                              AiHistoryTaskPage(
-                                key: ValueKey(state.uri.path),
-                                id: state.pathParameters['id']!,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      GoRoute(
-                        path: 'providers',
-                        parentNavigatorKey: fullPage,
-                        pageBuilder: (context, state) =>
-                            _page(state, const AiProvidersPage()),
-                        routes: [
-                          GoRoute(
-                            path: 'add/:preset',
-                            parentNavigatorKey: fullPage,
-                            pageBuilder: (context, state) => _page(
-                              state,
-                              AiProviderDetailPage(
-                                key: ValueKey(state.uri.path),
-                                presetId: state.pathParameters['preset'],
-                              ),
-                            ),
-                          ),
-                          GoRoute(
-                            path: ':id',
-                            parentNavigatorKey: fullPage,
-                            pageBuilder: (context, state) => _page(
-                              state,
-                              AiProviderDetailPage(
-                                key: ValueKey(state.uri.path),
-                                id: state.pathParameters['id'],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      GoRoute(
-                        path: 'tasks',
-                        parentNavigatorKey: fullPage,
-                        pageBuilder: (context, state) =>
-                            _page(state, const AiTasksPage()),
-                      ),
-                      GoRoute(
-                        path: 'scan',
-                        parentNavigatorKey: fullPage,
-                        pageBuilder: (context, state) =>
-                            _page(state, const CompanionScannerPage()),
-                      ),
-                      GoRoute(
-                        path: 'computers',
-                        parentNavigatorKey: fullPage,
-                        pageBuilder: (context, state) =>
-                            _page(state, const CompanionComputersPage()),
-                      ),
-                      GoRoute(
-                        path: 'preferences',
-                        parentNavigatorKey: fullPage,
-                        pageBuilder: (context, state) =>
-                            _page(state, const CompanionPreferencesPage()),
-                      ),
-                      GoRoute(
-                        path: 'voices',
-                        parentNavigatorKey: fullPage,
-                        pageBuilder: (context, state) =>
-                            _page(state, const ReplyVoicePage()),
-                      ),
-                      GoRoute(
-                        path: 'help',
-                        parentNavigatorKey: fullPage,
-                        pageBuilder: (context, state) =>
-                            _page(state, const CompanionHelpPage()),
-                      ),
-                      GoRoute(
-                        path: 'details',
-                        parentNavigatorKey: fullPage,
-                        pageBuilder: (context, state) =>
-                            _page(state, const CompanionPrivacyPage()),
-                      ),
-                    ],
+                        _page(state, const AiSettingsPage()),
                   ),
                 ],
               ),

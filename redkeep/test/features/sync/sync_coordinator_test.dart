@@ -1,10 +1,10 @@
 import 'dart:io';
 
-import 'package:redkeep/features/ai/application/ai_jobs.dart';
 import 'package:redkeep/features/recall/application/recall_controller.dart';
-import 'package:redkeep/features/companion/application/companion_controller.dart';
+import 'package:redkeep/features/ai/application/ai_cloud.dart';
 
 import '../../support/fake_ai.dart';
+import '../../support/fake_ai_provider.dart';
 
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -38,14 +38,11 @@ void main() {
     final resetStorage = AccountResetStorage(directory: () async => directory);
     await h.saveNote('a' * 32, 'erase');
     final vectors = MemoryVectors();
-    final tasks = MemoryAiTasks()..value = 'protected synthetic snapshot';
+    final provider = MemoryAiProviders(saved: testAiSettings);
     final container = ProviderContainer(
       overrides: [
         recallVectorsProvider.overrideWith((ref) async => vectors),
-        protectedAiTasksProvider.overrideWithValue(tasks),
-        companionControllerProvider.overrideWith(
-          () => TestConnection(readyComputer()),
-        ),
+        protectedAiProvidersProvider.overrideWithValue(provider),
         appDatabaseProvider.overrideWithValue(h.db),
         syncBackendProvider.overrideWithValue(h.backend),
         networkServiceProvider.overrideWithValue(QuietNetwork()),
@@ -98,12 +95,8 @@ void main() {
       vectors.failReset = false;
       await container.read(accountResetProvider.notifier).reset();
       expect(container.read(accountResetProvider).completed, true);
-      expect(tasks.value, isNull);
+      expect(provider.value, isNull);
       expect(vectors.resets, greaterThanOrEqualTo(2));
-      expect(
-        container.read(companionControllerProvider).computers,
-        hasLength(1),
-      );
       expect(h.backend.auth.isSignedIn, false);
       expect(h.db.writingBlocked, false);
       expect(await resetStorage.canSync(), true);

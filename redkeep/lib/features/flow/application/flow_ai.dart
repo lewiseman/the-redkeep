@@ -49,6 +49,12 @@ class ReflectionMessages extends Notifier<Map<String, String>> {
 
 final flowAiProvider = Provider((ref) => FlowAi(ref));
 
+/// The thought page owns its reflection request; leaving it cancels it.
+String flowReflectionScope(String thoughtId) => 'flow-reflection:$thoughtId';
+
+/// The Flow search page owns its question request.
+const flowSearchJobScope = 'flow-search';
+
 class FlowAi {
   FlowAi(this.ref);
   final Ref ref;
@@ -62,7 +68,7 @@ class FlowAi {
     }
     final source = ThoughtReflectionSource.fromThought(thought);
     await ref
-        .read(aiJobsProvider.notifier)
+        .read(aiJobsProvider(flowReflectionScope(id)).notifier)
         .start(
           AiOperation.thoughtReflection,
           id,
@@ -119,7 +125,7 @@ class FlowAi {
       );
     }
     await ref
-        .read(aiJobsProvider.notifier)
+        .read(aiJobsProvider(flowSearchJobScope).notifier)
         .start(
           AiOperation.thoughtQuestion,
           'thought-search',
@@ -129,57 +135,60 @@ class FlowAi {
   }
 }
 
-/// Mounted by the app lifecycle, so results are saved even after leaving Flow.
-final thoughtReflectionConsumerProvider = Provider((ref) {
-  ref.watch(writingSessionEpochProvider);
-  final store = ref.watch(thoughtReflectionsRepositoryProvider);
-  String? consuming;
-  var disposed = false;
-  ref.onDispose(() => disposed = true);
-  Future<void> consume() async {
-    final snapshot = ref.read(aiJobsProvider);
-    final job = snapshot.job;
-    if (disposed ||
-        job == null ||
-        job.operation != AiOperation.thoughtReflection ||
-        job.phase != 'completed' ||
-        job.text == null ||
-        consuming != null) {
-      return;
-    }
-    consuming = job.id;
-    try {
-      await store.propose(
-        job.id,
-        ThoughtReflectionSource.decode(job.source),
-        job.text!,
-      );
-      if (!disposed && ref.read(aiJobsProvider).job?.id == job.id) {
-        ref.read(reflectionMessagesProvider.notifier).set(job.key, null);
-        await ref.read(aiJobsProvider.notifier).clearIfCurrent(job.id);
+/// Saves a finished reflection for one thought. It lives with that thought's
+/// page, so leaving the page cancels the request and nothing is saved.
+final thoughtReflectionConsumerProvider = Provider.autoDispose
+    .family<Future<void> Function(), String>((ref, thoughtId) {
+      ref.watch(writingSessionEpochProvider);
+      final jobs = aiJobsProvider(flowReflectionScope(thoughtId));
+      final store = ref.watch(thoughtReflectionsRepositoryProvider);
+      String? consuming;
+      var disposed = false;
+      ref.onDispose(() => disposed = true);
+      Future<void> consume() async {
+        final snapshot = ref.read(jobs);
+        final job = snapshot.job;
+        if (disposed ||
+            job == null ||
+            job.operation != AiOperation.thoughtReflection ||
+            job.phase != 'completed' ||
+            job.text == null ||
+            consuming != null) {
+          return;
+        }
+        consuming = job.id;
+        try {
+          await store.propose(
+            job.id,
+            ThoughtReflectionSource.decode(job.source),
+            job.text!,
+          );
+          if (!disposed && ref.read(jobs).job?.id == job.id) {
+            ref.read(reflectionMessagesProvider.notifier).set(job.key, null);
+            await ref.read(jobs.notifier).clearIfCurrent(job.id);
+          }
+        } catch (error) {
+          if (!disposed) {
+            ref
+                .read(reflectionMessagesProvider.notifier)
+                .set(
+                  job.key,
+                  error is ThoughtReflectionRejected ? error.message : 'This reflection could not be saved. Retry saving it, or clear the task.',
+                );
+          }
+          // Keep the result on the page so saving can be retried.
+        } finally {
+          consuming = null;
+        }
       }
-    } catch (error) {
-      if (!disposed) {
-        ref
-            .read(reflectionMessagesProvider.notifier)
-            .set(
-              job.key,
-              error is ThoughtReflectionRejected ? error.message : 'This reflection could not be saved. Retry saving it, or clear the task.',
-            );
-      }
-      // Keep the protected result for explicit recovery; never clear a failed write.
-    } finally {
-      consuming = null;
-    }
-  }
 
-  ref.listen(
-    aiJobsProvider,
-    (_, next) => scheduleMicrotask(() {
-      if (!disposed) unawaited(consume());
-    }),
-    fireImmediately: true,
-  );
-  unawaited(store.prune().catchError((_) {}));
-  return consume;
-});
+      ref.listen(
+        jobs,
+        (_, next) => scheduleMicrotask(() {
+          if (!disposed) unawaited(consume());
+        }),
+        fireImmediately: true,
+      );
+      unawaited(store.prune().catchError((_) {}));
+      return consume;
+    });

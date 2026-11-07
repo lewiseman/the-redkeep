@@ -1,24 +1,20 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:redkeep/features/ai/application/ai_jobs.dart';
 import 'package:redkeep/features/ai/domain/ai_job.dart';
 import 'package:redkeep/features/ai/domain/ai_operation.dart';
-import 'package:redkeep/features/ai/application/ai_preferences.dart';
-import 'package:redkeep/features/ai/domain/ai_route.dart';
-import 'package:redkeep/features/companion/application/companion_controller.dart';
+import 'package:redkeep/features/ai/domain/ai_provider.dart';
 import 'package:redkeep/features/notes/application/note_ai_controller.dart';
 import 'package:redkeep/features/notes/application/note_ai_sources.dart';
 import 'package:redkeep/features/notes/application/note_editor_controller.dart';
 import 'package:redkeep/features/notes/application/notes_providers.dart';
 import 'package:redkeep/features/notes/domain/note_document.dart';
 import 'package:redkeep/features/notes/domain/note_help_contract.dart';
-import 'package:redkeep/features/notes/domain/note_scan_contract.dart';
 import 'package:redkeep/features/notes/domain/note_tag.dart';
-import 'package:redkeep/features/notes/domain/website/website_render.dart';
 import 'package:redkeep/features/sync/data/drift_sync_store.dart';
 
-import '../../support/fake_ai.dart';
 import '../../support/fake_ai_provider.dart';
 import '../../support/notes_ai_harness.dart';
 
@@ -27,6 +23,7 @@ void main() {
   late NotesAiHarness h;
   setUp(() async {
     h = await NotesAiHarness.create();
+    h.holdPage();
     await h.save(
       details: const NoteDetails(
         tags: ['travel'],
@@ -36,33 +33,44 @@ void main() {
   });
   tearDown(() => h.close());
   NoteAiController actions() => h.scope.read(noteAiControllerProvider);
-  AiJob job() => h.scope.read(aiJobsProvider).job!;
+  AiJob job() => h.scope.read(aiJobsProvider(notesJobScope)).job!;
 
   for (final operation in AiOperation.values.where(
-    (o) => o.isNote && o != AiOperation.noteBackground,
+    (o) => o.isNote && o.available && o != AiOperation.noteBackground,
   )) {
     test(
       '${operation.wireName} rejects a malformed result without changing writing',
       () async {
         h.remote.output = '<script>untrusted output</script>';
         if (operation == AiOperation.noteQuestion) {
-          await actions().search('tomatoes');
+          await actions().search('tomatoes', scope: notesJobScope);
         } else if (operation == AiOperation.noteTemplate) {
           final id = 'c' * 32;
           h.scope.read(noteNewIdsProvider.notifier).add(id);
           final sub = h.scope.listen(noteEditorProvider(id), (_, _) {});
           addTearDown(sub.close);
           await h.scope.read(noteEditorProvider(id).future);
-          await actions().start(operation, id, topic: 'Trip plan');
+          await actions().start(
+            operation,
+            id,
+            scope: notesJobScope,
+            topic: 'Trip plan',
+          );
         } else if (operation.imageInput) {
           final path = await h.media.write(h.remote.generated);
           final attachment = NoteAttachment(path: path, type: 'image/png');
           await h.save(details: NoteDetails(attachments: [attachment]));
-          await actions().start(operation, notesTestId, image: attachment);
+          await actions().start(
+            operation,
+            notesTestId,
+            scope: notesJobScope,
+            image: attachment,
+          );
         } else {
           await actions().start(
             operation,
             notesTestId,
+            scope: notesJobScope,
             description: 'A garden plan',
           );
         }
@@ -71,7 +79,6 @@ void main() {
           (await h.repository.openDocument(notesTestId)).note!.text.body,
           notesTestBody,
         );
-        expect(await h.repository.priorContent(notesTestId), isEmpty);
       },
     );
   }
@@ -80,14 +87,17 @@ void main() {
     'summary only sends this note and leaves the full document untouched',
     () async {
       await h.save(id: 'b' * 32, body: 'Private unrelated note');
-      await actions().start(AiOperation.noteSummary, notesTestId);
+      await actions().start(
+        AiOperation.noteSummary,
+        notesTestId,
+        scope: notesJobScope,
+      );
       expect(job().phase, 'completed');
       expect(h.remote.submissions.single['prompt'], contains(notesTestBody));
       expect(
         h.remote.submissions.single.toString(),
         isNot(contains('Private unrelated')),
       );
-      expect(h.remote.submissions.single.containsKey('source'), isFalse);
       expect((await h.repository.openDocument(notesTestId)).note!.revision, 1);
       expect(
         (await h.repository.openDocument(notesTestId))
@@ -107,12 +117,13 @@ void main() {
     AiOperation.noteMarkdown,
   ]) {
     test(
-      '${operation.wireName} reviews a selected passage and restores prior content',
+      '${operation.wireName} reviews and applies only a selected passage',
       () async {
         h.remote.output = 'Grow tomatoes';
         await actions().start(
           operation,
           notesTestId,
+          scope: notesJobScope,
           selectionStart: 0,
           selectionEnd: 14,
           intent: operation == AiOperation.noteTone
@@ -128,20 +139,10 @@ void main() {
           (await h.repository.openDocument(notesTestId)).note!.text.body,
           notesTestBody,
         );
-        final saved = (await actions().apply(job()))!;
+        final saved = (await actions().apply(job(), scope: notesJobScope))!;
         expect(saved.text.body, startsWith('Grow tomatoes in the raised bed.'));
         expect(saved.tags, ['travel']);
         expect(saved.details.background['type'], 'sage');
-        final prior = (await h.repository.priorContent(notesTestId)).single;
-        await h.repository.restorePriorContent(
-          notesTestId,
-          prior.id,
-          saved.revision,
-        );
-        expect(
-          (await h.repository.openDocument(notesTestId)).note!.text.body,
-          notesTestBody,
-        );
       },
     );
   }
@@ -149,13 +150,20 @@ void main() {
   test(
     'accepting a reviewed result never clears a newer unrelated task',
     () async {
-      await actions().start(AiOperation.noteRewrite, notesTestId);
+      await actions().start(
+        AiOperation.noteRewrite,
+        notesTestId,
+        scope: notesJobScope,
+      );
       final reviewed = job();
-      await h.scope.read(aiJobsProvider.notifier).clear();
+      await h.scope.read(aiJobsProvider(notesJobScope).notifier).clear();
       h.remote.output = '{"status":"answered","answer":"Water the tomatoes.","citations":["s0"]}';
-      await actions().search('What did I plan for tomatoes?');
+      await actions().search(
+        'What did I plan for tomatoes?',
+        scope: notesJobScope,
+      );
       final newer = job();
-      await actions().apply(reviewed);
+      await actions().apply(reviewed, scope: notesJobScope);
       expect(job().id, newer.id);
       expect(job().operation, AiOperation.noteQuestion);
       expect(
@@ -165,27 +173,26 @@ void main() {
     },
   );
 
-  test('metadata applies only selected fields, preserves manual tags, and supports undo', () async {
-    h.remote.output = noteMetadataOutput;
-    await actions().start(AiOperation.noteMetadata, notesTestId);
-    final saved = (await actions().apply(
-      job(),
-      title: 'Raised bed plan',
-      tags: ['🌱#Gardening'],
-    ))!;
-    expect(saved.text.title, 'Raised bed plan');
-    expect(saved.text.body, notesTestBody);
-    expect(saved.tags, containsAll(['travel', '🌱#Gardening']));
-    final prior = (await h.repository.priorContent(notesTestId)).single;
-    await h.repository.restorePriorContent(
-      notesTestId,
-      prior.id,
-      saved.revision,
-    );
-    final undone = (await h.repository.openDocument(notesTestId)).note!;
-    expect(undone.text.title, 'Garden');
-    expect(undone.tags, ['travel']);
-  });
+  test(
+    'metadata applies only selected fields and preserves manual tags',
+    () async {
+      h.remote.output = noteMetadataOutput;
+      await actions().start(
+        AiOperation.noteMetadata,
+        notesTestId,
+        scope: notesJobScope,
+      );
+      final saved = (await actions().apply(
+        job(),
+        scope: notesJobScope,
+        title: 'Raised bed plan',
+        tags: ['🌱#Gardening'],
+      ))!;
+      expect(saved.text.title, 'Raised bed plan');
+      expect(saved.text.body, notesTestBody);
+      expect(saved.tags, containsAll(['travel', '🌱#Gardening']));
+    },
+  );
 
   test('template result fills a new note and saves it', () async {
     final id = 'c' * 32;
@@ -195,8 +202,13 @@ void main() {
     await h.scope.read(noteEditorProvider(id).future);
     h.remote.output =
         '{"title":"Trip plan","body":"Destination:\\n- [ ] Pack"}';
-    await actions().start(AiOperation.noteTemplate, id, topic: 'Trip plan');
-    await actions().apply(job());
+    await actions().start(
+      AiOperation.noteTemplate,
+      id,
+      scope: notesJobScope,
+      topic: 'Trip plan',
+    );
+    await actions().apply(job(), scope: notesJobScope);
     final buffer = h.scope.read(noteEditorProvider(id)).requireValue;
     expect(buffer.text.title, 'Trip plan');
     final opened = await h.repository.openDocument(id);
@@ -208,89 +220,13 @@ void main() {
     'AI note search uses bounded matched excerpts and validated source links',
     () async {
       h.remote.output = '{"status":"answered","answer":"Water the tomatoes every morning.","citations":["s0"]}';
-      await actions().search('What did I plan for tomatoes?');
+      await actions().search(
+        'What did I plan for tomatoes?',
+        scope: notesJobScope,
+      );
       expect(job().operation, AiOperation.noteQuestion);
       expect(h.remote.submissions.single['prompt'], contains('tomatoes'));
       expect((await h.repository.openDocument(notesTestId)).note!.revision, 1);
-    },
-  );
-
-  test('website is saved beside unchanged note text and can change theme without AI', () async {
-    h.remote.output = noteWebsiteOutput;
-    await actions().start(
-      AiOperation.noteWebsite,
-      notesTestId,
-      description: 'A calm garden plan',
-      theme: 'garden',
-    );
-    final saved = (await actions().apply(job()))!;
-    expect(saved.text.body, notesTestBody);
-    expect(saved.details.website, contains('Plant tomatoes'));
-    final spec = websiteSpecOf(saved.details.website)!;
-    expect(spec.theme, 'garden');
-    await h.repository.applyProposal(
-      saved.id,
-      saved.revision,
-      text: saved.text,
-      details: saved.details.copy(
-        website: renderWebsite(
-          spec.withStyle(theme: 'night'),
-          title: saved.text.title,
-        ),
-      ),
-      taskId: 'manual-theme',
-      operation: 'website-look',
-      retainPrior: false,
-    );
-    expect(h.remote.submissions.length, 1);
-    expect(
-      websiteSpecOf(
-        (await h.repository.openDocument(saved.id)).note!.details.website,
-      )!.theme,
-      'night',
-    );
-  });
-
-  test('background bytes are persisted and verified before ack, then accepted locally', () async {
-    h.remote.beforeAck = () async {
-      final text = h.remote.task!['text'] as String;
-      expect(
-        await h.media.resolve(
-          backgroundPreviewPath(h.remote.task!['id'] as String, text),
-        ),
-        isNotNull,
-      );
-    };
-    await actions().start(
-      AiOperation.noteBackground,
-      notesTestId,
-      description: 'Soft leaves',
-    );
-    expect(job().phase, 'completed');
-    final saved = (await actions().apply(job()))!;
-    expect(saved.details.background['image'], startsWith('note_media/'));
-    expect(saved.text.body, notesTestBody);
-    expect(
-      h.remote.events.indexWhere((e) => e.endsWith('/result')),
-      lessThan(h.remote.events.indexWhere((e) => e.endsWith('/ack'))),
-    );
-  });
-
-  test(
-    'corrupted generated image is neither accepted nor acknowledged',
-    () async {
-      h.remote.corruptImage = true;
-      await actions().start(
-        AiOperation.noteBackground,
-        notesTestId,
-        description: 'Soft leaves',
-      );
-      expect(job().phase, isNot('completed'));
-      expect(h.remote.events.any((e) => e.endsWith('/ack')), isFalse);
-      expect(
-        (await h.repository.openDocument(notesTestId)).note!.details.background,
-        {'type': 'sage'},
-      );
     },
   );
 
@@ -303,12 +239,13 @@ void main() {
       await actions().start(
         AiOperation.noteScan,
         notesTestId,
+        scope: notesJobScope,
         image: attachment,
       );
-      expect(h.remote.submissions.single['prompt'], noteScanPrompt);
-      expect(h.remote.events, contains('POST /v1/image-jobs'));
+      expect(h.remote.submissions.single['images'], 1);
       final saved = (await actions().apply(
         job(),
+        scope: notesJobScope,
         reviewedText: 'Meet Sam at 3pm Friday',
       ))!;
       expect(saved.text.body, endsWith('Meet Sam at 3pm Friday'));
@@ -329,13 +266,14 @@ void main() {
       await actions().start(
         AiOperation.noteImage,
         notesTestId,
+        scope: notesJobScope,
         image: attachment,
       );
       expect(
         (await h.repository.openDocument(notesTestId)).note!.text.body,
         notesTestBody,
       );
-      final saved = (await actions().apply(job()))!;
+      final saved = (await actions().apply(job(), scope: notesJobScope))!;
       expect(saved.text.body, contains('A garden bed.'));
       expect(saved.details.attachments.single.path, path);
     },
@@ -344,10 +282,17 @@ void main() {
   test(
     'manual edit or recovery draft during inference prevents stale acceptance',
     () async {
-      await actions().start(AiOperation.noteRewrite, notesTestId);
+      await actions().start(
+        AiOperation.noteRewrite,
+        notesTestId,
+        scope: notesJobScope,
+      );
       final old = job();
       await h.save(body: 'New manual writing');
-      await expectLater(actions().apply(old), throwsFormatException);
+      await expectLater(
+        actions().apply(old, scope: notesJobScope),
+        throwsFormatException,
+      );
       expect(
         (await h.repository.openDocument(notesTestId)).note!.text.body,
         'New manual writing',
@@ -364,12 +309,20 @@ void main() {
       addTearDown(sub.close);
       await h.scope.read(noteEditorProvider(id).future);
       h.remote.output = '{"title":"Plan","body":"A starting point"}';
-      await actions().start(AiOperation.noteTemplate, id, topic: 'A plan');
+      await actions().start(
+        AiOperation.noteTemplate,
+        id,
+        scope: notesJobScope,
+        topic: 'A plan',
+      );
       final old = job();
       h.scope
           .read(noteEditorProvider(id).notifier)
           .edit(const PlainTextDocument(body: 'My own new writing'));
-      await expectLater(actions().apply(old), throwsFormatException);
+      await expectLater(
+        actions().apply(old, scope: notesJobScope),
+        throwsFormatException,
+      );
       expect(
         h.scope.read(noteEditorProvider(id)).requireValue.text.body,
         'My own new writing',
@@ -378,117 +331,147 @@ void main() {
   );
 
   test('role change rejects acceptance at the repository boundary', () async {
-    await actions().start(AiOperation.noteRewrite, notesTestId);
+    await actions().start(
+      AiOperation.noteRewrite,
+      notesTestId,
+      scope: notesJobScope,
+    );
     final old = job();
     final values = DriftSyncKeyValueStore(h.db);
     await values.write('deviceId', 'this-device');
     await values.write('role', '{"device_id":"other-device"}');
-    await expectLater(actions().apply(old), throwsStateError);
+    await expectLater(
+      actions().apply(old, scope: notesJobScope),
+      throwsStateError,
+    );
     expect(
       (await h.repository.openDocument(notesTestId)).note!.text.body,
       notesTestBody,
     );
   });
 
-  test('unavailable model and oversized input send no requests', () async {
-    (h.scope.read(companionControllerProvider.notifier) as TestConnection).set(
-      notesReadyComputer(status: 'missing'),
+  test('background images are generated, verified and kept locally', () async {
+    await actions().start(
+      AiOperation.noteBackground,
+      notesTestId,
+      scope: notesJobScope,
+      description: 'Soft leaves',
     );
-    await actions().start(AiOperation.noteSummary, notesTestId);
-    expect(h.remote.submissions, isEmpty);
-    expect(h.scope.read(aiJobsProvider).message, isNotNull);
-    (h.scope.read(companionControllerProvider.notifier) as TestConnection).set(
-      notesReadyComputer(),
+    expect(h.scope.read(aiJobsProvider(notesJobScope)).message, isNull);
+    expect(job().phase, 'completed');
+    expect(h.aiProvider.images.single, contains('Soft leaves'));
+    expect(
+      await h.media.resolve(backgroundPreviewPath(job().id, job().text!)),
+      isNotNull,
     );
-    await h.save(body: 'word ' * 1000);
-    await actions().start(AiOperation.noteSummary, notesTestId);
-    expect(h.remote.submissions, isEmpty);
+    final saved = (await actions().apply(job(), scope: notesJobScope))!;
+    expect(saved.details.background['image'], startsWith('note_media/'));
+    expect(saved.text.body, notesTestBody);
+  });
+
+  test('a corrupted generated image is never applied', () async {
+    h.remote.corruptImage = true;
+    await actions().start(
+      AiOperation.noteBackground,
+      notesTestId,
+      scope: notesJobScope,
+      description: 'Soft leaves',
+    );
+    expect(job().phase, 'failed');
+    expect(
+      (await h.repository.openDocument(notesTestId)).note!.details.background,
+      {'type': 'sage'},
+    );
   });
 
   test(
-    'retained queued task restores with the same identity and no resubmission',
+    'a provider without the feature, or oversized input, sends nothing',
     () async {
-      h.remote.queued = true;
-      final work = actions().start(AiOperation.noteSummary, notesTestId);
-      for (
-        var i = 0;
-        i < 100 && h.scope.read(aiJobsProvider).job?.accepted != true;
-        i++
-      ) {
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-      }
-      final id = job().id;
       h.scope.dispose();
-      h.remote.task!['state'] = 'completed';
-      h.remote.task!['text'] = 'A short garden summary.';
-      h.scope = h.createScope();
-      await h.scope.read(aiJobsProvider.notifier).restore();
-      await work;
-      expect(job().id, id);
-      expect(job().phase, 'completed');
-      expect(h.remote.submissions.length, 1);
+      h.scope = h.createScope(
+        settings: testAiSettings.copyWith(models: {AiCapability.chat: 'm'}),
+      );
+      h.holdPage();
+      await actions().start(
+        AiOperation.noteBackground,
+        notesTestId,
+        scope: notesJobScope,
+        description: 'Soft leaves',
+      );
+      expect(h.aiProvider.images, isEmpty);
+      expect(
+        h.scope.read(aiJobsProvider(notesJobScope)).message,
+        contains('does not offer'),
+      );
+      await h.save(body: 'word ' * 1000);
+      await actions().start(
+        AiOperation.noteSummary,
+        notesTestId,
+        scope: notesJobScope,
+      );
+      expect(h.remote.submissions, isEmpty);
     },
   );
 
-  test(
-    'expired preview cannot be applied even when its note did not change',
-    () async {
-      await actions().start(AiOperation.noteRewrite, notesTestId);
-      final current = job();
-      final expired = AiJob(
-        id: current.id,
-        operation: current.operation,
-        key: current.key,
-        created: current.created - const Duration(days: 2).inMilliseconds,
-        provider: current.provider,
-        phase: 'completed',
-        source: current.source,
-        text: current.text,
-      );
-      await expectLater(actions().apply(expired), throwsFormatException);
-      expect(
-        (await h.repository.openDocument(notesTestId)).note!.text.body,
-        notesTestBody,
-      );
-    },
-  );
+  test('the website tool is paused and never sends', () async {
+    await actions().start(
+      AiOperation.noteWebsite,
+      notesTestId,
+      scope: notesJobScope,
+      description: 'A garden plan',
+    );
+    expect(h.remote.submissions, isEmpty);
+    expect(job().phase, 'failed');
+  });
 
   test('cancel and reject never change notes', () async {
     h.remote.queued = true;
-    final work = actions().start(AiOperation.noteRewrite, notesTestId);
-    for (
-      var i = 0;
-      i < 100 && h.scope.read(aiJobsProvider).job?.accepted != true;
-      i++
-    ) {
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-    }
-    await h.scope.read(aiJobsProvider.notifier).cancel();
+    final work = actions().start(
+      AiOperation.noteRewrite,
+      notesTestId,
+      scope: notesJobScope,
+    );
+    await pumpEventQueue();
+    await h.scope.read(aiJobsProvider(notesJobScope).notifier).cancel();
     await work;
-    await h.scope.read(aiJobsProvider.notifier).clear();
+    expect(h.aiProvider.aborted, isTrue);
+    await h.scope.read(aiJobsProvider(notesJobScope).notifier).clear();
     expect((await h.repository.openDocument(notesTestId)).note!.revision, 1);
-    expect(h.remote.events.any((e) => e.endsWith('/cancel')), isTrue);
   });
 
-  test(
-    'compatible text tools use the chosen provider with the migrated prompt',
-    () async {
-      h.scope.dispose();
-      h.scope = h.createScope(connected: false);
-      h.aiProvider.reply = h.remote.output;
-      await h.scope
-          .read(aiPreferencesRepositoryProvider)
-          .setTaskRoute(
-            AiOperation.noteRewrite,
-            AiRoute.provider(testAiProvider.id, 'test-model'),
-          );
-      await actions().start(AiOperation.noteRewrite, notesTestId);
-      expect(job().provider, 'provider');
-      expect(job().phase, 'completed');
-      expect(h.remote.submissions, isEmpty);
-      expect(h.aiProvider.requests.single.system, contains('Preserve facts'));
-    },
-  );
+  test('leaving the page aborts the request and discards its result', () async {
+    h.scope.dispose();
+    h.scope = h.createScope();
+    final page = h.holdPage();
+    h.remote.queued = true;
+    unawaited(
+      actions().start(
+        AiOperation.noteRewrite,
+        notesTestId,
+        scope: notesJobScope,
+      ),
+    );
+    await pumpEventQueue();
+    expect(h.scope.read(aiJobsProvider(notesJobScope)).busy, isTrue);
+    page.close();
+    await pumpEventQueue();
+    expect(h.aiProvider.aborted, isTrue);
+    final again = h.holdPage();
+    addTearDown(again.close);
+    expect(h.scope.read(aiJobsProvider(notesJobScope)).job, isNull);
+    expect((await h.repository.openDocument(notesTestId)).note!.revision, 1);
+  });
+
+  test('text tools send the note prompt to the cloud provider', () async {
+    await actions().start(
+      AiOperation.noteRewrite,
+      notesTestId,
+      scope: notesJobScope,
+    );
+    expect(job().phase, 'completed');
+    expect(h.aiProvider.requests.single.system, contains('Preserve facts'));
+    expect(h.aiProvider.requests.single.model, 'test-model');
+  });
 
   test(
     'metadata filters sensitive tags and reuses existing plain-tag spelling',

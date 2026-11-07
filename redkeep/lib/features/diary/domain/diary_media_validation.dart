@@ -1,12 +1,8 @@
 import 'dart:convert';
 
-import 'diary_ai_conversation.dart';
 import 'diary_photo.dart';
 
-void validateDiaryMedia(
-  List<DiaryPhoto> photos,
-  DiaryAiConversation? conversation,
-) {
+void validateDiaryMedia(List<DiaryPhoto> photos) {
   if (photos.length > 100 ||
       utf8.encode(jsonEncode([for (final p in photos) p.toJson()])).length >
           1000000) {
@@ -21,18 +17,5 @@ void validateDiaryMedia(
         !RegExp(r'^[a-f0-9]{64}$').hasMatch(photo.sha256)) {
       throw const FormatException('Invalid photo reference.');
     }
-  }
-  if (conversation != null &&
-      (photos.isNotEmpty ||
-          !conversation.hasUserTurn ||
-          conversation.turns.length > 24 ||
-          utf8.encode(jsonEncode(conversation.toJson())).length > 131072 ||
-          conversation.turns.any(
-            (turn) =>
-                !{'user', 'assistant'}.contains(turn['speaker']) ||
-                turn['text'] == null ||
-                turn['text']!.trim().isEmpty,
-          ))) {
-    throw const FormatException('Invalid conversation.');
   }
 }

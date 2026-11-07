@@ -9,10 +9,8 @@ import 'package:redkeep/features/diary/domain/diary_period.dart';
 import 'package:redkeep/features/diary/domain/diary_day_details.dart';
 import 'package:redkeep/features/diary/domain/diary_history_contract.dart';
 import 'package:redkeep/features/diary/domain/diary_history_day.dart';
-import 'package:redkeep/features/diary/domain/diary_ai_conversation.dart';
 import 'package:redkeep/features/diary/domain/diary_photo.dart';
 import 'package:redkeep/features/diary/domain/diary_photo_question_contract.dart';
-import 'package:redkeep/features/diary/domain/daily_question_contract.dart';
 import 'package:redkeep/features/recall/data/recall_sources.dart';
 import 'package:redkeep/features/sync/data/drift_sync_collection.dart';
 import 'package:redkeep/features/sync/data/drift_sync_store.dart';
@@ -90,17 +88,6 @@ void main() {
         ],
         expectedRevision: 0,
       );
-      await repo.saveConversation(
-        id: '${i + 7}'.padLeft(32, '0'),
-        date: period,
-        conversation: DiaryAiConversation(
-          turns: const [
-            {'speaker': 'user', 'text': 'A quiet time.'},
-          ],
-          createdAt: today,
-        ),
-        expectedRevision: 0,
-      );
       final document = (await DriftSyncCollection(
         db,
         'diary',
@@ -110,7 +97,7 @@ void main() {
         other,
         'diary',
       ).mergeRemote(document, now: today);
-      expect((await imported.watchEntries(date: period).first).length, 3);
+      expect((await imported.watchEntries(date: period).first).length, 2);
       expect((await imported.openDocument(id)).entry!.date, period);
       expect(
         (await imported.watchDay(period).first).heading,
@@ -154,12 +141,6 @@ void main() {
       expect(source.texts, ['My ${period.kind.name} garden']);
       expect(jsonDecode(source.request())['period'], period.kind.name);
       expect(await ai.current(source), isTrue);
-      final question = await ai.question(period, []);
-      expect(question.today.single.date, period.key);
-      expect(question.prior, isEmpty);
-      expect(jsonDecode(question.request())['period'], period.kind.name);
-      expect(await ai.questionCurrent(question), isTrue);
-      expect(DailyQuestionSource.decode(question.encode()).date, period.key);
       final photoSource = DiaryPhotoQuestionSource(
         date: period.key,
         photoSha: 'a' * 64,

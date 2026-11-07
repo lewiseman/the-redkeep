@@ -40,13 +40,10 @@ class _DiaryAiSheetState extends ConsumerState<DiaryAiSheet> {
   final _fields = <String>{};
   String? _reviewed, _message;
   bool _checking = false;
-  @override
-  void initState() {
-    super.initState();
-    scheduleMicrotask(
-      () => unawaited(ref.read(aiJobsProvider.notifier).restore()),
-    );
-  }
+
+  /// This sheet's request. Closing the sheet cancels it.
+  AiJobsProvider get _jobs =>
+      aiJobsProvider('diary-details:${widget.date.key}');
 
   Future<void> _generate() async {
     setState(() {
@@ -58,7 +55,7 @@ class _DiaryAiSheetState extends ConsumerState<DiaryAiSheet> {
       final prompt = source.request();
       if (!mounted || !widget.stillCurrent()) return;
       await ref
-          .read(aiJobsProvider.notifier)
+          .read(_jobs.notifier)
           .start(
             AiOperation.diaryDetails,
             widget.date.key,
@@ -100,7 +97,7 @@ class _DiaryAiSheetState extends ConsumerState<DiaryAiSheet> {
         suggestions,
         Set.of(_fields),
       );
-      await ref.read(aiJobsProvider.notifier).clear();
+      await ref.read(_jobs.notifier).clear();
       if (mounted && widget.stillCurrent()) Navigator.pop(context, result);
     } catch (_) {
       if (mounted) {
@@ -116,7 +113,7 @@ class _DiaryAiSheetState extends ConsumerState<DiaryAiSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(aiJobsProvider);
+    final state = ref.watch(_jobs);
     final task = state.job;
     final ours =
         task?.operation == AiOperation.diaryDetails &&
@@ -325,9 +322,7 @@ class _DiaryAiSheetState extends ConsumerState<DiaryAiSheet> {
                     if (!task.terminal)
                       _QuietAction(
                         'Stop reading',
-                        _checking
-                            ? null
-                            : ref.read(aiJobsProvider.notifier).cancel,
+                        _checking ? null : ref.read(_jobs.notifier).cancel,
                       ),
                     if (!state.busy)
                       _QuietAction(
@@ -336,15 +331,15 @@ class _DiaryAiSheetState extends ConsumerState<DiaryAiSheet> {
                             ? null
                             : task.terminal
                             ? () async {
-                                await ref.read(aiJobsProvider.notifier).clear();
+                                await ref.read(_jobs.notifier).clear();
                                 if (mounted) await _generate();
                               }
-                            : ref.read(aiJobsProvider.notifier).retry,
+                            : ref.read(_jobs.notifier).retry,
                       ),
                     if (task.terminal)
                       _QuietAction(
                         'Clear task',
-                        busy ? null : ref.read(aiJobsProvider.notifier).clear,
+                        busy ? null : ref.read(_jobs.notifier).clear,
                       ),
                   ],
                   _QuietAction('Grand Maestar settings', () {

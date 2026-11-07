@@ -409,7 +409,8 @@ class DiaryAlbumMarginPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(DiaryAlbumMarginPainter oldDelegate) => ink != oldDelegate.ink;
+  bool shouldRepaint(DiaryAlbumMarginPainter oldDelegate) =>
+      ink != oldDelegate.ink;
 }
 
 class _MemoryStitchPainter extends CustomPainter {

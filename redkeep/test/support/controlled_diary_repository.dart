@@ -1,5 +1,4 @@
 import 'package:redkeep/features/diary/domain/diary_photo.dart';
-import 'package:redkeep/features/diary/domain/diary_ai_conversation.dart';
 import 'package:redkeep/features/diary/domain/diary_period.dart';
 
 import 'dart:async';
@@ -78,20 +77,6 @@ class ControlledDiaryRepository implements DiaryRepository {
     date: date,
     photos: photos,
     expectedRevision: expectedRevision,
-  );
-  @override
-  Future<DiaryEntry> saveConversation({
-    required String id,
-    required DiaryPeriod date,
-    required DiaryAiConversation conversation,
-    required int expectedRevision,
-    String? body,
-  }) => inner.saveConversation(
-    id: id,
-    date: date,
-    conversation: conversation,
-    expectedRevision: expectedRevision,
-    body: body,
   );
   @override
   Future<void> deleteEntry(String id, int expectedRevision) =>

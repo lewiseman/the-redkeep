@@ -124,9 +124,7 @@ void main() {
         );
         await tester.pumpAndSettle();
         expect(
-          find.bySemanticsLabel(
-            RegExp('Grand Maester.*a provider you choose'),
-          ),
+          find.bySemanticsLabel(RegExp('Grand Maester.*a provider you choose')),
           findsOneWidget,
         );
         await tester.drag(

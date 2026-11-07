@@ -59,7 +59,10 @@ void main() {
         await send('updateBackGestureProgress', update);
         await send('commitBackGesture');
         await tester.pumpAndSettle();
-        expect(find.byKey(const ValueKey('diary-active-paper')), findsOneWidget);
+        expect(
+          find.byKey(const ValueKey('diary-active-paper')),
+          findsOneWidget,
+        );
         expect(router.canPop(), isFalse);
         expect(tester.takeException(), isNull);
       },

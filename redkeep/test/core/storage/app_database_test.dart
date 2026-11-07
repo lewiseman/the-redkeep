@@ -6,7 +6,6 @@ import 'package:drift_dev/api/migrations_native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:redkeep/core/storage/app_database.dart';
 import 'package:redkeep/features/ai/data/ai_preferences_repository.dart';
-import 'package:redkeep/features/ai/domain/ai_route.dart';
 import 'package:redkeep/features/appearance/data/drift_appearance_repository.dart';
 import 'package:redkeep/features/appearance/domain/appearance_preferences.dart';
 import 'package:redkeep/features/notes/data/drift_notes_repository.dart';
@@ -16,30 +15,56 @@ import 'package:redkeep/features/onboarding/data/drift_onboarding_repository.dar
 import 'generated/schema.dart';
 
 void main() {
-  test('fresh schema matches the complete version 3 snapshot', () async {
+  test('fresh schema matches the complete version 4 snapshot', () async {
     final database = AppDatabase(NativeDatabase.memory());
     addTearDown(database.close);
 
-    expect(database.schemaVersion, 3);
-    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 3);
+    expect(database.schemaVersion, 4);
+    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 4);
     final version = await database
         .customSelect('PRAGMA user_version')
         .getSingle();
-    expect(version.read<int>('user_version'), 3);
+    expect(version.read<int>('user_version'), 4);
   });
 
-  test('the upgrade from version 1 matches the snapshot', () async {
-    final verifier = SchemaVerifier(GeneratedHelper());
-    final database = AppDatabase(await verifier.startAt(1));
-    addTearDown(database.close);
-    await verifier.migrateAndValidate(database, 3);
-  });
+  for (final from in [1, 2, 3]) {
+    test('the upgrade from version $from matches the snapshot', () async {
+      final verifier = SchemaVerifier(GeneratedHelper());
+      final database = AppDatabase(await verifier.startAt(from));
+      addTearDown(database.close);
+      await verifier.migrateAndValidate(database, 4);
+    });
+  }
 
-  test('the version 3 upgrade matches the snapshot', () async {
+  test('version 4 drops stored tasks, daily questions, voices, conversations and recovery copies', () async {
     final verifier = SchemaVerifier(GeneratedHelper());
-    final database = AppDatabase(await verifier.startAt(2));
+    final database = AppDatabase(await verifier.startAt(3));
     addTearDown(database.close);
-    await verifier.migrateAndValidate(database, 3);
+    await verifier.migrateAndValidate(database, 4);
+    final tables =
+        (await database
+                .customSelect(
+                  "SELECT name FROM sqlite_master WHERE type = 'table'",
+                )
+                .get())
+            .map((r) => r.read<String>('name'))
+            .toSet();
+    expect(tables, contains('ai_usage_months'));
+    expect(tables, isNot(contains('ai_job_receipts')));
+    expect(tables, isNot(contains('daily_questions')));
+    expect(tables, isNot(contains('note_ai_recoveries')));
+    final prefs =
+        (await database
+                .customSelect('PRAGMA table_info(ai_preferences_table)')
+                .get())
+            .map((c) => c.read<String>('name'))
+            .toSet();
+    expect(prefs, isNot(anyOf(contains('routes'), contains('reply_voice'))));
+    final diary =
+        (await database.customSelect('PRAGMA table_info(diary_entries)').get())
+            .map((c) => c.read<String>('name'))
+            .toSet();
+    expect(diary, isNot(contains('conversation')));
   });
 
   test('version 3 drops the old note drafts table', () async {
@@ -64,7 +89,7 @@ void main() {
     final version = await database
         .customSelect('PRAGMA user_version')
         .getSingle();
-    expect(version.read<int>('user_version'), 3);
+    expect(version.read<int>('user_version'), 4);
   });
 
   test('upgrading a real version 1 file keeps preferences, writing and recall triggers', () async {
@@ -78,12 +103,9 @@ void main() {
         .insert(
           const AiPreferencesTableCompanion(
             id: Value(1),
-            dailyQuestions: Value(false),
+            recallFlow: Value(false),
           ),
         );
-    await old.customStatement(
-      'ALTER TABLE ai_preferences_table DROP COLUMN routes',
-    );
     await old.customStatement(
       "ALTER TABLE ai_preferences_table ADD COLUMN mode TEXT NOT NULL DEFAULT 'device'",
     );
@@ -100,18 +122,21 @@ void main() {
     addTearDown(database.close);
     final prefs = AiPreferencesRepository(database);
     final stored = await prefs.read();
-    expect(stored.defaultRoute, const AiRoute.companion());
-    expect(stored.overrides, isEmpty);
-    expect(stored.dailyQuestions, isFalse, reason: 'unrelated choices survive');
+    expect(
+      stored.collections,
+      isNot(contains('thought')),
+      reason: 'unrelated choices survive',
+    );
     final version = await database
         .customSelect('PRAGMA user_version')
         .getSingle();
-    expect(version.read<int>('user_version'), 3);
+    expect(version.read<int>('user_version'), 4);
     final columns = await database
         .customSelect('PRAGMA table_info(ai_preferences_table)')
         .get();
     final names = columns.map((c) => c.read<String>('name')).toSet();
-    expect(names, containsAll(['routes', 'recall_notes']));
+    expect(names, contains('recall_notes'));
+    expect(names, isNot(contains('routes')));
     expect(names, isNot(contains('mode')));
     expect(names, isNot(contains('overrides')));
     final brain = await database
@@ -240,7 +265,7 @@ void main() {
       final version = await reopened
           .customSelect('PRAGMA user_version')
           .getSingle();
-      expect(version.read<int>('user_version'), 3);
+      expect(version.read<int>('user_version'), 4);
     },
   );
 

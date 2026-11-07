@@ -1,15 +1,10 @@
-import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:redkeep/app/navigation_destination.dart';
-import 'package:redkeep/features/ai/application/ai_jobs.dart';
-import 'package:redkeep/features/ai/domain/ai_job.dart';
-import 'package:redkeep/features/ai/domain/ai_operation.dart';
 import 'package:redkeep/features/appearance/domain/appearance_preferences.dart';
 import 'package:redkeep/features/notes/domain/note_document.dart';
-import 'package:redkeep/features/notes/domain/note_help_contract.dart';
 import 'package:redkeep/features/notes/domain/website/website_contract.dart';
 
 import '../../support/fake_appearance_repository.dart';
@@ -17,6 +12,8 @@ import '../../support/notes_ai_harness.dart';
 import '../../support/pump_app.dart';
 
 import 'package:redkeep/features/notes/presentation/note_read_page.dart';
+import 'package:redkeep/features/notes/presentation/note_ai_sheet.dart';
+import 'package:redkeep/features/notes/presentation/note_ai_widgets.dart';
 
 import 'note_body_test_helpers.dart';
 
@@ -154,40 +151,32 @@ void main() {
   );
 
   testWidgets(
-    'selective metadata review stays disabled until selected and Undo survives closing the tool',
+    'selective metadata review stays disabled until a suggestion is selected',
     (tester) async {
       final note = (await h.repository.openDocument(notesTestId)).note!;
-      final source = jsonEncode({
-        'noteId': note.id,
-        'revision': note.revision,
-        'unsaved': false,
-        'title': note.text.title,
-        'body': note.text.body,
-        'payload': NoteMetadataSource.fromNote(note).encode(),
-      });
-      h.protected.value = jsonEncode(
-        AiJob(
-          id: 'review-task-123',
-          operation: AiOperation.noteMetadata,
-          key: note.id,
-          created: DateTime.now().millisecondsSinceEpoch,
-          provider: 'device',
-          source: source,
-          phase: 'completed',
-          text: noteMetadataOutput,
-        ).json(),
-      );
+      h.remote.output = noteMetadataOutput;
       try {
-        final router = await pumpApp(
+        await pumpApp(
           tester,
           notes: h.repository,
           database: h.db,
-          tasks: h.protected,
+          aiProvider: h.aiProvider,
           initialLocation: '/notes',
         );
-        await tester.container().read(aiJobsProvider.notifier).restore();
-        router.go('/notes/ai-task');
+        unawaited(
+          Navigator.of(tester.element(find.byType(Scaffold).first)).push(
+            MaterialPageRoute<void>(
+              builder: (_) =>
+                  NoteAiToolPage(tool: NoteAiTool.metadata, id: note.id),
+            ),
+          ),
+        );
         await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const ValueKey('notes-ai-generate')));
+        for (var i = 0; i < 10; i++) {
+          await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+          await tester.pumpAndSettle();
+        }
         FilledButton apply() => tester.widget<FilledButton>(
           find.byKey(const ValueKey('notes-ai-apply')),
         );
@@ -204,12 +193,7 @@ void main() {
           (await h.repository.openDocument(note.id)).note!.text.title,
           'Raised bed plan',
         );
-        await tester.tap(find.text('Undo'));
-        await tester.pumpAndSettle();
-        expect(
-          (await h.repository.openDocument(note.id)).note!.text.title,
-          'Garden',
-        );
+        expect(find.text('Undo'), findsNothing);
         expect(tester.takeException(), isNull);
       } finally {
         await tester.pumpWidget(const SizedBox());

@@ -7,18 +7,17 @@ import 'package:go_router/go_router.dart';
 import '../../../app/navigation_destination.dart';
 import '../../ai/application/ai_jobs.dart';
 import '../../ai/application/ai_lifecycle.dart';
-import '../../ai/domain/ai_operation.dart';
 import '../../recall/application/recall_search.dart';
 import '../../recall/domain/recall.dart';
 import '../../recall/domain/recall_question_contract.dart';
 import '../application/flow_ai.dart';
 import 'flow_question_task.dart';
 
+/// Excerpts for a submitted question. Only built after the person presses
+/// search, because selecting excerpts embeds the question.
 final flowQuestionSelectionProvider = FutureProvider.autoDispose
     .family<RecallQuestionSelection, String>((ref, question) async {
       ref.watch(flowSearchSourcesProvider);
-      await Future<void>.delayed(const Duration(milliseconds: 350));
-      if (!ref.mounted) throw StateError('Search changed');
       return ref.read(flowAiProvider).select(question);
     });
 
@@ -30,32 +29,24 @@ class FlowSearchPage extends ConsumerStatefulWidget {
 
 class _FlowSearchPageState extends ConsumerState<FlowSearchPage> {
   final _search = TextEditingController();
-  String _query = '';
-  bool _edited = false, _asking = false;
-  String? _message;
-  @override
-  void initState() {
-    super.initState();
-    scheduleMicrotask(() async {
-      if (!mounted || !ref.read(aiEnabledProvider)) return;
-      await ref.read(aiJobsProvider.notifier).restore();
-      if (mounted) _restoreQuestion();
-    });
-  }
 
-  void _restoreQuestion() {
-    final job = ref.read(aiJobsProvider).job;
-    if (_edited || job?.operation != AiOperation.thoughtQuestion) return;
-    try {
-      final source = RecallQuestionSelection.decode(job!.source);
-      if (_query == source.question) return;
-      setState(() {
-        _search.text = source.question;
-        _query = source.question;
-      });
-    } catch (_) {
-      /* A malformed snapshot is recoverable through history. */
-    }
+  /// What is typed: filters thoughts by keyword, with no AI request.
+  String _query = '';
+
+  /// What was submitted with the keyboard's search key: adds meaning results
+  /// and the AI answer preview. Editing the text clears it.
+  String _submitted = '';
+  bool _asking = false;
+  String? _message;
+  static final _jobs = aiJobsProvider(flowSearchJobScope);
+
+  void _submit(String value) {
+    final query = value.trim();
+    setState(() {
+      _query = query;
+      _submitted = query;
+      _message = null;
+    });
   }
 
   @override
@@ -90,9 +81,9 @@ class _FlowSearchPageState extends ConsumerState<FlowSearchPage> {
   Widget build(BuildContext context) {
     final enabled = ref.watch(aiEnabledProvider);
     final sources = ref.watch(flowSearchSourcesProvider);
-    final meaning = _query.isEmpty
-        ? null
-        : ref.watch(recallSearchProvider((query: _query, kind: 'thought')));
+    final meaning = enabled && _submitted.isNotEmpty
+        ? ref.watch(recallSearchProvider((query: _submitted, kind: 'thought')))
+        : null;
     final terms = _query
         .toLowerCase()
         .split(RegExp(r'\s+'))
@@ -114,35 +105,13 @@ class _FlowSearchPageState extends ConsumerState<FlowSearchPage> {
           if (live.hash == source.hash && live.revision == source.revision)
             live,
     ], (source) => source.id);
-    final task = enabled ? ref.watch(aiJobsProvider) : null;
+    final task = enabled ? ref.watch(_jobs) : null;
     final job = task?.job;
-    final ours = job?.operation == AiOperation.thoughtQuestion;
-    final expired =
-        job != null &&
-        ref.read(aiClockProvider)().millisecondsSinceEpoch >= job.expires;
-    final preview = enabled && _query.isNotEmpty && job == null
-        ? ref.watch(flowQuestionSelectionProvider(_query))
+    final preview = enabled && _submitted.isNotEmpty && job == null
+        ? ref.watch(flowQuestionSelectionProvider(_submitted))
         : null;
-    if (enabled) {
-      ref.listen(
-        aiJobsProvider,
-        (_, _) => scheduleMicrotask(() {
-          if (mounted) _restoreQuestion();
-        }),
-      );
-    }
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Search Flow'),
-        actions: [
-          if (enabled)
-            IconButton(
-              tooltip: 'AI task history',
-              onPressed: () => context.push('/settings/brain/history'),
-              icon: const Icon(Icons.history_rounded),
-            ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Search Flow')),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -153,15 +122,22 @@ class _FlowSearchPageState extends ConsumerState<FlowSearchPage> {
                 TextField(
                   key: const ValueKey('flow-search-field'),
                   controller: _search,
-                  decoration: const InputDecoration(
+                  textInputAction: TextInputAction.search,
+                  decoration: InputDecoration(
                     labelText: 'Find a thought or ask a question',
-                    prefixIcon: Icon(Icons.search),
+                    helperText: enabled
+                        ? 'Press search to look by meaning and ask AI'
+                        : null,
+                    prefixIcon: const Icon(Icons.search),
                   ),
                   onChanged: (value) => setState(() {
-                    _edited = true;
                     _query = value.trim();
+                    if (_submitted.isNotEmpty && _query != _submitted) {
+                      _submitted = '';
+                    }
                     _message = null;
                   }),
+                  onSubmitted: _submit,
                 ),
                 if (meaning?.value?.message case final message?)
                   Padding(
@@ -170,40 +146,29 @@ class _FlowSearchPageState extends ConsumerState<FlowSearchPage> {
                   ),
                 if (_message ?? task?.message case final message?)
                   Text(message),
-                if (ours && !expired) ...[
+                if (job != null) ...[
                   const SizedBox(height: 20),
-                  FlowQuestionTask(job: job!),
+                  FlowQuestionTask(job: job),
                   Wrap(
                     spacing: 8,
                     children: [
                       if (!job.terminal)
                         TextButton(
-                          onPressed: ref.read(aiJobsProvider.notifier).cancel,
+                          onPressed: ref.read(_jobs.notifier).cancel,
                           child: const Text('Cancel question'),
                         ),
                       if (!task!.busy && job.phase != 'completed')
                         TextButton(
-                          onPressed: ref.read(aiJobsProvider.notifier).retry,
-                          child: const Text('Retrieve / retry question'),
+                          onPressed: ref.read(_jobs.notifier).retry,
+                          child: const Text('Try again'),
                         ),
                       if (job.terminal)
                         TextButton(
-                          onPressed: () => ref
-                              .read(aiJobsProvider.notifier)
-                              .clearIfCurrent(job.id),
+                          onPressed: () =>
+                              ref.read(_jobs.notifier).clearIfCurrent(job.id),
                           child: const Text('Clear answer'),
                         ),
                     ],
-                  ),
-                ] else if (job != null) ...[
-                  Text(
-                    expired
-                        ? 'This task’s preview has expired. Clear it in AI task history to ask again.'
-                        : 'Another AI task is open. Finish or clear it before asking about your thoughts.',
-                  ),
-                  TextButton(
-                    onPressed: () => context.push('/settings/brain/history'),
-                    child: const Text('Open AI task history'),
                   ),
                 ],
                 if (preview != null)
@@ -213,14 +178,14 @@ class _FlowSearchPageState extends ConsumerState<FlowSearchPage> {
                       child: Text('Finding excerpts for your question…'),
                     ),
                     error: (error, _) => Text(
-                      error is FormatException ? error.message : 'Could not prepare AI excerpts. Edit the question to retry.',
+                      error is FormatException ? error.message : 'Could not prepare AI excerpts. Search again to retry.',
                     ),
                     data: (selection) => Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         const SizedBox(height: 12),
                         Text(
-                          'AI can answer using these thoughts. Excerpts go to your paired computer or chosen provider only when you ask.',
+                          'AI can answer using these thoughts. Excerpts go to your AI provider only when you ask.',
                         ),
                         Text(
                           '${selection.searched} thoughts searched · ${selection.sources.length} excerpts selected${selection.scope == null ? '' : ' · ${selection.scope!.label}'}',

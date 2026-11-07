@@ -1,4 +1,3 @@
-import 'package:drift/drift.dart' show Value;
 import 'package:sync_wise/sync_wise.dart';
 
 import '../../../core/storage/app_database.dart';
@@ -11,7 +10,6 @@ class DriftAccountResetData implements AccountResetLocalData {
   Future<void> clear() async {
     await beforeClear?.call();
     await db.transaction(() async {
-      await db.delete(db.noteAiRecoveries).go();
       await db.delete(db.noteMediaOps).go();
       await db.delete(db.noteTags).go();
       await db.delete(db.notes).go();
@@ -24,14 +22,10 @@ class DriftAccountResetData implements AccountResetLocalData {
       await db.delete(db.syncOperations).go();
       await db.delete(db.syncRecords).go();
       await db.delete(db.syncValues).go();
-      await db.delete(db.aiJobReceipts).go();
-      await db.delete(db.dailyQuestions).go();
+      await db.delete(db.aiUsageMonths).go();
       await db.delete(db.recallQueue).go();
       await db.delete(db.recallManifests).go();
-      // Connections and tokens are wiped by aiResetProvider; routes go with them.
-      await db
-          .update(db.aiPreferencesTable)
-          .write(const AiPreferencesTableCompanion(routes: Value('{}')));
+      // The provider and its key are wiped by aiResetProvider.
     });
   }
 }

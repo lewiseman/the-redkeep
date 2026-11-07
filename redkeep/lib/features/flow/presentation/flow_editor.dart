@@ -1,4 +1,5 @@
 import '../../../core/presentation/confirm_discard_changes.dart';
+import '../../recall/application/recall_controller.dart';
 import '../../sync/application/sync_providers.dart';
 
 import 'package:flutter/material.dart';
@@ -18,9 +19,19 @@ class FlowEditor extends ConsumerStatefulWidget {
 }
 
 class _FlowEditorState extends ConsumerState<FlowEditor> {
+  /// Captured up front: indexing is nudged after the page is gone.
+  late final RecallController _recall;
+
+  @override
+  void initState() {
+    super.initState();
+    _recall = ref.read(recallControllerProvider.notifier);
+  }
+
   final _body = TextEditingController();
   @override
   void dispose() {
+    _recall.flushSoon();
     _body.dispose();
     super.dispose();
   }

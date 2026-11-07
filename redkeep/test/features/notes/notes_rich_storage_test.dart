@@ -3,7 +3,7 @@ import 'dart:convert';
 
 import 'package:image_picker/image_picker.dart';
 import 'package:redkeep/features/notes/data/note_media_store.dart';
-import 'package:redkeep/features/voice/data/voice_store.dart';
+import 'package:redkeep/features/ai/data/ai_provider_store.dart';
 
 import 'dart:io';
 
@@ -47,8 +47,6 @@ void main() {
       saved.revision,
       text: const PlainTextDocument(body: 'Reviewed words'),
       details: saved.details,
-      taskId: 'restart-task',
-      operation: 'rewrite-note',
     );
     await database.close();
     database = AppDatabase(NativeDatabase(File(path)));
@@ -58,10 +56,6 @@ void main() {
       expect(opened.note!.text.body, 'Reviewed words');
       expect(opened.note!.details.background['type'], 'sage');
       expect(opened.note!.tags, ['travel']);
-      expect(
-        (await repository.priorContent(notesTestId)).single.body,
-        'Saved words',
-      );
     } finally {
       await database.close();
     }
@@ -70,7 +64,7 @@ void main() {
   test('lost camera photo keeps its note address and is copied only once before reopening', () async {
     final source = File('${h.directory.path}/picked.png');
     await source.writeAsBytes(h.remote.generated);
-    await VoiceStore.storage.write(
+    await SecureAiProviders.storage.write(
       key: NoteMediaStore.pickerKey,
       value: jsonEncode({
         'id': notesTestId,
@@ -102,7 +96,7 @@ void main() {
       pending.attachment.path,
     );
     expect(
-      await VoiceStore.storage.read(key: NoteMediaStore.pickerKey),
+      await SecureAiProviders.storage.read(key: NoteMediaStore.pickerKey),
       isNull,
     );
   });
@@ -110,7 +104,7 @@ void main() {
   test(
     'reset fences a camera result still arriving from the old session',
     () async {
-      await VoiceStore.storage.write(
+      await SecureAiProviders.storage.write(
         key: NoteMediaStore.pickerKey,
         value: jsonEncode({
           'id': notesTestId,
@@ -141,7 +135,7 @@ void main() {
       );
       await expectLater(recovery, throwsStateError);
       expect(
-        await VoiceStore.storage.read(key: NoteMediaStore.pickerKey),
+        await SecureAiProviders.storage.read(key: NoteMediaStore.pickerKey),
         isNull,
       );
     },
@@ -194,7 +188,7 @@ void main() {
     },
   );
 
-  test('accepted proposals are atomic, refuse stale revisions, and keep ten local recovery copies', () async {
+  test('accepted proposals are atomic and refuse stale revisions', () async {
     var note = await h.save();
     for (var i = 0; i < 12; i++) {
       note = await h.repository.applyProposal(
@@ -202,17 +196,10 @@ void main() {
         note.revision,
         text: PlainTextDocument(title: note.text.title, body: 'Reviewed $i'),
         details: note.details,
-        taskId: 'task-$i',
-        operation: 'rewrite-note',
       );
     }
-    expect((await h.repository.priorContent(note.id)).length, 10);
-    final prior = (await h.repository.priorContent(note.id)).first;
+    expect(note.text.body, 'Reviewed 11');
     await h.save(body: 'Manual change after proposal');
-    await expectLater(
-      h.repository.restorePriorContent(note.id, prior.id, note.revision),
-      throwsA(isA<NoteException>()),
-    );
     final current = (await h.repository.openDocument(note.id)).note!;
     await expectLater(
       h.repository.applyProposal(
@@ -220,8 +207,6 @@ void main() {
         current.revision - 1,
         text: const PlainTextDocument(body: 'Do not overwrite'),
         details: current.details,
-        taskId: 'blocked-task',
-        operation: 'rewrite-note',
       ),
       throwsA(isA<NoteException>()),
     );
@@ -231,7 +216,7 @@ void main() {
     );
   });
 
-  test('note details round-trip through sync without local recovery or media bytes', () async {
+  test('note details round-trip through sync without media bytes', () async {
     final path = await h.media.write(h.remote.generated);
     final saved = await h.save(
       details: NoteDetails(
@@ -245,8 +230,6 @@ void main() {
       saved.revision,
       text: const PlainTextDocument(title: 'Garden', body: 'Accepted'),
       details: saved.details,
-      taskId: 'a-task',
-      operation: 'rewrite-note',
     );
     final local = DriftSyncCollection(h.db, 'note');
     final wire = (await local.read(notesTestId))!;
@@ -263,7 +246,6 @@ void main() {
     final imported = (await repository.openDocument(notesTestId)).note!;
     expect(imported.details.attachments.single.path, path);
     expect(imported.details.website, contains('Garden'));
-    expect(await peer.select(peer.noteAiRecoveries).get(), isEmpty);
     final legacy = Map<String, dynamic>.from(wire.payload)..remove('details');
     legacy['body'] = 'Edited by an older peer';
     await collection.mergeRemote(
@@ -301,34 +283,25 @@ void main() {
     expect(await file.exists(), isFalse);
   });
 
-  test(
-    'account reset removes metadata, recovery rows and app-owned media',
-    () async {
-      final path = await h.media.write(h.remote.generated);
-      final saved = await h.save(
-        details: NoteDetails(
-          attachments: [NoteAttachment(path: path, type: 'image/png')],
-        ),
-      );
-      await h.repository.applyProposal(
-        saved.id,
-        saved.revision,
-        text: const PlainTextDocument(body: 'Reviewed'),
-        details: saved.details,
-        taskId: 'a-task',
-        operation: 'rewrite-note',
-      );
-      h.db.writingBlocked = true;
-      h.db.writingGeneration++;
-      await DriftAccountResetData(h.db, beforeClear: h.media.clearAll).clear();
-      expect(await h.db.select(h.db.notes).get(), isEmpty);
-      expect(await h.db.select(h.db.noteAiRecoveries).get(), isEmpty);
-      expect(await h.db.select(h.db.noteMediaOps).get(), isEmpty);
-      expect(
-        await Directory('${h.directory.path}/note_media').exists(),
-        isFalse,
-      );
-      await expectLater(h.media.write(h.remote.generated), throwsStateError);
-    },
-  );
+  test('account reset removes metadata and app-owned media', () async {
+    final path = await h.media.write(h.remote.generated);
+    final saved = await h.save(
+      details: NoteDetails(
+        attachments: [NoteAttachment(path: path, type: 'image/png')],
+      ),
+    );
+    await h.repository.applyProposal(
+      saved.id,
+      saved.revision,
+      text: const PlainTextDocument(body: 'Reviewed'),
+      details: saved.details,
+    );
+    h.db.writingBlocked = true;
+    h.db.writingGeneration++;
+    await DriftAccountResetData(h.db, beforeClear: h.media.clearAll).clear();
+    expect(await h.db.select(h.db.notes).get(), isEmpty);
+    expect(await h.db.select(h.db.noteMediaOps).get(), isEmpty);
+    expect(await Directory('${h.directory.path}/note_media').exists(), isFalse);
+    await expectLater(h.media.write(h.remote.generated), throwsStateError);
+  });
 }

@@ -1,80 +1,8 @@
 import 'dart:async';
-import 'dart:convert';
 
-import 'package:redkeep/features/ai/data/ai_job_store.dart';
-import 'package:redkeep/features/companion/application/companion_controller.dart';
-import 'package:redkeep/features/companion/data/companion_protocol.dart';
+import 'package:redkeep/features/ai/domain/ai_provider.dart';
+import 'package:redkeep/features/recall/data/cloud_embedder.dart';
 import 'package:redkeep/features/recall/domain/recall.dart';
-import 'package:redkeep/features/recall/data/companion_embedder.dart';
-
-class MemoryAiTasks implements ProtectedAiTasks {
-  String? value;
-  bool fail = false;
-  @override
-  Future<String?> read() async {
-    if (fail) throw StateError('locked');
-    return value;
-  }
-
-  @override
-  Future<void> write(String? value) async {
-    if (fail) throw StateError('locked');
-    this.value = value;
-  }
-}
-
-class TestConnection extends CompanionController {
-  TestConnection([
-    this.initial = const CompanionState(phase: CompanionPhase.idle),
-  ]);
-  final CompanionState initial;
-  @override
-  CompanionState build() => initial;
-  void set(CompanionState value) => state = value;
-}
-
-TrustedComputer syntheticComputer({String id = 'computer-1'}) =>
-    TrustedComputer(
-      id: id,
-      name: 'Synthetic computer',
-      pin: 'a' * 64,
-      endpoint: Uri.parse('https://127.0.0.1:47921'),
-      seed: base64Encode(List.filled(32, 1)),
-      publicKey: base64Encode(List.filled(32, 2)),
-      deviceId: 'b' * 32,
-    );
-CompanionState readyComputer({
-  String id = 'computer-1',
-  String writingStatus = 'ready',
-}) => CompanionState(
-  phase: CompanionPhase.connected,
-  computers: [syntheticComputer(id: id)],
-  selectedId: id,
-  status: {
-    'v': 1,
-    'recovery': 1,
-    'capabilities': [
-      {
-        'id': 'text',
-        'implemented': true,
-        'status': writingStatus,
-        'reason': 'Synthetic writing model',
-        'diaryContract': 1,
-        'questionContract': 1,
-        'operations': ['suggest-diary-day', 'ask-diary-question'],
-      },
-      {
-        'id': 'embedding',
-        'implemented': true,
-        'status': 'ready',
-        'reason': 'Synthetic embedder',
-        'model': RecallProfile.models.first.model,
-        'dimensions': 1024,
-        'operations': ['embed'],
-      },
-    ],
-  },
-);
 
 class MemoryVectors implements RecallVectors {
   final rows = <String, Map<String, dynamic>>{};
@@ -133,31 +61,36 @@ class MemoryVectors implements RecallVectors {
   Future<void> close() async {}
 }
 
-class FakeEmbedder extends CompanionEmbedder {
-  FakeEmbedder()
-    : super(
-        transport: () => throw StateError('No network'),
-        id: () => 'synthetic',
-      );
-  final batches = <List<EmbedText>>[];
-  int acknowledgements = 0;
+/// Offline embedder: every text becomes the same small vector.
+class FakeEmbedder implements RecallEmbedder {
+  FakeEmbedder({this.key = 'openai:test-embed'});
+
+  /// Null when the provider has no embedding model.
+  String? key;
+  final batches = <List<String>>[];
   Completer<void>? gate;
+  AiProviderFailure? failure;
+
+  /// Requests other than the one-word dimension check.
+  List<List<String>> get documentBatches => [
+    for (final batch in batches)
+      if (!(batch.length == 1 && batch.single == 'dimension check')) batch,
+  ];
+
   @override
-  Future<EmbeddingBatch> embed(
-    TrustedComputer computer,
-    RecallProfile profile,
-    List<EmbedText> items, {
-    required bool Function() active,
+  Future<String?> profileKey() async => key;
+
+  @override
+  Future<List<List<double>>> embed(
+    List<String> inputs, {
+    Future<void>? abort,
   }) async {
-    batches.add(items);
-    await gate?.future;
-    return EmbeddingBatch(
-      {
-        for (final item in items) item.id: [1, ...List.filled(1023, 0.0)],
-      },
-      () async {
-        acknowledgements++;
-      },
-    );
+    batches.add(inputs);
+    final probe = inputs.length == 1 && inputs.single == 'dimension check';
+    if (!probe) await gate?.future;
+    if (failure != null) throw failure!;
+    return [
+      for (final _ in inputs) [1.0, 0, 0, 0],
+    ];
   }
 }

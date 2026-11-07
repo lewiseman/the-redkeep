@@ -95,7 +95,6 @@ Future<void> checkWritingAccess(
   AppDatabase db,
   int generation, {
   bool creating = false,
-  bool recoveryOnly = false,
   String? diaryDate,
   DateTime? now,
 }) async {
@@ -104,7 +103,6 @@ Future<void> checkWritingAccess(
       'Account reset changed this writing session. Reopen the page.',
     );
   }
-  if (recoveryOnly) return;
   final values = DriftSyncKeyValueStore(db);
   final role = await values.read('role');
   final device = await values.read('deviceId');

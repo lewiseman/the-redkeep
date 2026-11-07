@@ -1,5 +1,4 @@
 import 'package:redkeep/features/diary/domain/diary_photo.dart';
-import 'package:redkeep/features/diary/domain/diary_ai_conversation.dart';
 
 import 'dart:async';
 import 'dart:io';
@@ -86,9 +85,7 @@ void main() {
   tearDown(() => h.close());
   test('rich diary v2 survives secondary additions, primary edits and tombstones', () async {
     await h.engine.syncNow(manual: true);
-    final date = DiaryPeriod(2026, 11, 3),
-        photoId = 'c' * 32,
-        conversationId = 'd' * 32;
+    final date = DiaryPeriod(2026, 11, 3), photoId = 'c' * 32;
     const photo = DiaryPhoto(
       id: 'photo-11111111',
       path: 'diary_photos/photo-11111111.png',
@@ -134,33 +131,6 @@ void main() {
       ),
       throwsStateError,
     );
-    final conversation = DiaryAiConversation(
-      turns: const [
-        {'speaker': 'user', 'text': 'My original words'},
-      ],
-      createdAt: now,
-    );
-    await other.diary.saveConversation(
-      id: conversationId,
-      date: date,
-      conversation: conversation,
-      expectedRevision: 0,
-    );
-    await other.engine.syncNow(manual: true);
-    await h.engine.syncNow(manual: true);
-    final original = (await h.diary.openDocument(conversationId)).entry!;
-    expect(original.conversation!.turns, conversation.turns);
-    await h.diary.save(
-      id: conversationId,
-      date: date,
-      text: const DiaryText(body: 'Reviewed draft'),
-      expectedRevision: original.revision,
-    );
-    await h.engine.syncNow(manual: true);
-    await other.engine.syncNow(manual: true);
-    final edited = (await h.diary.openDocument(conversationId)).entry!;
-    expect(edited.text.body, 'Reviewed draft');
-    expect(edited.conversation!.turns, conversation.turns);
     final saved = (await h.diary.openDocument(photoId)).entry!;
     await h.diary.deleteEntry(photoId, saved.revision);
     await h.engine.syncNow(manual: true);
@@ -168,30 +138,16 @@ void main() {
     final removed = (await h.diary.openDocument(photoId)).entry!;
     expect(removed.deletedAt, isNotNull);
     expect(removed.photos.single.toJson(), photo.toJson());
-    await h.diary.deleteEntry(conversationId, edited.revision);
     await h.engine.syncNow(manual: true);
     final payload = h.drive.documents['diary/${date.key}']!.payload;
     final remotePhoto = (payload['entries'] as List).firstWhere(
       (e) => e['id'] == photoId,
     );
-    final remoteConversation = (payload['entries'] as List).firstWhere(
-      (e) => e['id'] == conversationId,
-    );
     expect(remotePhoto['photos'], [photo.toJson()]);
-    expect(remoteConversation['conversation']['turns'], conversation.turns);
-    expect(remoteConversation['deleted_at'], isNotNull);
-    expect(remoteConversation['body'], isEmpty);
     await cached.mergeRemote(cached.decode(payload), now: now);
     expect(
       (await other.diary.openDocument(photoId)).entry!.photos.single.toJson(),
       photo.toJson(),
-    );
-    expect(
-      (await other.diary.openDocument(conversationId))
-          .entry!
-          .conversation!
-          .turns,
-      conversation.turns,
     );
     expect(h.drive.documents['diary/${date.key}']!.payload['schema'], 3);
   });

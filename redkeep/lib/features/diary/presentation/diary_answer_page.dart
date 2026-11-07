@@ -22,6 +22,8 @@ class DiaryAnswerPage extends ConsumerStatefulWidget {
 }
 
 class _DiaryAnswerPageState extends ConsumerState<DiaryAnswerPage> {
+  /// This page's request. Leaving the page cancels it.
+  AiJobsProvider get _jobs => aiJobsProvider('diary-answer');
   DiaryHistorySelection? _selection;
   String? _message;
   bool _loading = true, _sending = false;
@@ -80,10 +82,7 @@ class _DiaryAnswerPageState extends ConsumerState<DiaryAnswerPage> {
           }.toList(),
         );
       }
-      if (mounted) {
-        setState(() => _selection = selection);
-        await ref.read(aiJobsProvider.notifier).restore();
-      }
+      if (mounted) setState(() => _selection = selection);
     } catch (_) {
       if (mounted) {
         setState(
@@ -104,7 +103,7 @@ class _DiaryAnswerPageState extends ConsumerState<DiaryAnswerPage> {
       _message = null;
     });
     await ref
-        .read(aiJobsProvider.notifier)
+        .read(_jobs.notifier)
         .start(
           AiOperation.history,
           'history:${recallHash(selection.question)}',
@@ -114,7 +113,7 @@ class _DiaryAnswerPageState extends ConsumerState<DiaryAnswerPage> {
     if (mounted) {
       setState(() {
         _sending = false;
-        _message = ref.read(aiJobsProvider).message;
+        _message = ref.read(_jobs).message;
       });
     }
   }
@@ -152,7 +151,7 @@ class _DiaryAnswerPageState extends ConsumerState<DiaryAnswerPage> {
   );
   @override
   Widget build(BuildContext context) {
-    final task = ref.watch(aiJobsProvider);
+    final task = ref.watch(_jobs);
     final job = task.job;
     final ours =
         job?.operation == AiOperation.history &&
@@ -199,7 +198,7 @@ class _DiaryAnswerPageState extends ConsumerState<DiaryAnswerPage> {
                   const SizedBox(height: 12),
                   Text(
                     selection.sendable
-                        ? 'Review these excerpts before sending them with your question to your paired computer.'
+                        ? 'Review these excerpts before sending them with your question to your AI provider.'
                         : 'No matching entries were found. Nothing was sent.',
                   ),
                   for (final item in selection.sources) _source(item),
@@ -212,23 +211,19 @@ class _DiaryAnswerPageState extends ConsumerState<DiaryAnswerPage> {
                     ),
                   ),
                 if (job != null) ...[
-                  if (!ours)
-                    const Text(
-                      'Another AI task is waiting. Finish or clear it in Grand Maestar.',
-                    ),
                   if (ours && !job.terminal)
                     TextButton(
-                      onPressed: ref.read(aiJobsProvider.notifier).cancel,
-                      child: const Text('Cancel task'),
+                      onPressed: ref.read(_jobs.notifier).cancel,
+                      child: const Text('Cancel'),
                     ),
-                  if (ours && !task.busy && !job.terminal)
+                  if (ours && !task.busy && job.phase != 'completed')
                     TextButton(
-                      onPressed: ref.read(aiJobsProvider.notifier).retry,
-                      child: const Text('Retrieve task'),
+                      onPressed: ref.read(_jobs.notifier).retry,
+                      child: const Text('Try again'),
                     ),
                   if (ours && job.terminal)
                     TextButton(
-                      onPressed: ref.read(aiJobsProvider.notifier).clear,
+                      onPressed: ref.read(_jobs.notifier).clear,
                       child: const Text('Clear answer'),
                     ),
                 ],

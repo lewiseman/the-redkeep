@@ -3,7 +3,6 @@ import '../../notes/domain/note_details.dart';
 import 'dart:convert';
 
 import '../../diary/domain/diary_photo.dart';
-import '../../diary/domain/diary_ai_conversation.dart';
 
 import '../../diary/domain/diary_period.dart';
 import '../../diary/domain/diary_day_details.dart';
@@ -74,9 +73,6 @@ class DriftSyncCollection implements SyncCollection {
               'id': e.id,
               'body': e.body,
               'photos': jsonDecode(e.photos),
-              'conversation': e.conversation == null
-                  ? null
-                  : jsonDecode(e.conversation!),
               'created_at': e.createdAt,
               'updated_at': e.updatedAt,
               'deleted_at': e.deletedAt,
@@ -157,7 +153,6 @@ class DriftSyncCollection implements SyncCollection {
               {
                 ...Map<String, dynamic>.from(item as Map),
                 'photos': item['photos'] ?? [],
-                'conversation': item['conversation'],
               },
           ],
         };
@@ -209,18 +204,6 @@ class DriftSyncCollection implements SyncCollection {
               .hasMatch(photo.path) ||
           !RegExp(r'^[a-f0-9]{64}$').hasMatch(photo.sha256)) {
         throw const FormatException('Invalid photo reference.');
-      }
-    }
-    final conversation = item['conversation'];
-    if (conversation != null) {
-      final parsed = DiaryAiConversation.tryParse(conversation);
-      if (parsed == null ||
-          !parsed.hasUserTurn ||
-          parsed.turns.length > 24 ||
-          parsed.turns.length != (conversation as Map)['turns'].length ||
-          photos.isNotEmpty ||
-          jsonEncode(conversation).length > 131072) {
-        throw const FormatException('Invalid saved conversation.');
       }
     }
     if (photos.isNotEmpty &&
@@ -406,11 +389,6 @@ class DriftSyncCollection implements SyncCollection {
             periodKey: date,
             body: item['body'] as String,
             photos: Value(jsonEncode(item['photos'] ?? [])),
-            conversation: Value(
-              item['conversation'] == null
-                  ? null
-                  : jsonEncode(item['conversation']),
-            ),
             revision: (old?.revision ?? 0) + 1,
             createdAt: item['created_at'] as int,
             updatedAt: item['updated_at'] as int,

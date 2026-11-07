@@ -1,6 +1,5 @@
 import 'photos/diary_photo_story_strip.dart';
 import '../application/diary_media_providers.dart';
-import 'daily_diary_prompt.dart';
 
 import 'dart:math' as math;
 
@@ -192,7 +191,7 @@ class _DiaryDayContentState extends ConsumerState<DiaryDayContent> {
     ].join(' · ');
     final canCreate =
         day.date.hasStarted(today) && (canEdit || day.date.isCurrent(today));
-    Future<void> write(String? question) async {
+    Future<void> write() async {
       if (_openingEditor) return;
       _openingEditor = true;
       try {
@@ -201,10 +200,7 @@ class _DiaryDayContentState extends ConsumerState<DiaryDayContent> {
             .create(day.date);
         if (context.mounted) {
           // Held until the editor closes, so a double tap opens one editor.
-          await context.push(
-            diaryEntryLocation(day.date, id, edit: true),
-            extra: question,
-          );
+          await context.push(diaryEntryLocation(day.date, id, edit: true));
         }
       } catch (_) {
         if (context.mounted) {
@@ -229,11 +225,7 @@ class _DiaryDayContentState extends ConsumerState<DiaryDayContent> {
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: AbsorbPointer(
                     absorbing: busy || !interactive,
-                    child: DailyDiaryPrompt(
-                      date: day.date,
-                      onWrite: write,
-                      active: interactive && day.date.isCurrent(today),
-                    ),
+                    child: DiaryWritingPrompt(onTap: write),
                   ),
                 ),
               ),
@@ -347,17 +339,6 @@ class _DiaryDayContentState extends ConsumerState<DiaryDayContent> {
                                 )
                               : null,
                         ),
-                      if (day.entries[i].conversation != null)
-                        Align(
-                          alignment: AlignmentDirectional.centerStart,
-                          child: _DiaryConversationChip(
-                            onOpen: interactive
-                                ? () => context.push(
-                                    '${diaryEntryLocation(day.date, day.entries[i].id)}/conversation',
-                                  )
-                                : null,
-                          ),
-                        ),
                       Text(
                         day.entries[i].text.body,
                         style: typography.body.copyWith(
@@ -376,33 +357,6 @@ class _DiaryDayContentState extends ConsumerState<DiaryDayContent> {
       ],
     );
   }
-}
-
-/// Keep the icon in the label: a chip avatar adds an animated compositing
-/// layer, even at rest, which cannot be recorded into a static curl face.
-class _DiaryConversationChip extends StatelessWidget {
-  const _DiaryConversationChip({this.onOpen});
-  final VoidCallback? onOpen;
-
-  static void _previewTap() {}
-
-  @override
-  Widget build(BuildContext context) => ActionChip(
-    onPressed: onOpen ?? _previewTap,
-    label: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          Icons.forum_outlined,
-          size: 18,
-          color:
-              ChipTheme.of(context).iconTheme?.color ?? context.colors.primary,
-        ),
-        const SizedBox(width: 8),
-        const Flexible(child: Text('Conversation')),
-      ],
-    ),
-  );
 }
 
 /// A brief pencil mark between entries, rather than another container.

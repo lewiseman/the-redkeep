@@ -3249,6 +3249,55 @@ class $NoteWebsitesTable extends NoteWebsites
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _stateMeta = const VerificationMeta('state');
+  @override
+  late final GeneratedColumn<String> state = GeneratedColumn<String>(
+    'state',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _previousHtmlMeta = const VerificationMeta(
+    'previousHtml',
+  );
+  @override
+  late final GeneratedColumn<String> previousHtml = GeneratedColumn<String>(
+    'previous_html',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _previousSourceHashMeta =
+      const VerificationMeta('previousSourceHash');
+  @override
+  late final GeneratedColumn<String> previousSourceHash =
+      GeneratedColumn<String>(
+        'previous_source_hash',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(''),
+      );
+  static const VerificationMeta _syncChecksMeta = const VerificationMeta(
+    'syncChecks',
+  );
+  @override
+  late final GeneratedColumn<bool> syncChecks = GeneratedColumn<bool>(
+    'sync_checks',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("sync_checks" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     noteId,
@@ -3257,6 +3306,10 @@ class $NoteWebsitesTable extends NoteWebsites
     brief,
     model,
     madeAt,
+    state,
+    previousHtml,
+    previousSourceHash,
+    syncChecks,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -3314,6 +3367,36 @@ class $NoteWebsitesTable extends NoteWebsites
     } else if (isInserting) {
       context.missing(_madeAtMeta);
     }
+    if (data.containsKey('state')) {
+      context.handle(
+        _stateMeta,
+        state.isAcceptableOrUnknown(data['state']!, _stateMeta),
+      );
+    }
+    if (data.containsKey('previous_html')) {
+      context.handle(
+        _previousHtmlMeta,
+        previousHtml.isAcceptableOrUnknown(
+          data['previous_html']!,
+          _previousHtmlMeta,
+        ),
+      );
+    }
+    if (data.containsKey('previous_source_hash')) {
+      context.handle(
+        _previousSourceHashMeta,
+        previousSourceHash.isAcceptableOrUnknown(
+          data['previous_source_hash']!,
+          _previousSourceHashMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sync_checks')) {
+      context.handle(
+        _syncChecksMeta,
+        syncChecks.isAcceptableOrUnknown(data['sync_checks']!, _syncChecksMeta),
+      );
+    }
     return context;
   }
 
@@ -3347,6 +3430,22 @@ class $NoteWebsitesTable extends NoteWebsites
         DriftSqlType.int,
         data['${effectivePrefix}made_at'],
       )!,
+      state: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}state'],
+      )!,
+      previousHtml: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}previous_html'],
+      )!,
+      previousSourceHash: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}previous_source_hash'],
+      )!,
+      syncChecks: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}sync_checks'],
+      )!,
     );
   }
 
@@ -3367,6 +3466,16 @@ class NoteWebsiteRow extends DataClass implements Insertable<NoteWebsiteRow> {
   final String brief;
   final String model;
   final int madeAt;
+
+  /// What the page saved for itself (ticks, scores, progress), as JSON.
+  final String state;
+
+  /// The page before the last remix or rebuild, so it can be undone.
+  final String previousHtml;
+  final String previousSourceHash;
+
+  /// Ticks on the page update the note's checklist without asking.
+  final bool syncChecks;
   const NoteWebsiteRow({
     required this.noteId,
     required this.html,
@@ -3374,6 +3483,10 @@ class NoteWebsiteRow extends DataClass implements Insertable<NoteWebsiteRow> {
     required this.brief,
     required this.model,
     required this.madeAt,
+    required this.state,
+    required this.previousHtml,
+    required this.previousSourceHash,
+    required this.syncChecks,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3384,6 +3497,10 @@ class NoteWebsiteRow extends DataClass implements Insertable<NoteWebsiteRow> {
     map['brief'] = Variable<String>(brief);
     map['model'] = Variable<String>(model);
     map['made_at'] = Variable<int>(madeAt);
+    map['state'] = Variable<String>(state);
+    map['previous_html'] = Variable<String>(previousHtml);
+    map['previous_source_hash'] = Variable<String>(previousSourceHash);
+    map['sync_checks'] = Variable<bool>(syncChecks);
     return map;
   }
 
@@ -3395,6 +3512,10 @@ class NoteWebsiteRow extends DataClass implements Insertable<NoteWebsiteRow> {
       brief: Value(brief),
       model: Value(model),
       madeAt: Value(madeAt),
+      state: Value(state),
+      previousHtml: Value(previousHtml),
+      previousSourceHash: Value(previousSourceHash),
+      syncChecks: Value(syncChecks),
     );
   }
 
@@ -3410,6 +3531,12 @@ class NoteWebsiteRow extends DataClass implements Insertable<NoteWebsiteRow> {
       brief: serializer.fromJson<String>(json['brief']),
       model: serializer.fromJson<String>(json['model']),
       madeAt: serializer.fromJson<int>(json['madeAt']),
+      state: serializer.fromJson<String>(json['state']),
+      previousHtml: serializer.fromJson<String>(json['previousHtml']),
+      previousSourceHash: serializer.fromJson<String>(
+        json['previousSourceHash'],
+      ),
+      syncChecks: serializer.fromJson<bool>(json['syncChecks']),
     );
   }
   @override
@@ -3422,6 +3549,10 @@ class NoteWebsiteRow extends DataClass implements Insertable<NoteWebsiteRow> {
       'brief': serializer.toJson<String>(brief),
       'model': serializer.toJson<String>(model),
       'madeAt': serializer.toJson<int>(madeAt),
+      'state': serializer.toJson<String>(state),
+      'previousHtml': serializer.toJson<String>(previousHtml),
+      'previousSourceHash': serializer.toJson<String>(previousSourceHash),
+      'syncChecks': serializer.toJson<bool>(syncChecks),
     };
   }
 
@@ -3432,6 +3563,10 @@ class NoteWebsiteRow extends DataClass implements Insertable<NoteWebsiteRow> {
     String? brief,
     String? model,
     int? madeAt,
+    String? state,
+    String? previousHtml,
+    String? previousSourceHash,
+    bool? syncChecks,
   }) => NoteWebsiteRow(
     noteId: noteId ?? this.noteId,
     html: html ?? this.html,
@@ -3439,6 +3574,10 @@ class NoteWebsiteRow extends DataClass implements Insertable<NoteWebsiteRow> {
     brief: brief ?? this.brief,
     model: model ?? this.model,
     madeAt: madeAt ?? this.madeAt,
+    state: state ?? this.state,
+    previousHtml: previousHtml ?? this.previousHtml,
+    previousSourceHash: previousSourceHash ?? this.previousSourceHash,
+    syncChecks: syncChecks ?? this.syncChecks,
   );
   NoteWebsiteRow copyWithCompanion(NoteWebsitesCompanion data) {
     return NoteWebsiteRow(
@@ -3450,6 +3589,16 @@ class NoteWebsiteRow extends DataClass implements Insertable<NoteWebsiteRow> {
       brief: data.brief.present ? data.brief.value : this.brief,
       model: data.model.present ? data.model.value : this.model,
       madeAt: data.madeAt.present ? data.madeAt.value : this.madeAt,
+      state: data.state.present ? data.state.value : this.state,
+      previousHtml: data.previousHtml.present
+          ? data.previousHtml.value
+          : this.previousHtml,
+      previousSourceHash: data.previousSourceHash.present
+          ? data.previousSourceHash.value
+          : this.previousSourceHash,
+      syncChecks: data.syncChecks.present
+          ? data.syncChecks.value
+          : this.syncChecks,
     );
   }
 
@@ -3461,14 +3610,28 @@ class NoteWebsiteRow extends DataClass implements Insertable<NoteWebsiteRow> {
           ..write('sourceHash: $sourceHash, ')
           ..write('brief: $brief, ')
           ..write('model: $model, ')
-          ..write('madeAt: $madeAt')
+          ..write('madeAt: $madeAt, ')
+          ..write('state: $state, ')
+          ..write('previousHtml: $previousHtml, ')
+          ..write('previousSourceHash: $previousSourceHash, ')
+          ..write('syncChecks: $syncChecks')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(noteId, html, sourceHash, brief, model, madeAt);
+  int get hashCode => Object.hash(
+    noteId,
+    html,
+    sourceHash,
+    brief,
+    model,
+    madeAt,
+    state,
+    previousHtml,
+    previousSourceHash,
+    syncChecks,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -3478,7 +3641,11 @@ class NoteWebsiteRow extends DataClass implements Insertable<NoteWebsiteRow> {
           other.sourceHash == this.sourceHash &&
           other.brief == this.brief &&
           other.model == this.model &&
-          other.madeAt == this.madeAt);
+          other.madeAt == this.madeAt &&
+          other.state == this.state &&
+          other.previousHtml == this.previousHtml &&
+          other.previousSourceHash == this.previousSourceHash &&
+          other.syncChecks == this.syncChecks);
 }
 
 class NoteWebsitesCompanion extends UpdateCompanion<NoteWebsiteRow> {
@@ -3488,6 +3655,10 @@ class NoteWebsitesCompanion extends UpdateCompanion<NoteWebsiteRow> {
   final Value<String> brief;
   final Value<String> model;
   final Value<int> madeAt;
+  final Value<String> state;
+  final Value<String> previousHtml;
+  final Value<String> previousSourceHash;
+  final Value<bool> syncChecks;
   final Value<int> rowid;
   const NoteWebsitesCompanion({
     this.noteId = const Value.absent(),
@@ -3496,6 +3667,10 @@ class NoteWebsitesCompanion extends UpdateCompanion<NoteWebsiteRow> {
     this.brief = const Value.absent(),
     this.model = const Value.absent(),
     this.madeAt = const Value.absent(),
+    this.state = const Value.absent(),
+    this.previousHtml = const Value.absent(),
+    this.previousSourceHash = const Value.absent(),
+    this.syncChecks = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   NoteWebsitesCompanion.insert({
@@ -3505,6 +3680,10 @@ class NoteWebsitesCompanion extends UpdateCompanion<NoteWebsiteRow> {
     this.brief = const Value.absent(),
     this.model = const Value.absent(),
     required int madeAt,
+    this.state = const Value.absent(),
+    this.previousHtml = const Value.absent(),
+    this.previousSourceHash = const Value.absent(),
+    this.syncChecks = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : noteId = Value(noteId),
        html = Value(html),
@@ -3517,6 +3696,10 @@ class NoteWebsitesCompanion extends UpdateCompanion<NoteWebsiteRow> {
     Expression<String>? brief,
     Expression<String>? model,
     Expression<int>? madeAt,
+    Expression<String>? state,
+    Expression<String>? previousHtml,
+    Expression<String>? previousSourceHash,
+    Expression<bool>? syncChecks,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -3526,6 +3709,11 @@ class NoteWebsitesCompanion extends UpdateCompanion<NoteWebsiteRow> {
       if (brief != null) 'brief': brief,
       if (model != null) 'model': model,
       if (madeAt != null) 'made_at': madeAt,
+      if (state != null) 'state': state,
+      if (previousHtml != null) 'previous_html': previousHtml,
+      if (previousSourceHash != null)
+        'previous_source_hash': previousSourceHash,
+      if (syncChecks != null) 'sync_checks': syncChecks,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -3537,6 +3725,10 @@ class NoteWebsitesCompanion extends UpdateCompanion<NoteWebsiteRow> {
     Value<String>? brief,
     Value<String>? model,
     Value<int>? madeAt,
+    Value<String>? state,
+    Value<String>? previousHtml,
+    Value<String>? previousSourceHash,
+    Value<bool>? syncChecks,
     Value<int>? rowid,
   }) {
     return NoteWebsitesCompanion(
@@ -3546,6 +3738,10 @@ class NoteWebsitesCompanion extends UpdateCompanion<NoteWebsiteRow> {
       brief: brief ?? this.brief,
       model: model ?? this.model,
       madeAt: madeAt ?? this.madeAt,
+      state: state ?? this.state,
+      previousHtml: previousHtml ?? this.previousHtml,
+      previousSourceHash: previousSourceHash ?? this.previousSourceHash,
+      syncChecks: syncChecks ?? this.syncChecks,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -3571,6 +3767,18 @@ class NoteWebsitesCompanion extends UpdateCompanion<NoteWebsiteRow> {
     if (madeAt.present) {
       map['made_at'] = Variable<int>(madeAt.value);
     }
+    if (state.present) {
+      map['state'] = Variable<String>(state.value);
+    }
+    if (previousHtml.present) {
+      map['previous_html'] = Variable<String>(previousHtml.value);
+    }
+    if (previousSourceHash.present) {
+      map['previous_source_hash'] = Variable<String>(previousSourceHash.value);
+    }
+    if (syncChecks.present) {
+      map['sync_checks'] = Variable<bool>(syncChecks.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -3586,6 +3794,10 @@ class NoteWebsitesCompanion extends UpdateCompanion<NoteWebsiteRow> {
           ..write('brief: $brief, ')
           ..write('model: $model, ')
           ..write('madeAt: $madeAt, ')
+          ..write('state: $state, ')
+          ..write('previousHtml: $previousHtml, ')
+          ..write('previousSourceHash: $previousSourceHash, ')
+          ..write('syncChecks: $syncChecks, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -8893,6 +9105,10 @@ typedef $$NoteWebsitesTableCreateCompanionBuilder =
       Value<String> brief,
       Value<String> model,
       required int madeAt,
+      Value<String> state,
+      Value<String> previousHtml,
+      Value<String> previousSourceHash,
+      Value<bool> syncChecks,
       Value<int> rowid,
     });
 typedef $$NoteWebsitesTableUpdateCompanionBuilder =
@@ -8903,6 +9119,10 @@ typedef $$NoteWebsitesTableUpdateCompanionBuilder =
       Value<String> brief,
       Value<String> model,
       Value<int> madeAt,
+      Value<String> state,
+      Value<String> previousHtml,
+      Value<String> previousSourceHash,
+      Value<bool> syncChecks,
       Value<int> rowid,
     });
 
@@ -8959,6 +9179,26 @@ class $$NoteWebsitesTableFilterComposer
 
   ColumnFilters<int> get madeAt => $composableBuilder(
     column: $table.madeAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get previousHtml => $composableBuilder(
+    column: $table.previousHtml,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get previousSourceHash => $composableBuilder(
+    column: $table.previousSourceHash,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get syncChecks => $composableBuilder(
+    column: $table.syncChecks,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -9020,6 +9260,26 @@ class $$NoteWebsitesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get previousHtml => $composableBuilder(
+    column: $table.previousHtml,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get previousSourceHash => $composableBuilder(
+    column: $table.previousSourceHash,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get syncChecks => $composableBuilder(
+    column: $table.syncChecks,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$NotesTableOrderingComposer get noteId {
     final $$NotesTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -9069,6 +9329,24 @@ class $$NoteWebsitesTableAnnotationComposer
 
   GeneratedColumn<int> get madeAt =>
       $composableBuilder(column: $table.madeAt, builder: (column) => column);
+
+  GeneratedColumn<String> get state =>
+      $composableBuilder(column: $table.state, builder: (column) => column);
+
+  GeneratedColumn<String> get previousHtml => $composableBuilder(
+    column: $table.previousHtml,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get previousSourceHash => $composableBuilder(
+    column: $table.previousSourceHash,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get syncChecks => $composableBuilder(
+    column: $table.syncChecks,
+    builder: (column) => column,
+  );
 
   $$NotesTableAnnotationComposer get noteId {
     final $$NotesTableAnnotationComposer composer = $composerBuilder(
@@ -9128,6 +9406,10 @@ class $$NoteWebsitesTableTableManager
                 Value<String> brief = const Value.absent(),
                 Value<String> model = const Value.absent(),
                 Value<int> madeAt = const Value.absent(),
+                Value<String> state = const Value.absent(),
+                Value<String> previousHtml = const Value.absent(),
+                Value<String> previousSourceHash = const Value.absent(),
+                Value<bool> syncChecks = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => NoteWebsitesCompanion(
                 noteId: noteId,
@@ -9136,6 +9418,10 @@ class $$NoteWebsitesTableTableManager
                 brief: brief,
                 model: model,
                 madeAt: madeAt,
+                state: state,
+                previousHtml: previousHtml,
+                previousSourceHash: previousSourceHash,
+                syncChecks: syncChecks,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -9146,6 +9432,10 @@ class $$NoteWebsitesTableTableManager
                 Value<String> brief = const Value.absent(),
                 Value<String> model = const Value.absent(),
                 required int madeAt,
+                Value<String> state = const Value.absent(),
+                Value<String> previousHtml = const Value.absent(),
+                Value<String> previousSourceHash = const Value.absent(),
+                Value<bool> syncChecks = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => NoteWebsitesCompanion.insert(
                 noteId: noteId,
@@ -9154,6 +9444,10 @@ class $$NoteWebsitesTableTableManager
                 brief: brief,
                 model: model,
                 madeAt: madeAt,
+                state: state,
+                previousHtml: previousHtml,
+                previousSourceHash: previousSourceHash,
+                syncChecks: syncChecks,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

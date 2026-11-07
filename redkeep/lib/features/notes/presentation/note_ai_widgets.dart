@@ -654,8 +654,26 @@ const noteWebsiteIdeas = [
     Color(0xFF527C9C),
   ),
   (
-    'Checklist',
-    'A practical page with checklists I can tick off and see progress',
+    'Cook mode',
+    'A recipe app: adjustable servings, step-by-step cook mode and timers',
+    Icons.restaurant_outlined,
+    Color(0xFFB5683F),
+  ),
+  (
+    'Workout timer',
+    'An interval timer that runs through the routine, with sounds and progress',
+    Icons.fitness_center_rounded,
+    Color(0xFF527C9C),
+  ),
+  (
+    'Calculator',
+    'A working budget calculator with totals, splits and a chart',
+    Icons.calculate_outlined,
+    Color(0xFF75619B),
+  ),
+  (
+    'Packing list',
+    'A tickable list grouped sensibly, with progress that is remembered',
     Icons.checklist_rounded,
     Color(0xFF44766B),
   ),

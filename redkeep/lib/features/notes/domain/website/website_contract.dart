@@ -6,6 +6,8 @@ import 'package:cryptography/cryptography.dart';
 import 'package:html/dom.dart' as dom;
 import 'package:html/parser.dart' as html;
 
+import '../note_checklist.dart';
+
 /// An interactive website written whole by the model from a note.
 const noteWebsiteOperation = 'build-website';
 const websiteBriefChars = 240;
@@ -121,10 +123,36 @@ const websitePolicy =
     "base-uri 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; "
     "manifest-src 'none'; object-src 'none'";
 
-/// Defines `window.redkeep.setAppearance`, which the app calls to theme the
-/// page. Pages cannot replace it.
+/// Defines `window.redkeep`: the app themes the page through it, and the
+/// page talks to the app only through it. Pages cannot replace it. Without
+/// the app's channel (a preview) saving and ticking quietly do nothing.
 const _bootstrap =
-    r'''(function(){var r=document.documentElement;function set(a){if(!a)return;r.setAttribute('data-theme',a.theme==='dark'?'dark':'light');r.setAttribute('data-motion',a.motion==='reduce'?'reduce':'full');r.setAttribute('data-effects',a.effects==='simple'?'simple':'full');r.style.colorScheme=a.theme==='dark'?'dark':'light';var t=a.tokens||{};for(var k in t){if(Object.prototype.hasOwnProperty.call(t,k)){r.style.setProperty('--rk-'+k,t[k]);}}try{window.dispatchEvent(new CustomEvent('redkeep:appearance',{detail:a}));}catch(e){}}try{Object.defineProperty(window,'redkeep',{value:Object.freeze({setAppearance:set}),writable:false,configurable:false});}catch(e){}})();''';
+    r'''(function(){var r=document.documentElement,data={};try{var el=document.getElementById('redkeep-data');if(el){data=JSON.parse(el.textContent)||{};}}catch(e){}var state=data.state===undefined?null:data.state,checklist=Array.isArray(data.checklist)?data.checklist:[],pending={},next=1,bridge=window.RedkeepBridge;function emit(n,d){try{window.dispatchEvent(new CustomEvent(n,{detail:d}));}catch(e){}}function post(m){try{if(bridge&&typeof bridge.postMessage==='function'){bridge.postMessage(JSON.stringify(m));return true;}}catch(e){}return false;}function request(m){return new Promise(function(done){var id=next++;m.id=id;pending[id]=done;if(!post(m)){delete pending[id];done(false);}});}function set(a){if(!a)return;r.setAttribute('data-theme',a.theme==='dark'?'dark':'light');r.setAttribute('data-motion',a.motion==='reduce'?'reduce':'full');r.setAttribute('data-effects',a.effects==='simple'?'simple':'full');r.style.colorScheme=a.theme==='dark'?'dark':'light';var t=a.tokens||{};for(var k in t){if(Object.prototype.hasOwnProperty.call(t,k)){r.style.setProperty('--rk-'+k,t[k]);}}emit('redkeep:appearance',a);}var api={setAppearance:set,save:function(value){var text;try{text=JSON.stringify(value);}catch(e){return false;}if(text===undefined)return false;state=JSON.parse(text);return post({type:'save',state:state});},setChecklistItem:function(text,done){return request({type:'check',text:String(text),done:done===true});},haptic:function(kind){post({type:'haptic',kind:String(kind||'light')});},_reply:function(id,ok){var f=pending[id];if(f){delete pending[id];f(ok===true);}},_checklist:function(items){checklist=Array.isArray(items)?items:[];emit('redkeep:checklist',checklist);}};Object.defineProperty(api,'state',{get:function(){return state;},enumerable:true});Object.defineProperty(api,'checklist',{get:function(){return checklist.slice();},enumerable:true});try{Object.defineProperty(window,'redkeep',{value:Object.freeze(api),writable:false,configurable:false});}catch(e){}})();''';
+
+/// What a page opens with: what it saved for itself, and the note's
+/// checklist as it is now.
+class WebsitePageData {
+  const WebsitePageData({this.state = '', this.checklist = const []});
+
+  /// JSON the page saved; empty for none.
+  final String state;
+  final List<NoteChecklistItem> checklist;
+
+  /// Safe inside a `<script type="application/json">`: nothing in it can
+  /// close the element.
+  String encode() {
+    Object? saved;
+    try {
+      saved = state.isEmpty ? null : jsonDecode(state);
+    } on FormatException {
+      saved = null;
+    }
+    return jsonEncode({
+      'state': saved,
+      'checklist': [for (final item in checklist) item.toJson()],
+    }).replaceAll('<', r'\u003c');
+  }
+}
 
 const _removed = {
   'iframe',
@@ -171,7 +199,11 @@ const _ownMarker = 'data-redkeep';
 /// removed and a strict content policy is put first. With [appearance] the
 /// page opens already themed. Throws [FormatException] when the page is
 /// unusable, including when the model was cut off.
-String sanitizeWebsite(String raw, {WebsiteAppearance? appearance}) {
+String sanitizeWebsite(
+  String raw, {
+  WebsiteAppearance? appearance,
+  WebsitePageData? data,
+}) {
   var text = raw.trim();
   final fence = _fence.firstMatch(text);
   if (fence != null) text = fence.group(1)!.trim();
@@ -193,6 +225,7 @@ String sanitizeWebsite(String raw, {WebsiteAppearance? appearance}) {
     final drop =
         _removed.contains(name) ||
         attributes.containsKey(_ownMarker) ||
+        attributes['id'] == 'redkeep-data' ||
         (name == 'script' && attributes.containsKey('src')) ||
         (name == 'meta' &&
             (attributes.containsKey('http-equiv') ||
@@ -238,6 +271,14 @@ String sanitizeWebsite(String raw, {WebsiteAppearance? appearance}) {
       'content': 'width=device-width, initial-scale=1, viewport-fit=cover',
     }),
     meta({'name': 'color-scheme', 'content': 'light dark'}),
+    if (data != null)
+      dom.Element.tag('script')
+        ..attributes.addAll({
+          'type': 'application/json',
+          'id': 'redkeep-data',
+          _ownMarker: '',
+        })
+        ..text = data.encode(),
     dom.Element.tag('script')
       ..attributes[_ownMarker] = ''
       ..text = _bootstrap,
@@ -292,6 +333,7 @@ bool _hasReadableText(dom.Element element) {
 Future<String> sanitizeWebsiteBounded(
   String raw, {
   WebsiteAppearance? appearance,
+  WebsitePageData? data,
   Duration timeout = const Duration(seconds: 10),
 }) async {
   final port = ReceivePort();
@@ -300,7 +342,7 @@ Future<String> sanitizeWebsiteBounded(
     worker = await Isolate.spawn(
       (SendPort send) {
         try {
-          send.send(sanitizeWebsite(raw, appearance: appearance));
+          send.send(sanitizeWebsite(raw, appearance: appearance, data: data));
         } on FormatException catch (error) {
           send.send(['error', error.message]);
         } catch (_) {
@@ -323,4 +365,52 @@ Future<String> sanitizeWebsiteBounded(
     worker?.kill(priority: Isolate.immediate);
     port.close();
   }
+}
+
+/// The page as the model wrote it: without what the app adds to its head.
+/// A remix is asked of, and applied to, exactly this text.
+String websiteSource(String page) {
+  final document = html.parse(page);
+  for (final own in document.querySelectorAll('[$_ownMarker]').toList()) {
+    own.remove();
+  }
+  return '<!doctype html>\n${document.documentElement!.outerHtml}';
+}
+
+/// The largest page a remix sends; larger pages are built again instead.
+const websiteRemixInputBytes = 400000;
+
+final _edit = RegExp(
+  r'<<<<<<< FIND\r?\n([\s\S]*?)\r?\n=======\r?\n([\s\S]*?)\r?\n?>>>>>>> REPLACE',
+);
+
+/// Applies a remix to [source] (see [websiteSource]). The model returns
+/// either FIND/REPLACE edits, each of which must match exactly once, or a
+/// whole new document for a sweeping change. Throws [FormatException] when
+/// the remix does not fit the page, leaving it unchanged.
+String applyWebsiteRemix(String source, String output) {
+  var text = output.trim();
+  final fence = _fence.firstMatch(text);
+  if (fence != null) text = fence.group(1)!.trim();
+  if (RegExp(r'^(<!doctype html|<html)', caseSensitive: false).hasMatch(text)) {
+    return text;
+  }
+  final edits = _edit.allMatches(text).toList();
+  if (edits.isEmpty) {
+    throw const FormatException(
+      'The remix could not be applied. Your website is unchanged; try again.',
+    );
+  }
+  var page = source;
+  for (final edit in edits) {
+    final find = edit[1]!, replace = edit[2]!;
+    final at = find.isEmpty ? -1 : page.indexOf(find);
+    if (at < 0 || page.indexOf(find, at + 1) >= 0) {
+      throw const FormatException(
+        'The remix did not match the page. Your website is unchanged; try again.',
+      );
+    }
+    page = page.replaceRange(at, at + find.length, replace);
+  }
+  return page;
 }

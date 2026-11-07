@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 
 import '../../../core/storage/app_database.dart';
@@ -23,13 +25,16 @@ class DriftNoteWebsites {
 
   Future<NoteWebsite?> get(String id) async {
     if (!isNoteId(id)) return null;
-    final row = await (_db.select(
-      _db.noteWebsites,
-    )..where((r) => r.noteId.equals(id))).getSingleOrNull();
+    final row = await _row(id);
     return row == null ? null : _fromRow(row);
   }
 
-  /// Replaces the note's website. The note itself is not touched.
+  /// The most a page may save for itself.
+  static const stateBytes = 64 * 1024;
+
+  /// Replaces the note's website. The note itself is not touched. The page
+  /// it replaces is kept once, so the change can be undone; what the page
+  /// saved for itself and its checklist choice stay.
   Future<void> save(NoteWebsite website) async {
     if (!isNoteId(website.noteId) ||
         website.html.trim().isEmpty ||
@@ -44,6 +49,7 @@ class DriftNoteWebsites {
       if (note == null || note.deletedAt != null) {
         throw const NoteException(NoteFailure.unavailable);
       }
+      final old = await _row(website.noteId);
       await _db
           .into(_db.noteWebsites)
           .insertOnConflictUpdate(
@@ -54,8 +60,69 @@ class DriftNoteWebsites {
               brief: Value(website.brief),
               model: Value(website.model),
               madeAt: website.madeAt.toUtc().millisecondsSinceEpoch,
+              state: Value(old?.state ?? ''),
+              previousHtml: Value(old?.html ?? ''),
+              previousSourceHash: Value(old?.sourceHash ?? ''),
+              syncChecks: Value(old?.syncChecks ?? false),
             ),
           );
+    });
+  }
+
+  /// Puts back the page from before the last remix or rebuild. The newer
+  /// page becomes the one to undo to, so undo can be undone.
+  Future<bool> undo(String id) => _update(id, (row) {
+    if (row.previousHtml.isEmpty) return null;
+    return NoteWebsitesCompanion(
+      html: Value(row.previousHtml),
+      sourceHash: Value(row.previousSourceHash),
+      previousHtml: Value(row.html),
+      previousSourceHash: Value(row.sourceHash),
+    );
+  });
+
+  /// Keeps what the page saved for itself. Throws [FormatException] when it
+  /// is not JSON or larger than [stateBytes].
+  Future<bool> saveState(String id, String state) {
+    if (state.length > stateBytes || utf8.encode(state).length > stateBytes) {
+      throw const FormatException('The page saved too much.');
+    }
+    jsonDecode(state);
+    return _update(id, (_) => NoteWebsitesCompanion(state: Value(state)));
+  }
+
+  Future<bool> setSyncChecks(String id, bool value) =>
+      _update(id, (_) => NoteWebsitesCompanion(syncChecks: Value(value)));
+
+  /// After the page itself changed the note, the page still matches it:
+  /// moves the source from [from] to [to] only if it was current.
+  Future<bool> followNote(
+    String id, {
+    required String from,
+    required String to,
+  }) => _update(id, (row) {
+    if (row.sourceHash != from || !_hash.hasMatch(to)) return null;
+    return NoteWebsitesCompanion(sourceHash: Value(to));
+  });
+
+  Future<NoteWebsiteRow?> _row(String id) => (_db.select(
+    _db.noteWebsites,
+  )..where((r) => r.noteId.equals(id))).getSingleOrNull();
+
+  Future<bool> _update(
+    String id,
+    NoteWebsitesCompanion? Function(NoteWebsiteRow row) change,
+  ) async {
+    if (!isNoteId(id)) return false;
+    return _db.transaction(() async {
+      await checkWritingAccess(_db, _generation);
+      final row = await _row(id);
+      final companion = row == null ? null : change(row);
+      if (companion == null) return false;
+      await (_db.update(
+        _db.noteWebsites,
+      )..where((r) => r.noteId.equals(id))).write(companion);
+      return true;
     });
   }
 
@@ -76,5 +143,9 @@ class DriftNoteWebsites {
     brief: row.brief,
     model: row.model,
     madeAt: DateTime.fromMillisecondsSinceEpoch(row.madeAt, isUtc: true),
+    state: row.state,
+    previousHtml: row.previousHtml,
+    previousSourceHash: row.previousSourceHash,
+    syncChecks: row.syncChecks,
   );
 }

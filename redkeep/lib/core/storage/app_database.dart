@@ -45,7 +45,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   // Reset changes this generation before disposing editors. Old repositories
   // cannot write after cleanup, even when an async continuation finishes late.
@@ -94,6 +94,12 @@ class AppDatabase extends _$AppDatabase {
       if (from < 5) {
         // Note websites live beside notes, outside their synced details.
         await migrator.createTable(noteWebsites);
+      } else if (from < 6) {
+        // Pages remember their own state and their previous version.
+        await migrator.addColumn(noteWebsites, noteWebsites.state);
+        await migrator.addColumn(noteWebsites, noteWebsites.previousHtml);
+        await migrator.addColumn(noteWebsites, noteWebsites.previousSourceHash);
+        await migrator.addColumn(noteWebsites, noteWebsites.syncChecks);
       }
     },
   );

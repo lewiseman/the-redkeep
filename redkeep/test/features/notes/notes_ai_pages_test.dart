@@ -10,6 +10,7 @@ import 'package:redkeep/features/notes/domain/note_website.dart';
 import 'package:redkeep/features/notes/domain/website/website_contract.dart';
 
 import '../../support/fake_appearance_repository.dart';
+import '../../support/fake_ai_provider.dart';
 import '../../support/notes_ai_harness.dart';
 import '../../support/pump_app.dart';
 
@@ -398,7 +399,7 @@ void main() {
             findsNothing,
           );
           expect(find.textContaining('Website · built'), findsOneWidget);
-          expect(find.byTooltip('Build again'), findsOneWidget);
+          expect(find.byTooltip('Change website'), findsOneWidget);
 
           // Narrow: Edit text is in the menu.
           await tester.tap(find.byKey(const ValueKey('note-website-menu')));
@@ -417,7 +418,10 @@ void main() {
           final pill = find.byKey(const ValueKey('note-website-outdated'));
           expect(pill, findsOneWidget);
           expect(find.textContaining('Website · built'), findsNothing);
-          expect(find.byTooltip('Build again (text changed)'), findsOneWidget);
+          expect(
+            find.byTooltip('Change website (text changed)'),
+            findsOneWidget,
+          );
           expect(
             (await h.repository.openDocument(notesTestId)).note!.text.body,
             'Plant peppers instead.',
@@ -446,6 +450,64 @@ void main() {
       },
     );
   }
+
+  testWidgets('the Maester remixes the website and offers undo', (
+    tester,
+  ) async {
+    await DriftNoteWebsites(h.db).save(
+      NoteWebsite(
+        noteId: notesTestId,
+        html: sanitizeWebsite(noteWebsiteOutput),
+        sourceHash: websiteContentHash(notesTestBody),
+        madeAt: DateTime.utc(2026),
+      ),
+    );
+    h.remote.output = '<<<<<<< FIND\n<h1>Garden plan</h1>\n=======\n<h1>Garden plan</h1><p>Quiz</p>\n>>>>>>> REPLACE';
+    try {
+      await pumpApp(
+        tester,
+        notes: h.repository,
+        database: h.db,
+        aiProvider: h.aiProvider,
+        aiSettings: testAiSettings,
+        initialLocation: noteWebsiteLocation(notesTestId),
+      );
+      await tester.tap(find.byTooltip('Change website'));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('note-website-change-sheet')),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('Add a quiz'));
+      await tester.pumpAndSettle();
+      final remix = find.byKey(const ValueKey('note-website-remix'));
+      await tester.ensureVisible(remix);
+      await tester.tap(remix);
+      // The page is edited and checked on background isolates.
+      for (var i = 0; i < 50; i++) {
+        if (find.text('Website remixed').evaluate().isNotEmpty) break;
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 100)),
+        );
+        await tester.pump();
+      }
+      await tester.pumpAndSettle();
+      expect(find.text('Website remixed'), findsOneWidget);
+      final website = await DriftNoteWebsites(h.db).get(notesTestId);
+      expect(website!.html, contains('<p>Quiz</p>'));
+      expect(website.canUndo, isTrue);
+      await tester.tap(find.text('Undo'));
+      await tester.pumpAndSettle();
+      expect(
+        (await DriftNoteWebsites(h.db).get(notesTestId))!.html,
+        isNot(contains('<p>Quiz</p>')),
+      );
+      expect(tester.takeException(), isNull);
+    } finally {
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpAndSettle();
+    }
+  });
 
   testWidgets('the note text page links back to its website', (tester) async {
     await DriftNoteWebsites(h.db).save(

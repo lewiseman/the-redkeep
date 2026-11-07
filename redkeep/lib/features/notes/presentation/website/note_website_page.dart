@@ -8,12 +8,14 @@ import '../../../../core/presentation/rendering_policy.dart';
 import '../../../../app/navigation_destination.dart';
 import '../../../sync/application/sync_providers.dart';
 import '../../application/notes_providers.dart';
+import '../../domain/note_checklist.dart';
 import '../../domain/note_document.dart';
 import '../note_ai_desk.dart';
 import '../note_ai_widgets.dart';
 import '../note_app_bar.dart';
 import '../note_page.dart';
 import 'note_website_card.dart';
+import 'note_website_remix_sheet.dart';
 import 'note_website_view.dart';
 
 /// A note's website on a page of its own. The note's text lives in the note:
@@ -30,8 +32,56 @@ class NoteWebsitePage extends ConsumerWidget {
   void _editText(BuildContext context) =>
       context.push(noteLocation(id), extra: NoteOpen.edit);
 
-  Future<void> _regenerate(BuildContext context) =>
+  Future<NoteAiLanding?> _regenerate(BuildContext context) =>
       showNoteAiTools(context, id, initialTool: NoteAiTool.presentation);
+
+  /// The Maester: remix the page, or build it again from the text.
+  Future<void> _change(
+    BuildContext context,
+    WidgetRef ref, {
+    required bool outdated,
+    required bool canEdit,
+  }) async {
+    final change = await showWebsiteChangeSheet(
+      context,
+      id,
+      outdated: outdated,
+      canEdit: canEdit,
+    );
+    if (!context.mounted) return;
+    switch (change) {
+      case WebsiteChange.rebuild:
+        final landing = await _regenerate(context);
+        if (landing != null && context.mounted) {
+          _offerUndo(context, ref, 'New website built');
+        }
+      case WebsiteChange.remixed:
+        _offerUndo(context, ref, 'Website remixed');
+      case null:
+        break;
+    }
+  }
+
+  void _offerUndo(BuildContext context, WidgetRef ref, String message) {
+    final websites = ref.read(noteWebsitesProvider);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          action: SnackBarAction(
+            label: 'Undo',
+            onPressed: () => websites.undo(id),
+          ),
+        ),
+      );
+  }
+
+  Future<void> _undo(BuildContext context, WidgetRef ref) async {
+    if (await ref.read(noteWebsitesProvider).undo(id) && context.mounted) {
+      _offerUndo(context, ref, 'Previous version restored');
+    }
+  }
 
   Future<void> _explainOutdated(BuildContext context, bool canEdit) =>
       showModalBottomSheet<void>(
@@ -203,9 +253,16 @@ class NoteWebsitePage extends ConsumerWidget {
               alignment: const AlignmentDirectional(.55, -.55),
               child: NoteAiButton(
                 tooltip: outdated
-                    ? 'Build again (text changed)'
-                    : 'Build again',
-                onPressed: canEdit ? () => _regenerate(context) : null,
+                    ? 'Change website (text changed)'
+                    : 'Change website',
+                onPressed: canEdit
+                    ? () => _change(
+                        context,
+                        ref,
+                        outdated: outdated,
+                        canEdit: canEdit,
+                      )
+                    : null,
               ),
             ),
             if (roomy)
@@ -229,6 +286,7 @@ class NoteWebsitePage extends ConsumerWidget {
                 onSelected: (value) => switch (value) {
                   'edit' => _editText(context),
                   'regenerate' => _regenerate(context),
+                  'undo' => _undo(context, ref),
                   'text' => context.push(noteLocation(id)),
                   'remove' => _remove(context, ref),
                   _ => null,
@@ -254,6 +312,16 @@ class NoteWebsitePage extends ConsumerWidget {
                           : null,
                     ),
                   ),
+                  if (page.canUndo)
+                    PopupMenuItem(
+                      key: const ValueKey('note-website-undo'),
+                      value: 'undo',
+                      enabled: canEdit,
+                      child: const ListTile(
+                        leading: Icon(Icons.undo_rounded),
+                        title: Text('Undo last change'),
+                      ),
+                    ),
                   const PopupMenuItem(
                     value: 'text',
                     child: ListTile(
@@ -292,6 +360,11 @@ class NoteWebsitePage extends ConsumerWidget {
               child: NoteWebsiteView(
                 html: page.html,
                 photos: note.details.attachments,
+                noteId: id,
+                // Only the first value matters: the page keeps its own
+                // state while open.
+                state: page.state,
+                checklist: noteChecklist(note.text.body),
               ),
             )
           : Center(

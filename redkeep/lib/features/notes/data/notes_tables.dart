@@ -45,6 +45,16 @@ class NoteWebsites extends Table {
   TextColumn get model => text().withDefault(const Constant(''))();
   IntColumn get madeAt => integer()();
 
+  /// What the page saved for itself (ticks, scores, progress), as JSON.
+  TextColumn get state => text().withDefault(const Constant(''))();
+
+  /// The page before the last remix or rebuild, so it can be undone.
+  TextColumn get previousHtml => text().withDefault(const Constant(''))();
+  TextColumn get previousSourceHash => text().withDefault(const Constant(''))();
+
+  /// Ticks on the page update the note's checklist without asking.
+  BoolColumn get syncChecks => boolean().withDefault(const Constant(false))();
+
   @override
   Set<Column> get primaryKey => {noteId};
 }

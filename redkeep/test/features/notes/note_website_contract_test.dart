@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:html/parser.dart' as html;
 import 'package:redkeep/features/notes/domain/website/website_contract.dart';
@@ -80,6 +82,54 @@ void main() {
       startsWith(
         'window.redkeep&&window.redkeep.setAppearance({"theme":"dark"',
       ),
+    );
+  });
+
+  test('pages open with their data and cannot fake it', () {
+    final page = sanitizeWebsite(
+      '<html><head><script type="application/json" id="redkeep-data">{"state":{"won":true}}</script></head>'
+      '<body><p>Hi</p></body></html>',
+      data: const WebsitePageData(state: '{"note":"</script><b>x"}'),
+    );
+    final doc = html.parse(page);
+    final data = doc.querySelectorAll('#redkeep-data');
+    expect(data, hasLength(1));
+    expect(data.single.text, isNot(contains('</script>')));
+    expect(jsonDecode(data.single.text)['state'], {'note': '</script><b>x'});
+    // The bootstrap's code survives serialization untouched.
+    expect(page, contains("bridge&&typeof bridge.postMessage==='function'"));
+    expect(page, contains('setChecklistItem'));
+    expect(websiteSource(page), isNot(contains('redkeep-data')));
+    expect(websiteSource(page), isNot(contains('Content-Security-Policy')));
+    expect(websiteSource(page), contains('<p>Hi</p>'));
+  });
+
+  test('remix edits apply exactly once or not at all', () {
+    const page = '<html><body><h1>A</h1><p>B</p><p>B</p></body></html>';
+    String edit(String find, String replace) =>
+        '<<<<<<< FIND\n$find\n=======\n$replace\n>>>>>>> REPLACE';
+    expect(
+      applyWebsiteRemix(
+        page,
+        '${edit('<h1>A</h1>', '<h1>C</h1>')}\n\n${edit('</body>', '<i>D</i></body>')}',
+      ),
+      '<html><body><h1>C</h1><p>B</p><p>B</p><i>D</i></body></html>',
+    );
+    expect(
+      () => applyWebsiteRemix(page, edit('<p>B</p>', 'x')),
+      throwsFormatException,
+    );
+    expect(
+      () => applyWebsiteRemix(page, edit('<p>Z</p>', 'x')),
+      throwsFormatException,
+    );
+    expect(
+      () => applyWebsiteRemix(page, 'Sure! Here is the change.'),
+      throwsFormatException,
+    );
+    expect(
+      applyWebsiteRemix(page, '<!doctype html><html><body>New</body></html>'),
+      '<!doctype html><html><body>New</body></html>',
     );
   });
 

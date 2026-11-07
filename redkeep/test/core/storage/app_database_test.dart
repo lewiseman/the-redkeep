@@ -15,32 +15,32 @@ import 'package:redkeep/features/onboarding/data/drift_onboarding_repository.dar
 import 'generated/schema.dart';
 
 void main() {
-  test('fresh schema matches the complete version 5 snapshot', () async {
+  test('fresh schema matches the complete version 6 snapshot', () async {
     final database = AppDatabase(NativeDatabase.memory());
     addTearDown(database.close);
 
-    expect(database.schemaVersion, 5);
-    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 5);
+    expect(database.schemaVersion, 6);
+    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 6);
     final version = await database
         .customSelect('PRAGMA user_version')
         .getSingle();
-    expect(version.read<int>('user_version'), 5);
+    expect(version.read<int>('user_version'), 6);
   });
 
-  for (final from in [1, 2, 3, 4]) {
+  for (final from in [1, 2, 3, 4, 5]) {
     test('the upgrade from version $from matches the snapshot', () async {
       final verifier = SchemaVerifier(GeneratedHelper());
       final database = AppDatabase(await verifier.startAt(from));
       addTearDown(database.close);
-      await verifier.migrateAndValidate(database, 5);
+      await verifier.migrateAndValidate(database, 6);
     });
   }
 
-  test('version 5 adds local note websites outside sync', () async {
+  test('version 5 and 6 add local note websites outside sync', () async {
     final verifier = SchemaVerifier(GeneratedHelper());
     final database = AppDatabase(await verifier.startAt(4));
     addTearDown(database.close);
-    await verifier.migrateAndValidate(database, 5);
+    await verifier.migrateAndValidate(database, 6);
     final triggers =
         (await database
                 .customSelect(
@@ -105,7 +105,7 @@ void main() {
     final version = await database
         .customSelect('PRAGMA user_version')
         .getSingle();
-    expect(version.read<int>('user_version'), 5);
+    expect(version.read<int>('user_version'), 6);
   });
 
   test('upgrading a real version 1 file keeps preferences, writing and recall triggers', () async {
@@ -146,7 +146,7 @@ void main() {
     final version = await database
         .customSelect('PRAGMA user_version')
         .getSingle();
-    expect(version.read<int>('user_version'), 5);
+    expect(version.read<int>('user_version'), 6);
     final columns = await database
         .customSelect('PRAGMA table_info(ai_preferences_table)')
         .get();
@@ -281,7 +281,7 @@ void main() {
       final version = await reopened
           .customSelect('PRAGMA user_version')
           .getSingle();
-      expect(version.read<int>('user_version'), 5);
+      expect(version.read<int>('user_version'), 6);
     },
   );
 

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -6,9 +8,12 @@ import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../../../core/presentation/rendering_policy.dart';
 import '../../data/note_media_store.dart';
+import '../../application/note_website_bridge.dart';
+import '../../domain/note_checklist.dart';
 import '../../domain/note_details.dart';
 import '../../domain/website/website_contract.dart';
 import 'website_assets.dart';
+import 'website_check_dialog.dart';
 
 /// The app's look as a website should see it: light or dark, motion,
 /// effects and the main colours.
@@ -33,17 +38,31 @@ WebsiteAppearance websiteAppearanceOf(BuildContext context) {
 
 /// Shows a note's generated website. Its own scripts run, but it cannot
 /// reach the network or navigate anywhere, and it has no bridge into the
-/// app. It follows the app's light or dark look while it stays open.
+/// app beyond `window.redkeep`. It follows the app's light or dark look
+/// while it stays open.
 class NoteWebsiteView extends ConsumerStatefulWidget {
   const NoteWebsiteView({
     super.key,
     required this.html,
     this.photos = const [],
+    this.noteId,
+    this.state = '',
+    this.checklist = const [],
   });
   final String html;
 
   /// The note's attachments; its photos fill the page's placeholders.
   final List<NoteAttachment> photos;
+
+  /// The kept website's note. A preview has none: it can neither save nor
+  /// change the note.
+  final String? noteId;
+
+  /// What the page saved for itself, handed back when it opens.
+  final String state;
+
+  /// The note's checklist now; the page hears about changes while open.
+  final List<NoteChecklistItem> checklist;
 
   @override
   ConsumerState<NoteWebsiteView> createState() => _NoteWebsiteViewState();
@@ -56,6 +75,40 @@ class _NoteWebsiteViewState extends ConsumerState<NoteWebsiteView> {
 
   /// Bumped for every load, so a slower earlier load never lands.
   int _loading = 0;
+  NoteWebsiteBridge? _bridge;
+
+  @override
+  void initState() {
+    super.initState();
+    final id = widget.noteId;
+    if (id != null) {
+      _bridge = NoteWebsiteBridge(
+        ProviderScope.containerOf(context, listen: false),
+        id,
+        confirm: (item, done) => confirmWebsiteCheck(context, item, done),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _bridge?.close();
+    super.dispose();
+  }
+
+  Future<void> _onMessage(JavaScriptMessage message) async {
+    final reply = await _bridge?.handle(message.message);
+    if (reply == null || !mounted) return;
+    await _controller
+        ?.runJavaScript(
+          'window.redkeep&&window.redkeep._reply('
+          '${jsonEncode(reply.id)},${reply.ok});',
+        )
+        .catchError((_) {});
+  }
+
+  static String _checklistJson(List<NoteChecklistItem> items) =>
+      jsonEncode([for (final item in items) item.toJson()]);
 
   @override
   void didChangeDependencies() {
@@ -81,6 +134,15 @@ class _NoteWebsiteViewState extends ConsumerState<NoteWebsiteView> {
           [for (final p in widget.photos) p.path],
         )) {
       _load();
+    } else if (_checklistJson(oldWidget.checklist) !=
+        _checklistJson(widget.checklist)) {
+      // The note changed under an open page: tell it, without reloading.
+      _controller
+          ?.runJavaScript(
+            'window.redkeep&&window.redkeep._checklist('
+            '${_checklistJson(widget.checklist)});',
+          )
+          .catchError((_) {});
     }
   }
 
@@ -91,7 +153,11 @@ class _NoteWebsiteViewState extends ConsumerState<NoteWebsiteView> {
     String page;
     try {
       // Checked again on every load, never trusted because it was stored.
-      page = await sanitizeWebsiteBounded(widget.html, appearance: _appearance);
+      page = await sanitizeWebsiteBounded(
+        widget.html,
+        appearance: _appearance,
+        data: WebsitePageData(state: widget.state, checklist: widget.checklist),
+      );
       // Photos are added after the check and never stored.
       page = await withWebsiteAssets(
         page,
@@ -112,17 +178,24 @@ class _NoteWebsiteViewState extends ConsumerState<NoteWebsiteView> {
     if (!mounted || load != _loading) return;
     final controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(Colors.transparent)
-      ..setNavigationDelegate(
-        NavigationDelegate(
-          // In-page anchors still scroll; nothing may load another address.
-          onNavigationRequest: (request) =>
-              request.url.startsWith('about:blank') ||
-                  request.url.startsWith('about:srcdoc')
-              ? NavigationDecision.navigate
-              : NavigationDecision.prevent,
-        ),
+      ..setBackgroundColor(Colors.transparent);
+    // The page's one way to the app; a preview gets none.
+    if (_bridge != null) {
+      await controller.addJavaScriptChannel(
+        'RedkeepBridge',
+        onMessageReceived: _onMessage,
       );
+    }
+    await controller.setNavigationDelegate(
+      NavigationDelegate(
+        // In-page anchors still scroll; nothing may load another address.
+        onNavigationRequest: (request) =>
+            request.url.startsWith('about:blank') ||
+                request.url.startsWith('about:srcdoc')
+            ? NavigationDecision.navigate
+            : NavigationDecision.prevent,
+      ),
+    );
     await controller.loadHtmlString(page);
     if (!mounted || load != _loading) return;
     final shown = _appearance;

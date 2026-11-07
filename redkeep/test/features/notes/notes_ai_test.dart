@@ -13,6 +13,8 @@ import 'package:redkeep/features/notes/application/notes_providers.dart';
 import 'package:redkeep/features/notes/domain/note_document.dart';
 import 'package:redkeep/features/notes/domain/note_help_contract.dart';
 import 'package:redkeep/features/notes/domain/note_tag.dart';
+import 'package:redkeep/features/notes/domain/note_website.dart';
+import 'package:redkeep/features/notes/domain/website/website_contract.dart';
 import 'package:redkeep/features/sync/data/drift_sync_store.dart';
 
 import '../../support/fake_ai_provider.dart';
@@ -65,6 +67,23 @@ void main() {
             notesTestId,
             scope: notesJobScope,
             image: attachment,
+          );
+        } else if (operation == AiOperation.noteWebsiteRemix) {
+          await h.scope
+              .read(noteWebsitesProvider)
+              .save(
+                NoteWebsite(
+                  noteId: notesTestId,
+                  html: sanitizeWebsite(noteWebsiteOutput),
+                  sourceHash: websiteContentHash(notesTestBody),
+                  madeAt: DateTime.utc(2026),
+                ),
+              );
+          await actions().start(
+            operation,
+            notesTestId,
+            scope: notesJobScope,
+            intent: 'Darker',
           );
         } else {
           await actions().start(

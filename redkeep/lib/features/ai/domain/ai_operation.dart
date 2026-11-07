@@ -99,7 +99,16 @@ enum AiOperation {
     '',
   ),
   // A whole interactive page; long notes make long websites.
-  noteWebsite('build-website', true, '', 32000, 2097152, noteWebsiteSystem);
+  noteWebsite('build-website', true, '', 32000, 2097152, noteWebsiteSystem),
+  // Changes a kept website as asked, keeping everything else.
+  noteWebsiteRemix(
+    'remix-website',
+    true,
+    '',
+    32000,
+    2097152,
+    noteWebsiteRemixSystem,
+  );
 
   const AiOperation(
     this.wireName,
@@ -134,6 +143,7 @@ enum AiOperation {
           noteImage => 'Ask about an image',
           noteScan => 'Scan a page',
           noteBackground => 'Generate a background',
+          noteWebsiteRemix => 'Remix website',
           _ => 'Note website',
         }
       : switch (this) {
@@ -145,6 +155,7 @@ enum AiOperation {
   int get inputBytes => switch (this) {
     photoQuestions => 3200,
     noteWebsite => 100000,
+    noteWebsiteRemix => 400000,
     _ => 2000,
   };
   int get contractVersion => this == photoQuestions ? 2 : 1;
@@ -159,12 +170,14 @@ enum AiOperation {
     thoughtReflection => .4,
     noteTemplate => .7,
     noteWebsite => .4,
+    noteWebsiteRemix => .3,
     _ => 0,
   };
 
   /// How long one attempt may run; null keeps the transport's default.
   /// A whole website takes minutes to write.
-  Duration? get timeout =>
-      this == noteWebsite ? const Duration(minutes: 10) : null;
+  Duration? get timeout => this == noteWebsite || this == noteWebsiteRemix
+      ? const Duration(minutes: 10)
+      : null;
   double get topP => this == noteTemplate ? .95 : 1;
 }

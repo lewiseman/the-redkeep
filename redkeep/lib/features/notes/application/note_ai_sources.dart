@@ -80,6 +80,13 @@ void validateNoteAiOutput(
       NoteScanResult.parse(text);
     case AiOperation.noteBackground:
       NoteBackgroundResult.parse(text);
+    case AiOperation.noteWebsiteRemix:
+      if (!text.contains('>>>>>>> REPLACE') &&
+          !RegExp(r'</html\s*>\s*$', caseSensitive: false).hasMatch(text)) {
+        throw const FormatException(
+          'The remix could not be applied. Your website is unchanged; try again.',
+        );
+      }
     case AiOperation.noteWebsite:
       // The page is checked and made safe in a worker before it is kept.
       if (!RegExp(r'</html\s*>\s*$', caseSensitive: false).hasMatch(text)) {

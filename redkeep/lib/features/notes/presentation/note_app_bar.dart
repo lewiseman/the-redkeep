@@ -69,12 +69,17 @@ ButtonStyle noteBarButtonStyle(BuildContext context) {
 
 /// Opens the note's AI tools with the Maester mark.
 class NoteAiButton extends StatelessWidget {
-  const NoteAiButton({super.key, required this.onPressed});
+  const NoteAiButton({
+    super.key,
+    required this.onPressed,
+    this.tooltip = 'AI tools',
+  });
   final VoidCallback? onPressed;
+  final String tooltip;
 
   @override
   Widget build(BuildContext context) => Tooltip(
-    message: 'AI tools',
+    message: tooltip,
     child: Semantics(
       button: true,
       enabled: onPressed != null,

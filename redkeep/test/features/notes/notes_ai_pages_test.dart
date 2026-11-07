@@ -397,8 +397,10 @@ void main() {
             find.byKey(const ValueKey('note-website-outdated')),
             findsNothing,
           );
+          expect(find.textContaining('Website · built'), findsOneWidget);
+          expect(find.byTooltip('Build again'), findsOneWidget);
 
-          // Narrow, large text: the actions are in the menu.
+          // Narrow: Edit text is in the menu.
           await tester.tap(find.byKey(const ValueKey('note-website-menu')));
           await tester.pumpAndSettle();
           await tester.tap(find.text('Edit text'));
@@ -414,6 +416,8 @@ void main() {
           expect(path(), noteWebsiteLocation(notesTestId));
           final pill = find.byKey(const ValueKey('note-website-outdated'));
           expect(pill, findsOneWidget);
+          expect(find.textContaining('Website · built'), findsNothing);
+          expect(find.byTooltip('Build again (text changed)'), findsOneWidget);
           expect(
             (await h.repository.openDocument(notesTestId)).note!.text.body,
             'Plant peppers instead.',

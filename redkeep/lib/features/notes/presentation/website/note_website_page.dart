@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
+
+import '../../../../core/presentation/rendering_policy.dart';
 
 import '../../../../app/navigation_destination.dart';
-import '../../../../core/presentation/rendering_policy.dart';
 import '../../../sync/application/sync_providers.dart';
 import '../../application/notes_providers.dart';
 import '../../domain/note_document.dart';
 import '../note_ai_desk.dart';
 import '../note_ai_widgets.dart';
+import '../note_app_bar.dart';
 import '../note_page.dart';
 import 'note_website_card.dart';
 import 'note_website_view.dart';
@@ -77,6 +80,25 @@ class NoteWebsitePage extends ConsumerWidget {
         ),
       );
 
+  /// When the website was built, in a few words.
+  static String _built(BuildContext context, DateTime madeAt) {
+    final local = madeAt.toLocal();
+    final now = DateTime.now();
+    final days = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    ).difference(DateTime(local.year, local.month, local.day)).inDays;
+    final locale = Localizations.localeOf(context).toLanguageTag();
+    return switch (days) {
+      0 => 'built today',
+      1 => 'built yesterday',
+      _ when local.year == now.year =>
+        'built ${DateFormat.MMMd(locale).format(local)}',
+      _ => 'built ${DateFormat.yMMMd(locale).format(local)}',
+    };
+  }
+
   Future<void> _remove(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -121,93 +143,144 @@ class NoteWebsitePage extends ConsumerWidget {
         note != null && page != null && page.isOutdatedFor(note.text.body);
     final ready = opened.hasValue && website.hasValue;
 
-    // Two actions stay in the bar while there is room; otherwise everything
-    // folds into the menu.
-    final roomy =
-        MediaQuery.sizeOf(context).width >= 400 &&
-        MediaQuery.textScalerOf(context).scale(14) <= 22;
+    // Edit text stays in the bar while there is room; otherwise it folds
+    // into the menu. Building again is always the Maester.
+    final roomy = MediaQuery.sizeOf(context).width >= 360;
     final shown = note != null && page != null;
+    final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
-        leading: BackButton(onPressed: () => _leave(context)),
-        titleSpacing: 0,
-        title: Row(
-          children: [
-            Flexible(
-              child: Text(
-                note == null ? 'Website' : noteTitle(note.text.title),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+        toolbarHeight: 64,
+        backgroundColor: scheme.surface,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        shape: Border(
+          bottom: BorderSide(
+            color: scheme.outlineVariant.withValues(alpha: .5),
+          ),
+        ),
+        // Room for the 12px inset plus the full 48px round button, as on the
+        // note page.
+        leadingWidth: 60,
+        leading: Center(
+          child: Padding(
+            padding: const EdgeInsetsDirectional.only(start: 12),
+            child: IconButton(
+              tooltip: 'Back',
+              style: noteBarButtonStyle(context),
+              icon: const Icon(Icons.arrow_back_ios_new_rounded),
+              onPressed: () => _leave(context),
             ),
-            AnimatedSwitcher(
-              duration: RenderingPolicyScope.of(context).duration,
-              child: outdated
-                  ? Padding(
-                      padding: const EdgeInsetsDirectional.only(start: 8),
-                      child: NoteWebsiteOutdatedPill(
-                        onPressed: () => _explainOutdated(context, canEdit),
-                      ),
-                    )
-                  : const SizedBox.shrink(),
-            ),
-          ],
+          ),
+        ),
+        titleSpacing: 8,
+        // The bar keeps its height; very large text is eased so the title
+        // and status still fit beside the actions.
+        title: MediaQuery.withClampedTextScaling(
+          maxScaleFactor: 1.4,
+          child: _WebsiteTitle(
+            title: note == null ? 'Website' : noteTitle(note.text.title),
+            status: page == null
+                ? null
+                : outdated
+                ? NoteWebsiteOutdatedPill(
+                    key: const ValueKey('status-outdated'),
+                    onPressed: () => _explainOutdated(context, canEdit),
+                  )
+                : Text(
+                    'Website · ${_built(context, page.madeAt)}',
+                    key: const ValueKey('note-website-made'),
+                  ),
+          ),
         ),
         actions: [
-          if (shown && roomy) ...[
-            IconButton(
-              key: const ValueKey('note-website-edit'),
-              tooltip: 'Edit text',
-              onPressed: canEdit ? () => _editText(context) : null,
-              icon: const Icon(Icons.edit_note_rounded),
-            ),
-            IconButton(
+          if (shown) ...[
+            Badge(
               key: const ValueKey('note-website-regenerate'),
-              tooltip: outdated ? 'Build again (text changed)' : 'Build again',
-              onPressed: canEdit ? () => _regenerate(context) : null,
-              icon: Badge(
-                isLabelVisible: outdated,
-                smallSize: 8,
-                child: const Icon(Icons.auto_awesome_rounded),
+              isLabelVisible: outdated,
+              smallSize: 10,
+              alignment: const AlignmentDirectional(.55, -.55),
+              child: NoteAiButton(
+                tooltip: outdated
+                    ? 'Build again (text changed)'
+                    : 'Build again',
+                onPressed: canEdit ? () => _regenerate(context) : null,
               ),
             ),
-          ],
-          if (shown)
-            PopupMenuButton<String>(
-              key: const ValueKey('note-website-menu'),
-              tooltip: 'More',
-              onSelected: (value) => switch (value) {
-                'edit' => _editText(context),
-                'regenerate' => _regenerate(context),
-                'text' => context.push(noteLocation(id)),
-                'remove' => _remove(context, ref),
-                _ => null,
-              },
-              itemBuilder: (_) => [
-                if (!roomy) ...[
-                  PopupMenuItem(
-                    value: 'edit',
-                    enabled: canEdit,
-                    child: const Text('Edit text'),
-                  ),
+            if (roomy)
+              Padding(
+                padding: const EdgeInsetsDirectional.only(start: 4),
+                child: IconButton(
+                  key: const ValueKey('note-website-edit'),
+                  tooltip: 'Edit text',
+                  style: noteBarButtonStyle(context),
+                  onPressed: canEdit ? () => _editText(context) : null,
+                  icon: const Icon(Icons.edit_outlined),
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsetsDirectional.only(start: 4),
+              child: PopupMenuButton<String>(
+                key: const ValueKey('note-website-menu'),
+                tooltip: 'More',
+                style: noteBarButtonStyle(context),
+                icon: const Icon(Icons.more_horiz_rounded),
+                onSelected: (value) => switch (value) {
+                  'edit' => _editText(context),
+                  'regenerate' => _regenerate(context),
+                  'text' => context.push(noteLocation(id)),
+                  'remove' => _remove(context, ref),
+                  _ => null,
+                },
+                itemBuilder: (_) => [
+                  if (!roomy)
+                    PopupMenuItem(
+                      value: 'edit',
+                      enabled: canEdit,
+                      child: const ListTile(
+                        leading: Icon(Icons.edit_outlined),
+                        title: Text('Edit text'),
+                      ),
+                    ),
                   PopupMenuItem(
                     value: 'regenerate',
                     enabled: canEdit,
-                    child: Text(
-                      outdated ? 'Build again (text changed)' : 'Build again',
+                    child: ListTile(
+                      leading: const Icon(Icons.auto_awesome_rounded),
+                      title: const Text('Build again'),
+                      subtitle: outdated
+                          ? const Text('Your text changed')
+                          : null,
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'text',
+                    child: ListTile(
+                      leading: Icon(Icons.notes_rounded),
+                      title: Text('Read as text'),
+                    ),
+                  ),
+                  const PopupMenuDivider(),
+                  PopupMenuItem(
+                    value: 'remove',
+                    enabled: canEdit,
+                    child: ListTile(
+                      leading: Icon(
+                        Icons.delete_outline_rounded,
+                        color: canEdit ? scheme.error : null,
+                      ),
+                      title: Text(
+                        'Remove website',
+                        style: canEdit ? TextStyle(color: scheme.error) : null,
+                      ),
                     ),
                   ),
                 ],
-                const PopupMenuItem(value: 'text', child: Text('Read as text')),
-                PopupMenuItem(
-                  value: 'remove',
-                  enabled: canEdit,
-                  child: const Text('Remove website'),
-                ),
-              ],
+              ),
             ),
-          const SizedBox(width: 4),
+          ],
+          const SizedBox(width: 12),
         ],
       ),
       body: !ready
@@ -246,6 +319,50 @@ class NoteWebsitePage extends ConsumerWidget {
                 ),
               ),
             ),
+    );
+  }
+}
+
+/// The note's title over a quiet status line: when the website was built,
+/// or that it is outdated.
+class _WebsiteTitle extends StatelessWidget {
+  const _WebsiteTitle({required this.title, this.status});
+  final String title;
+  final Widget? status;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final status = this.status;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        if (status != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: AnimatedSwitcher(
+              duration: RenderingPolicyScope.of(context).duration,
+              child: DefaultTextStyle.merge(
+                key: ValueKey(status.key),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                child: status,
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

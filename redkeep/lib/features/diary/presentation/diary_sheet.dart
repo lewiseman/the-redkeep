@@ -186,7 +186,7 @@ class _DiaryDayContentState extends ConsumerState<DiaryDayContent> {
     final colors = diaryPaperColors(context);
     final typography = DiaryTypography.of(context);
     final details = [
-      if (day.mood case final mood?) '${mood.emoji} ${mood.label}',
+      if (day.mood case final mood?) mood.display,
       ...day.themes,
     ].join(' · ');
     final canCreate =

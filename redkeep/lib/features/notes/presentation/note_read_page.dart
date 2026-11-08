@@ -254,16 +254,18 @@ class _NoteReadViewState extends ConsumerState<NoteReadView> {
                                 NoteAttachmentStrip(
                                   attachments: note.details.attachments,
                                 ),
-                                SelectableText(
-                                  noteTitle(note.text.title),
-                                  style: const TextStyle(
-                                    fontSize: 24,
-                                    height: 1.3,
-                                    fontWeight: FontWeight.bold,
+                                if (note.text.title.trim().isNotEmpty)
+                                  SelectableText(
+                                    note.text.title,
+                                    style: const TextStyle(
+                                      fontSize: 24,
+                                      height: 1.3,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
-                                ),
                                 if (note.tags.isNotEmpty) ...[
-                                  const SizedBox(height: 20),
+                                  if (note.text.title.trim().isNotEmpty)
+                                    const SizedBox(height: 20),
                                   LayoutBuilder(
                                     builder: (context, constraints) => Wrap(
                                       spacing: 8,
@@ -287,7 +289,9 @@ class _NoteReadViewState extends ConsumerState<NoteReadView> {
                                     ),
                                   ),
                                 ],
-                                const SizedBox(height: 20),
+                                if (note.text.title.trim().isNotEmpty ||
+                                    note.tags.isNotEmpty)
+                                  const SizedBox(height: 20),
                                 NoteMarkdownPreview(
                                   key: ValueKey(note.revision),
                                   text: note.text.body,

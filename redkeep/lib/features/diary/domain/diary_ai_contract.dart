@@ -15,15 +15,10 @@ const diaryMaxEntries = 12;
 const diaryTitleChars = 80;
 const diaryThemeChars = 40;
 const diaryMaxThemes = 3;
-const _modelMoods = {
-  'happy',
-  'calm',
-  'excited',
-  'tired',
-  'low',
-  'mixed',
-  'unclear',
-};
+
+/// Words from contract 1 results that carry no single mood. Older queued or
+/// stored results may still use them; new results use an empty string.
+const _noMoodWords = {'mixed', 'unclear'};
 
 final _control = RegExp(r'[\x00-\x1f\x7f]');
 
@@ -276,11 +271,11 @@ class DiarySuggestionSource {
 class DiaryMoodSuggestion {
   const DiaryMoodSuggestion(this.value, this.evidence);
 
-  /// One of happy, calm, excited, tired, low, mixed or unclear.
+  /// Exactly one emoji, or "mixed" / "unclear" when there is no mood.
   final String value;
   final String evidence;
   DiaryMood? get mood =>
-      DiaryMood.values.where((m) => m.name == value).firstOrNull;
+      _noMoodWords.contains(value) ? null : DiaryMood.fromEmoji(value);
 }
 
 class DiaryThemeSuggestion {
@@ -324,7 +319,6 @@ class DiarySuggestions {
         mood is! Map ||
         mood.length != 2 ||
         mood['value'] is! String ||
-        !_modelMoods.contains(mood['value']) ||
         mood['evidence'] is! String ||
         !_plain(mood['evidence'] as String, 160, empty: true) ||
         themes is! List ||
@@ -342,9 +336,15 @@ class DiarySuggestions {
       rejectedFields.add('title');
       dropped++;
     }
-    var moodValue = mood['value'] as String;
+    // One emoji (or a contract 1 mood word, mapped to its emoji). Anything
+    // else is dropped like an ungrounded mood; the other fields survive.
+    final rawMood = (mood['value'] as String).trim();
+    var moodValue = rawMood.isEmpty || _noMoodWords.contains(rawMood)
+        ? (rawMood == 'mixed' ? 'mixed' : 'unclear')
+        : DiaryMood.tryParse(rawMood)?.emoji;
     final moodEvidence = (mood['evidence'] as String).trim();
-    if (moodValue != 'unclear' && !source.supports(moodEvidence)) {
+    if (moodValue == null ||
+        (!_noMoodWords.contains(moodValue) && !source.supports(moodEvidence))) {
       moodValue = 'unclear';
       rejectedFields.add('mood');
       dropped++;
@@ -377,7 +377,7 @@ class DiarySuggestions {
       title: acceptedTitle,
       mood: DiaryMoodSuggestion(
         moodValue,
-        moodValue == 'unclear' ? '' : moodEvidence,
+        _noMoodWords.contains(moodValue) ? '' : moodEvidence,
       ),
       themes: accepted,
       dropped: dropped,
@@ -402,6 +402,9 @@ DiaryMood? decodeDayMood(String? raw) {
             decoded['name'] == candidate.label) {
           return candidate;
         }
+      }
+      if (decoded['emoji'] case final String emoji) {
+        return DiaryMood.fromEmoji(emoji);
       }
     }
   } on FormatException {

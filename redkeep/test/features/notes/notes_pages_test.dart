@@ -299,6 +299,34 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  noteTest('title takes no line breaks; an empty title is skipped', (
+    tester,
+  ) async {
+    await pumpApp(
+      tester,
+      initialLocation: '/notes',
+      notes: repo,
+      noteId: () => id,
+    );
+    await tap(tester, 'Create note');
+    final title = find.byKey(const ValueKey('note-title'));
+    await tester.enterText(title, 'Two\nlines\r\nhere');
+    await enterNoteBody(tester, 'Some writing');
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextField>(title).controller!.text, 'Two lines here');
+    await tester.enterText(title, '');
+    await tester.pumpAndSettle();
+    await tap(tester, 'Done');
+    expect((await repo.openDocument(id)).note!.text.title, '');
+    expect(bodyField(), findsNothing);
+    expect(find.text('Untitled note'), findsNothing);
+    // The notes grid skips the missing title too.
+    await tap(tester, 'Back');
+    expect(find.text('Some writing'), findsOneWidget);
+    expect(find.text('Untitled note'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   noteTest(
     'back from a new note: empty returns to the list, writing shows the note',
     (tester) async {

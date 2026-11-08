@@ -20,6 +20,7 @@ import '../domain/note_colors.dart';
 import '../../voice/presentation/voice_capture_page.dart';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -324,7 +325,12 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
                                       filled: false,
                                       contentPadding: EdgeInsets.zero,
                                     ),
+                                    // Wraps visually, but never takes a typed
+                                    // or pasted line break.
                                     maxLines: null,
+                                    keyboardType: TextInputType.text,
+                                    textInputAction: TextInputAction.done,
+                                    inputFormatters: [noteTitleLineBreaks],
                                     textCapitalization:
                                         TextCapitalization.sentences,
                                     onChanged: (_) => _edit(controller),
@@ -621,3 +627,9 @@ class _NoteTagWrap extends StatelessWidget {
     ),
   );
 }
+
+/// Turns typed or pasted line breaks in a note title into spaces.
+final noteTitleLineBreaks = FilteringTextInputFormatter.deny(
+  RegExp(r'\r\n|[\r\n]'),
+  replacementString: ' ',
+);

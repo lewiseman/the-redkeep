@@ -261,7 +261,7 @@ class _DiaryAiSheetState extends ConsumerState<DiaryAiSheet> {
                   review(
                     'mood',
                     'Mood',
-                    '${mood.emoji} ${mood.label}',
+                    mood.display,
                     evidence: suggestions.mood.evidence,
                   )
                 else

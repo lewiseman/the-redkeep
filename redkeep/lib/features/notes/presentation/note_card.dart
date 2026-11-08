@@ -126,34 +126,43 @@ class NoteCard extends ConsumerWidget {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Padding(
-                        // Leave the folded corner clear, even for long titles.
-                        padding: const EdgeInsets.only(right: 14),
-                        child: Text(
-                          title.isEmpty ? 'Untitled note' : title,
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            color: colors.foreground,
-                            fontSize: 17,
-                            height: 1.25,
-                            letterSpacing: -.35,
-                            fontWeight: FontWeight.w600,
+                      if (title.isNotEmpty)
+                        Padding(
+                          // Leave the folded corner clear, even for long titles.
+                          padding: const EdgeInsets.only(right: 14),
+                          child: Text(
+                            title,
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              color: colors.foreground,
+                              fontSize: 17,
+                              height: 1.25,
+                              letterSpacing: -.35,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
-                      ),
                       if (entry.pinned)
                         const Icon(Icons.push_pin_rounded, size: 14),
                       if (entry.excerpt.trim().isNotEmpty) ...[
-                        const SizedBox(height: 9),
-                        NoteCardPreview(
-                          data: entry.excerpt,
-                          maxLines: switch (index % 3) {
-                            0 => 7,
-                            1 => 9,
-                            _ => 6,
-                          },
-                          styleSheet: markdownStyle,
+                        if (title.isNotEmpty || entry.pinned)
+                          const SizedBox(height: 9),
+                        Padding(
+                          // With no title or pin above it, the writing starts
+                          // beside the folded corner, so keep it clear.
+                          padding: EdgeInsets.only(
+                            right: title.isEmpty && !entry.pinned ? 14 : 0,
+                          ),
+                          child: NoteCardPreview(
+                            data: entry.excerpt,
+                            maxLines: switch (index % 3) {
+                              0 => 7,
+                              1 => 9,
+                              _ => 6,
+                            },
+                            styleSheet: markdownStyle,
+                          ),
                         ),
                       ],
                     ],

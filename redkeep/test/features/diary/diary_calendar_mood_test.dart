@@ -43,7 +43,10 @@ void main() {
   ) async {
     for (final mood in DiaryMood.values) {
       await repo.saveDay(
-        DiaryDay(date: DiaryPeriod(2026, 10, 12 + mood.index), mood: mood),
+        DiaryDay(
+          date: DiaryPeriod(2026, 10, 12 + DiaryMood.values.indexOf(mood)),
+          mood: mood,
+        ),
       );
     }
     final entryOnly = DiaryPeriod(2026, 10, 18);
@@ -62,7 +65,11 @@ void main() {
     );
 
     for (final mood in DiaryMood.values) {
-      final moodDate = DiaryPeriod(2026, 10, 12 + mood.index);
+      final moodDate = DiaryPeriod(
+        2026,
+        10,
+        12 + DiaryMood.values.indexOf(mood),
+      );
       expect(_emoji(moodDate, mood), findsOneWidget);
       final semantics = tester.widget<Semantics>(
         find

@@ -441,8 +441,17 @@ void main() {
     final cleared = await h.diary.watchDay(date).first;
     expect(cleared.mood, isNull);
     expect(cleared.themes, isEmpty);
+    // Any single emoji syncs as itself; presets keep their names.
+    await collection.mergeRemote(
+      collection.decode({...legacy, 'mood': '🧑🏽‍💻'}),
+      now: now,
+    );
+    expect((await h.diary.watchDay(date).first).mood?.emoji, '🧑🏽‍💻');
+    expect((await collection.read(date.key))!.payload['mood'], '🧑🏽‍💻');
     for (final invalid in [
       {...legacy, 'mood': 'unknown'},
+      {...legacy, 'mood': '😊 good'},
+      {...legacy, 'mood': '😊😊'},
       {...legacy, 'mood': 1},
       {...legacy, 'themes': 'Work'},
       {

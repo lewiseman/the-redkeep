@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../core/presentation/diary_typography.dart';
 import '../../../core/presentation/rendering_policy.dart';
 import '../domain/diary_day_details.dart';
+import 'diary_emoji_picker_sheet.dart';
 import 'diary_paper_stamp.dart';
 import 'photos/diary_ink_action.dart';
 
@@ -41,7 +42,8 @@ class DiaryDetailsLabel extends StatelessWidget {
   }
 }
 
-/// Five faces to circle. Tapping the circled one again rubs it out.
+/// Five faces to circle, plus any other emoji. Tapping a circled face again
+/// rubs it out; the last slot always opens the full picker.
 class DiaryMoodPicker extends StatelessWidget {
   const DiaryMoodPicker({
     super.key,
@@ -56,15 +58,36 @@ class DiaryMoodPicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final onChanged = this.onChanged;
     Widget face(DiaryMood mood) => _MoodFace(
       key: ValueKey('diary-day-mood-${mood.name}'),
-      mood: mood,
+      emoji: mood.emoji,
+      label: mood.label,
+      semanticsLabel: mood.label,
+      seed: DiaryMood.values.indexOf(mood),
       selected: selected == mood,
       onPressed: onChanged == null
           ? null
-          : () => onChanged!(selected == mood ? null : mood),
+          : () => onChanged(selected == mood ? null : mood),
     );
-    // Five across only fits while the labels stay small.
+    final custom = selected?.isPreset == false ? selected : null;
+    final other = _MoodFace(
+      key: const ValueKey('diary-day-mood-other'),
+      emoji: custom?.emoji,
+      label: 'Other',
+      semanticsLabel: custom == null
+          ? 'Pick any emoji'
+          : '${custom.emoji} mood. Pick another emoji',
+      seed: custom == null ? 5 : custom.emoji.runes.first % 97,
+      selected: custom != null,
+      onPressed: onChanged == null
+          ? null
+          : () async {
+              final picked = await showDiaryEmojiPicker(context);
+              if (picked != null && context.mounted) onChanged(picked);
+            },
+    );
+    // Six across only fits while the labels stay small.
     if (MediaQuery.textScalerOf(context).scale(1) > 1.3) {
       return Wrap(
         spacing: 4,
@@ -72,12 +95,14 @@ class DiaryMoodPicker extends StatelessWidget {
         children: [
           for (final mood in DiaryMood.values)
             SizedBox(width: 96, child: face(mood)),
+          SizedBox(width: 96, child: other),
         ],
       );
     }
     return Row(
       children: [
         for (final mood in DiaryMood.values) Expanded(child: face(mood)),
+        Expanded(child: other),
       ],
     );
   }
@@ -86,12 +111,18 @@ class DiaryMoodPicker extends StatelessWidget {
 class _MoodFace extends StatelessWidget {
   const _MoodFace({
     super.key,
-    required this.mood,
+    required this.emoji,
+    required this.label,
+    required this.semanticsLabel,
+    required this.seed,
     required this.selected,
     required this.onPressed,
   });
 
-  final DiaryMood mood;
+  /// Null shows the "pick an emoji" mark instead.
+  final String? emoji;
+  final String label, semanticsLabel;
+  final int seed;
   final bool selected;
   final VoidCallback? onPressed;
 
@@ -100,7 +131,7 @@ class _MoodFace extends StatelessWidget {
     final policy = RenderingPolicyScope.of(context);
     final colors = Theme.of(context).colorScheme;
     return DiaryInkAction(
-      label: mood.label,
+      label: semanticsLabel,
       selected: selected,
       onPressed: onPressed,
       child: Padding(
@@ -108,23 +139,36 @@ class _MoodFace extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            SizedBox.square(
-              dimension: 56,
-              child: CustomPaint(
-                painter: selected
-                    ? _InkCircle(color: colors.primary, seed: mood.index)
-                    : null,
-                child: Center(
-                  child: AnimatedScale(
-                    scale: selected ? 1.1 : 1,
-                    duration: policy.duration,
-                    curve: Curves.easeOutBack,
-                    child: MediaQuery.withClampedTextScaling(
-                      maxScaleFactor: 1,
-                      child: Text(
-                        mood.emoji,
-                        style: const TextStyle(fontSize: 30, height: 1.1),
-                      ),
+            // Six faces share 320px, so the circle may shrink a little.
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: SizedBox.square(
+                dimension: 56,
+                child: CustomPaint(
+                  painter: selected
+                      ? _InkCircle(color: colors.primary, seed: seed)
+                      : null,
+                  child: Center(
+                    child: AnimatedScale(
+                      scale: selected ? 1.1 : 1,
+                      duration: policy.duration,
+                      curve: Curves.easeOutBack,
+                      child: emoji == null
+                          ? Icon(
+                              Icons.add_reaction_outlined,
+                              size: 28,
+                              color: colors.onSurfaceVariant,
+                            )
+                          : MediaQuery.withClampedTextScaling(
+                              maxScaleFactor: 1,
+                              child: Text(
+                                emoji!,
+                                style: const TextStyle(
+                                  fontSize: 30,
+                                  height: 1.1,
+                                ),
+                              ),
+                            ),
                     ),
                   ),
                 ),
@@ -134,7 +178,7 @@ class _MoodFace extends StatelessWidget {
             FittedBox(
               fit: BoxFit.scaleDown,
               child: Text(
-                mood.label,
+                label,
                 maxLines: 1,
                 style: TextStyle(
                   color: selected ? colors.primary : colors.onSurfaceVariant,

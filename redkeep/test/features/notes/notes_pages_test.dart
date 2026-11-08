@@ -522,6 +522,38 @@ void main() {
     }
   }
 
+  noteTest('card checklists use the paper ink in dark mode', (tester) async {
+    await seed(body: '- [ ] Open task\n- [x] Done task');
+    final appearance = FakeAppearanceRepository(
+      const AppearancePreferences(theme: AppTheme.dark),
+    );
+    addTearDown(appearance.close);
+    await pumpApp(
+      tester,
+      initialLocation: '/notes',
+      notes: repo,
+      repository: appearance,
+    );
+    final boxes = find.descendant(
+      of: find.byType(NoteCard),
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is Icon &&
+            (widget.icon == Icons.check_box ||
+                widget.icon == Icons.check_box_outline_blank),
+      ),
+    );
+    expect(boxes, findsNWidgets(2));
+    for (final icon in tester.widgetList<Icon>(boxes)) {
+      expect(icon.color, isNotNull);
+      // Light ink on dark paper, not the theme's near-black primaryColor.
+      expect(
+        ThemeData.estimateBrightnessForColor(icon.color!.withValues(alpha: 1)),
+        Brightness.light,
+      );
+    }
+  });
+
   noteTest(
     'a large body opens formatted for reading and in the rich editor without transformation',
     (tester) async {

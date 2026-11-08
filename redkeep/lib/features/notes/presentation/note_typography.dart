@@ -49,18 +49,56 @@ class NoteTypography {
   final Color checkbox;
 
   /// Reading a note as Markdown.
-  MarkdownStyleSheet markdown(BuildContext context) =>
-      MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
-        p: body,
-        listBullet: body,
-        h1: h1,
-        h2: h2,
-        h3: h3,
-        h1Padding: const EdgeInsets.only(top: 8),
-        h2Padding: const EdgeInsets.only(top: 8),
-        h3Padding: const EdgeInsets.only(top: 4),
-        checkbox: body.copyWith(color: checkbox),
-      );
+  ///
+  /// Surfaces, rules and links are tinted from the note's ink rather than the
+  /// theme defaults, which assume light paper and vanish on dark or vivid notes.
+  MarkdownStyleSheet markdown(BuildContext context) {
+    final theme = Theme.of(context);
+    final ink = body.color ?? theme.colorScheme.onSurface;
+    final wash = ink.withValues(alpha: .08);
+    final rule = ink.withValues(alpha: .2);
+    final mono = body.copyWith(
+      fontFamily: 'monospace',
+      fontSize: (body.fontSize ?? 16) * .9,
+      height: 1.4,
+      backgroundColor: wash,
+    );
+    return MarkdownStyleSheet.fromTheme(theme).copyWith(
+      p: body,
+      listBullet: body,
+      h1: h1,
+      h2: h2,
+      h3: h3,
+      h4: body.copyWith(fontWeight: FontWeight.bold),
+      h5: body.copyWith(fontWeight: FontWeight.bold),
+      h6: body.copyWith(fontWeight: FontWeight.bold),
+      h1Padding: const EdgeInsets.only(top: 8),
+      h2Padding: const EdgeInsets.only(top: 8),
+      h3Padding: const EdgeInsets.only(top: 4),
+      a: body.copyWith(
+        decoration: TextDecoration.underline,
+        decorationColor: ink.withValues(alpha: .6),
+      ),
+      code: mono,
+      codeblockDecoration: BoxDecoration(
+        color: wash,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      blockquote: body.copyWith(color: ink.withValues(alpha: .8)),
+      blockquoteDecoration: BoxDecoration(
+        color: ink.withValues(alpha: .05),
+        borderRadius: BorderRadius.circular(3),
+        border: Border(left: BorderSide(color: rule, width: 3)),
+      ),
+      tableHead: body.copyWith(fontWeight: FontWeight.w600),
+      tableBody: body,
+      tableBorder: TableBorder.all(color: rule),
+      horizontalRuleDecoration: BoxDecoration(
+        border: Border(top: BorderSide(color: rule)),
+      ),
+      checkbox: body.copyWith(color: checkbox),
+    );
+  }
 
   /// Writing a note in the rich editor.
   DefaultStyles editor() {

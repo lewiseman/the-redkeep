@@ -87,6 +87,14 @@ class NoteCard extends ConsumerWidget {
       tableBorder: TableBorder.all(
         color: colors.foreground.withValues(alpha: .15),
       ),
+      // The theme defaults (primaryColor, dividerColor) are near-black in
+      // dark mode; follow the paper's ink instead.
+      checkbox: body?.copyWith(color: colors.foreground.withValues(alpha: .8)),
+      horizontalRuleDecoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(color: colors.foreground.withValues(alpha: .2)),
+        ),
+      ),
     );
 
     return Material(

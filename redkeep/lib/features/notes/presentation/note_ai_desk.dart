@@ -51,14 +51,20 @@ Future<NoteAiLanding?> showNoteAiTools(
     maxWidth: 720,
     maxHeight: MediaQuery.sizeOf(context).height * .94,
   ),
-  builder: (sheetContext) => SizedBox(
-    height: MediaQuery.sizeOf(context).height * .9,
-    child: NoteAiDesk(
-      id: id,
-      editor: editor,
-      initialTool: initialTool,
-      onLanded: (landing) => Navigator.of(sheetContext).pop(landing),
-      onClose: () => Navigator.of(sheetContext).pop(),
+  // The desk shrinks above the keyboard so its fields can scroll into view.
+  builder: (sheetContext) => Padding(
+    padding: EdgeInsets.only(
+      bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
+    ),
+    child: SizedBox(
+      height: MediaQuery.sizeOf(context).height * .9,
+      child: NoteAiDesk(
+        id: id,
+        editor: editor,
+        initialTool: initialTool,
+        onLanded: (landing) => Navigator.of(sheetContext).pop(landing),
+        onClose: () => Navigator.of(sheetContext).pop(),
+      ),
     ),
   ),
 );

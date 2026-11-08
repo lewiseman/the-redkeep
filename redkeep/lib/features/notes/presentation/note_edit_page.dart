@@ -342,20 +342,30 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
                                   ],
                                   const SizedBox(height: 20),
                                   if (_rich case final rich?)
-                                    QuillEditor(
-                                      key: const ValueKey('note-body'),
-                                      controller: rich,
-                                      focusNode: _richFocus,
-                                      scrollController: _richScroll,
-                                      config: QuillEditorConfig(
-                                        // The paper scrolls; the editor just grows.
-                                        scrollable: false,
-                                        placeholder: 'Write your note…',
-                                        customStyles: NoteTypography.of(context)
-                                            .editor(),
-                                        minHeight: 120,
-                                        textCapitalization:
-                                            TextCapitalization.sentences,
+                                    Builder(
+                                      builder: (context) => QuillEditor(
+                                        key: const ValueKey('note-body'),
+                                        controller: rich,
+                                        focusNode: _richFocus,
+                                        // Quill keeps the caret in view only
+                                        // through a controller it can scroll,
+                                        // so it borrows the paper's.
+                                        scrollController:
+                                            Scrollable.maybeOf(context)
+                                                ?.widget
+                                                .controller ??
+                                            _richScroll,
+                                        config: QuillEditorConfig(
+                                          // The paper scrolls; the editor just grows.
+                                          scrollable: false,
+                                          placeholder: 'Write your note…',
+                                          customStyles: NoteTypography.of(
+                                            context,
+                                          ).editor(),
+                                          minHeight: 120,
+                                          textCapitalization:
+                                              TextCapitalization.sentences,
+                                        ),
                                       ),
                                     ),
                                   const SizedBox(height: 24),

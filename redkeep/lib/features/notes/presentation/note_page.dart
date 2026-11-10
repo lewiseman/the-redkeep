@@ -7,12 +7,10 @@ import '../application/notes_providers.dart';
 import 'note_edit_page.dart';
 import 'note_read_page.dart';
 
-/// One page per note. Reading and editing are states of this page, so
-/// switching between them never navigates. A new note opens in editing;
-/// leaving it shows the note, or returns to where it began if left empty.
 /// How a note page opens.
 enum NoteOpen { read, edit }
 
+/// Reading and editing share one note page. A new note opens in editing.
 class NotePage extends ConsumerStatefulWidget {
   const NotePage({super.key, required this.id, this.startEditing = false});
   final String id;
@@ -26,11 +24,8 @@ class NotePage extends ConsumerStatefulWidget {
 class _NotePageState extends ConsumerState<NotePage> {
   late bool _editing;
 
-  /// The paper's state (fold, scroll) survives switching to and from editing.
-  final _paperKey = GlobalKey(debugLabel: 'note-paper');
-
-  /// Zero is the folded preview; one is immersive paper.
-  final _expansion = ValueNotifier<double>(0);
+  /// Entering editing keeps the paper in place, including its scroll position.
+  GlobalKey _paperKey = GlobalKey(debugLabel: 'note-paper');
 
   @override
   void initState() {
@@ -51,9 +46,8 @@ class _NotePageState extends ConsumerState<NotePage> {
   bool get _saved =>
       ref.read(noteDocumentProvider(widget.id)).value?.available == true;
 
-  /// Leaving editing shows the saved note, including a just-written one;
-  /// an empty new note, or a note opened only to edit, returns to where it
-  /// began.
+  /// Shows the saved note from the top of its folded preview. Empty new notes
+  /// and notes opened only to edit return to where they began.
   Future<void> _back() async {
     // Opened only to edit (from the website): return there.
     if (widget.startEditing) {
@@ -62,7 +56,11 @@ class _NotePageState extends ConsumerState<NotePage> {
     }
     if (await _hasSavedNote()) {
       if (mounted) {
-        setState(() => _editing = false);
+        setState(() {
+          _editing = false;
+          // Give the preview a fresh fold and scroll position.
+          _paperKey = GlobalKey(debugLabel: 'note-paper');
+        });
       }
     } else if (mounted) {
       _leave();
@@ -78,14 +76,6 @@ class _NotePageState extends ConsumerState<NotePage> {
   }
 
   @override
-  void dispose() {
-    _expansion.dispose();
-    super.dispose();
-  }
-
-  /// Reading and editing hand the same paper back and forth, so editing is
-  /// the immersive paper made editable rather than a separate page.
-  @override
   Widget build(BuildContext context) => _editing
       ? NoteEditView(
           key: const ValueKey('note-editing'),
@@ -97,7 +87,6 @@ class _NotePageState extends ConsumerState<NotePage> {
           key: const ValueKey('note-reading'),
           id: widget.id,
           paperKey: _paperKey,
-          expansion: _expansion,
           onEdit: () => setState(() => _editing = true),
         );
 }

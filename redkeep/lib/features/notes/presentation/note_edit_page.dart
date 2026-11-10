@@ -368,18 +368,18 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
                                         ),
                                       ),
                                     ),
-                                  const SizedBox(height: 24),
-                                  Semantics(
-                                    liveRegion: true,
-                                    child: Text(
-                                      state.message ??
-                                          (state.saving ? 'Saving…' : ''),
-                                      key: const ValueKey('note-save-status'),
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .labelSmall,
+                                  if (state.message case final message?) ...[
+                                    const SizedBox(height: 24),
+                                    Semantics(
+                                      liveRegion: true,
+                                      child: Text(
+                                        message,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .labelSmall,
+                                      ),
                                     ),
-                                  ),
+                                  ],
                                   if (state.conflict) ...[
                                     const SizedBox(height: 12),
                                     Wrap(

@@ -31,7 +31,6 @@ class NoteReadView extends ConsumerStatefulWidget {
     required this.id,
     required this.onEdit,
     required this.paperKey,
-    required this.expansion,
   });
   final String id;
   final VoidCallback onEdit;
@@ -39,8 +38,6 @@ class NoteReadView extends ConsumerStatefulWidget {
   /// Shared with editing so the same paper continues into it.
   final GlobalKey paperKey;
 
-  /// Owned by the page: the paper's fold, which stays open after editing.
-  final ValueNotifier<double> expansion;
   @override
   ConsumerState<NoteReadView> createState() => _NoteReadViewState();
 }
@@ -52,11 +49,12 @@ class _NoteReadViewState extends ConsumerState<NoteReadView> {
   bool _aiOpen = false;
   NoteAiLanding? _landing;
   final _paper = NotePaperController();
-  ValueNotifier<double> get _expansion => widget.expansion;
+  final _expansion = ValueNotifier<double>(0);
 
   @override
   void dispose() {
     _paper.dispose();
+    _expansion.dispose();
     super.dispose();
   }
 

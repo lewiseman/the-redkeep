@@ -174,13 +174,20 @@ void main() {
     },
   );
 
-  for (final reducedMotion in [false, true]) {
+  for (final (reducedMotion, systemBack) in [
+    (false, false),
+    (false, true),
+    (true, false),
+    (true, true),
+  ]) {
     noteTest(
-      'reading unfolds, Back collapses, and editing stays on the page; reduced=$reducedMotion',
+      'closing the editor returns to the top of preview; reduced=$reducedMotion systemBack=$systemBack',
       (tester) async {
-        await seed(
-          body: List.filled(80, 'A long line of writing to unfold.').join('\n'),
-        );
+        final body = List.filled(
+          80,
+          'A long line of writing to unfold.',
+        ).join('\n');
+        await seed(body: body);
         final appearance = FakeAppearanceRepository(
           AppearancePreferences(
             reduceMotion: reducedMotion,
@@ -190,16 +197,30 @@ void main() {
         addTearDown(appearance.close);
         final router = await pumpApp(
           tester,
-          initialLocation: noteLocation(id),
+          initialLocation: '/notes',
           notes: repo,
+          database: db,
           repository: appearance,
         );
+        await tap(tester, 'Synthetic note');
+        final paperScroll = find.descendant(
+          of: find.byType(NotePaper),
+          matching: find.byType(CustomScrollView),
+        );
+        ScrollPosition position() =>
+            tester.widget<CustomScrollView>(paperScroll).controller!.position;
+        Future<void> back(String tooltip) async {
+          if (systemBack) {
+            await tester.binding.handlePopRoute();
+            await tester.pumpAndSettle();
+          } else {
+            await tap(tester, tooltip);
+          }
+        }
+
         expect(paperFold(tester), greaterThan(0));
         expect(find.byType(RedkeepBottomNavbar), findsNothing);
-        await tester.drag(
-          find.byType(CustomScrollView).last,
-          const Offset(0, -180),
-        );
+        await tester.drag(paperScroll, const Offset(0, -180));
         await tester.pumpAndSettle();
         expect(paperFold(tester), 0);
         expect((await repo.openDocument(id)).note!.revision, 1);
@@ -217,30 +238,25 @@ void main() {
         expect(path(router), noteLocation(id));
         expect(tester.state(find.byType(NotePaper)), same(readingPaper));
         // While editing, pulling down cannot fold the paper back to preview.
-        await tester.drag(
-          find.byType(CustomScrollView).last,
-          const Offset(0, 300),
-        );
+        await tester.drag(paperScroll, const Offset(0, 300));
         await tester.pumpAndSettle();
         expect(paperFold(tester), 0);
-        await enterNoteBody(tester, 'Changed writing');
+        final changedBody = 'Changed writing\n\n$body';
+        await enterNoteBody(tester, changedBody);
         await tester.pumpAndSettle();
-        await tap(tester, 'Done');
+        position().jumpTo(position().maxScrollExtent / 2);
+        await tester.pumpAndSettle();
+        expect(position().pixels, greaterThan(position().minScrollExtent));
+
+        await back('Close editor');
         expect(path(router), noteLocation(id));
         expect(bodyField(), findsNothing);
-        // Done returns to immersive reading on the same paper.
-        expect(tester.state(find.byType(NotePaper)), same(readingPaper));
-        expect(paperFold(tester), 0);
-        expect(find.text('Changed writing'), findsOneWidget);
-        // Back folds the immersive paper before leaving the note.
-        await tap(tester, 'Back');
         expect(paperFold(tester), greaterThan(0));
-        expect(
-          (await repo.openDocument(id)).note!.text.body,
-          'Changed writing',
-        );
-        await tap(tester, 'Back');
-        expect(router.routeInformationProvider.value.uri.path, '/notes');
+        expect(position().pixels, position().minScrollExtent);
+        expect(find.text('Changed writing'), findsOneWidget);
+        expect((await repo.openDocument(id)).note!.text.body, changedBody);
+        await back('Back');
+        expect(path(router), '/notes');
         expect(find.byType(RedkeepBottomNavbar), findsOneWidget);
       },
     );
@@ -281,9 +297,6 @@ void main() {
     await tester.pumpAndSettle();
     await tap(tester, 'Done');
     expect((await repo.openDocument(id)).note!.revision, 2);
-    // Immersive reading offers only AI and Edit; folding shows the actions.
-    expect(find.byTooltip('Note actions'), findsNothing);
-    await tap(tester, 'Back');
     await tap(tester, 'Delete note');
     await tap(tester, 'Keep note');
     expect((await repo.openDocument(id)).available, isTrue);
@@ -358,6 +371,7 @@ void main() {
       // Writing saved itself; leaving the editor shows the note it made.
       expect(path(router), noteLocation(ids[1]));
       expect(bodyField(), findsNothing);
+      expect(paperFold(tester), greaterThan(0));
       expect(find.text('Kept'), findsOneWidget);
       expect(
         (await repo.openDocument(ids[1])).note!.text.body,
@@ -366,6 +380,33 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  noteTest('closing the editor waits for a silent autosave', (tester) async {
+    await seed();
+    await pumpApp(
+      tester,
+      initialLocation: noteLocation(id),
+      notes: repo,
+      database: db,
+    );
+    await startEditing(tester);
+    final saveGate = repo.saveGate = Completer<void>();
+    await enterNoteBody(tester, 'Autosaved writing');
+    await tester.pump(NoteEditorController.autosaveDelay);
+    expect(repo.saves, 2, reason: 'autosave started after the initial seed');
+    expect(find.text('Saving…'), findsNothing);
+
+    await tester.tap(find.byTooltip('Close editor'));
+    await tester.pump();
+    expect(find.text('Saving…'), findsNothing);
+    expect(bodyField(), findsOneWidget);
+
+    saveGate.complete();
+    await tester.pumpAndSettle();
+    expect(bodyField(), findsNothing);
+    expect(repo.saves, 2, reason: 'closing waited for the in-flight save');
+    expect((await repo.openDocument(id)).note!.text.body, 'Autosaved writing');
+  });
 
   noteTest('a failed save keeps editing open with the writing; retry leaves', (
     tester,
@@ -389,7 +430,7 @@ void main() {
     repo.saveGate = Completer<void>();
     await tester.tap(find.byTooltip('Close editor'));
     await tester.pump();
-    expect(find.text('Saving…'), findsOneWidget);
+    expect(find.text('Saving…'), findsNothing);
     expect(bodyField(), findsOneWidget, reason: 'waits for the save');
     repo.saveGate!.complete();
     await tester.pumpAndSettle();

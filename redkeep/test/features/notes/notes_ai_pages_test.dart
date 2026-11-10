@@ -145,6 +145,108 @@ void main() {
     );
   }
 
+  testWidgets('custom writing previews and keeps only the selected passage', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 760);
+    tester.view.devicePixelRatio = 1;
+    tester.platformDispatcher.textScaleFactorTestValue = 3;
+    addTearDown(tester.view.reset);
+    addTearDown(tester.platformDispatcher.clearAllTestValues);
+    const passage = 'Plant tomatoes in the raised bed.';
+    const rest = 'Water them every morning.';
+    const original = '$passage\n\n$rest';
+    const replacement = '- [ ] Plant tomatoes in the raised bed.';
+    await h.save(body: original);
+    h.remote.output = replacement;
+
+    Future<void> tapVisible(Finder target) async {
+      await Scrollable.ensureVisible(tester.element(target), alignment: .5);
+      await tester.pumpAndSettle();
+      await tester.tap(target);
+      await tester.pumpAndSettle();
+    }
+
+    try {
+      await pumpApp(
+        tester,
+        notes: h.repository,
+        database: h.db,
+        aiProvider: h.aiProvider,
+        aiSettings: testAiSettings,
+        initialLocation: noteLocation(notesTestId),
+      );
+      await tester.tap(find.byTooltip('AI tools'));
+      await tester.pumpAndSettle();
+      final writing = find.byKey(const ValueKey('note-assistant-writing'));
+      await tester.scrollUntilVisible(
+        writing,
+        200,
+        scrollable: find
+            .descendant(
+              of: find.byKey(const ValueKey('note-assistant-actions')),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      await tapVisible(writing);
+
+      expect(find.text('Organize'), findsOneWidget);
+      expect(find.text('Fix words'), findsOneWidget);
+      expect(find.text('Custom'), findsOneWidget);
+      for (final removed in ['Rewrite', 'Add detail', 'Change tone']) {
+        expect(find.text(removed), findsNothing);
+      }
+      final instructions = find.byKey(
+        const ValueKey('notes-ai-writing-instructions'),
+      );
+      expect(instructions, findsNothing);
+
+      await tapVisible(find.byKey(const ValueKey('notes-ai-passage-0')));
+      expect(find.text('Use whole note'), findsOneWidget);
+      await tapVisible(find.text('Custom'));
+
+      final generate = find.byKey(const ValueKey('notes-ai-generate'));
+      expect(tester.widget<FilledButton>(generate).onPressed, isNull);
+      await tester.ensureVisible(instructions);
+      await tester.enterText(instructions, '  ');
+      await tester.pumpAndSettle();
+      expect(tester.widget<FilledButton>(generate).onPressed, isNull);
+      await tester.enterText(instructions, 'é' * 121);
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Shorten your instructions to continue.'),
+        findsOneWidget,
+      );
+      expect(tester.widget<FilledButton>(generate).onPressed, isNull);
+      expect(h.remote.submissions, isEmpty);
+
+      await tester.enterText(instructions, '  Make this a checklist.  ');
+      await tester.pumpAndSettle();
+      await tapVisible(generate);
+      expect(jsonDecode(h.aiProvider.requests.single.user), {
+        'text': passage,
+        'intent': 'Make this a checklist.',
+      });
+      expect(find.byKey(const ValueKey('notes-ai-compare')), findsOneWidget);
+      expect(
+        (await h.repository.openDocument(notesTestId)).note!.text.body,
+        original,
+      );
+
+      await tapVisible(find.byKey(const ValueKey('notes-ai-apply')));
+      expect(
+        (await h.repository.openDocument(notesTestId)).note!.text.body,
+        '$replacement\n\n$rest',
+      );
+      expect(find.text('Note updated'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    } finally {
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpAndSettle();
+    }
+  });
+
   testWidgets(
     'typing filters by keyword; the keyboard search action opens AI note search without sending',
     (tester) async {

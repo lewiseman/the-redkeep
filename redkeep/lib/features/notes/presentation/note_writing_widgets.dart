@@ -1,31 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../../ai/domain/ai_operation.dart';
 import 'note_ai_widgets.dart';
 
-const writingActions = {
-  'rewrite-note': 'Rewrite',
-  'clarify-note': 'Fix words',
-  'expand-note': 'Add detail',
-  'tone-note': 'Change tone',
-  'markdown-note': 'Organize',
-};
-
-const writingTones = {
-  'friendly': (
-    'Friendly',
-    Icons.sentiment_satisfied_alt_rounded,
-    'Make the note friendly and warm. Keep its meaning.',
-  ),
-  'simple': (
-    'Simple',
-    Icons.lightbulb_outline_rounded,
-    'Use simple, everyday words. Keep the meaning and facts.',
-  ),
-  'formal': (
-    'Formal',
-    Icons.work_outline_rounded,
-    'Make the note polite and professional. Keep its meaning.',
-  ),
+const _writingActions = {
+  AiOperation.noteMarkdown: 'Organize',
+  AiOperation.noteClarify: 'Fix words',
+  AiOperation.noteCustom: 'Custom',
 };
 
 class NoteWritingChoices extends StatelessWidget {
@@ -34,8 +15,8 @@ class NoteWritingChoices extends StatelessWidget {
     required this.selected,
     required this.onChanged,
   });
-  final String selected;
-  final ValueChanged<String> onChanged;
+  final AiOperation selected;
+  final ValueChanged<AiOperation> onChanged;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
@@ -43,9 +24,9 @@ class NoteWritingChoices extends StatelessWidget {
       final single =
           constraints.maxWidth < 300 ||
           MediaQuery.textScalerOf(context).scale(14) > 20;
-      final actions = writingActions.keys.toList();
-      Widget tile(String action, {bool wide = false}) => _WritingChoice(
-        key: ValueKey('writing-action-$action'),
+      final actions = _writingActions.keys.toList();
+      Widget tile(AiOperation action, {bool wide = false}) => _WritingChoice(
+        key: ValueKey('writing-action-${action.wireName}'),
         action: action,
         selected: selected == action,
         horizontal: single || wide,
@@ -83,7 +64,7 @@ class _WritingChoice extends StatelessWidget {
     required this.horizontal,
     required this.onTap,
   });
-  final String action;
+  final AiOperation action;
   final bool selected, horizontal;
   final VoidCallback onTap;
 
@@ -91,7 +72,7 @@ class _WritingChoice extends StatelessWidget {
   Widget build(BuildContext context) {
     final ink = Theme.of(context).colorScheme.primary;
     final label = Text(
-      writingActions[action]!,
+      _writingActions[action]!,
       textAlign: horizontal ? TextAlign.start : TextAlign.center,
       style: Theme.of(context).textTheme.titleSmall
           ?.copyWith(fontWeight: FontWeight.w700),
@@ -99,14 +80,16 @@ class _WritingChoice extends StatelessWidget {
     final art = SizedBox(
       width: 62,
       height: 42,
-      child: CustomPaint(
-        painter: _WritingPainter(action, ink, noteAiPaper(context)),
-      ),
+      child: action == AiOperation.noteCustom
+          ? Icon(Icons.edit_note_rounded, color: ink, size: 36)
+          : CustomPaint(
+              painter: _WritingPainter(action, ink, noteAiPaper(context)),
+            ),
     );
     return Semantics(
       button: true,
       selected: selected,
-      label: writingActions[action],
+      label: _writingActions[action],
       onTap: onTap,
       excludeSemantics: true,
       child: Material(
@@ -169,7 +152,7 @@ class _WritingChoice extends StatelessWidget {
 /// Miniature before/after drawings show what each action does.
 class _WritingPainter extends CustomPainter {
   const _WritingPainter(this.action, this.ink, this.paper);
-  final String action;
+  final AiOperation action;
   final Color ink, paper;
 
   @override
@@ -195,12 +178,12 @@ class _WritingPainter extends CustomPainter {
       );
       canvas.drawRRect(rect, Paint()..color = paper);
       canvas.drawRRect(rect, pen);
-      for (var i = 0; i < (after && action == 'expand-note' ? 5 : 3); i++) {
+      for (var i = 0; i < 3; i++) {
         final y = 16.0 + i * 5;
-        if (after && action == 'markdown-note') {
+        if (after && action == AiOperation.noteMarkdown) {
           canvas.drawCircle(Offset(x + 6, y), 1.1, Paint()..color = ink);
           line(x + 10, y, x + 21, y);
-        } else if (!after && action == 'clarify-note') {
+        } else if (!after && action == AiOperation.noteClarify) {
           canvas.drawPath(
             Path()
               ..moveTo(x + 5, y)
@@ -215,41 +198,14 @@ class _WritingPainter extends CustomPainter {
       }
     }
 
-    if (action == 'tone-note') {
-      final bubble = RRect.fromRectAndRadius(
-        const Rect.fromLTWH(10, 9, 59, 33),
-        const Radius.circular(12),
-      );
-      canvas.drawRRect(bubble, Paint()..color = ink.withValues(alpha: .08));
-      canvas.drawRRect(bubble, pen);
-      line(20, 42, 17, 49);
-      line(17, 49, 30, 42);
-      canvas.drawCircle(const Offset(29, 22), 1.6, Paint()..color = ink);
-      canvas.drawCircle(const Offset(49, 22), 1.6, Paint()..color = ink);
-      canvas.drawArc(const Rect.fromLTWH(29, 21, 20, 13), .2, 2.7, false, pen);
-    } else {
-      sheet(2);
-      sheet(49, after: true);
-      line(33, 26, 44, 26);
-      line(40, 22, 44, 26);
-      line(40, 30, 44, 26);
-      if (action == 'rewrite-note') {
-        canvas.drawPath(
-          Path()
-            ..moveTo(59, 42)
-            ..lineTo(69, 29)
-            ..lineTo(73, 32)
-            ..lineTo(63, 45)
-            ..close(),
-          Paint()..color = ink,
-        );
-      } else if (action == 'clarify-note') {
-        line(61, 37, 65, 41);
-        line(65, 41, 73, 33);
-      } else if (action == 'expand-note') {
-        line(70, 39, 78, 39);
-        line(74, 35, 74, 43);
-      }
+    sheet(2);
+    sheet(49, after: true);
+    line(33, 26, 44, 26);
+    line(40, 22, 44, 26);
+    line(40, 30, 44, 26);
+    if (action == AiOperation.noteClarify) {
+      line(61, 37, 65, 41);
+      line(65, 41, 73, 33);
     }
     canvas.restore();
   }

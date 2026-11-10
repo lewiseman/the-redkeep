@@ -92,6 +92,7 @@ void main() {
             notesTestId,
             scope: notesJobScope,
             description: 'A garden plan',
+            intent: operation == AiOperation.noteCustom ? 'Shorten it.' : '',
           );
         }
         expect(job().phase, isNot('completed'));

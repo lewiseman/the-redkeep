@@ -6,10 +6,12 @@ const transformOperations = {
   'tone-note': 'Adjust tone',
   'clarify-note': 'Grammar / clarity',
   'markdown-note': 'Format Markdown',
+  'custom-note': 'Custom writing help',
 };
 const transformOutputBytes = 4096;
 
 const transformSourceBytes = 65536;
+const transformIntentBytes = 240;
 
 bool validTransformOutput(String text) =>
     text.trim().isNotEmpty &&

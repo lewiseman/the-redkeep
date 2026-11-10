@@ -7,6 +7,7 @@ import 'note_scan_stage.dart';
 import 'note_scan_parts.dart';
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -111,10 +112,8 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
   final _question = TextEditingController();
   final _review = TextEditingController();
   final _tags = <String>{};
-  String _writing = 'rewrite-note',
-      _tone = 'friendly',
-      _imageMode = 'describe',
-      _backgroundTone = 'light';
+  AiOperation _writing = AiOperation.noteMarkdown;
+  String _imageMode = 'describe', _backgroundTone = 'light';
   String? _title, _error, _reviewedJob;
   NoteAttachment? _image;
   TextSelection? _selection;
@@ -168,7 +167,7 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
     NoteAiTool.scan => AiOperation.noteScan,
     NoteAiTool.background => AiOperation.noteBackground,
     NoteAiTool.presentation => AiOperation.noteWebsite,
-    _ => AiOperation.values.firstWhere((o) => o.wireName == _writing),
+    _ => _writing,
   };
   bool _matches(AiJob job) =>
       job.operation.isNote &&
@@ -200,13 +199,12 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
         description: _input.text,
       );
     } else {
+      final operation = _operation;
       await actions.start(
-        _operation,
+        operation,
         widget.id!,
         scope: _scope,
-        intent: _writing == 'tone-note'
-            ? writingTones[_tone]!.$3
-            : _question.text,
+        intent: operation == AiOperation.noteCustom ? _question.text : '',
         topic: _input.text,
         description: _input.text,
         tone: _backgroundTone,
@@ -263,6 +261,7 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
     'expand-note' => 'Detail woven in',
     'tone-note' => 'Tone changed',
     'markdown-note' => 'Note organized',
+    'custom-note' => 'Note updated',
     'build-website' => 'Website ready',
     _ => widget.tool.landed,
   };
@@ -427,6 +426,13 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
         ? null
         : ref.watch(noteDocumentProvider(widget.id!)).value?.note;
     final hasFolio = subject != null && widget.tool != NoteAiTool.scan;
+    final customWriting =
+        widget.tool == NoteAiTool.writing && _writing == AiOperation.noteCustom;
+    final instructionTooLong =
+        customWriting &&
+        utf8.encode(_question.text.trim()).length > transformIntentBytes;
+    final missingInput =
+        (customWriting || _creating) && _question.text.trim().isEmpty;
     return [
       if (hasFolio && widget.tool == NoteAiTool.writing)
         _folio(
@@ -522,12 +528,22 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
           selected: _writing,
           onChanged: (v) => setState(() => _writing = v),
         ),
-        if (_writing == 'tone-note')
-          NoteAiChoices(
-            choices: {for (final e in writingTones.entries) e.key: e.value.$1},
-            icons: {for (final e in writingTones.entries) e.key: e.value.$2},
-            selected: _tone,
-            onChanged: (String v) => setState(() => _tone = v),
+        if (customWriting)
+          TextField(
+            key: const ValueKey('notes-ai-writing-instructions'),
+            controller: _question,
+            minLines: 2,
+            maxLines: 4,
+            onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(
+              labelText: 'Instructions',
+              hintText: 'Make it shorter',
+              hintMaxLines: 2,
+              errorText: instructionTooLong
+                  ? 'Shorten your instructions to continue.'
+                  : null,
+              errorMaxLines: 3,
+            ),
           ),
       ],
       if (widget.tool == NoteAiTool.image) ...[
@@ -656,9 +672,7 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
       const SizedBox(height: 18),
       FilledButton.icon(
         key: const ValueKey('notes-ai-generate'),
-        onPressed: _creating && _question.text.trim().isEmpty
-            ? null
-            : _generate,
+        onPressed: missingInput || instructionTooLong ? null : _generate,
         icon: const Icon(Icons.auto_awesome_rounded),
         label: Text(switch (widget.tool) {
           NoteAiTool.search => 'Ask your notes',

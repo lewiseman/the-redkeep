@@ -38,7 +38,7 @@ enum NoteAiTool {
     'Writing help',
     'Choose how you want to improve your note.',
     'Improve writing',
-    'Rewrite, expand, or edit',
+    'Organize or edit',
     Color(0xFF75619B),
   ),
   metadata(

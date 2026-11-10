@@ -241,12 +241,18 @@ class NoteAiController {
           end: selectionEnd ?? text.body.length,
         );
         TransformSource.decode(range.encode());
-        if (utf8.encode(intent).length > 240) {
+        final instruction = operation == AiOperation.noteCustom
+            ? intent.trim()
+            : intent;
+        if (operation == AiOperation.noteCustom && instruction.isEmpty) {
+          throw const FormatException('Enter an instruction first.');
+        }
+        if (utf8.encode(instruction).length > transformIntentBytes) {
           throw const FormatException(
-            'Use an instruction of at most 240 bytes.',
+            'Use an instruction of at most $transformIntentBytes bytes.',
           );
         }
-        prompt = jsonEncode({'text': range.selected, 'intent': intent});
+        prompt = jsonEncode({'text': range.selected, 'intent': instruction});
         source['range'] = range.encode();
     }
     await ref

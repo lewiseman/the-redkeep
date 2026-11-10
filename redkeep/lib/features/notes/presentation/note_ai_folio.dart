@@ -540,7 +540,10 @@ class NoteFolioCompare extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Row(
+                  Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    spacing: 12,
+                    runSpacing: 4,
                     children: [
                       Text(
                         'PROPOSAL',
@@ -548,7 +551,6 @@ class NoteFolioCompare extends StatelessWidget {
                           color: ink.withValues(alpha: split > .05 ? 1 : .4),
                         ),
                       ),
-                      const Spacer(),
                       Text(
                         'ORIGINAL',
                         style: labels?.copyWith(

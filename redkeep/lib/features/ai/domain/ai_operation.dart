@@ -50,6 +50,7 @@ enum AiOperation {
   noteTone('tone-note', true, '', 768, 4096, noteToneSystem),
   noteClarify('clarify-note', true, '', 768, 4096, noteClarifySystem),
   noteMarkdown('markdown-note', true, '', 768, 4096, noteMarkdownSystem),
+  noteCustom('custom-note', true, '', 768, 4096, noteCustomSystem),
   noteMetadata(
     'suggest-note-metadata',
     true,
@@ -146,6 +147,7 @@ enum AiOperation {
           noteTone => 'Note tone',
           noteClarify => 'Grammar / clarity',
           noteMarkdown => 'Format note',
+          noteCustom => 'Custom writing help',
           noteMetadata => 'Title & tag ideas',
           noteTemplate => 'Starting template',
           noteDraft => 'Draft a note',

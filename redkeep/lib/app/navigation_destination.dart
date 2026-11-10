@@ -1,7 +1,14 @@
+import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../features/diary/domain/diary_period.dart';
 import '../features/flow/domain/thought.dart';
 import '../features/diary/domain/diary_document.dart';
 import '../features/notes/domain/note_document.dart';
+
+final initialNavigationLocationProvider = Provider<String>(
+  (ref) => WidgetsBinding.instance.platformDispatcher.defaultRouteName,
+);
 
 /// Static destinations plus validated, addressable writing and civil dates.
 enum AppDestination {

@@ -9,14 +9,18 @@ import '../support/empty_diary_repository.dart';
 
 import 'dart:async';
 
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:redkeep/app/app_router.dart';
 import 'package:redkeep/app/bootstrap/bootstrap_coordinator.dart';
 import 'package:redkeep/app/bootstrap/bootstrap_providers.dart';
+import 'package:redkeep/app/bootstrap/startup_artwork.dart';
+import 'package:redkeep/app/navigation_destination.dart';
 import 'package:redkeep/app/redkeep_app.dart';
 import 'package:redkeep/app/storage_providers.dart';
+import 'package:redkeep/core/storage/app_database.dart';
 import 'package:redkeep/features/appearance/domain/appearance_preferences.dart';
 import 'package:redkeep/features/assets/domain/asset_catalog.dart';
 
@@ -31,12 +35,15 @@ void main() {
     WidgetTester tester,
     FakeRequiredAssets assets, {
     Future<void> Function()? checks,
+    Future<void> Function()? warmArtwork,
     AppTheme theme = AppTheme.system,
   }) async {
     final appearance = FakeAppearanceRepository(
       AppearancePreferences(theme: theme, reduceMotion: true),
     );
+    final database = AppDatabase(NativeDatabase.memory());
     addTearDown(appearance.close);
+    addTearDown(database.close);
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -44,6 +51,7 @@ void main() {
             fakeAppearanceFontLoader,
           ),
           syncEnabledProvider.overrideWithValue(false),
+          appDatabaseProvider.overrideWithValue(database),
           diaryRepositoryProvider.overrideWithValue(EmptyDiaryRepository()),
           appearanceRepositoryProvider.overrideWithValue(appearance),
           onboardingRepositoryProvider.overrideWithValue(
@@ -60,14 +68,21 @@ void main() {
             ),
           ),
           releaseSplashProvider.overrideWithValue(() {}),
-          appRouterProvider.overrideWith((ref) {
-            return createAppRouter(ref, initialLocation: '/settings');
-          }),
+          initialNavigationLocationProvider.overrideWithValue('/settings'),
+          if (warmArtwork != null)
+            startupArtworkProvider.overrideWith((_) {
+              return warmArtwork();
+            }),
         ],
         child: const RedkeepApp(),
       ),
     );
     await tester.pumpAndSettle();
+  }
+
+  Future<void> unmount(WidgetTester tester) async {
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(Duration.zero);
   }
 
   testWidgets(
@@ -107,6 +122,7 @@ void main() {
         '/settings',
       );
       expect(tester.takeException(), isNull);
+      await unmount(tester);
     },
   );
 
@@ -124,6 +140,7 @@ void main() {
       expect(assets.verifyAll, isTrue);
       expect(find.text('Theme'), findsOneWidget);
       expect(tester.takeException(), isNull);
+      await unmount(tester);
     },
   );
 
@@ -159,6 +176,7 @@ void main() {
         expect(find.text('Setup paused'), findsOneWidget);
         await tester.ensureVisible(find.text('Try again'));
         expect(tester.takeException(), isNull);
+        await unmount(tester);
       },
     );
   }
@@ -167,8 +185,9 @@ void main() {
     'download progress persists on the Flutter screen with reduced motion',
     (tester) async {
       final gate = Completer<void>();
+      final artwork = Completer<void>();
       final assets = _SlowAssets(gate);
-      await pump(tester, assets);
+      await pump(tester, assets, warmArtwork: () => artwork.future);
       expect(find.text('50% · 1 B of 2 B'), findsOneWidget);
       expect(
         tester
@@ -181,7 +200,21 @@ void main() {
       expect(find.text('Theme'), findsNothing);
       gate.complete();
       await tester.pumpAndSettle();
+      expect(find.text('Preparing your artwork.'), findsOneWidget);
+      expect(find.text('100% · 2 B of 2 B'), findsOneWidget);
+      expect(
+        tester
+            .widget<LinearProgressIndicator>(
+              find.byType(LinearProgressIndicator),
+            )
+            .value,
+        1,
+      );
+      expect(find.text('Theme'), findsNothing);
+      artwork.complete();
+      await tester.pumpAndSettle();
       expect(find.text('Theme'), findsOneWidget);
+      await unmount(tester);
     },
   );
 }

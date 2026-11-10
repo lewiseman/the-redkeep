@@ -40,6 +40,15 @@ class RedkeepBottomNavbar extends StatelessWidget {
   static const _maxContentWidth = 700.0;
   static const _sidePadding = 12.0;
 
+  static Iterable<String> visibleArtworkKeys(int selectedIndex) sync* {
+    for (var index = 0; index < _destinations.length; index++) {
+      final destination = _destinations[index];
+      yield index == selectedIndex
+          ? destination.selectedImage
+          : destination.image;
+    }
+  }
+
   void _select(int index) {
     if (index == selectedIndex) return;
     HapticFeedback.selectionClick();

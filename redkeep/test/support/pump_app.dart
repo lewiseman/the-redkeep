@@ -25,9 +25,11 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:redkeep/app/app_router.dart';
+import 'package:redkeep/app/navigation_destination.dart';
 import 'package:redkeep/app/redkeep_app.dart';
 import 'package:redkeep/app/storage_providers.dart';
 import 'package:redkeep/app/bootstrap/bootstrap_providers.dart';
+import 'package:redkeep/app/bootstrap/startup_artwork.dart';
 import 'package:redkeep/features/notes/application/notes_providers.dart';
 import 'package:redkeep/features/notes/domain/notes_repository.dart';
 
@@ -88,6 +90,7 @@ Future<GoRouter> pumpApp(
           (ref) async => assets ?? FakeRequiredAssets(),
         ),
         releaseSplashProvider.overrideWithValue(() {}),
+        startupArtworkProvider.overrideWith((_) async {}),
         diaryRepositoryProvider.overrideWithValue(
           diary ?? EmptyDiaryRepository(),
         ),
@@ -110,9 +113,7 @@ Future<GoRouter> pumpApp(
           aiProvider ?? FakeAiProviderClient(),
         ),
         if (initialLocation != null)
-          appRouterProvider.overrideWith((ref) {
-            return createAppRouter(ref, initialLocation: initialLocation);
-          }),
+          initialNavigationLocationProvider.overrideWithValue(initialLocation),
       ],
       child: const RedkeepApp(),
     ),

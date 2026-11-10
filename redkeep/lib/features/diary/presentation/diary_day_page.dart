@@ -325,7 +325,7 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
     }
     final top = MediaQuery.paddingOf(context).top;
     final width = MediaQuery.sizeOf(context).width;
-    final artworkWidth = width.clamp(0.0, 700.0);
+    final artworkWidth = diaryHeaderArtworkWidth(width);
     final artworkTop = 60 - artworkWidth * .41;
     final page = Stack(
       children: [
@@ -366,7 +366,7 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
                     ),
                 child: DiaryArtwork(
                   key: const ValueKey('diary-header-artwork'),
-                  assetKey: 'diary.header',
+                  assetKey: diaryHeaderArtworkKey,
                   width: artworkWidth,
                   color: context.colors.primary,
                   colorBlendMode: BlendMode.color,

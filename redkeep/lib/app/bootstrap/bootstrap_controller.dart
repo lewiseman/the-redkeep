@@ -3,10 +3,20 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/assets/domain/asset_catalog.dart';
+import '../../features/assets/presentation/local_artwork.dart';
 import '../../features/appearance/application/appearance_controller.dart';
+import '../../features/diary/presentation/diary_artwork.dart';
 import 'bootstrap_providers.dart';
+import 'startup_artwork.dart';
 
-enum BootstrapStage { checking, localError, download, downloading, ready }
+enum BootstrapStage {
+  checking,
+  localError,
+  download,
+  downloading,
+  preparing,
+  ready,
+}
 
 class BootstrapState {
   const BootstrapState(this.stage, {this.failure, this.progress});
@@ -54,9 +64,11 @@ class BootstrapController extends Notifier<BootstrapState> {
         if (ref.read(appearanceControllerProvider).loadError) {
           ref.read(appearanceControllerProvider.notifier).retryLoading();
         }
-        state = BootstrapState(
-          missing.isEmpty ? BootstrapStage.ready : BootstrapStage.download,
-        );
+        if (missing.isEmpty) {
+          await _open(refreshArtwork: verifyAll);
+        } else {
+          state = const BootstrapState(BootstrapStage.download);
+        }
       }
     } catch (error) {
       if (ref.mounted) {
@@ -92,8 +104,12 @@ class BootstrapController extends Notifier<BootstrapState> {
         }
       });
       if (ref.mounted) {
-        // Keep the finished size on screen while the next page takes over.
-        state = BootstrapState(BootstrapStage.ready, progress: state.progress);
+        final total = state.progress?.totalBytes;
+        state = BootstrapState(
+          BootstrapStage.preparing,
+          progress: total == null ? null : AssetProgress(total, total),
+        );
+        await _open(refreshArtwork: true);
       }
     } catch (error) {
       if (ref.mounted) {
@@ -109,11 +125,34 @@ class BootstrapController extends Notifier<BootstrapState> {
     }
   }
 
+  Future<void> _open({required bool refreshArtwork}) async {
+    if (refreshArtwork) {
+      // Repair or download may have replaced an image at the same path.
+      ref.invalidate(startupArtworkProvider);
+      ref.invalidate(localArtworkFileProvider);
+      ref.invalidate(diaryImageProvider);
+    }
+    try {
+      await ref
+          .read(startupArtworkProvider.future)
+          .timeout(ref.read(startupArtworkLimitProvider), onTimeout: () {});
+      if (ref.mounted) {
+        state = BootstrapState(BootstrapStage.ready, progress: state.progress);
+      }
+    } catch (_) {
+      if (ref.mounted) _showArtworkError();
+    }
+  }
+
   /// Recheck suspicious files (including image decoder failures) before entry.
   Future<void> repair() => check(verifyAll: true);
 
   void artworkFailed() {
     if (!ref.mounted || state.stage != BootstrapStage.ready) return;
+    _showArtworkError();
+  }
+
+  void _showArtworkError() {
     state = const BootstrapState(
       BootstrapStage.localError,
       failure: AssetFailure.integrity,

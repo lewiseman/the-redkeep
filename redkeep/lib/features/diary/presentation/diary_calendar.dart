@@ -8,7 +8,8 @@ import 'dart:ui' as ui;
 import 'diary_style.dart';
 import 'diary_paper_stamp.dart';
 
-const _calendarPinSize = 24.0;
+const diaryCalendarPinArtworkKey = 'diary.calendar.pin';
+const diaryCalendarPinSize = 24.0;
 const _calendarPinOverhang = 13.0;
 const _calendarPinHorizontalOffset = 8.0;
 
@@ -276,16 +277,16 @@ class DiaryCalendar extends StatelessWidget {
                             _calendarPinOverhang,
                         left: _calendarPinHorizontalOffset,
                         right: -_calendarPinHorizontalOffset,
-                        height: _calendarPinSize,
+                        height: diaryCalendarPinSize,
                         child: IgnorePointer(
                           child: Opacity(
                             opacity: 1 - collapse,
                             child: Center(
                               child: DiaryArtwork(
-                                assetKey: 'diary.calendar.pin',
+                                assetKey: diaryCalendarPinArtworkKey,
                                 key: const ValueKey('diary-calendar-pin'),
-                                width: _calendarPinSize,
-                                height: _calendarPinSize,
+                                width: diaryCalendarPinSize,
+                                height: diaryCalendarPinSize,
                                 fit: BoxFit.contain,
                               ),
                             ),

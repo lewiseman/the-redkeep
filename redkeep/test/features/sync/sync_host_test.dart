@@ -6,8 +6,9 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:redkeep/app/app_router.dart';
 import 'package:redkeep/app/bootstrap/bootstrap_providers.dart';
+import 'package:redkeep/app/bootstrap/startup_artwork.dart';
+import 'package:redkeep/app/navigation_destination.dart';
 import 'package:redkeep/app/redkeep_app.dart';
 import 'package:redkeep/app/storage_providers.dart';
 import 'package:redkeep/core/storage/app_database.dart';
@@ -47,6 +48,7 @@ void main() {
               (ref) async => FakeRequiredAssets(),
             ),
             releaseSplashProvider.overrideWithValue(() {}),
+            startupArtworkProvider.overrideWith((_) async {}),
             syncBackendProvider.overrideWithValue(h.backend),
             networkServiceProvider.overrideWithValue(QuietNetwork()),
             accountResetStorageProvider.overrideWithValue(MemoryResetStorage()),
@@ -64,9 +66,7 @@ void main() {
                 canSync: () async => true,
               ),
             ),
-            appRouterProvider.overrideWith(
-              (ref) => createAppRouter(ref, initialLocation: '/more'),
-            ),
+            initialNavigationLocationProvider.overrideWithValue('/more'),
           ],
           child: const RedkeepApp(),
         ),

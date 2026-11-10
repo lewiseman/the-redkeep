@@ -49,7 +49,7 @@ final navigationRouteInformationProvider = Provider<NavigationRouteInformation>(
 );
 
 /// One router per scope. Refreshes change redirects without rebuilding history.
-GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
+GoRouter createAppRouter(Ref ref) {
   ref.watch(writingSessionEpochProvider);
   final refresh = ValueNotifier(0);
   ref.listen(bootstrapControllerProvider, (_, _) => refresh.value++);
@@ -61,8 +61,7 @@ GoRouter createAppRouter(Ref ref, {String? initialLocation}) {
   final router = GoRouter(
     navigatorKey: fullPage,
     initialLocation: validatedNavigationLocation(
-      initialLocation ??
-          WidgetsBinding.instance.platformDispatcher.defaultRouteName,
+      ref.read(initialNavigationLocationProvider),
     ),
     overridePlatformDefaultLocation: true,
     refreshListenable: refresh,

@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:redkeep/app/bootstrap/bootstrap_controller.dart';
 import 'package:redkeep/app/bootstrap/bootstrap_coordinator.dart';
 import 'package:redkeep/app/bootstrap/bootstrap_providers.dart';
+import 'package:redkeep/app/bootstrap/startup_artwork.dart';
 import 'package:redkeep/app/storage_providers.dart';
 import 'package:redkeep/features/assets/domain/asset_catalog.dart';
 
@@ -23,7 +24,9 @@ void main() {
   BootstrapController start({
     Future<void> Function()? localChecks,
     Future<RequiredAssets> Function()? loadAssets,
+    Future<void> Function()? warmArtwork,
     Duration? limit,
+    Duration? artworkLimit,
   }) {
     container = ProviderContainer(
       overrides: [
@@ -32,6 +35,11 @@ void main() {
           FakeOnboardingRepository(),
         ),
         releaseSplashProvider.overrideWithValue(() => releases++),
+        startupArtworkProvider.overrideWith((_) async {
+          await warmArtwork?.call();
+        }),
+        if (artworkLimit != null)
+          startupArtworkLimitProvider.overrideWithValue(artworkLimit),
         if (limit != null) localCheckLimitProvider.overrideWithValue(limit),
         bootstrapCoordinatorProvider.overrideWithValue(
           BootstrapCoordinator(
@@ -67,6 +75,7 @@ void main() {
           onboardingRepositoryProvider.overrideWithValue(onboarding),
           requiredAssetsProvider.overrideWith((_) async => assets),
           releaseSplashProvider.overrideWithValue(() => releases++),
+          startupArtworkProvider.overrideWith((_) async {}),
           localCheckLimitProvider.overrideWithValue(
             const Duration(milliseconds: 1),
           ),
@@ -107,6 +116,7 @@ void main() {
             FakeOnboardingRepository(),
           ),
           releaseSplashProvider.overrideWithValue(() => releases++),
+          startupArtworkProvider.overrideWith((_) async {}),
           requiredAssetsProvider.overrideWith((_) async {
             attempts++;
             if (fail) throw const AssetException(AssetFailure.storage);
@@ -163,6 +173,78 @@ void main() {
     );
     expect(releases, 1);
     subscription.close();
+  });
+
+  test(
+    'installed artwork finishes warming before the native splash releases',
+    () async {
+      final warming = Completer<void>();
+      final decoded = Completer<void>();
+      final controller = start(
+        warmArtwork: () {
+          warming.complete();
+          return decoded.future;
+        },
+      );
+      final check = controller.check();
+      await warming.future;
+      expect(assets.checks, 1);
+      expect(releases, 0);
+      expect(
+        container.read(bootstrapControllerProvider).stage,
+        BootstrapStage.checking,
+      );
+      decoded.complete();
+      await check;
+      expect(releases, 1);
+      expect(
+        container.read(bootstrapControllerProvider).stage,
+        BootstrapStage.ready,
+      );
+    },
+  );
+
+  test('artwork warmup timeout still opens the app', () async {
+    final decoded = Completer<void>();
+    final controller = start(
+      warmArtwork: () => decoded.future,
+      artworkLimit: const Duration(milliseconds: 1),
+    );
+    await controller.check();
+    expect(releases, 1);
+    expect(
+      container.read(bootstrapControllerProvider).stage,
+      BootstrapStage.ready,
+    );
+    decoded.completeError(StateError('late decode failure'));
+    await Future<void>.delayed(Duration.zero);
+    expect(
+      container.read(bootstrapControllerProvider).stage,
+      BootstrapStage.ready,
+    );
+  });
+
+  test('an artwork load error can be repaired and warmed again', () async {
+    var warms = 0;
+    final controller = start(
+      warmArtwork: () async {
+        if (++warms == 1) throw const AssetException(AssetFailure.integrity);
+      },
+    );
+    await controller.check();
+    final failed = container.read(bootstrapControllerProvider);
+    expect(failed.stage, BootstrapStage.localError);
+    expect(failed.failure, AssetFailure.integrity);
+    expect(releases, 1);
+
+    await controller.repair();
+    expect(warms, 2);
+    expect(assets.verifyAll, isTrue);
+    expect(releases, 1);
+    expect(
+      container.read(bootstrapControllerProvider).stage,
+      BootstrapStage.ready,
+    );
   });
 
   test(

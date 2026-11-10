@@ -6,6 +6,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/bootstrap/bootstrap_providers.dart';
 import '../../../app/bootstrap/bootstrap_controller.dart';
 
+const diaryHeaderArtworkKey = 'diary.header';
+
+double diaryHeaderArtworkWidth(double viewportWidth) =>
+    viewportWidth.clamp(0.0, 700.0);
+
+int diaryArtworkDecodeWidth(double width, double pixelRatio) =>
+    (width * pixelRatio.clamp(1, 2)).ceil().clamp(1, 1400);
+
 final diaryImageProvider = FutureProvider.autoDispose
     .family<ImageProvider, (String, int)>((ref, request) async {
       final uri = await (await ref.watch(assetResolverProvider))
@@ -14,8 +22,10 @@ final diaryImageProvider = FutureProvider.autoDispose
         FileImage(File.fromUri(uri)),
         width: request.$2,
       );
-      await provider.evict();
-      ref.onDispose(provider.evict);
+      if (ref.mounted) {
+        await provider.evict();
+        if (ref.mounted) ref.onDispose(provider.evict);
+      }
       return provider;
     }, retry: (_, _) => null);
 
@@ -37,11 +47,10 @@ class DiaryArtwork extends ConsumerWidget {
   final BlendMode? colorBlendMode;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final cacheWidth =
-        ((width ?? MediaQuery.sizeOf(context).width) *
-                MediaQuery.devicePixelRatioOf(context).clamp(1, 2))
-            .ceil()
-            .clamp(1, 1400);
+    final cacheWidth = diaryArtworkDecodeWidth(
+      width ?? MediaQuery.sizeOf(context).width,
+      MediaQuery.devicePixelRatioOf(context),
+    );
     Widget failed() {
       Future.microtask(
         ref.read(bootstrapControllerProvider.notifier).artworkFailed,

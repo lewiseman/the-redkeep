@@ -178,10 +178,12 @@ class _ArtworkStatus extends ConsumerWidget {
     final controller = ref.read(bootstrapControllerProvider.notifier);
     // A finished page stays visible briefly as onboarding fades in over it.
     final ready = state.stage == BootstrapStage.ready;
-    final downloading = ready || state.stage == BootstrapStage.downloading;
+    final preparing = state.stage == BootstrapStage.preparing;
+    final downloading =
+        ready || preparing || state.stage == BootstrapStage.downloading;
     final localError = state.stage == BootstrapStage.localError;
     final progress = state.progress;
-    final fraction = ready
+    final fraction = ready || preparing
         ? 1.0
         : progress == null || progress.totalBytes <= 0
         ? 0.0
@@ -242,7 +244,7 @@ class _ArtworkStatus extends ConsumerWidget {
                       Text(
                         progress != null
                             ? '$percent · ${_bytes(progress.completedBytes)} of ${_bytes(progress.totalBytes)}'
-                            : ready
+                            : ready || preparing
                             ? percent
                             : 'Connecting…',
                         textAlign: TextAlign.center,
@@ -315,6 +317,9 @@ String _bytes(int bytes) {
         'Check your connection and try again. Your progress is saved.',
       ),
     };
+  }
+  if (state.stage == BootstrapStage.preparing) {
+    return ('Getting things ready', 'Preparing your artwork.');
   }
   return ('Getting things ready', 'This only happens once.');
 }

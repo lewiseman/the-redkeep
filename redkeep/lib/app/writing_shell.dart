@@ -12,15 +12,16 @@ class WritingShell extends ConsumerWidget {
 
   static const _paths = ['/diary', '/notes', '/flow', '/more'];
 
+  static int selectedTabFor(String location) => location.startsWith('/notes')
+      ? 1
+      : location.startsWith('/flow')
+      ? 2
+      : location == '/more' || location.startsWith('/settings')
+      ? 3
+      : 0;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final selected = location.startsWith('/notes')
-        ? 1
-        : location.startsWith('/flow')
-        ? 2
-        : location == '/more' || location.startsWith('/settings')
-        ? 3
-        : 0;
     final focusedDiary =
         location == '/diary/search' ||
         location.startsWith('/diary/calendar/') ||
@@ -36,7 +37,7 @@ class WritingShell extends ConsumerWidget {
               MediaQuery.viewInsetsOf(context).bottom > 0
           ? null
           : RedkeepBottomNavbar(
-              selectedIndex: selected,
+              selectedIndex: selectedTabFor(location),
               onSelected: (index) {
                 // The diary tab opens today, as the reader's own address.
                 if (index == 0) {

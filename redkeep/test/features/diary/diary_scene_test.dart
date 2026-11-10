@@ -18,13 +18,12 @@ import 'package:redkeep/features/diary/data/drift_diary_repository.dart';
 import 'package:redkeep/features/diary/domain/diary_period.dart';
 import 'package:redkeep/features/diary/domain/diary_document.dart';
 import 'package:redkeep/features/diary/presentation/diary_calendar.dart';
-import 'package:redkeep/features/diary/presentation/diary_paper_curl.dart';
 import 'package:redkeep/features/diary/presentation/diary_scene.dart';
+import 'package:redkeep/features/diary/presentation/diary_sheet.dart';
 
 import '../../support/controlled_diary_repository.dart';
 import '../../support/fake_appearance_repository.dart';
 import '../../support/pump_app.dart';
-import '../../support/warm_diary_faces.dart';
 import '../../support/diary_reader.dart';
 
 final today = DiaryPeriod(2026, 11, 2);
@@ -178,94 +177,71 @@ void main() {
   );
 
   sceneTest(
-    'slow turns reuse real diary faces through pauses, reversals and promotion',
+    'flat slides move both sheets and keep a single live reader at rest',
     (tester) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      await seed();
-      await pumpApp(
-        tester,
-        initialLocation: '/diary',
-        diaryDay: today,
-        diary: repo,
+      addTearDown(tester.view.reset);
+      final yesterday = today.shift(-1)!;
+      const todayBody = 'Today the sun came out.';
+      const yesterdayBody = 'Yesterday it rained.';
+      await seed(body: todayBody);
+      await repo.save(
+        id: '22222222222222222222222222222222',
+        date: yesterday,
+        text: const DiaryText(body: yesterdayBody),
+        expectedRevision: 0,
       );
+      await pumpApp(tester, initialLocation: '/diary', diary: repo);
       final paper = find.byKey(const ValueKey('diary-active-paper'));
-      final cancelledDate = scene(tester).day.date;
-      for (final direction in [1, 1, -1, -1]) {
-        await warmDiaryFaces(tester);
-        final from = scene(tester).day.date;
-        final faces = tester
-            .renderObjectList<RenderDiaryCurl>(find.byType(DiaryPaperCurl))
-            .toList();
-        final captures = {
-          for (final face in faces)
-            face: (
-              face.debugFrontCaptures,
-              face.debugBackCaptures,
-              face.debugShadowCaptures,
-            ),
-        };
-        void expectUnchanged() {
-          for (final face in faces.where((face) => face.attached)) {
-            expect((
-              face.debugFrontCaptures,
-              face.debugBackCaptures,
-              face.debugShadowCaptures,
-            ), captures[face]);
-          }
-        }
+      final live = find.byKey(const ValueKey('diary-live-content'));
+      final contentState = tester.state(live);
+      expect(find.text(todayBody), findsOneWidget);
+      expect(find.text(yesterdayBody), findsNothing);
 
-        final gesture = await tester.startGesture(tester.getRect(paper).center);
+      for (final (direction, date, body) in [
+        (1, yesterday, yesterdayBody),
+        (-1, today, todayBody),
+      ]) {
+        final resting = tester.getRect(paper);
+        final incoming = find.descendant(
+          of: find.byKey(ValueKey('diary-side-sheet-${date.key}')),
+          matching: find.byType(DiarySheet),
+        );
+        final gesture = await tester.startGesture(resting.center);
         await gesture.moveBy(Offset(24.0 * direction, 0));
+        await gesture.moveBy(Offset(60.0 * direction, 0));
         await tester.pump();
-        for (var frame = 0; frame < 36; frame++) {
-          await gesture.moveBy(Offset(3.0 * direction, 0));
-          await tester.pump(const Duration(milliseconds: 24));
-          expectUnchanged();
-        }
-        final outgoing = tester.renderObject<RenderDiaryCurl>(
-          find.byWidgetPredicate((w) => w is DiaryPaperCurl && !w.flat),
-        );
-        expect(outgoing.debugUsesCurl, isTrue);
+
+        final sliding = tester.getRect(paper);
+        final incomingLeft = tester.getRect(incoming).left;
+        expect((sliding.left - resting.left) * direction, greaterThan(0));
+        expect(sliding.size, resting.size);
+        expect(sliding.top, resting.top);
+        expect(find.text(body), findsOneWidget);
+        expect(find.byType(DiaryDayContent), findsNWidgets(2));
+        expect(tester.state(live), same(contentState));
+
         await tester.pump(const Duration(milliseconds: 250));
-        expectUnchanged();
-        // Cross the drag origin, then return to the original direction.
-        await gesture.moveBy(Offset(-180.0 * direction, 0));
-        await tester.pump(const Duration(milliseconds: 24));
-        await gesture.moveBy(Offset(190.0 * direction, 0));
-        await tester.pump(const Duration(milliseconds: 24));
-        expectUnchanged();
-        await gesture.up();
-        for (var frame = 0; scene(tester).busy && frame < 40; frame++) {
-          await tester.pump(const Duration(milliseconds: 16));
-          expectUnchanged();
-        }
-        expect(scene(tester).busy, isFalse);
-        expect(scene(tester).day.date, from.shift(-direction));
+        expect(tester.getRect(paper), sliding);
+        await gesture.moveBy(Offset(-100.0 * direction, 0));
+        await tester.pump();
+        expect(scene(tester).direction, -direction);
+        await gesture.moveBy(Offset(180.0 * direction, 0));
+        await tester.pump();
         expect(
-          find.byType(DiaryPaperCurl).evaluate().length,
-          lessThanOrEqualTo(3),
+          (tester.getRect(incoming).left - incomingLeft) * direction,
+          greaterThan(0),
         );
+        await gesture.up();
         await tester.pumpAndSettle();
+
+        expect(scene(tester).day.date, date);
+        expect(tester.getRect(paper), resting);
+        expect(find.text(body), findsOneWidget);
+        expect(find.byType(DiaryDayContent), findsOneWidget);
+        expect(tester.state(live), same(contentState));
       }
-      expect(scene(tester).day.date, cancelledDate);
-      await warmDiaryFaces(tester);
-      final faces = tester
-          .renderObjectList<RenderDiaryCurl>(find.byType(DiaryPaperCurl))
-          .toList();
-      final captures = [for (final face in faces) face.debugFrontCaptures];
-      final gesture = await tester.startGesture(tester.getRect(paper).center);
-      await gesture.moveBy(const Offset(24, 0));
-      for (var frame = 0; frame < 30; frame++) {
-        await gesture.moveBy(const Offset(4, 0));
-        await tester.pump(const Duration(milliseconds: 32));
-      }
-      await gesture.cancel();
-      await tester.pumpAndSettle();
-      expect(scene(tester).day.date, cancelledDate);
-      expect([for (final face in faces) face.debugFrontCaptures], captures);
       expect(tester.takeException(), isNull);
     },
   );
@@ -322,7 +298,7 @@ void main() {
   );
 
   sceneTest(
-    'simpler effects never instantiate curl render objects; future writing remains addressable',
+    'simpler effects switch pages without a slide; future writing remains addressable',
     (tester) async {
       final future = today.shift(1)!;
       await seed(date: future);
@@ -336,11 +312,17 @@ void main() {
         diary: repo,
         repository: appearance,
       );
-      expect(find.byType(DiaryPaperCurl), findsNothing);
-      scene(tester).onDateChanged(DiaryPeriod(2026, 11, 1));
+      final paper = find.byKey(const ValueKey('diary-active-paper'));
+      final resting = tester.getRect(paper);
+      final gesture = await tester.startGesture(resting.center);
+      await gesture.moveBy(const Offset(24, 0));
+      await gesture.moveBy(Offset(resting.width * .6, 0));
+      await tester.pump();
+      expect(tester.getRect(paper), resting);
+      expect(find.byType(DiarySheet), findsNothing);
+      await gesture.up();
       await tester.pumpAndSettle();
       expect(scene(tester).day.date, today.shift(-1));
-      expect(find.byType(DiaryPaperCurl), findsNothing);
       router.go(diaryEntryLocation(future, id));
       await tester.pumpAndSettle();
       expect(find.byType(SelectableText), findsOneWidget);

@@ -7,7 +7,6 @@ import 'package:flutter/semantics.dart';
 import 'diary_style.dart';
 import '../application/diary_paper_providers.dart';
 import '../domain/diary_period.dart';
-import 'diary_paper_curl.dart';
 import 'diary_paper_material.dart';
 import 'diary_sheet.dart';
 
@@ -79,13 +78,19 @@ class DiaryScene extends StatelessWidget {
       onCardWidth(rect.width);
       final previewLeft = left - rect.width - 14 - collapse * w * .35;
       final showTurn = !simple && busy && turn > 0 && !blocked && !reduced;
+      final nextDay = next();
+      final outgoingOffset = showTurn
+          ? direction * (w + rect.width * .4) * turn
+          : blocked && busy
+          ? -turn * rect.width
+          : 0.0;
       final paper = diaryPaperColors(context);
       final fullDate = day.date.label(
         Localizations.localeOf(context).toString(),
       );
       final restLeft = (w * .123).clamp(32.0, 64.0);
-      // The nested viewport grows as its header collapses. Keep captured faces
-      // at their resting size so scrolling never invalidates their textures.
+      // The nested viewport grows as its header collapses. Keep the side sheet
+      // at its resting layout size and transform it to fit the current bounds.
       final restRect = Rect.fromLTRB(
         restLeft,
         headerHeight + 12,
@@ -95,39 +100,19 @@ class DiaryScene extends StatelessWidget {
       final showPreview =
           !simple && collapse < 1 && previewLeft + rect.width > 0;
 
-      Widget face(DiaryPaperDay sheet, {required bool current}) {
-        final incoming =
-            !current &&
-            showTurn &&
-            (direction > 0
-                ? sheet.date == previous.date
-                : sheet.date.compareTo(day.date) > 0);
-        final preview = !current && sheet.date == previous.date && !incoming;
-        final x = current
-            ? restRect.left + (blocked && busy ? -turn * rect.width : 0)
-            : incoming
-            ? (direction > 0 ? previewLeft : w + 14) * (1 - turn) +
-                  rect.left * turn
-            : previewLeft;
-        final y = current
-            ? restRect.top
-            : rect.top +
-                  (incoming ? (direction > 0 ? 16 * (1 - turn) : 0) : 16);
-        final height = current
-            ? restRect.height
-            : math.max(
-                0.0,
-                rect.height -
-                    (incoming ? (direction > 0 ? 24 * (1 - turn) : 0) : 24),
-              );
-        final opacity = current
-            ? 1.0
-            : incoming
-            ? (direction > 0 ? .72 + .28 * turn : 1.0)
-            : .72 * (1 - collapse);
-        if (simple) return const SizedBox.shrink();
+      Widget sideSheet(DiaryPaperDay sheet, {required bool fromLeft}) {
+        final incoming = showTurn && (direction > 0) == fromLeft;
+        final progress = incoming ? turn : 0.0;
+        final start = fromLeft ? previewLeft : w + 14;
+        final peek = fromLeft ? 1 - progress : 0.0;
+        final x = start + (rect.left - start) * progress;
+        final y = rect.top + 16 * peek;
+        final height = math.max(0.0, rect.height - 24 * peek);
+        final opacity = fromLeft
+            ? (incoming ? .72 + .28 * progress : .72 * (1 - collapse))
+            : 1.0;
         return Positioned.fromRect(
-          key: ValueKey('diary-face-${sheet.date.key}'),
+          key: ValueKey('diary-side-sheet-${sheet.date.key}'),
           rect: restRect,
           child: ExcludeSemantics(
             child: IgnorePointer(
@@ -135,31 +120,15 @@ class DiaryScene extends StatelessWidget {
                 offset: Offset(x - restRect.left, y - restRect.top),
                 child: Transform.scale(
                   alignment: Alignment.topLeft,
-                  scaleX: restRect.width > 0
-                      ? (current ? 1 : rect.width / restRect.width)
-                      : 1,
+                  scaleX: restRect.width > 0 ? rect.width / restRect.width : 1,
                   scaleY: restRect.height > 0 ? height / restRect.height : 1,
                   child: Opacity(
-                    opacity: opacity.clamp(0.0, 1.0),
-                    child: DiaryPaperCurl(
-                      progress: current && showTurn ? turn : 0,
-                      direction: direction,
-                      travel: w + restRect.width * .4,
-                      paper: paper.background,
-                      ink: paper.foreground,
-                      shape: DiaryPaperShape.forDate(sheet.calendarDate),
-                      flat: !(current && showTurn),
-                      turning: busy && !blocked && !reduced,
-                      visible: current
-                          ? showTurn
-                          : incoming || (preview && showPreview),
-                      warm:
-                          collapse == 0 &&
-                          !busy &&
-                          !reduced &&
-                          fadingFrom == null,
-                      child: _DiaryFaceContent(
+                    opacity: opacity,
+                    child: RepaintBoundary(
+                      child: DiarySheet(
                         day: sheet,
+                        showContent: incoming,
+                        shadow: true,
                         minimumHeight: restRect.height,
                       ),
                     ),
@@ -240,9 +209,9 @@ class DiaryScene extends StatelessWidget {
           if (previous.date != day.date)
             const CustomSemanticsAction(label: 'Previous diary page'): () =>
                 onDateChanged(previous.date),
-          if (next().date != day.date)
+          if (nextDay.date != day.date)
             const CustomSemanticsAction(label: 'Next diary page'): () =>
-                onDateChanged(next().date),
+                onDateChanged(nextDay.date),
         },
         child: GestureDetector(
           behavior: HitTestBehavior.deferToChild,
@@ -259,14 +228,20 @@ class DiaryScene extends StatelessWidget {
                   label: 'Diary for $fullDate',
                   child: const SizedBox.shrink(),
                 ),
-                Visibility(
-                  visible: !showTurn,
-                  maintainState: true,
-                  maintainAnimation: true,
-                  maintainSize: true,
-                  child: Transform.translate(
-                    offset: Offset(blocked && busy ? -turn * rect.width : 0, 0),
-                    child: FadeTransition(opacity: fade, child: live),
+                if (previous.date != day.date &&
+                    (showPreview || (showTurn && direction > 0)))
+                  sideSheet(previous, fromLeft: true),
+                if (showTurn && direction < 0 && nextDay.date != day.date)
+                  sideSheet(nextDay, fromLeft: false),
+                ExcludeSemantics(
+                  key: const ValueKey('diary-live-sheet'),
+                  excluding: showTurn,
+                  child: IgnorePointer(
+                    ignoring: showTurn,
+                    child: Transform.translate(
+                      offset: Offset(outgoingOffset, 0),
+                      child: FadeTransition(opacity: fade, child: live),
+                    ),
                   ),
                 ),
                 if (fadingFrom != null && !showTurn)
@@ -291,9 +266,6 @@ class DiaryScene extends StatelessWidget {
                       ),
                     ),
                   ),
-                if (previous.date != day.date) face(previous, current: false),
-                if (next().date != day.date) face(next(), current: false),
-                face(day, current: true),
               ],
             ),
           ),
@@ -301,35 +273,4 @@ class DiaryScene extends StatelessWidget {
       );
     },
   );
-}
-
-/// A date keeps the same sheet widget as it moves from preview to current.
-/// Only the wrappers above it change during a turn.
-class _DiaryFaceContent extends StatefulWidget {
-  const _DiaryFaceContent({required this.day, required this.minimumHeight});
-
-  final DiaryPaperDay day;
-  final double minimumHeight;
-
-  @override
-  State<_DiaryFaceContent> createState() => _DiaryFaceContentState();
-}
-
-class _DiaryFaceContentState extends State<_DiaryFaceContent> {
-  late Widget _sheet = _buildSheet();
-
-  Widget _buildSheet() =>
-      DiarySheet(day: widget.day, minimumHeight: widget.minimumHeight);
-
-  @override
-  void didUpdateWidget(_DiaryFaceContent oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.day != oldWidget.day ||
-        widget.minimumHeight != oldWidget.minimumHeight) {
-      _sheet = _buildSheet();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) => _sheet;
 }

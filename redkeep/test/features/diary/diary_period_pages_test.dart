@@ -13,7 +13,6 @@ import 'package:redkeep/features/diary/presentation/diary_writing_prompt.dart';
 
 import '../../support/fake_appearance_repository.dart';
 import '../../support/pump_app.dart';
-import '../../support/warm_diary_faces.dart';
 import '../../support/diary_reader.dart';
 
 final _today = DiaryPeriod(2026, 11, 2);
@@ -136,7 +135,6 @@ void main() {
         nested.outerController.jumpTo(0);
         nested.innerController.jumpTo(0);
         await tester.pumpAndSettle();
-        await warmDiaryFaces(tester);
         expect(
           tester.widget<DiaryScene>(find.byType(DiaryScene)).previous.date,
           week,
@@ -216,7 +214,6 @@ void main() {
           initialLocation: '/diary',
           diaryDay: _today,
         );
-        await warmDiaryFaces(tester);
         DiaryScene scene() =>
             tester.widget<DiaryScene>(find.byType(DiaryScene));
         expect(scene().previous.date, week);

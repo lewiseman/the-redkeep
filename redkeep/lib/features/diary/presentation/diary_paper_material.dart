@@ -8,7 +8,7 @@ import 'package:flutter/widgets.dart';
 final _details = <int, _PaperDetail>{};
 final _outlines = <({DiaryPaperShape shape, Size size}), _PaperOutline>{};
 
-/// The material's single silhouette, shared by clips, paint and both curl faces.
+/// The silhouette shared by the paper painter and content clip.
 @immutable
 class DiaryPaperShape {
   const DiaryPaperShape({
@@ -194,16 +194,6 @@ class _PaperDetail {
         tone: random.nextInt(5),
       ),
     );
-    backGrain = List.generate(
-      1024,
-      (_) => (
-        x: random.nextDouble(),
-        y: random.nextDouble(),
-        length: .6 + random.nextDouble() * 2.6,
-        angle: random.nextDouble() * math.pi * 2,
-        tone: random.nextInt(5),
-      ),
-    );
     // A separate stream preserves the existing fibers and edge grain. Each
     // day gets just one to three small tears, on different sides, away from
     // corners. Relative placement keeps them attached during sheet resizing.
@@ -228,8 +218,6 @@ class _PaperDetail {
     ({double u, double depth, double length, double slant, int tone})
   >
   fibers;
-  late final List<({double x, double y, double length, double angle, int tone})>
-  backGrain;
 }
 
 class DiaryPaperClipper extends CustomClipper<Path> {
@@ -249,20 +237,18 @@ class DiaryPaperClipper extends CustomClipper<Path> {
 }
 
 /// Paints onto an opaque base; wear changes the material color, never its alpha.
-/// This painter also builds the reverse texture without recording any widgets.
 class DiaryPaperPainter extends CustomPainter {
   const DiaryPaperPainter({
     required this.shape,
     required this.paper,
     required this.ink,
-    this.reverse = false,
     this.shadow = false,
     this.shadowColor = const Color(0xff000000),
   });
 
   final DiaryPaperShape shape;
   final Color paper, ink, shadowColor;
-  final bool reverse, shadow;
+  final bool shadow;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -286,19 +272,17 @@ class DiaryPaperPainter extends CustomPainter {
     canvas.drawPath(path, Paint()..color = paper.withValues(alpha: 1));
     if (detail == 0) return;
 
-    final rim = reverse ? 12.0 : 8.0;
-    final strength = detail * (reverse ? 1.5 : 1.0);
+    const rim = 8.0;
     final source = shape._paperDetail;
     final edge = shape._outline(size);
     if (edge.points.isEmpty) return;
     canvas.save();
     canvas.clipPath(path);
-    if (reverse) _paintReverseBody(canvas, size, source, strength);
     // A soft, shallow rim with broken deposits, rather than a drawn border.
     canvas.drawPath(
       path,
       Paint()
-        ..color = ink.withValues(alpha: .05 * strength)
+        ..color = ink.withValues(alpha: .05 * detail)
         ..style = PaintingStyle.stroke
         ..strokeWidth = rim * 1.5
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
@@ -312,7 +296,7 @@ class DiaryPaperPainter extends CustomPainter {
           metric.length * (i + .7) / 48,
         ),
         Paint()
-          ..color = ink.withValues(alpha: (.018 + .045 * tone) * strength)
+          ..color = ink.withValues(alpha: (.018 + .045 * tone) * detail)
           ..style = PaintingStyle.stroke
           ..strokeWidth = rim * (.8 + tone * .7)
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.8),
@@ -329,55 +313,8 @@ class DiaryPaperPainter extends CustomPainter {
           inward * math.sin(fiber.slant);
       fibers[fiber.tone].addAll([start, start + direction * fiber.length]);
     }
-    _paintFibers(canvas, fibers, strength);
+    _paintFibers(canvas, fibers, detail);
     canvas.restore();
-  }
-
-  void _paintReverseBody(
-    Canvas canvas,
-    Size size,
-    _PaperDetail source,
-    double strength,
-  ) {
-    // The reverse carries the same worn fibers throughout, not just at its
-    // perimeter. Fixed logical cells keep their density and positions stable
-    // as the sheet is resized, and the curl caches this material once per turn.
-    const cell = 6.0;
-    final fibers = List.generate(5, (_) => <Offset>[]);
-    for (var row = 0; row * cell < size.height; row++) {
-      for (var column = 0; column * cell < size.width; column++) {
-        final grain = source
-            .backGrain[(row * 197 + column * 131) % source.backGrain.length];
-        final start = Offset((column + grain.x) * cell, (row + grain.y) * cell);
-        final direction = Offset(math.cos(grain.angle), math.sin(grain.angle));
-        fibers[grain.tone].addAll([start, start + direction * grain.length]);
-      }
-    }
-
-    // Broad, low-contrast variations give the fibers a worn paper bed without
-    // changing the opaque base or introducing any of the front-side widgets.
-    const patchCell = 32.0;
-    for (var row = 0; row * patchCell < size.height; row++) {
-      for (var column = 0; column * patchCell < size.width; column++) {
-        final grain = source
-            .backGrain[(row * 83 + column * 241) % source.backGrain.length];
-        final center = Offset(
-          (column + grain.x) * patchCell,
-          (row + grain.y) * patchCell,
-        );
-        final radius = 18 + grain.y * 22;
-        canvas.drawCircle(
-          center,
-          radius,
-          Paint()
-            ..shader = ui.Gradient.radial(center, radius, [
-              ink.withValues(alpha: (.012 + grain.x * .035) * strength),
-              ink.withValues(alpha: 0),
-            ]),
-        );
-      }
-    }
-    _paintFibers(canvas, fibers, strength);
   }
 
   void _paintFibers(Canvas canvas, List<List<Offset>> fibers, double strength) {
@@ -405,7 +342,6 @@ class DiaryPaperPainter extends CustomPainter {
       shape != oldDelegate.shape ||
       paper != oldDelegate.paper ||
       ink != oldDelegate.ink ||
-      reverse != oldDelegate.reverse ||
       shadow != oldDelegate.shadow ||
       shadowColor != oldDelegate.shadowColor;
 }

@@ -13,7 +13,6 @@ Future<ByteData> _paint(
   required DiaryPaperShape shape,
   required Color paper,
   required Color ink,
-  bool reverse = false,
 }) async {
   tester.view.physicalSize = _size;
   tester.view.devicePixelRatio = 1;
@@ -24,12 +23,7 @@ Future<ByteData> _paint(
       child: RepaintBoundary(
         key: capture,
         child: CustomPaint(
-          painter: DiaryPaperPainter(
-            shape: shape,
-            paper: paper,
-            ink: ink,
-            reverse: reverse,
-          ),
+          painter: DiaryPaperPainter(shape: shape, paper: paper, ink: ink),
           child: const SizedBox.expand(),
         ),
       ),
@@ -114,92 +108,43 @@ void main() {
       ink: const Color(0xffe8e1ee),
     ),
   ]) {
-    testWidgets(
-      'front stays clean and the opaque reverse is textured throughout: ${config.name}',
-      (tester) async {
-        addTearDown(tester.view.resetPhysicalSize);
-        addTearDown(tester.view.resetDevicePixelRatio);
-        const shape = DiaryPaperShape(seed: 42);
-        final front = await _paint(
-          tester,
-          shape: shape,
-          paper: config.paper,
-          ink: config.ink,
-        );
-        final back = await _paint(
-          tester,
-          shape: shape,
-          paper: config.paper,
-          ink: config.ink,
-          reverse: true,
-        );
-        expect(
-          _rimWear(back, config.paper),
-          greaterThan(_rimWear(front, config.paper) * 1.2),
-        );
-        final color = config.paper.toARGB32();
-        final textured = List.filled(4, 0);
-        final sampled = List.filled(4, 0);
-        // Small tears remove only the rim; both faces share that silhouette
-        // while the remaining paper stays fully opaque.
-        for (var offset = 3; offset < front.lengthInBytes; offset += 4) {
-          final alpha = front.getUint8(offset);
-          // Additional reverse grain can change partially covered edge pixels.
-          if (alpha == 0 || alpha == 255) {
-            expect(back.getUint8(offset), alpha);
+    testWidgets('worn edges surround an opaque, clean sheet: ${config.name}', (
+      tester,
+    ) async {
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      const shape = DiaryPaperShape(seed: 42);
+      final sheet = await _paint(
+        tester,
+        shape: shape,
+        paper: config.paper,
+        ink: config.ink,
+      );
+      expect(_rimWear(sheet, config.paper), greaterThan(0));
+      final color = config.paper.toARGB32();
+      for (var y = 28; y < 392; y++) {
+        for (var x = 28; x < 272; x++) {
+          final offset = _offset(x, y);
+          expect(sheet.getUint8(offset + 3), 255);
+          if (x > 40 && x < 260 && y > 40 && y < 380) {
+            expect(sheet.getUint8(offset), (color >> 16) & 255);
+            expect(sheet.getUint8(offset + 1), (color >> 8) & 255);
+            expect(sheet.getUint8(offset + 2), color & 255);
           }
         }
-        for (var y = 28; y < 392; y++) {
-          for (var x = 28; x < 272; x++) {
-            final offset = _offset(x, y);
-            expect(front.getUint8(offset + 3), 255);
-            expect(back.getUint8(offset + 3), 255);
-            if (x > 40 && x < 260 && y > 40 && y < 380) {
-              expect(front.getUint8(offset), (color >> 16) & 255);
-              expect(front.getUint8(offset + 1), (color >> 8) & 255);
-              expect(front.getUint8(offset + 2), color & 255);
-              final quadrant = (x >= 150 ? 1 : 0) + (y >= 210 ? 2 : 0);
-              sampled[quadrant]++;
-              if ((back.getUint8(offset) - front.getUint8(offset)).abs() >= 3 ||
-                  (back.getUint8(offset + 1) - front.getUint8(offset + 1))
-                          .abs() >=
-                      3 ||
-                  (back.getUint8(offset + 2) - front.getUint8(offset + 2))
-                          .abs() >=
-                      3) {
-                textured[quadrant]++;
-              }
-            }
-          }
-        }
-        expect(front.getUint8(_offset(0, 0) + 3), 0);
-        expect(back.getUint8(_offset(0, 0) + 3), 0);
-        for (var quadrant = 0; quadrant < 4; quadrant++) {
-          expect(textured[quadrant], greaterThan(sampled[quadrant] * .2));
-        }
-        final again = await _paint(
-          tester,
-          shape: shape,
-          paper: config.paper,
-          ink: config.ink,
-        );
-        expect(
-          again.buffer.asUint8List(),
-          orderedEquals(front.buffer.asUint8List()),
-        );
-        final backAgain = await _paint(
-          tester,
-          shape: shape,
-          paper: config.paper,
-          ink: config.ink,
-          reverse: true,
-        );
-        expect(
-          backAgain.buffer.asUint8List(),
-          orderedEquals(back.buffer.asUint8List()),
-        );
-      },
-    );
+      }
+      expect(sheet.getUint8(_offset(0, 0) + 3), 0);
+      final again = await _paint(
+        tester,
+        shape: shape,
+        paper: config.paper,
+        ink: config.ink,
+      );
+      expect(
+        again.buffer.asUint8List(),
+        orderedEquals(sheet.buffer.asUint8List()),
+      );
+    });
 
     testWidgets(
       'expansion removes all edge material and matches surface: ${config.name}',

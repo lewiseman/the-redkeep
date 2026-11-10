@@ -5,7 +5,7 @@ import '../domain/diary_day_details.dart';
 import '../domain/diary_document.dart';
 import 'diary_providers.dart';
 
-/// A presentation snapshot shared by live paper and non-interactive curl faces.
+/// A presentation snapshot shared by live paper and non-interactive sheets.
 class DiaryPaperDay {
   const DiaryPaperDay({
     required this.date,

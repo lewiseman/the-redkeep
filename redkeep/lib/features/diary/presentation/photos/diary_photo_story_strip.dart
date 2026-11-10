@@ -4,7 +4,7 @@ import 'photo_ui.dart';
 import '../../data/diary_photo_store.dart';
 import 'diary_photo_widgets.dart';
 
-/// A mounted print or overlapping notebook stack, shared by live and curl faces.
+/// A mounted print or overlapping notebook stack for the diary reader.
 class DiaryPhotoStoryStrip extends StatelessWidget {
   const DiaryPhotoStoryStrip({super.key, required this.item, this.onOpen});
 
@@ -12,7 +12,7 @@ class DiaryPhotoStoryStrip extends StatelessWidget {
   final VoidCallback? onOpen;
 
   static const shown = 2;
-  // Stable cache keys across live/curl faces, sized for the prints at up to 2x.
+  // Stable cache keys across sheets, sized for the prints at up to 2x.
   static const _singleDecode = 576, _backDecode = 384;
 
   double _angle(int index) {

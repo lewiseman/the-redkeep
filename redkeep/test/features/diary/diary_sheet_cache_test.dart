@@ -17,12 +17,9 @@ import 'package:redkeep/features/diary/data/diary_photo_store.dart';
 import 'package:redkeep/features/diary/domain/diary_period.dart';
 import 'package:redkeep/features/diary/domain/diary_document.dart';
 import 'package:redkeep/features/diary/domain/diary_photo.dart';
-import 'package:redkeep/features/diary/presentation/diary_paper_curl.dart';
 import 'package:redkeep/features/diary/presentation/diary_sheet.dart';
 import 'package:redkeep/features/diary/presentation/diary_writing_prompt.dart';
 import 'package:redkeep/features/sync/application/sync_providers.dart';
-
-import '../../support/warm_diary_faces.dart';
 
 final _canEdit = NotifierProvider<_EditAccess, bool>(_EditAccess.new);
 
@@ -95,15 +92,7 @@ void main() {
                     child: SizedBox(
                       width: 320,
                       height: 600,
-                      child: DiaryPaperCurl(
-                        progress: 0,
-                        direction: 1,
-                        travel: 400,
-                        paper: theme.colorScheme.surface,
-                        flat: true,
-                        warm: true,
-                        child: DiarySheet(day: current, minimumHeight: height),
-                      ),
+                      child: DiarySheet(day: current, minimumHeight: height),
                     ),
                   ),
                 ),
@@ -111,15 +100,10 @@ void main() {
             ),
           ),
         );
-        await warmDiaryFaces(tester);
       }
 
       await mount();
-      final face = tester.renderObject<RenderDiaryCurl>(
-        find.byType(DiaryPaperCurl),
-      );
       final original = tester.widget<Text>(find.text('Original writing'));
-      final frontCaptures = face.debugFrontCaptures;
       height = 520;
       await mount();
       expect(
@@ -130,14 +114,12 @@ void main() {
       await mount();
       expect(find.text('Original writing'), findsNothing);
       expect(find.text('Updated writing'), findsOneWidget);
-      expect(face.debugFrontCaptures, greaterThan(frontCaptures));
       expect(find.byType(DiaryTitlePrompt), findsOneWidget);
       final container = ProviderScope.containerOf(
         tester.element(find.byType(DiarySheet)),
       );
       container.read(_canEdit.notifier).change(false);
       await tester.pump();
-      await warmDiaryFaces(tester);
       expect(find.byType(DiaryTitlePrompt), findsNothing);
       final lightInk = tester
           .widget<Text>(find.text('Updated writing'))
@@ -157,7 +139,6 @@ void main() {
 
       current = day('Updated writing', photo: true);
       await mount();
-      final pendingCaptures = face.debugFrontCaptures;
       late Directory root;
       late File file;
       await tester.runAsync(() async {
@@ -182,9 +163,7 @@ void main() {
         await tester.pump();
         if (tester.widget<RawImage>(find.byType(RawImage)).image != null) break;
       }
-      await warmDiaryFaces(tester);
       expect(tester.widget<RawImage>(find.byType(RawImage)).image, isNotNull);
-      expect(face.debugFrontCaptures, greaterThan(pendingCaptures));
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
     },

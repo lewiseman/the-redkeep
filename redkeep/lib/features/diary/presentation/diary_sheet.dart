@@ -24,8 +24,8 @@ DiaryPaperColors diaryPaperColors(BuildContext context) => DiaryPaperColors(
   secondary: context.colors.onSurfaceVariant,
 );
 
-/// The static face used for previews and curls has no scrollable or layers.
-/// Its clipped overflow is exactly the beginning of the live reading view.
+/// A non-interactive sheet for side previews, slides and fades.
+/// When shown, its clipped content matches the live reader at the same offset.
 class DiarySheet extends StatelessWidget {
   const DiarySheet({
     super.key,
@@ -33,6 +33,7 @@ class DiarySheet extends StatelessWidget {
     this.radius = 6,
     this.scrollOffset = 0,
     this.shape,
+    this.showContent = true,
     this.shadow = false,
     this.detailed = true,
     this.minimumHeight = 0,
@@ -42,10 +43,11 @@ class DiarySheet extends StatelessWidget {
   final double radius;
   final double scrollOffset;
   final DiaryPaperShape? shape;
+  final bool showContent;
   final bool shadow;
   final bool detailed;
 
-  // Use the fixed face bounds without a layout callback during page turns.
+  // Keep the content sized to the sheet throughout the transition.
   final double minimumHeight;
 
   @override
@@ -54,15 +56,24 @@ class DiarySheet extends StatelessWidget {
         shape ??
         DiaryPaperShape.forDate(day.calendarDate, cornerRadius: radius);
     final paper = diaryPaperColors(context);
-    final content = OverflowBox(
-      alignment: Alignment.topCenter,
-      minHeight: 0,
-      maxHeight: double.infinity,
-      child: Transform.translate(
-        offset: Offset(0, -scrollOffset),
-        child: DiaryDayContent(day: day, minimumHeight: minimumHeight),
-      ),
-    );
+    Widget? content;
+    if (showContent) {
+      final body = OverflowBox(
+        alignment: Alignment.topCenter,
+        minHeight: 0,
+        maxHeight: double.infinity,
+        child: Transform.translate(
+          offset: Offset(0, -scrollOffset),
+          child: DiaryDayContent(day: day, minimumHeight: minimumHeight),
+        ),
+      );
+      content = detailed
+          ? ClipPath(clipper: DiaryPaperClipper(outline), child: body)
+          : ClipRect(
+              clipper: _StampContentClipper(outline.detail),
+              child: body,
+            );
+    }
     return CustomPaint(
       painter: detailed
           ? DiaryPaperPainter(
@@ -80,12 +91,7 @@ class DiarySheet extends StatelessWidget {
               variant: day.calendarDate.weekday,
               flatten: outline.expansion,
             ),
-      child: detailed
-          ? ClipPath(clipper: DiaryPaperClipper(outline), child: content)
-          : ClipRect(
-              clipper: _StampContentClipper(outline.detail),
-              child: content,
-            ),
+      child: content,
     );
   }
 }
@@ -156,7 +162,7 @@ class _DiaryDayContentState extends ConsumerState<DiaryDayContent> {
       _contentKey = key;
     }
     // Sizing can change as the header collapses without rebuilding paragraphs,
-    // prompts or photo widgets (and invalidating the curl's captured front).
+    // prompts or photo widgets.
     return LayoutBuilder(
       builder: (context, constraints) => Padding(
         padding: EdgeInsets.symmetric(

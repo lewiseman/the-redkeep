@@ -150,8 +150,7 @@ class DiaryPaperStamp extends CustomPainter {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 6
-        ..color = key.ink.withValues(alpha: .07)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.2),
+        ..color = key.ink.withValues(alpha: .07),
     );
     final metric = path.computeMetrics().single;
     final fibers = <Offset>[];

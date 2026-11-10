@@ -278,14 +278,13 @@ class DiaryPaperPainter extends CustomPainter {
     if (edge.points.isEmpty) return;
     canvas.save();
     canvas.clipPath(path);
-    // A soft, shallow rim with broken deposits, rather than a drawn border.
+    // A shallow rim with broken deposits follows the torn edge.
     canvas.drawPath(
       path,
       Paint()
         ..color = ink.withValues(alpha: .05 * detail)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = rim * 1.5
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
+        ..strokeWidth = rim * 1.5,
     );
     final metric = path.computeMetrics().single;
     for (var i = 0; i < 48; i++) {
@@ -298,8 +297,7 @@ class DiaryPaperPainter extends CustomPainter {
         Paint()
           ..color = ink.withValues(alpha: (.018 + .045 * tone) * detail)
           ..style = PaintingStyle.stroke
-          ..strokeWidth = rim * (.8 + tone * .7)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.8),
+          ..strokeWidth = rim * (.8 + tone * .7),
       );
     }
 

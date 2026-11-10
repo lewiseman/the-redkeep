@@ -62,6 +62,19 @@ class NoteEditorController extends AsyncNotifier<NoteEditorState> {
   void Function()? _releaseUnsaved;
 
   bool get _dirty => _sequence != _savedSequence;
+  bool get _isEmpty => _text.isEmpty && !_details.hasWriting;
+
+  /// The unsaved clearing of an existing note can be confirmed as a deletion.
+  NoteEditorState? get clearedDraft {
+    if (!ref.mounted ||
+        !_dirty ||
+        _conflict ||
+        _baseRevision == 0 ||
+        !_isEmpty) {
+      return null;
+    }
+    return state.value;
+  }
 
   @override
   Future<NoteEditorState> build() async {
@@ -159,14 +172,12 @@ class NoteEditorController extends AsyncNotifier<NoteEditorState> {
     while (_dirty) {
       if (_conflict) return false;
       final sequence = _sequence;
-      if (_text.isEmpty && !_details.hasWriting) {
+      if (_isEmpty) {
         if (_baseRevision == 0) {
           _savedSequence = sequence;
           continue;
         }
-        _publish(
-          message: 'An empty note can’t be saved. Add some writing or delete the note.',
-        );
+        _publish();
         return false;
       }
       _saving = true;
@@ -221,7 +232,7 @@ class NoteEditorController extends AsyncNotifier<NoteEditorState> {
 
   /// Keeps conflicting writing as a new note. Returns its id.
   Future<String?> saveCopy() async {
-    if (_saving || !state.hasValue || (_text.isEmpty && !_details.hasWriting)) {
+    if (_saving || !state.hasValue || _isEmpty) {
       return null;
     }
     _autosave?.cancel();

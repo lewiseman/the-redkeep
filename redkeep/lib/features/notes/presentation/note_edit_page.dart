@@ -5,6 +5,7 @@ import '../../recall/application/recall_controller.dart';
 import 'package:redkeep/features/ai/application/ai_cloud.dart';
 import 'package:redkeep/features/ai/domain/ai_provider.dart';
 
+import 'note_action_dialog.dart';
 import 'note_ai_sheet.dart';
 import 'note_ai_widgets.dart' show NoteAiTool;
 import 'note_app_bar.dart';
@@ -113,21 +114,51 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
     }
   }
 
-  /// Saves, then leaves editing. Stays put with the message when it can't.
+  /// Saves before closing, or asks whether to delete a cleared note.
   Future<void> _finish(VoidCallback leave) async {
     if (_leaving) return;
     _leaving = true;
     try {
-      final editor = ref.read(noteEditorProvider(widget.id));
-      if (!editor.hasValue ||
-          await ref.read(noteEditorProvider(widget.id).notifier).save()) {
+      final provider = noteEditorProvider(widget.id);
+      final controller = ref.read(provider.notifier);
+      if (!ref.read(provider).hasValue || await controller.save()) {
         if (mounted) {
           FocusScope.of(context).unfocus();
           leave();
         }
+      } else if (mounted && ref.read(syncCanEditProvider)) {
+        if (controller.clearedDraft case final draft?) {
+          await _deleteClearedDraft(controller, draft);
+        }
       }
     } finally {
       _leaving = false;
+    }
+  }
+
+  Future<void> _deleteClearedDraft(
+    NoteEditorController controller,
+    NoteEditorState draft,
+  ) async {
+    FocusScope.of(context).unfocus();
+    final confirmed = await showNoteDeleteConfirmation(context);
+    if (!mounted || confirmed != true) return;
+    if (controller.clearedDraft?.editVersion != draft.editVersion) return;
+    try {
+      await ref
+          .read(notesActionsProvider.notifier)
+          .delete(widget.id, draft.baseRevision);
+      if (mounted &&
+          controller.clearedDraft?.editVersion == draft.editVersion) {
+        controller.discardChanges();
+        context.go(AppDestination.notes.location);
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not delete this note.')),
+        );
+      }
     }
   }
 
@@ -309,31 +340,44 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
                                     const Text(
                                       'This device is add-only. Reclaim primary in Sync & devices to edit.',
                                     ),
-                                  TextField(
-                                    key: const ValueKey('note-title'),
-                                    controller: _title,
-                                    enabled: !readOnly,
-                                    style: _titleStyle,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Title',
-                                      hintText: 'Note Title…',
-                                      floatingLabelBehavior:
-                                          FloatingLabelBehavior.never,
-                                      border: InputBorder.none,
-                                      enabledBorder: InputBorder.none,
-                                      focusedBorder: InputBorder.none,
-                                      filled: false,
-                                      contentPadding: EdgeInsets.zero,
-                                    ),
-                                    // Wraps visually, but never takes a typed
-                                    // or pasted line break.
-                                    maxLines: null,
-                                    keyboardType: TextInputType.text,
-                                    textInputAction: TextInputAction.done,
-                                    inputFormatters: [noteTitleLineBreaks],
-                                    textCapitalization:
-                                        TextCapitalization.sentences,
-                                    onChanged: (_) => _edit(controller),
+                                  Builder(
+                                    builder: (context) {
+                                      final placeholderStyle = _titleStyle
+                                          .copyWith(
+                                            fontWeight: FontWeight.normal,
+                                            color: NoteTypography.of(context)
+                                                .placeholderColor,
+                                          );
+                                      return TextField(
+                                        key: const ValueKey('note-title'),
+                                        controller: _title,
+                                        enabled: !readOnly,
+                                        style: _titleStyle,
+                                        decoration: InputDecoration(
+                                          labelText: 'Title',
+                                          labelStyle: placeholderStyle,
+                                          hintText: 'Title…',
+                                          hintStyle: placeholderStyle,
+                                          alignLabelWithHint: true,
+                                          floatingLabelBehavior:
+                                              FloatingLabelBehavior.never,
+                                          border: InputBorder.none,
+                                          enabledBorder: InputBorder.none,
+                                          focusedBorder: InputBorder.none,
+                                          filled: false,
+                                          contentPadding: EdgeInsets.zero,
+                                        ),
+                                        // Wraps visually, but never takes a typed
+                                        // or pasted line break.
+                                        maxLines: null,
+                                        keyboardType: TextInputType.text,
+                                        textInputAction: TextInputAction.done,
+                                        inputFormatters: [noteTitleLineBreaks],
+                                        textCapitalization:
+                                            TextCapitalization.sentences,
+                                        onChanged: (_) => _edit(controller),
+                                      );
+                                    },
                                   ),
                                   // Same order and gaps as reading, so text stays put.
                                   if (state.details.tags.isNotEmpty) ...[

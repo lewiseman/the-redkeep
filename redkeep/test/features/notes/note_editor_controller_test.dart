@@ -119,7 +119,7 @@ void main() {
   test('an existing note emptied completely is not saved', () async {
     editor().edit(const PlainTextDocument(title: ' ', body: '\n\t'));
     expect(await editor().save(), isFalse);
-    expect(state().message, contains('empty note'));
+    expect(state().message, isNull);
     expect((await saved())!.text.body, 'Initial');
   });
 

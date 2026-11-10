@@ -381,6 +381,64 @@ void main() {
     },
   );
 
+  noteTest('closing a cleared saved note asks before moving it to Trash', (
+    tester,
+  ) async {
+    await seed(title: '', body: 'Saved writing');
+    final router = await pumpApp(
+      tester,
+      initialLocation: noteLocation(id),
+      notes: repo,
+      database: db,
+    );
+    await startEditing(tester);
+    await enterNoteBody(tester, '');
+    await tester.pump(NoteEditorController.autosaveDelay);
+    expect(find.text('Delete this note?'), findsNothing);
+
+    await tap(tester, 'Close editor');
+    expect(find.text('Delete this note?'), findsOneWidget);
+    await tap(tester, 'Keep note');
+    expect(path(router), noteLocation(id));
+    expect(bodyText(tester), isEmpty);
+    expect((await repo.openDocument(id)).available, isTrue);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.text('Delete this note?'), findsOneWidget);
+    await tap(tester, 'Delete');
+    expect(path(router), '/notes');
+    final trashed = (await repo.openDocument(id)).note!;
+    expect(trashed.deletedAt, isNotNull);
+    expect(trashed.text.body, 'Saved writing');
+  });
+
+  noteTest('deletion from a cleared editor checks the saved revision', (
+    tester,
+  ) async {
+    await seed(title: '');
+    final router = await pumpApp(
+      tester,
+      initialLocation: noteLocation(id),
+      notes: repo,
+      database: db,
+    );
+    await startEditing(tester);
+    await enterNoteBody(tester, '');
+    await tap(tester, 'Close editor');
+    expect(find.text('Delete this note?'), findsOneWidget);
+
+    await repo.organize(id, 1, pinned: true, tags: []);
+    await tester.pumpAndSettle();
+    await tap(tester, 'Delete');
+    expect(path(router), noteLocation(id));
+    expect(bodyField(), findsOneWidget);
+    expect(find.text('Could not delete this note.'), findsOneWidget);
+    final opened = await repo.openDocument(id);
+    expect(opened.available, isTrue);
+    expect(opened.note!.pinned, isTrue);
+  });
+
   noteTest('closing the editor waits for a silent autosave', (tester) async {
     await seed();
     await pumpApp(

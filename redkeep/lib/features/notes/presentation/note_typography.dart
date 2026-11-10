@@ -48,6 +48,8 @@ class NoteTypography {
   final TextStyle h3;
   final Color checkbox;
 
+  Color? get placeholderColor => body.color?.withValues(alpha: .45);
+
   /// Reading a note as Markdown.
   ///
   /// Surfaces, rules and links are tinted from the note's ink rather than the
@@ -123,10 +125,7 @@ class NoteTypography {
         null,
         NoteCheckboxBuilder(color: checkbox, size: body.fontSize ?? 16),
       ),
-      placeHolder: block(
-        body.copyWith(color: body.color?.withValues(alpha: .45)),
-        0,
-      ),
+      placeHolder: block(body.copyWith(color: placeholderColor), 0),
       bold: const TextStyle(fontWeight: FontWeight.bold),
       italic: const TextStyle(fontStyle: FontStyle.italic),
     );

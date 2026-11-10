@@ -1,5 +1,27 @@
 import 'package:flutter/material.dart';
 
+Future<bool?> showNoteDeleteConfirmation(BuildContext context) =>
+    showDialog<bool>(
+      context: context,
+      animationStyle: AnimationStyle.noAnimation,
+      builder: (context) => NoteActionDialog(
+        title: const Text('Delete this note?'),
+        content: const Text(
+          'The note will move to Trash and leave saved lists and search. Its text, tags and pin stay on this device until you choose Delete forever.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Keep note'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
 /// Scroll the actions with the content when large text and the keyboard leave
 /// too little height for an AlertDialog's fixed action area.
 class NoteActionDialog extends StatelessWidget {

@@ -110,8 +110,8 @@ class NotesActions extends Notifier<bool> {
     }
   }
 
-  Future<void> delete(NoteDocument note) => _run(
-    () => ref.read(notesRepositoryProvider).deleteNote(note.id, note.revision),
+  Future<void> delete(String id, int expectedRevision) => _run(
+    () => ref.read(notesRepositoryProvider).deleteNote(id, expectedRevision),
   );
 }
 

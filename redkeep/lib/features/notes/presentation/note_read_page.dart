@@ -421,29 +421,12 @@ class _NoteReadViewState extends ConsumerState<NoteReadView> {
   }
 
   Future<void> _delete(NoteDocument note) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      animationStyle: AnimationStyle.noAnimation,
-      builder: (context) => NoteActionDialog(
-        title: const Text('Delete this note?'),
-        content: const Text(
-          'The note will move to Trash and leave saved lists and search. Its text, tags and pin stay on this device until you choose Delete forever.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Keep note'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
+    final confirmed = await showNoteDeleteConfirmation(context);
     if (confirmed != true || !mounted) return;
     try {
-      await ref.read(notesActionsProvider.notifier).delete(note);
+      await ref
+          .read(notesActionsProvider.notifier)
+          .delete(note.id, note.revision);
       if (mounted) context.go(AppDestination.notes.location);
     } catch (_) {
       if (mounted) {

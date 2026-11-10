@@ -3,8 +3,10 @@ import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:redkeep/features/notes/application/notes_providers.dart';
+import 'package:redkeep/features/notes/domain/note_document.dart';
 import 'package:redkeep/features/notes/domain/note_link_launcher.dart';
 import 'package:redkeep/features/notes/presentation/note_markdown_preview.dart';
+import 'package:redkeep/features/sync/application/sync_providers.dart';
 
 class _Launcher implements NoteLinkLauncher {
   final opened = <Uri>[];
@@ -98,6 +100,38 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('read-only notes expose the checked state without a tap action', (
+    tester,
+  ) async {
+    const id = '11111111111111111111111111111111';
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          noteDocumentProvider(id)
+              .overrideWith((_) => Stream.value(const OpenNote())),
+          syncCanEditProvider.overrideWithValue(false),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: NoteMarkdownPreview(
+              text: '- [x] Finished',
+              readingNoteId: id,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final checkbox = find.byWidgetPredicate(
+      (widget) => widget is Semantics && widget.properties.checked == true,
+    );
+    expect(tester.widget<Semantics>(checkbox).properties.enabled, isFalse);
+    expect(
+      find.descendant(of: checkbox, matching: find.byType(InkWell)),
+      findsNothing,
+    );
+  });
 
   for (final simple in [false, true]) {
     for (final dark in [false, true]) {

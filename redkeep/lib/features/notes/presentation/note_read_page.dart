@@ -17,6 +17,7 @@ import 'package:intl/intl.dart';
 
 import '../../../app/navigation_destination.dart';
 import '../../../core/presentation/paper_surface.dart';
+import '../application/note_reading_checklist.dart';
 import '../application/notes_providers.dart';
 import '../domain/note_document.dart';
 import 'note_markdown_preview.dart';
@@ -70,12 +71,23 @@ class _NoteReadViewState extends ConsumerState<NoteReadView> {
 
   @override
   Widget build(BuildContext context) {
+    final checklist = noteReadingChecklistProvider(widget.id);
+    // The snapshot starts at the body already on screen. Its checkboxes
+    // listen individually, and the saved document stream updates the page.
+    final layout = ref.read(checklist).layout;
+    ref.listen(checklist.select((state) => state.error), (_, error) {
+      if (error != null) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error)));
+      }
+    });
     ref.listen(noteDocumentProvider(widget.id), (previous, next) {
       final before = previous?.value?.note;
       final after = next.value?.note;
       if (before != null &&
           after != null &&
           before.revision != after.revision &&
+          !ref.read(checklist.notifier).isChecklistSave(after) &&
           !_aiOpen) {
         _paper.collapse();
       }
@@ -116,7 +128,7 @@ class _NoteReadViewState extends ConsumerState<NoteReadView> {
                             child: IconButton(
                               tooltip: 'Edit note',
                               style: noteBarButtonStyle(context),
-                              onPressed: canEdit ? widget.onEdit : null,
+                              onPressed: canEdit ? _edit : null,
                               icon: const Icon(Icons.edit_outlined),
                             ),
                           )
@@ -239,7 +251,7 @@ class _NoteReadViewState extends ConsumerState<NoteReadView> {
                         isPreviewMode: true,
                         readOnly: !canEdit,
                         onExpansionChanged: (value) => _expansion.value = value,
-                        onEdit: widget.onEdit,
+                        onEdit: _edit,
                         children: [
                           SliverToBoxAdapter(
                             child: Column(
@@ -291,8 +303,12 @@ class _NoteReadViewState extends ConsumerState<NoteReadView> {
                                     note.tags.isNotEmpty)
                                   const SizedBox(height: 20),
                                 NoteMarkdownPreview(
-                                  key: ValueKey(note.revision),
-                                  text: note.text.body,
+                                  key: ValueKey((
+                                    note.id,
+                                    layout?.revision ?? note.revision,
+                                  )),
+                                  text: layout?.body ?? note.text.body,
+                                  readingNoteId: note.id,
                                 ),
                                 const SizedBox(height: 24),
                                 Text(
@@ -316,6 +332,14 @@ class _NoteReadViewState extends ConsumerState<NoteReadView> {
         ),
       ),
     );
+  }
+
+  Future<void> _edit() async {
+    final saving = ref
+        .read(noteReadingChecklistProvider(widget.id).notifier)
+        .saving;
+    if (saving != null) await saving;
+    if (mounted && ref.read(syncCanEditProvider)) widget.onEdit();
   }
 
   /// The desk closes onto the note; a kept result is told on the paper and,

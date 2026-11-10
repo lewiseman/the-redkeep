@@ -147,6 +147,186 @@ void main() {
               as NotePaperShape)
           .fold;
 
+  Finder readingChecks() => find.byWidgetPredicate(
+    (widget) =>
+        widget is Semantics && widget.properties.label == 'Checklist item',
+  );
+
+  bool? isChecked(WidgetTester tester, Finder checkbox) =>
+      tester.widget<Semantics>(checkbox).properties.checked;
+
+  noteTest('preview checks duplicate items by their exact Markdown marker', (
+    tester,
+  ) async {
+    const before =
+        '🌱 Garden\r\n\r\n- [ ] Buy milk\r\n  - [ ] Nested\r\n\r\n'
+        '- [X] Buy milk\r\n- Ordinary item\r\n';
+    await seed(body: before);
+    await pumpApp(
+      tester,
+      initialLocation: noteLocation(id),
+      notes: repo,
+      database: db,
+    );
+    expect(paperFold(tester), greaterThan(0));
+    expect(readingChecks(), findsNWidgets(2));
+    expect(find.text('Buy milk', findRichText: true), findsNWidgets(2));
+    expect(find.text('Nested', findRichText: true), findsOneWidget);
+    expect(find.text('Ordinary item', findRichText: true), findsOneWidget);
+
+    await tester.tap(readingChecks().last);
+    await tester.pumpAndSettle();
+    expect(isChecked(tester, readingChecks().first), isFalse);
+    expect(isChecked(tester, readingChecks().last), isFalse);
+    expect(
+      (await repo.openDocument(id)).note!.text.body,
+      before.replaceFirst('[X]', '[ ]'),
+    );
+    expect(paperFold(tester), greaterThan(0));
+    expect(bodyField(), findsNothing);
+  });
+
+  noteTest(
+    'immersive checks respond during a save without reparsing or scrolling',
+    (tester) async {
+      const task = '- [ ] **Buy milk**';
+      final body = [
+        '~~~md\n$task\n~~~',
+        for (var i = 0; i < 300; i++) 'Paragraph $i.',
+        '$task\n- [x] **Buy milk**',
+        'Tail',
+      ].join('\n\n');
+      await seed(body: body);
+      final appearance = FakeAppearanceRepository(
+        const AppearancePreferences(reduceMotion: true, simplerEffects: true),
+      );
+      addTearDown(appearance.close);
+      await pumpApp(
+        tester,
+        initialLocation: noteLocation(id),
+        notes: repo,
+        database: db,
+        repository: appearance,
+      );
+      final scrollView = find.descendant(
+        of: find.byType(NotePaper),
+        matching: find.byType(CustomScrollView),
+      );
+      await tester.drag(scrollView, const Offset(0, -180));
+      await tester.pumpAndSettle();
+      expect(paperFold(tester), 0);
+      expect(readingChecks(), findsNWidgets(2));
+      await revealBelowAppBar(tester, readingChecks().first);
+      await tester.pumpAndSettle();
+      final position = tester
+          .widget<CustomScrollView>(scrollView)
+          .controller!
+          .position;
+      final pixels = position.pixels;
+      expect(pixels, greaterThan(0));
+      final markdown = find.byType(MarkdownBody);
+      final parsedText = find.descendant(
+        of: markdown,
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is SelectableText &&
+              widget.textSpan?.toPlainText() == 'Paragraph 299.',
+        ),
+      );
+      final rendered = tester.widget(parsedText);
+      final gate = repo.saveGate = Completer<void>();
+      addTearDown(() {
+        if (!gate.isCompleted) gate.complete();
+      });
+
+      await tester.tap(readingChecks().first);
+      await tester.pump();
+      expect(isChecked(tester, readingChecks().first), isTrue);
+      expect((await repo.openDocument(id)).note!.revision, 1);
+      await tester.tap(readingChecks().last);
+      await tester.tap(readingChecks().first);
+      await tester.pump();
+      expect(isChecked(tester, readingChecks().first), isFalse);
+      expect(isChecked(tester, readingChecks().last), isFalse);
+      expect(tester.widget(parsedText), same(rendered));
+
+      gate.complete();
+      await tester.pumpAndSettle();
+      expect(repo.saves, 3);
+      expect(
+        (await repo.openDocument(id)).note!.text.body,
+        body.replaceFirst('- [x] **Buy milk**', task),
+      );
+      expect(tester.widget(parsedText), same(rendered));
+      expect(position.pixels, pixels);
+      expect(paperFold(tester), 0);
+    },
+  );
+
+  noteTest('a failed reading check rolls back and can be retried', (
+    tester,
+  ) async {
+    const body = '- [ ] Save me';
+    await seed(body: body);
+    await pumpApp(
+      tester,
+      initialLocation: noteLocation(id),
+      notes: repo,
+      database: db,
+    );
+    repo.failSave = true;
+    await tester.tap(readingChecks());
+    await tester.pumpAndSettle();
+    expect(isChecked(tester, readingChecks()), isFalse);
+    expect(
+      find.text('Could not save the checklist change. Try again.'),
+      findsOneWidget,
+    );
+    expect((await repo.openDocument(id)).note!.text.body, body);
+
+    repo.failSave = false;
+    await tester.tap(readingChecks());
+    await tester.pumpAndSettle();
+    expect(isChecked(tester, readingChecks()), isTrue);
+    expect((await repo.openDocument(id)).note!.text.body, '- [x] Save me');
+  });
+
+  noteTest('a newer saved revision wins over a pending reading check', (
+    tester,
+  ) async {
+    await seed(body: '- [ ] A\n- [ ] B');
+    await pumpApp(
+      tester,
+      initialLocation: noteLocation(id),
+      notes: repo,
+      database: db,
+    );
+    final gate = repo.saveGate = Completer<void>();
+    addTearDown(() {
+      if (!gate.isCompleted) gate.complete();
+    });
+    await tester.tap(readingChecks().first);
+    await tester.tap(readingChecks().last);
+    await tester.pump();
+    expect(isChecked(tester, readingChecks().first), isTrue);
+    expect(isChecked(tester, readingChecks().last), isTrue);
+
+    const changed = 'Added writing\n\n- [ ] A\n- [ ] B';
+    await repo.inner.saveNote(
+      id: id,
+      text: const PlainTextDocument(title: 'Synthetic note', body: changed),
+      expectedRevision: 1,
+      details: const NoteDetails(),
+    );
+    gate.complete();
+    await tester.pumpAndSettle();
+    expect(repo.saves, 2);
+    expect((await repo.openDocument(id)).note!.text.body, changed);
+    expect(isChecked(tester, readingChecks().first), isFalse);
+    expect(isChecked(tester, readingChecks().last), isFalse);
+    expect(find.text('Added writing', findRichText: true), findsOneWidget);
+  });
+
   noteTest(
     'there is no Drafts collection; a user tag named drafts is ordinary',
     (tester) async {

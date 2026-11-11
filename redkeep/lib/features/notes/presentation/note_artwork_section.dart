@@ -44,10 +44,30 @@ class NoteArtworkSection extends ConsumerStatefulWidget {
 
 class _NoteArtworkSectionState extends ConsumerState<NoteArtworkSection> {
   static const _ideas = [
-    ('Ocean', 'Soft ocean waves and sea glass', Icons.waves_rounded),
-    ('Leaves', 'Soft green leaves on warm paper', Icons.spa_outlined),
-    ('Sunset', 'A warm peach sunset with soft clouds', Icons.wb_twilight),
-    ('Stars', 'A quiet night sky with faint stars', Icons.nights_stay_outlined),
+    (
+      'Ocean',
+      'Soft ocean waves and sea glass',
+      Icons.waves_rounded,
+      Color(0xFF527C9C),
+    ),
+    (
+      'Leaves',
+      'Soft green leaves on warm paper',
+      Icons.spa_outlined,
+      Color(0xFF44766B),
+    ),
+    (
+      'Sunset',
+      'A warm peach sunset with soft clouds',
+      Icons.wb_twilight,
+      Color(0xFFB5683F),
+    ),
+    (
+      'Stars',
+      'A quiet night sky with faint stars',
+      Icons.nights_stay_outlined,
+      Color(0xFF75619B),
+    ),
   ];
 
   final _prompt = TextEditingController();
@@ -128,8 +148,13 @@ class _NoteArtworkSectionState extends ConsumerState<NoteArtworkSection> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text('Artwork', style: theme.textTheme.titleMedium),
-        const SizedBox(height: 8),
+        Text(
+          'Artwork',
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 12),
         _Canvas(
           imageKey: widget.imageKey,
           paper: widget.paper,
@@ -138,7 +163,7 @@ class _NoteArtworkSectionState extends ConsumerState<NoteArtworkSection> {
           onRemove: painting ? null : widget.onRemove,
         ),
         if (canPaint) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           TextField(
             key: const ValueKey('note-artwork-prompt'),
             controller: _prompt,
@@ -151,10 +176,20 @@ class _NoteArtworkSectionState extends ConsumerState<NoteArtworkSection> {
             onSubmitted: (_) => _paint(),
             decoration: InputDecoration(
               hintText: 'Describe artwork to paint',
+              filled: true,
+              fillColor: theme.colorScheme.surfaceContainerHigh,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(28),
+                borderSide: BorderSide.none,
               ),
-              contentPadding: const EdgeInsets.symmetric(vertical: 12),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(28),
+                borderSide: BorderSide(
+                  color: theme.colorScheme.primary,
+                  width: 1.5,
+                ),
+              ),
+              contentPadding: const EdgeInsets.symmetric(vertical: 16),
               prefixIcon: IconButton(
                 tooltip: dark ? 'Dark artwork' : 'Light artwork',
                 onPressed: painting
@@ -165,8 +200,8 @@ class _NoteArtworkSectionState extends ConsumerState<NoteArtworkSection> {
                 ),
               ),
               suffixIcon: Padding(
-                padding: const EdgeInsets.all(4),
-                child: IconButton.filledTonal(
+                padding: const EdgeInsets.all(6),
+                child: IconButton.filled(
                   key: const ValueKey('note-artwork-paint'),
                   tooltip: 'Paint artwork',
                   onPressed: painting || _prompt.text.trim().isEmpty
@@ -178,24 +213,27 @@ class _NoteArtworkSectionState extends ConsumerState<NoteArtworkSection> {
             ),
           ),
         ],
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
+          clipBehavior: Clip.none,
           child: Row(
             children: [
-              ActionChip(
-                avatar: const Icon(Icons.photo_library_outlined, size: 18),
-                label: const Text('Your photo'),
-                onPressed: painting || _picking ? null : _photo,
+              _ArtChip(
+                icon: Icons.photo_library_outlined,
+                label: 'Your photo',
+                tint: theme.colorScheme.primary,
+                onTap: painting || _picking ? null : _photo,
               ),
               if (canPaint)
-                for (final (label, prompt, icon) in _ideas) ...[
+                for (final (label, prompt, icon, tint) in _ideas) ...[
                   const SizedBox(width: 8),
-                  ActionChip(
-                    avatar: Icon(icon, size: 18),
-                    label: Text(label),
-                    tooltip: prompt,
-                    onPressed: painting
+                  _ArtChip(
+                    icon: icon,
+                    label: label,
+                    tint: tint,
+                    selected: _prompt.text == prompt,
+                    onTap: painting
                         ? null
                         : () => setState(() {
                             _prompt.text = prompt;
@@ -251,6 +289,7 @@ class _Canvas extends ConsumerWidget {
         ?.policy;
     final animate = policy?.animate ?? !MediaQuery.disableAnimationsOf(context);
     final duration = policy?.duration ?? Duration.zero;
+    final simple = policy?.simplerEffects ?? false;
     final ink = ThemeData.estimateBrightnessForColor(paper) == Brightness.dark
         ? Colors.white
         : Colors.black87;
@@ -319,17 +358,28 @@ class _Canvas extends ConsumerWidget {
       children: [
         AnimatedContainer(
           duration: duration,
-          width: 96,
-          height: 144,
+          width: 104,
+          height: 156,
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             color: paper,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: theme.colorScheme.outlineVariant),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: theme.colorScheme.outlineVariant.withValues(alpha: .6),
+            ),
+            boxShadow: simple
+                ? null
+                : [
+                    BoxShadow(
+                      color: theme.colorScheme.shadow.withValues(alpha: .12),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
           ),
           child: AnimatedSwitcher(duration: duration, child: page),
         ),
-        const SizedBox(width: 16),
+        const SizedBox(width: 18),
         Expanded(
           child: Semantics(
             liveRegion: true,
@@ -337,15 +387,20 @@ class _Canvas extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(title, style: theme.textTheme.titleSmall),
-                const SizedBox(height: 2),
+                Text(
+                  title,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
                 Text(
                   detail,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 8),
                 if (painting)
                   TextButton.icon(
                     onPressed: onStop,
@@ -371,6 +426,77 @@ class _Canvas extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// A rounded pill with a tinted badge, for photos and painting ideas.
+class _ArtChip extends StatelessWidget {
+  const _ArtChip({
+    required this.icon,
+    required this.label,
+    required this.tint,
+    required this.onTap,
+    this.selected = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color tint;
+  final VoidCallback? onTap;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    // Lift the hue in dark mode so the badge stays legible.
+    final hue = scheme.brightness == Brightness.dark
+        ? Color.lerp(tint, Colors.white, .35)!
+        : tint;
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: Material(
+        color: selected
+            ? Color.alphaBlend(hue.withValues(alpha: .16), scheme.surface)
+            : scheme.surfaceContainerHigh,
+        shape: StadiumBorder(
+          side: BorderSide(
+            color: selected ? hue : Colors.transparent,
+            width: 1.5,
+          ),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Opacity(
+            opacity: onTap == null ? .5 : 1,
+            child: Padding(
+              padding: const EdgeInsetsDirectional.fromSTEB(6, 6, 16, 6),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: hue.withValues(alpha: .16),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      selected ? Icons.check_rounded : icon,
+                      size: 18,
+                      color: hue,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(label, style: Theme.of(context).textTheme.labelLarge),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

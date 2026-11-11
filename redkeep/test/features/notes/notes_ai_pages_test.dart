@@ -177,9 +177,12 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('No artwork yet'), findsOneWidget);
 
+      final paint = find.byKey(const ValueKey('note-artwork-paint'));
+      await tester.ensureVisible(paint);
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Leaves'));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('note-artwork-paint')));
+      await tester.tap(paint);
       // The canvas spins while painting, so wait on the real work instead.
       final removeArtwork = find.text('Remove artwork');
       for (var i = 0; i < 50 && removeArtwork.evaluate().isEmpty; i++) {
@@ -222,6 +225,52 @@ void main() {
       expect(background['image'], startsWith('note_media/'));
       // The paper color is kept alongside the new artwork.
       expect(background['type'], before['type']);
+      expect(tester.takeException(), isNull);
+    } finally {
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpAndSettle();
+    }
+  });
+
+  testWidgets('the background sheet fits 320px with 3x text', (tester) async {
+    tester.view.physicalSize = const Size(320, 760);
+    tester.view.devicePixelRatio = 1;
+    tester.platformDispatcher.textScaleFactorTestValue = 3;
+    addTearDown(tester.view.reset);
+    addTearDown(tester.platformDispatcher.clearAllTestValues);
+    try {
+      await pumpApp(
+        tester,
+        notes: h.repository,
+        database: h.db,
+        aiProvider: h.aiProvider,
+        aiSettings: testAiSettings,
+        noteMedia: h.media,
+        initialLocation: noteLocation(notesTestId),
+      );
+      await tester.tap(find.byTooltip('Note actions'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Background'));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      // Apply stays pinned in reach while the sheet scrolls.
+      expect(
+        tester
+            .getRect(find.byKey(const ValueKey('note-background-apply')))
+            .bottom,
+        lessThanOrEqualTo(760),
+      );
+      await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('note-artwork-paint')),
+        200,
+        scrollable: find
+            .descendant(
+              of: find.byType(BottomSheet),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
     } finally {
       await tester.pumpWidget(const SizedBox());

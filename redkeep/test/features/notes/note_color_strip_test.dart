@@ -31,6 +31,6 @@ void main() {
     expect(selected, NoteColorPreset.rose);
     expect(find.text('Rose · Gentle'), findsOneWidget);
     // The strip stays a single swatch row high.
-    expect(tester.getSize(find.byType(ListView)).height, lessThan(60));
+    expect(tester.getSize(find.byType(ListView)).height, lessThan(80));
   });
 }

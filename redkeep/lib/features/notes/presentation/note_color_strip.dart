@@ -22,10 +22,10 @@ class NoteColorStrip extends StatefulWidget {
 }
 
 class _NoteColorStripState extends State<NoteColorStrip> {
-  static const _disc = 44.0;
-  static const _gap = 10.0;
+  static const _disc = 56.0;
+  static const _gap = 12.0;
   static const _extent = _disc + _gap;
-  static const _strip = _disc + 12;
+  static const _strip = _disc + 16;
 
   final _scroll = ScrollController();
 
@@ -94,7 +94,12 @@ class _NoteColorStripState extends State<NoteColorStrip> {
           crossAxisAlignment: CrossAxisAlignment.baseline,
           textBaseline: TextBaseline.alphabetic,
           children: [
-            Text('Color', style: theme.textTheme.titleMedium),
+            Text(
+              'Color',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: AnimatedSwitcher(
@@ -117,7 +122,7 @@ class _NoteColorStripState extends State<NoteColorStrip> {
             ),
           ],
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 10),
         if (simple)
           strip
         else
@@ -170,21 +175,24 @@ class _Swatch extends StatelessWidget {
             curve: Curves.easeOutCubic,
             width: size,
             height: size,
-            padding: EdgeInsets.all(selected ? 3 : 0),
+            padding: EdgeInsets.all(selected ? 4 : 0),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(
                 color: selected ? scheme.primary : Colors.transparent,
-                width: 2,
+                width: 2.5,
               ),
             ),
             child: DecoratedBox(
               decoration: BoxDecoration(
                 color: colors.background,
                 shape: BoxShape.circle,
-                border: plain || preset.type == 'paper'
-                    ? Border.all(color: scheme.outlineVariant)
-                    : null,
+                // A hairline keeps pale paper visible on a pale sheet.
+                border: Border.all(
+                  color: plain
+                      ? scheme.outlineVariant
+                      : scheme.outlineVariant.withValues(alpha: .45),
+                ),
               ),
               child: Center(
                 child: AnimatedSwitcher(
@@ -195,12 +203,12 @@ class _Swatch extends StatelessWidget {
                       ? Icon(
                           Icons.check_rounded,
                           key: const ValueKey(true),
-                          size: 18,
+                          size: 24,
                           color: colors.foreground,
                         )
                       : CustomPaint(
                           key: const ValueKey(false),
-                          size: const Size(18, 10),
+                          size: const Size(24, 12),
                           painter: _InkStroke(colors.foreground),
                         ),
                 ),
@@ -223,7 +231,7 @@ class _InkStroke extends CustomPainter {
     final paint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.8
+      ..strokeWidth = 2.2
       ..strokeCap = StrokeCap.round;
     final path = Path()..moveTo(0, size.height / 2);
     for (var x = 0.0; x <= size.width; x += 1) {

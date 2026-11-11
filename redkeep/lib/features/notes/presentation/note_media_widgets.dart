@@ -160,46 +160,97 @@ class _BackgroundPickerState extends ConsumerState<_BackgroundPicker> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final preset = NoteColors.presetForType(_background['type']);
     // Applying mid-painting would discard the artwork being painted.
     final painting = ref
         .watch(aiJobsProvider(NoteArtworkSection.scope(widget.id)))
         .busy;
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      shrinkWrap: true,
+    final keyboard = MediaQuery.viewInsetsOf(context).bottom > 0;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('Color & artwork', style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: 16),
-        NoteColorStrip(
-          selected: preset,
-          onSelected: (preset) =>
-              setState(() => _background['type'] = preset.type),
+        Flexible(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            shrinkWrap: true,
+            children: [
+              Text(
+                'Color & artwork',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'Choose the paper and what is painted on it.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 20),
+              NoteColorStrip(
+                selected: preset,
+                onSelected: (preset) =>
+                    setState(() => _background['type'] = preset.type),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 18),
+                child: Divider(height: 1),
+              ),
+              NoteArtworkSection(
+                id: widget.id,
+                imageKey:
+                    (_background['image'] ?? _background['asset']) as String?,
+                paper: preset.resolveColors(theme.colorScheme).background,
+                onImage: (path) => setState(() {
+                  _background.remove('asset');
+                  _background['image'] = path;
+                  _background['image_source'] = 'local';
+                }),
+                onRemove: () => setState(() {
+                  _background.remove('image');
+                  _background.remove('asset');
+                  _background.remove('image_source');
+                }),
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 20),
-        NoteArtworkSection(
-          id: widget.id,
-          imageKey: (_background['image'] ?? _background['asset']) as String?,
-          paper: preset.resolveColors(Theme.of(context).colorScheme).background,
-          onImage: (path) => setState(() {
-            _background.remove('asset');
-            _background['image'] = path;
-            _background['image_source'] = 'local';
-          }),
-          onRemove: () => setState(() {
-            _background.remove('image');
-            _background.remove('asset');
-            _background.remove('image_source');
-          }),
-        ),
-        const SizedBox(height: 20),
-        FilledButton(
-          key: const ValueKey('note-background-apply'),
-          onPressed: painting
-              ? null
-              : () => Navigator.pop(context, _background),
-          child: const Text('Apply background'),
-        ),
+        // Pinned, so Apply is always in reach; it steps aside while typing.
+        if (!keyboard)
+          DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(
+                  color: theme.colorScheme.outlineVariant.withValues(alpha: .5),
+                ),
+              ),
+            ),
+            child: SafeArea(
+              top: false,
+              minimum: const EdgeInsets.only(bottom: 12),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+                child: FilledButton.icon(
+                  key: const ValueKey('note-background-apply'),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(56),
+                    shape: const StadiumBorder(),
+                    textStyle: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  onPressed: painting
+                      ? null
+                      : () => Navigator.pop(context, _background),
+                  icon: const Icon(Icons.check_rounded),
+                  label: Text(painting ? 'Painting…' : 'Apply background'),
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }

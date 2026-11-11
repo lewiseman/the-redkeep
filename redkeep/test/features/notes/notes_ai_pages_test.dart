@@ -24,6 +24,7 @@ import 'package:redkeep/features/notes/presentation/note_card.dart';
 import 'package:redkeep/features/notes/presentation/note_read_page.dart';
 import 'package:redkeep/features/notes/presentation/note_ai_sheet.dart';
 import 'package:redkeep/features/notes/presentation/note_ai_widgets.dart';
+import 'package:redkeep/features/notes/presentation/note_tag_picker.dart';
 
 import 'note_body_test_helpers.dart';
 
@@ -476,7 +477,7 @@ void main() {
           findsNothing,
         );
         expect(find.byKey(const ValueKey('note-ai-landing')), findsOneWidget);
-        expect(find.text('Title & tags updated'), findsOneWidget);
+        expect(find.text('Title updated'), findsOneWidget);
         await tester.tap(find.byKey(const ValueKey('note-ai-landing')));
         await tester.pumpAndSettle();
         expect(find.byKey(const ValueKey('note-ai-landing')), findsNothing);
@@ -487,6 +488,53 @@ void main() {
       }
     },
   );
+
+  testWidgets('the tag picker suggests tags with AI, reusing an existing tag', (
+    tester,
+  ) async {
+    await h.save(
+      id: 'b' * 32,
+      body: 'Seed order for spring.',
+      details: const NoteDetails(tags: ['🌿#Garden']),
+    );
+    h.remote.output = '{"tags":[{"name":"garden","emoji":"🌱"},{"name":"Watering","emoji":"🌿"}]}';
+    try {
+      await pumpApp(
+        tester,
+        notes: h.repository,
+        database: h.db,
+        aiProvider: h.aiProvider,
+        initialLocation: '/notes',
+      );
+      final picked = NoteTagPicker.show(
+        tester.element(find.byType(Scaffold).first),
+        currentTags: const [],
+        noteId: notesTestId,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('tag-ai-suggest')));
+      for (var i = 0; i < 10; i++) {
+        await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+        await tester.pumpAndSettle();
+      }
+      expect(
+        jsonDecode(h.remote.submissions.single['prompt'] as String)['existing'],
+        [
+          {'name': 'Garden', 'emoji': '🌿'},
+        ],
+      );
+      expect(find.text('Watering · new'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('tag-ai-garden')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Apply tags'));
+      await tester.pumpAndSettle();
+      expect(await picked, ['🌿#Garden']);
+      expect(tester.takeException(), isNull);
+    } finally {
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpAndSettle();
+    }
+  });
 
   testWidgets(
     'selective metadata review stays disabled until a suggestion is selected',

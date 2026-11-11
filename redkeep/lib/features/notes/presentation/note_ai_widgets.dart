@@ -35,10 +35,10 @@ enum NoteAiTool {
     Color(0xFF75619B),
   ),
   metadata(
-    'Title & tag ideas',
-    'Pick a title and tags to find it again.',
-    'Name & sort',
-    'Title and tag ideas',
+    'Title ideas',
+    'Pick a title that says what this note is about.',
+    'Name it',
+    'Title ideas',
     Color(0xFFB5683F),
   ),
   image(
@@ -87,7 +87,7 @@ enum NoteAiTool {
   String get landed => switch (this) {
     template => 'Template added to your note',
     writing => 'Your note was rewritten',
-    metadata => 'Title & tags updated',
+    metadata => 'Title updated',
     image => 'Added to the end of your note',
     scan => 'Page added to the end of your note',
     background => 'New background set',

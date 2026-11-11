@@ -1,17 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'dart:convert';
+
+import '../../ai/application/ai_cloud.dart' show aiCapabilitiesProvider;
+import '../../ai/application/ai_jobs.dart';
+import '../../ai/domain/ai_operation.dart';
+import '../../ai/domain/ai_provider.dart';
+import '../application/note_ai_controller.dart';
 import '../application/notes_providers.dart';
+import '../domain/note_help_contract.dart';
 import '../domain/note_tag.dart';
 
 class NoteTagPicker extends ConsumerStatefulWidget {
-  const NoteTagPicker({super.key, required this.currentTags});
+  const NoteTagPicker({super.key, required this.currentTags, this.noteId});
 
   final List<String> currentTags;
+
+  /// The note being tagged; with it, the picker can suggest tags with AI.
+  final String? noteId;
 
   static Future<List<String>?> show(
     BuildContext context, {
     required List<String> currentTags,
+    String? noteId,
   }) {
     FocusManager.instance.primaryFocus?.unfocus();
     return showModalBottomSheet<List<String>>(
@@ -28,7 +40,7 @@ class NoteTagPicker extends ConsumerStatefulWidget {
         maxWidth: 560,
         maxHeight: MediaQuery.sizeOf(context).height * .85,
       ),
-      builder: (_) => NoteTagPicker(currentTags: currentTags),
+      builder: (_) => NoteTagPicker(currentTags: currentTags, noteId: noteId),
     );
   }
 
@@ -46,8 +58,10 @@ class _NoteTagPickerState extends ConsumerState<NoteTagPicker> {
   };
   late final _selected = Map<String, NoteTag>.of(_localTags);
   String _emoji = '🏷️';
-  String? _emojiError;
+  String? _emojiError, _aiError;
   bool _showEmojis = false;
+
+  String get _aiScope => noteAiScope('tags', widget.noteId);
 
   static const _emojis = [
     ('🏷️', 'Label'),
@@ -101,6 +115,27 @@ class _NoteTagPickerState extends ConsumerState<NoteTagPicker> {
       _selected[tag.key] = tag;
     }
   });
+
+  Future<void> _suggest() async {
+    setState(() => _aiError = null);
+    try {
+      await ref
+          .read(noteAiControllerProvider)
+          .start(
+            AiOperation.noteTags,
+            widget.noteId!,
+            scope: _aiScope,
+            currentTags: _selected.values.map((t) => t.encoded).toList(),
+          );
+    } on FormatException catch (error) {
+      if (mounted) setState(() => _aiError = error.message);
+    }
+  }
+
+  void _toggleSuggestion(NoteTag tag) {
+    _localTags.putIfAbsent(tag.key, () => tag);
+    _toggle(tag);
+  }
 
   void _createTag() {
     final name = _query.text.trim();
@@ -248,6 +283,13 @@ class _NoteTagPickerState extends ConsumerState<NoteTagPicker> {
                           ),
                         ),
                       ),
+                      if (widget.noteId != null &&
+                          ref
+                              .watch(aiCapabilitiesProvider)
+                              .contains(AiCapability.chat)) ...[
+                        const SizedBox(height: 12),
+                        _aiSuggestions(),
+                      ],
                       const SizedBox(height: 20),
                       if (matches.isNotEmpty)
                         LayoutBuilder(
@@ -347,6 +389,111 @@ class _NoteTagPickerState extends ConsumerState<NoteTagPicker> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _aiSuggestions() {
+    final colors = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+    final state = ref.watch(aiJobsProvider(_aiScope));
+    final job = state.job;
+    NoteTagSuggestions? suggestions;
+    if (job?.phase == 'completed' && job?.text != null) {
+      try {
+        suggestions = NoteTagSuggestions.parse(
+          job!.text!,
+          NoteTagSource.decode(jsonDecode(job.source)['payload'] as String),
+        );
+      } on FormatException {
+        suggestions = null;
+      }
+    }
+    final message = _aiError ?? state.message;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (state.busy)
+          Row(
+            children: [
+              const SizedBox.square(
+                dimension: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Finding tags…',
+                  style: text.bodyMedium?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () =>
+                    ref.read(aiJobsProvider(_aiScope).notifier).cancel(),
+                child: const Text('Stop'),
+              ),
+            ],
+          )
+        else
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TextButton.icon(
+              key: const ValueKey('tag-ai-suggest'),
+              onPressed: _suggest,
+              icon: const Icon(Icons.auto_awesome_rounded, size: 18),
+              label: Text(
+                suggestions == null ? 'Suggest tags with AI' : 'Suggest again',
+              ),
+            ),
+          ),
+        if (message != null && !state.busy)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              message,
+              style: text.bodySmall?.copyWith(color: colors.error),
+            ),
+          ),
+        if (suggestions != null && !state.busy) ...[
+          const SizedBox(height: 8),
+          if (suggestions.isEmpty)
+            Text(
+              'No tags fit this note yet.',
+              style: text.bodyMedium?.copyWith(color: colors.onSurfaceVariant),
+            )
+          else ...[
+            Text(
+              'Suggested',
+              style: text.labelLarge?.copyWith(color: colors.onSurfaceVariant),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final tag in suggestions.tags)
+                  FilterChip(
+                    key: ValueKey('tag-ai-${tag.key}'),
+                    selected: _selected.containsKey(tag.key),
+                    avatar: Text(
+                      tag.emoji,
+                      style: const TextStyle(fontSize: 18),
+                    ),
+                    label: Text(
+                      suggestions.existing.contains(tag.key)
+                          ? tag.name
+                          : '${tag.name} · new',
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    shape: const StadiumBorder(),
+                    onSelected: (_) => _toggleSuggestion(tag),
+                  ),
+              ],
+            ),
+          ],
+        ],
+      ],
     );
   }
 

@@ -29,7 +29,6 @@ import '../domain/note_image_contract.dart';
 import '../domain/note_question_contract.dart';
 import '../domain/note_rich_markdown.dart';
 import '../domain/note_scan_contract.dart';
-import '../domain/note_tag.dart';
 import '../domain/note_website.dart';
 import '../domain/transform_contract.dart';
 import 'note_ai_desk.dart';
@@ -109,7 +108,6 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
 
   final _question = TextEditingController();
   final _review = TextEditingController();
-  final _tags = <String>{};
   AiOperation _writing = AiOperation.noteMarkdown;
   String _imageMode = 'describe', _backgroundTone = 'light';
   String? _title, _error, _reviewedJob;
@@ -220,7 +218,6 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
           job,
           scope: _scope,
           title: _title,
-          tags: _tags.toList(),
           reviewedText:
               (job.operation == AiOperation.noteScan ||
                   job.operation == AiOperation.noteImage)
@@ -245,9 +242,8 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
       return;
     }
     if (result != null && job.operation == AiOperation.noteMetadata) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Title and tags updated.')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Title updated.')));
     }
     if (mounted) Navigator.of(context).maybePop();
   });
@@ -308,7 +304,6 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
   Widget _page({
     int? lines = 4,
     String? proposedTitle,
-    Set<String> newTags = const {},
     String? body,
     Widget? footer,
   }) {
@@ -318,7 +313,6 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
       body: body ?? subject?.body ?? '',
       tags: subject?.tags ?? const [],
       proposedTitle: proposedTitle,
-      newTags: newTags,
       bodyLines: lines,
       footer: footer,
     );
@@ -659,9 +653,7 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
         ),
       ],
       if (widget.tool == NoteAiTool.metadata)
-        const Text(
-          'Choose which title and tags to keep. Existing tags stay on your note.',
-        ),
+        const Text('Choose a title to keep. Your note text stays as it is.'),
       const SizedBox(height: 18),
       FilledButton.icon(
         key: const ValueKey('notes-ai-generate'),
@@ -669,7 +661,7 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
         icon: const Icon(Icons.auto_awesome_rounded),
         label: Text(switch (widget.tool) {
           NoteAiTool.search => 'Ask your notes',
-          NoteAiTool.metadata => 'Suggest title & tags',
+          NoteAiTool.metadata => 'Suggest titles',
           NoteAiTool.scan => 'Read the page',
           NoteAiTool.background => 'Paint it',
           NoteAiTool.presentation =>
@@ -766,7 +758,6 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
     if (mounted) {
       setState(() {
         _reviewedJob = null;
-        _tags.clear();
         _title = null;
         _split = 1;
       });
@@ -900,14 +891,11 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
       final suggestions = NoteMetadataSuggestions.parse(
         job.text!,
         NoteMetadataSource.decode(source['payload'] as String),
-        library: (ref.watch(noteTagsProvider).value ?? const <String>[])
-            .map(NoteTag.tryParse)
-            .whereType<NoteTag>(),
       );
       result.addAll([
         _folio(
           status: 'Proposal',
-          child: _page(lines: 2, proposedTitle: _title, newTags: _tags),
+          child: _page(lines: 2, proposedTitle: _title),
         ),
         _label('Title'),
         Wrap(
@@ -924,26 +912,6 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
                 label: Text(title),
                 selected: _title == title,
                 onSelected: (_) => setState(() => _title = title),
-              ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        _label('Tags'),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final tag in suggestions.tags)
-              FilterChip(
-                label: Text('${tag.emoji} ${tag.name}'),
-                selected: _tags.contains(tag.encoded),
-                onSelected: (v) => setState(() {
-                  if (v) {
-                    _tags.add(tag.encoded);
-                  } else {
-                    _tags.remove(tag.encoded);
-                  }
-                }),
               ),
           ],
         ),
@@ -1100,15 +1068,13 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
         key: const ValueKey('notes-ai-apply'),
         onPressed:
             canApply &&
-                (job.operation != AiOperation.noteMetadata ||
-                    _title != null ||
-                    _tags.isNotEmpty)
+                (job.operation != AiOperation.noteMetadata || _title != null)
             ? () => _apply(job)
             : null,
         icon: const Icon(Icons.check_rounded),
         label: Text(
           job.operation == AiOperation.noteMetadata
-              ? 'Apply selected'
+              ? 'Use this title'
               : job.operation == AiOperation.noteScan ||
                     job.operation == AiOperation.noteImage
               ? 'Add to note'

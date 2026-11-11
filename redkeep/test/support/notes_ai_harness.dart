@@ -23,8 +23,7 @@ import 'fake_ai_provider.dart';
 const notesTestId = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 const notesTestBody =
     'Plant tomatoes in the raised bed. Water them every morning.';
-const noteMetadataOutput =
-    '{"titles":["Raised bed plan"],"tags":[{"name":"Gardening","emoji":"🌱"}]}';
+const noteMetadataOutput = '{"titles":["Raised bed plan"]}';
 
 /// The request scope the notes tests act as.
 const notesJobScope = 'note-ai:test:';

@@ -65,6 +65,11 @@ void validateNoteAiOutput(
         text,
         NoteMetadataSource.decode(source['payload'] as String),
       );
+    case AiOperation.noteTags:
+      NoteTagSuggestions.parse(
+        text,
+        NoteTagSource.decode(source['payload'] as String),
+      );
     case AiOperation.noteTemplate:
       if (!richCompatible(NoteTemplate.parse(text).body)) {
         throw const FormatException(richIncompatibleMessage);

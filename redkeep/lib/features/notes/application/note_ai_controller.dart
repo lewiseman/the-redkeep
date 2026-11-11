@@ -18,7 +18,6 @@ import '../data/note_media_store.dart';
 import '../domain/note_background_contract.dart';
 import '../domain/note_document.dart';
 import '../domain/note_help_contract.dart';
-import '../domain/note_tag.dart';
 import '../domain/note_image_contract.dart';
 import '../domain/note_question_contract.dart';
 import '../domain/note_scan_contract.dart';
@@ -93,6 +92,7 @@ class NoteAiController {
     String question = '',
     int? selectionStart,
     int? selectionEnd,
+    List<String> currentTags = const [],
   }) async {
     final repo = ref.read(notesRepositoryProvider);
     // Open writing goes into the note first, so the tool sees what is shown.
@@ -149,6 +149,15 @@ class NoteAiController {
     switch (operation) {
       case AiOperation.noteMetadata:
         final payload = NoteMetadataSource.fromNote(note!);
+        prompt = payload.request();
+        source['payload'] = payload.encode();
+      case AiOperation.noteTags:
+        // The picker's choices so far, which may not be saved yet.
+        final payload = NoteTagSource.fromNote(
+          note!,
+          tags: currentTags,
+          library: await repo.watchTags().first,
+        );
         prompt = payload.request();
         source['payload'] = payload.encode();
       case AiOperation.noteTemplate:
@@ -290,10 +299,13 @@ class NoteAiController {
     AiJob job, {
     required String scope,
     String? title,
-    List<String> tags = const [],
     String? reviewedText,
   }) async {
-    if (job.phase != 'completed' || job.text == null || !job.operation.isNote) {
+    // Tag ideas are chosen in the tag picker, which saves them itself.
+    if (job.phase != 'completed' ||
+        job.text == null ||
+        !job.operation.isNote ||
+        job.operation == AiOperation.noteTags) {
       return null;
     }
     validateNoteAiOutput(job.operation, job.text!, job.source);
@@ -385,17 +397,12 @@ class NoteAiController {
         final suggestions = NoteMetadataSuggestions.parse(
           job.text!,
           NoteMetadataSource.decode(source['payload'] as String),
-          library: (await repo.watchTags().first)
-              .map(NoteTag.tryParse)
-              .whereType<NoteTag>(),
         );
-        if (title != null && !suggestions.titles.contains(title) ||
-            tags.any((t) => !suggestions.tags.any((s) => s.encoded == t))) {
-          throw const FormatException('Choose a suggested title or tag.');
+        if (title == null) return null;
+        if (!suggestions.titles.contains(title)) {
+          throw const FormatException('Choose a suggested title.');
         }
-        if (title == null && tags.isEmpty) return null;
-        text = PlainTextDocument(title: title ?? text.title, body: text.body);
-        details = details.copy(tags: {...details.tags, ...tags}.toList());
+        text = PlainTextDocument(title: title, body: text.body);
       case AiOperation.noteTemplate || AiOperation.noteDraft:
         final template = job.operation == AiOperation.noteDraft
             ? NoteTemplate.parse(

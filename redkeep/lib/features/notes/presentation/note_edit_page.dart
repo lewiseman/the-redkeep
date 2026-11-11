@@ -553,6 +553,7 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
     final tags = await NoteTagPicker.show(
       context,
       currentTags: value.details.tags,
+      noteId: widget.id,
     );
     if (!mounted || tags == null) return;
     final latest = ref.read(noteEditorProvider(widget.id)).requireValue;

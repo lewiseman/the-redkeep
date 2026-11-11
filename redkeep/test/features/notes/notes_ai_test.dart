@@ -13,7 +13,6 @@ import 'package:redkeep/features/notes/application/note_editor_controller.dart';
 import 'package:redkeep/features/notes/application/notes_providers.dart';
 import 'package:redkeep/features/notes/domain/note_document.dart';
 import 'package:redkeep/features/notes/domain/note_help_contract.dart';
-import 'package:redkeep/features/notes/domain/note_tag.dart';
 import 'package:redkeep/features/notes/domain/note_website.dart';
 import 'package:redkeep/features/notes/domain/website/website_contract.dart';
 import 'package:redkeep/features/sync/data/drift_sync_store.dart';
@@ -169,26 +168,59 @@ void main() {
     },
   );
 
-  test(
-    'metadata applies only selected fields and preserves manual tags',
-    () async {
-      h.remote.output = noteMetadataOutput;
-      await actions().start(
-        AiOperation.noteMetadata,
-        notesTestId,
-        scope: notesJobScope,
-      );
-      final saved = (await actions().apply(
-        job(),
-        scope: notesJobScope,
-        title: 'Raised bed plan',
-        tags: ['🌱#Gardening'],
-      ))!;
-      expect(saved.text.title, 'Raised bed plan');
-      expect(saved.text.body, notesTestBody);
-      expect(saved.tags, containsAll(['travel', '🌱#Gardening']));
-    },
-  );
+  test('title ideas change only the title and leave the tags alone', () async {
+    h.remote.output = noteMetadataOutput;
+    await actions().start(
+      AiOperation.noteMetadata,
+      notesTestId,
+      scope: notesJobScope,
+    );
+    final saved = (await actions().apply(
+      job(),
+      scope: notesJobScope,
+      title: 'Raised bed plan',
+    ))!;
+    expect(saved.text.title, 'Raised bed plan');
+    expect(saved.text.body, notesTestBody);
+    expect(saved.tags, ['travel']);
+    expect(h.remote.submissions.single['system'], isNot(contains('tags:')));
+  });
+
+  test('tag ideas send the existing tags and never change the note', () async {
+    await h.save(
+      id: 'b' * 32,
+      body: 'Seed order for spring.',
+      details: const NoteDetails(tags: ['🌿#Garden', '💼#Work']),
+    );
+    h.remote.output = '{"tags":[{"name":"garden","emoji":"🌱"},{"name":"Watering","emoji":"🌿"}]}';
+    await actions().start(
+      AiOperation.noteTags,
+      notesTestId,
+      scope: notesJobScope,
+      currentTags: ['travel'],
+    );
+    expect(job().phase, 'completed');
+    final sent = jsonDecode(h.remote.submissions.single['prompt'] as String);
+    expect(sent['tags'], ['travel']);
+    expect(sent['existing'], [
+      {'name': 'Garden', 'emoji': '🌿'},
+      {'name': 'Work', 'emoji': '💼'},
+    ]);
+    final suggestions = NoteTagSuggestions.parse(
+      job().text!,
+      NoteTagSource.decode(noteTaskSource(job().source)['payload'] as String),
+    );
+    // An existing tag is reused with its own spelling and emoji.
+    expect(suggestions.tags.map((t) => t.encoded), [
+      '🌿#Garden',
+      '🌿#Watering',
+    ]);
+    expect(suggestions.existing, {'garden'});
+    expect(await actions().apply(job(), scope: notesJobScope), isNull);
+    final note = (await h.repository.openDocument(notesTestId)).note!;
+    expect(note.revision, 1);
+    expect(note.tags, ['travel']);
+  });
 
   test('a new note can be written from an idea and get its website', () async {
     final id = 'd' * 32;
@@ -625,23 +657,49 @@ void main() {
     expect(h.aiProvider.requests.single.model, 'test-model');
   });
 
-  test(
-    'metadata filters sensitive tags and reuses existing plain-tag spelling',
-    () {
-      final source = NoteMetadataSource(
-        noteId: notesTestId,
-        title: 'Garden',
-        content: notesTestBody,
-        tags: [],
-        version: '1',
-      );
-      final suggestions = NoteMetadataSuggestions.parse(
-        '{"titles":["Garden","A plan"],"tags":[{"name":"Depression","emoji":"🏷️"},{"name":"travel","emoji":"🌍"}]}',
+  test('title ideas drop the current title and reject tags', () {
+    final source = NoteMetadataSource(
+      noteId: notesTestId,
+      title: 'Garden',
+      content: notesTestBody,
+      tags: [],
+      version: '1',
+    );
+    expect(
+      NoteMetadataSuggestions.parse(
+        '{"titles":["Garden","A plan"]}',
         source,
-        library: [NoteTag.tryParse('travel')!],
-      );
-      expect(suggestions.titles, ['A plan']);
-      expect(suggestions.tags.single.name, 'travel');
-    },
-  );
+      ).titles,
+      ['A plan'],
+    );
+    expect(
+      () => NoteMetadataSuggestions.parse('{"titles":[],"tags":[]}', source),
+      throwsFormatException,
+    );
+  });
+
+  test('tag ideas filter sensitive new tags, skip chosen ones and reuse '
+      'existing spelling and emoji', () {
+    final source = NoteTagSource(
+      noteId: notesTestId,
+      title: 'Garden',
+      content: notesTestBody,
+      version: '1',
+      tags: ['🌍#Trips'],
+      library: ['travel', '🪴#Plants', '🌍#Trips'],
+    );
+    final suggestions = NoteTagSuggestions.parse(
+      '{"tags":[{"name":"Depression","emoji":"🏷️"},'
+      '{"name":"Travel","emoji":"🌍"},{"name":"plants","emoji":"🌱"},'
+      '{"name":"trips","emoji":"🌍"},{"name":"Odd","emoji":"🪴"}]}',
+      source,
+    );
+    expect(suggestions.tags.map((t) => t.encoded), ['travel', '🪴#Plants']);
+    expect(suggestions.existing, {'travel', 'plants'});
+    final request = jsonDecode(source.request());
+    expect((request['existing'] as List).map((t) => t['name']), [
+      'Plants',
+      'travel',
+    ]);
+  });
 }

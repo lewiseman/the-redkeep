@@ -58,6 +58,15 @@ enum AiOperation {
     1536,
     noteMetadataSystem,
   ),
+  // Asked from the tag picker; reuses the person's existing tags.
+  noteTags(
+    'suggest-note-tags',
+    true,
+    'noteHelpContract',
+    320,
+    1536,
+    noteTagsSystem,
+  ),
   noteTemplate(
     'suggest-note-template',
     true,
@@ -146,7 +155,8 @@ enum AiOperation {
           noteClarify => 'Grammar / clarity',
           noteMarkdown => 'Format note',
           noteCustom => 'Custom writing help',
-          noteMetadata => 'Title & tag ideas',
+          noteMetadata => 'Title ideas',
+          noteTags => 'Tag ideas',
           noteTemplate => 'Starting template',
           noteDraft => 'Draft a note',
           noteQuestion => 'AI note search',
@@ -168,6 +178,7 @@ enum AiOperation {
     noteWebsiteRemix => 400000,
     // A description plus the note's title and opening, in any script.
     noteBackground => 8000,
+    noteTags => 6000,
     _ => 2000,
   };
   int get contractVersion => this == photoQuestions ? 2 : 1;

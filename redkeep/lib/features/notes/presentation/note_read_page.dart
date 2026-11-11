@@ -393,7 +393,11 @@ class _NoteReadViewState extends ConsumerState<NoteReadView> {
   }
 
   Future<void> _tags(NoteDocument note) async {
-    final tags = await NoteTagPicker.show(context, currentTags: note.tags);
+    final tags = await NoteTagPicker.show(
+      context,
+      currentTags: note.tags,
+      noteId: note.id,
+    );
     if (tags == null || !mounted) return;
     await _act(
       () => ref

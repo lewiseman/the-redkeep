@@ -441,6 +441,8 @@ void main() {
     expect(h.scope.read(aiJobsProvider(notesJobScope)).message, isNull);
     expect(job().phase, 'completed');
     expect(h.aiProvider.images.single, contains('Soft leaves'));
+    expect(h.aiProvider.imageSizes.single, '1024x1536');
+    expect(h.aiProvider.images.single, contains('Portrait'));
     expect(
       await h.media.resolve(backgroundPreviewPath(job().id, job().text!)),
       isNotNull,

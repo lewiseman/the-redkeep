@@ -446,7 +446,7 @@ class OpenAiCloudClient implements AiCloudClient {
         'model': model,
         'prompt': prompt,
         'n': 1,
-        'size': size,
+        'size': openAiImageSize(model, size),
         // GPT image models always answer in base64; older ones need asking.
         if (model.startsWith('dall-e')) 'response_format': 'b64_json',
       },
@@ -649,4 +649,13 @@ class CloudAiClient implements AiCloudClient {
     AiCloudSettings settings, {
     Future<void>? abort,
   }) => _for(settings).listModels(settings, abort: abort);
+}
+
+/// GPT image models take 1024x1536 for a tall page; DALL·E 3 names its
+/// portrait size 1024x1792, and DALL·E 2 only paints squares.
+String openAiImageSize(String model, String size) {
+  if (size != '1024x1536') return size;
+  if (model.startsWith('dall-e-3')) return '1024x1792';
+  if (model.startsWith('dall-e-2')) return '1024x1024';
+  return size;
 }

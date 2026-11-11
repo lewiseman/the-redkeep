@@ -206,6 +206,33 @@ void main() {
   });
 
   test(
+    'images are requested in portrait for every OpenAI image model',
+    () async {
+      final ai = client(
+        (_, _) => json({
+          'data': [
+            {
+              'b64_json': base64Encode([1]),
+            },
+          ],
+        }),
+      );
+      String sentSize() =>
+          (jsonDecode((sent.single as http.Request).body) as Map)['size']
+              as String;
+      for (final (model, size) in [
+        ('gpt-image-1', '1024x1536'),
+        ('gpt-image-1-mini', '1024x1536'),
+        ('dall-e-3', '1024x1792'),
+      ]) {
+        sent.clear();
+        await ai.generateImage(testAiSettings, model, 'sea');
+        expect(sentSize(), size, reason: model);
+      }
+    },
+  );
+
+  test(
     'Anthropic has no embeddings, speech or images, and sends nothing',
     () async {
       final ai = client((_, _) => json({}));

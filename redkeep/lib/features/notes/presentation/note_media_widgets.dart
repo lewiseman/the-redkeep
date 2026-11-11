@@ -3,11 +3,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../ai/application/ai_jobs.dart';
 import '../data/note_media_store.dart';
 import '../domain/note_details.dart';
 import '../domain/note_colors.dart';
+import 'note_artwork_section.dart';
 import 'note_color_strip.dart';
-import 'note_scene.dart';
 
 // Verify immutable attachments once per mounted strip, not on every keystroke.
 final _attachmentFileProvider = FutureProvider.autoDispose
@@ -135,7 +136,13 @@ Future<Map<String, dynamic>?> pickNoteBackground(
     maxWidth: 560,
     maxHeight: MediaQuery.sizeOf(context).height * .85,
   ),
-  builder: (_) => _BackgroundPicker(id: id, details: details),
+  // The sheet rises above the keyboard so the backdrop prompt stays visible.
+  builder: (sheetContext) => Padding(
+    padding: EdgeInsets.only(
+      bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
+    ),
+    child: _BackgroundPicker(id: id, details: details),
+  ),
 );
 
 class _BackgroundPicker extends ConsumerStatefulWidget {
@@ -150,128 +157,50 @@ class _BackgroundPickerState extends ConsumerState<_BackgroundPicker> {
   late final Map<String, dynamic> _background = Map.from(
     widget.details.background,
   );
-  bool _busy = false;
-  String? _error;
+
   @override
-  Widget build(BuildContext context) => ListView(
-    padding: const EdgeInsets.all(20),
-    shrinkWrap: true,
-    children: [
-      Text('Color & artwork', style: Theme.of(context).textTheme.titleLarge),
-      const SizedBox(height: 16),
-      NoteColorStrip(
-        selected: NoteColors.presetForType(_background['type']),
-        onSelected: (preset) =>
-            setState(() => _background['type'] = preset.type),
-      ),
-      const SizedBox(height: 16),
-      Text('Artwork', style: Theme.of(context).textTheme.titleMedium),
-      const SizedBox(height: 8),
-      SizedBox(
-        height: 120,
-        child: ListView(
-          scrollDirection: Axis.horizontal,
-          children: [
-            for (final entry in const {
-              'onboarding.chapter.notes': 'Notes',
-              'onboarding.chapter.flow': 'Flow',
-              'onboarding.chapter.diary': 'Diary',
-            }.entries)
-              Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: SizedBox(
-                  width: 110,
-                  child: InkWell(
-                    onTap: () => setState(() {
-                      _background.remove('image');
-                      _background.remove('image_source');
-                      _background['asset'] = entry.key;
-                    }),
-                    child: Column(
-                      children: [
-                        Expanded(
-                          child: ref
-                              .watch(noteBackgroundImageProvider(entry.key))
-                              .when(
-                                data: (image) => image == null
-                                    ? const SizedBox.shrink()
-                                    : Image(image: image, fit: BoxFit.cover),
-                                loading: () => const SizedBox.shrink(),
-                                error: (_, _) =>
-                                    const Icon(Icons.image_outlined),
-                              ),
-                        ),
-                        Text(entry.value),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-          ],
+  Widget build(BuildContext context) {
+    final preset = NoteColors.presetForType(_background['type']);
+    // Applying mid-painting would discard the artwork being painted.
+    final painting = ref
+        .watch(aiJobsProvider(NoteArtworkSection.scope(widget.id)))
+        .busy;
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      shrinkWrap: true,
+      children: [
+        Text('Color & artwork', style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: 16),
+        NoteColorStrip(
+          selected: preset,
+          onSelected: (preset) =>
+              setState(() => _background['type'] = preset.type),
         ),
-      ),
-      if (_background['image'] is String || _background['asset'] is String) ...[
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 140,
-          child: ref
-              .watch(
-                noteBackgroundImageProvider(
-                  (_background['image'] ?? _background['asset']) as String,
-                ),
-              )
-              .when(
-                data: (image) => image == null
-                    ? const Text('Image unavailable')
-                    : Image(image: image, fit: BoxFit.cover),
-                loading: () => const SizedBox.shrink(),
-                error: (_, _) => const Text('Image unavailable'),
-              ),
-        ),
-        TextButton(
-          onPressed: () => setState(() {
+        const SizedBox(height: 20),
+        NoteArtworkSection(
+          id: widget.id,
+          imageKey: (_background['image'] ?? _background['asset']) as String?,
+          paper: preset.resolveColors(Theme.of(context).colorScheme).background,
+          onImage: (path) => setState(() {
+            _background.remove('asset');
+            _background['image'] = path;
+            _background['image_source'] = 'local';
+          }),
+          onRemove: () => setState(() {
             _background.remove('image');
             _background.remove('asset');
             _background.remove('image_source');
           }),
-          child: const Text('Remove image'),
+        ),
+        const SizedBox(height: 20),
+        FilledButton(
+          key: const ValueKey('note-background-apply'),
+          onPressed: painting
+              ? null
+              : () => Navigator.pop(context, _background),
+          child: const Text('Apply background'),
         ),
       ],
-      OutlinedButton.icon(
-        onPressed: _busy
-            ? null
-            : () async {
-                setState(() => _busy = true);
-                try {
-                  final photo = await ref
-                      .read(noteMediaStoreProvider)
-                      .pickPhoto(widget.id);
-                  if (photo != null && mounted) {
-                    setState(() {
-                      _background.remove('asset');
-                      _background['image'] = photo.path;
-                      _background['image_source'] = 'local';
-                    });
-                  }
-                } catch (_) {
-                  if (mounted) {
-                    setState(
-                      () => _error =
-                          'Your photos could not be opened. Please try again.',
-                    );
-                  }
-                } finally {
-                  if (mounted) setState(() => _busy = false);
-                }
-              },
-        icon: const Icon(Icons.photo_library_outlined),
-        label: const Text('Choose your photo'),
-      ),
-      if (_error != null) Text(_error!),
-      FilledButton(
-        onPressed: _busy ? null : () => Navigator.pop(context, _background),
-        child: const Text('Apply background'),
-      ),
-    ],
-  );
+    );
+  }
 }

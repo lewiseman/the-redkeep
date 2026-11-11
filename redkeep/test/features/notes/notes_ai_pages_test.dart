@@ -145,6 +145,90 @@ void main() {
     );
   }
 
+  testWidgets('artwork is painted in the background sheet and kept by Apply', (
+    tester,
+  ) async {
+    try {
+      await pumpApp(
+        tester,
+        notes: h.repository,
+        database: h.db,
+        aiProvider: h.aiProvider,
+        aiSettings: testAiSettings,
+        noteMedia: h.media,
+        initialLocation: noteLocation(notesTestId),
+      );
+      await tester.tap(find.byTooltip('AI tools'));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('note-assistant-background')),
+        findsNothing,
+      );
+      await tester.tap(find.byTooltip('Close AI tools'));
+      await tester.pumpAndSettle();
+
+      final before = (await h.repository.openDocument(notesTestId))
+          .note!
+          .details
+          .background;
+      await tester.tap(find.byTooltip('Note actions'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Background'));
+      await tester.pumpAndSettle();
+      expect(find.text('No artwork yet'), findsOneWidget);
+
+      await tester.tap(find.text('Leaves'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('note-artwork-paint')));
+      // The canvas spins while painting, so wait on the real work instead.
+      final removeArtwork = find.text('Remove artwork');
+      for (var i = 0; i < 50 && removeArtwork.evaluate().isEmpty; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 10)),
+        );
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      await tester.pumpAndSettle();
+      expect(h.aiProvider.images.single, contains('green leaves'));
+      // Painted artwork waits on the canvas; the note is unchanged so far.
+      expect(find.text('No artwork yet'), findsNothing);
+      expect(removeArtwork, findsOneWidget);
+      expect(
+        (await h.repository.openDocument(notesTestId))
+            .note!
+            .details
+            .background['image'],
+        isNull,
+      );
+
+      final apply = find.byKey(const ValueKey('note-background-apply'));
+      await tester.scrollUntilVisible(
+        apply,
+        200,
+        scrollable: find
+            .descendant(
+              of: find.byType(BottomSheet),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(apply);
+      await tester.pumpAndSettle();
+      final background = (await h.repository.openDocument(notesTestId))
+          .note!
+          .details
+          .background;
+      expect(background['image'], startsWith('note_media/'));
+      // The paper color is kept alongside the new artwork.
+      expect(background['type'], before['type']);
+      expect(tester.takeException(), isNull);
+    } finally {
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpAndSettle();
+    }
+  });
+
   testWidgets('custom writing previews and keeps only the selected passage', (
     tester,
   ) async {

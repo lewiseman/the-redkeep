@@ -7,6 +7,9 @@ const noteBackgroundContract = 1;
 const noteBackgroundPromptChars = 240;
 const noteBackgroundTones = {'light': 'Light', 'dark': 'Dark'};
 
+/// Portrait, matching a phone page; the client maps it per model.
+const noteBackgroundImageSize = '1024x1536';
+
 /// Previews the user has not accepted are deleted after this long.
 const noteBackgroundPreviewLifetime = Duration(hours: 24);
 

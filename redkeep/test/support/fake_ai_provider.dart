@@ -44,6 +44,7 @@ class FakeAiProviderClient implements AiCloudClient {
   final embedded = <List<String>>[];
   final transcribed = <Uint8List>[];
   final images = <String>[];
+  final imageSizes = <String>[];
   String transcript = 'Spoken words';
   Uint8List? image;
   AiUsage usage = const AiUsage(inputTokens: 10, outputTokens: 5);
@@ -109,6 +110,7 @@ class FakeAiProviderClient implements AiCloudClient {
     Future<void>? abort,
   }) async {
     images.add(prompt);
+    imageSizes.add(size);
     await _wait(abort);
     return AiResult(image ?? Uint8List(0), const AiUsage(images: 1));
   }

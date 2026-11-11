@@ -110,7 +110,6 @@ class _NoteAiDeskState extends ConsumerState<NoteAiDesk> {
             // A new note can start as a website too.
             if (canEdit) NoteAiTool.presentation,
             NoteAiTool.scan,
-            NoteAiTool.background,
           ]
         : [
             NoteAiTool.writing,
@@ -120,7 +119,6 @@ class _NoteAiDeskState extends ConsumerState<NoteAiDesk> {
             if (saved.details.attachments.any((a) => a.isImage))
               NoteAiTool.image,
             NoteAiTool.presentation,
-            if (canEdit) NoteAiTool.background,
           ];
     final tool = _tool;
     // A request in flight belongs to its tool; switching would abandon it.

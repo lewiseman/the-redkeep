@@ -218,7 +218,10 @@ class AiJobs extends Notifier<AiJobState> {
         .read(aiCloudProvider)
         .generateImage(
           'A calm, subtle full-page background for a personal note: '
-          '${request['prompt']}. $tone No text, letters, logos or watermarks.',
+          '${request['prompt']}. $tone Portrait composition for a tall phone '
+          'screen. No text, letters, logos or watermarks.',
+          // Notes are read on a phone held upright.
+          size: noteBackgroundImageSize,
           abort: abort,
         );
     if (png.length < 24 || png[0] != 0x89 || png[1] != 0x50) {

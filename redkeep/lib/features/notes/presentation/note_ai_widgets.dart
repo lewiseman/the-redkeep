@@ -27,13 +27,6 @@ enum NoteAiTool {
     'Choose a template',
     Color(0xFFB5683F),
   ),
-  summary(
-    'Note summary',
-    'Turn a long note into a few clear lines.',
-    'Shorten',
-    'Keep the key points',
-    Color(0xFF44766B),
-  ),
   writing(
     'Writing help',
     'Choose how you want to improve your note.',
@@ -93,7 +86,6 @@ enum NoteAiTool {
   /// The words used when a kept result lands back on the note.
   String get landed => switch (this) {
     template => 'Template added to your note',
-    summary => 'Summary ready',
     writing => 'Your note was rewritten',
     metadata => 'Title & tags updated',
     image => 'Added to the end of your note',
@@ -176,14 +168,6 @@ class _ToolPainter extends CustomPainter {
     }
 
     switch (tool) {
-      case NoteAiTool.summary:
-        sheet(8, 12, 32, 49);
-        lines(15, 23, 18, 4);
-        sheet(38, 31, 33, 34, tinted: true);
-        lines(45, 43, 18, 2);
-        line(48, 17, 66, 17);
-        line(61, 12, 66, 17);
-        line(61, 22, 66, 17);
       case NoteAiTool.writing:
         sheet(13, 16, 43, 49);
         lines(21, 29, 25, 3);

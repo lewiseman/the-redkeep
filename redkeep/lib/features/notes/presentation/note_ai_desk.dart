@@ -113,7 +113,6 @@ class _NoteAiDeskState extends ConsumerState<NoteAiDesk> {
           ]
         : [
             NoteAiTool.writing,
-            NoteAiTool.summary,
             NoteAiTool.metadata,
             if (canEdit) NoteAiTool.scan,
             if (saved.details.attachments.any((a) => a.isImage))

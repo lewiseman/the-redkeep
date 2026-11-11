@@ -109,7 +109,7 @@ void validateNoteAiOutput(
           'The model returned an invalid note result.',
         );
       }
-      if (operation != AiOperation.noteSummary && !richCompatible(text)) {
+      if (!richCompatible(text)) {
         throw const FormatException(richIncompatibleMessage);
       }
   }

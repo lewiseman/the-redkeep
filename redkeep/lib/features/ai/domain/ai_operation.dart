@@ -44,7 +44,6 @@ enum AiOperation {
     2048,
     '$historySystem\nJSON schema: {"type":"object","properties":{"answer":{"type":"string","minLength":1,"maxLength":700},"citations":{"type":"array","maxItems":8,"items":{"type":"string","enum":["s0","s1","s2","s3","s4","s5","s6","s7"]}},"status":{"type":"string","enum":["answered","insufficient"]}},"required":["answer","citations","status"],"additionalProperties":false}',
   ),
-  noteSummary('summarize-note', true, '', 192, 2048, noteSummarySystem),
   noteRewrite('rewrite-note', true, '', 768, 4096, noteRewriteSystem),
   noteExpand('expand-note', true, '', 768, 4096, noteExpandSystem),
   noteTone('tone-note', true, '', 768, 4096, noteToneSystem),
@@ -141,7 +140,6 @@ enum AiOperation {
       ? 'Flow question'
       : isNote
       ? switch (this) {
-          noteSummary => 'Note summary',
           noteRewrite => 'Rewrite note',
           noteExpand => 'Expand note',
           noteTone => 'Note tone',

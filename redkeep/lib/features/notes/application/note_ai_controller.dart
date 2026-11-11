@@ -147,8 +147,6 @@ class NoteAiController {
     };
     String prompt;
     switch (operation) {
-      case AiOperation.noteSummary:
-        prompt = '${text.title}\n\n${text.body}'.trim();
       case AiOperation.noteMetadata:
         final payload = NoteMetadataSource.fromNote(note!);
         prompt = payload.request();

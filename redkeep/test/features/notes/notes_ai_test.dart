@@ -105,32 +105,6 @@ void main() {
     );
   }
 
-  test(
-    'summary only sends this note and leaves the full document untouched',
-    () async {
-      await h.save(id: 'b' * 32, body: 'Private unrelated note');
-      await actions().start(
-        AiOperation.noteSummary,
-        notesTestId,
-        scope: notesJobScope,
-      );
-      expect(job().phase, 'completed');
-      expect(h.remote.submissions.single['prompt'], contains(notesTestBody));
-      expect(
-        h.remote.submissions.single.toString(),
-        isNot(contains('Private unrelated')),
-      );
-      expect((await h.repository.openDocument(notesTestId)).note!.revision, 1);
-      expect(
-        (await h.repository.openDocument(notesTestId))
-            .note!
-            .details
-            .background['type'],
-        'sage',
-      );
-    },
-  );
-
   for (final operation in [
     AiOperation.noteRewrite,
     AiOperation.noteExpand,
@@ -528,7 +502,7 @@ void main() {
       );
       await h.save(body: 'word ' * 1000);
       await actions().start(
-        AiOperation.noteSummary,
+        AiOperation.noteRewrite,
         notesTestId,
         scope: notesJobScope,
       );

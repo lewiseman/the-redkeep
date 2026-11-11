@@ -10,7 +10,6 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -44,7 +43,6 @@ NoteAiTool noteToolForJob(AiJob job) => switch (job.operation) {
   AiOperation.noteTemplate => NoteAiTool.template,
   AiOperation.noteMetadata => NoteAiTool.metadata,
   AiOperation.noteQuestion => NoteAiTool.search,
-  AiOperation.noteSummary => NoteAiTool.summary,
   AiOperation.noteImage => NoteAiTool.image,
   AiOperation.noteScan => NoteAiTool.scan,
   AiOperation.noteBackground => NoteAiTool.background,
@@ -160,7 +158,6 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
   }
 
   AiOperation get _operation => switch (widget.tool) {
-    NoteAiTool.summary => AiOperation.noteSummary,
     NoteAiTool.metadata => AiOperation.noteMetadata,
     NoteAiTool.template => AiOperation.noteTemplate,
     NoteAiTool.image => AiOperation.noteImage,
@@ -661,10 +658,6 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
           title: 'What is used',
         ),
       ],
-      if (widget.tool == NoteAiTool.summary)
-        const Text(
-          'Turn the saved note into a few clear lines. Your original note stays intact.',
-        ),
       if (widget.tool == NoteAiTool.metadata)
         const Text(
           'Choose which title and tags to keep. Existing tags stay on your note.',
@@ -676,7 +669,6 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
         icon: const Icon(Icons.auto_awesome_rounded),
         label: Text(switch (widget.tool) {
           NoteAiTool.search => 'Ask your notes',
-          NoteAiTool.summary => 'Summarize',
           NoteAiTool.metadata => 'Suggest title & tags',
           NoteAiTool.scan => 'Read the page',
           NoteAiTool.background => 'Paint it',
@@ -1059,19 +1051,6 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
           ),
         ),
       );
-    } else if (job.operation == AiOperation.noteSummary) {
-      result.add(
-        _folio(
-          status: 'Summary',
-          child: _page(
-            body: '',
-            footer: NoteFreshInk(
-              label: 'IN A FEW LINES',
-              child: NoteFolioText(job.text!),
-            ),
-          ),
-        ),
-      );
     } else {
       final range = source['range'] is String
           ? TransformSource.decode(source['range'] as String)
@@ -1117,32 +1096,25 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
     }
     result.addAll([
       const SizedBox(height: 16),
-      if (job.operation == AiOperation.noteSummary)
-        FilledButton.icon(
-          onPressed: () => Clipboard.setData(ClipboardData(text: job.text!)),
-          icon: const Icon(Icons.copy_rounded),
-          label: const Text('Copy summary'),
-        )
-      else
-        FilledButton.icon(
-          key: const ValueKey('notes-ai-apply'),
-          onPressed:
-              canApply &&
-                  (job.operation != AiOperation.noteMetadata ||
-                      _title != null ||
-                      _tags.isNotEmpty)
-              ? () => _apply(job)
-              : null,
-          icon: const Icon(Icons.check_rounded),
-          label: Text(
-            job.operation == AiOperation.noteMetadata
-                ? 'Apply selected'
-                : job.operation == AiOperation.noteScan ||
-                      job.operation == AiOperation.noteImage
-                ? 'Add to note'
-                : 'Keep in note',
-          ),
+      FilledButton.icon(
+        key: const ValueKey('notes-ai-apply'),
+        onPressed:
+            canApply &&
+                (job.operation != AiOperation.noteMetadata ||
+                    _title != null ||
+                    _tags.isNotEmpty)
+            ? () => _apply(job)
+            : null,
+        icon: const Icon(Icons.check_rounded),
+        label: Text(
+          job.operation == AiOperation.noteMetadata
+              ? 'Apply selected'
+              : job.operation == AiOperation.noteScan ||
+                    job.operation == AiOperation.noteImage
+              ? 'Add to note'
+              : 'Keep in note',
         ),
+      ),
       const SizedBox(height: 4),
       Center(
         child: TextButton(

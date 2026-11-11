@@ -158,8 +158,6 @@ class AiJobs extends Notifier<AiJobState> {
 
   static String _userMessage(AiOperation operation, String prompt) {
     switch (operation) {
-      case AiOperation.noteSummary:
-        return jsonEncode({'note': prompt});
       case AiOperation.thoughtReflection:
         return jsonEncode({'thought': prompt});
       case AiOperation.noteScan:

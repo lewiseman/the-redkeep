@@ -1,6 +1,7 @@
 import 'note_scene.dart';
 
 import 'dart:math' as math;
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
@@ -425,6 +426,14 @@ class _NotePaperState extends State<NotePaper>
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
+                        // Over artwork the paper is frosted glass: its colors
+                        // show through, its detail does not crowd the words.
+                        if (NotePaperOpacity.frostedOf(context) &&
+                            !RenderingPolicyScope.of(context).simplerEffects)
+                          BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                            child: const SizedBox.expand(),
+                          ),
                         FadeTransition(
                           opacity: NotePaperOpacity.of(context),
                           child: NotePaperSurface(color: widget.color),

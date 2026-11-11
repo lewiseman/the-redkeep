@@ -2,7 +2,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
-/// Shows [image] as a cover background with a subtle [color] tint when provided.
+/// Shows [image] as a cover background, untinted, when provided.
 /// Otherwise, a still, seeded wash of soft color blooms over warm paper.
 class EditNotepageBg extends StatefulWidget {
   const EditNotepageBg({
@@ -13,10 +13,10 @@ class EditNotepageBg extends StatefulWidget {
     this.image,
   });
 
-  /// Builds the foreground with the paper opacity: 78% over the wash and 80%
-  /// over an image.
-  /// [imageHeaderColor] includes the tint over the visible top of the image,
-  /// falling back to the tinted surface while loading or on failure.
+  /// Builds the foreground with the paper opacity: 78% over the wash and 62%
+  /// over an image, which the paper frosts so writing stays readable.
+  /// [imageHeaderColor] is the color of the visible top of the image,
+  /// falling back to the surface while loading or on failure.
   /// It is null when no image is selected.
   final Widget Function(
     BuildContext context,
@@ -177,13 +177,10 @@ class _EditNotepageBgState extends State<EditNotepageBg> {
 
   Widget _buildBackground(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final imageTint = (widget.color ?? colors.surface).withValues(alpha: .4);
     final child = widget.builder(
       context,
-      AlwaysStoppedAnimation<double>(widget.image == null ? .78 : .8),
-      widget.image == null
-          ? null
-          : Color.alphaBlend(imageTint, _imageHeaderColor ?? colors.surface),
+      AlwaysStoppedAnimation<double>(widget.image == null ? .78 : .62),
+      widget.image == null ? null : _imageHeaderColor ?? colors.surface,
     );
     if (widget.image != null) {
       return Stack(
@@ -192,16 +189,14 @@ class _EditNotepageBgState extends State<EditNotepageBg> {
           Positioned.fill(
             child: IgnorePointer(
               child: ExcludeSemantics(
+                // The artwork is shown as painted: nothing tints or dims it.
                 child: RepaintBoundary(
-                  child: ColorFiltered(
-                    colorFilter: ColorFilter.mode(imageTint, BlendMode.srcOver),
-                    child: ColoredBox(
-                      color: colors.surface,
-                      child: Image(
-                        image: widget.image!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => const SizedBox.expand(),
-                      ),
+                  child: ColoredBox(
+                    color: colors.surface,
+                    child: Image(
+                      image: widget.image!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => const SizedBox.expand(),
                     ),
                   ),
                 ),

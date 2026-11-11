@@ -210,16 +210,10 @@ class AiJobs extends Notifier<AiJobState> {
   }
 
   Future<String> _noteBackground(AiJob job, Future<void> abort) async {
-    final request = jsonDecode(job.prompt) as Map;
-    final tone = request['tone'] == 'dark'
-        ? 'Dark and low in contrast, so light text stays readable.'
-        : 'Light, soft and low in contrast, so dark text stays readable.';
     final png = await ref
         .read(aiCloudProvider)
         .generateImage(
-          'A calm, subtle full-page background for a personal note: '
-          '${request['prompt']}. $tone Portrait composition for a tall phone '
-          'screen. No text, letters, logos or watermarks.',
+          noteBackgroundImagePrompt(job.prompt),
           // Notes are read on a phone held upright.
           size: noteBackgroundImageSize,
           abort: abort,

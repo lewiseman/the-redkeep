@@ -5,10 +5,55 @@ import 'dart:typed_data';
 const noteBackgroundOperation = 'generate-note-background';
 const noteBackgroundContract = 1;
 const noteBackgroundPromptChars = 240;
+
+/// How much of the note is sent so the artwork can suit it. Longer notes
+/// send only their opening, which usually says what they are about.
+const noteBackgroundTitleChars = 120;
+const noteBackgroundBodyChars = 1200;
+
+/// [text] on one line, cut to [max] characters with an ellipsis.
+String noteBackgroundExcerpt(String text, int max) {
+  final flat = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+  final runes = flat.runes;
+  if (runes.length <= max) return flat;
+  return '${String.fromCharCodes(runes.take(max)).trimRight()}…';
+}
+
 const noteBackgroundTones = {'light': 'Light', 'dark': 'Dark'};
 
 /// Portrait, matching a phone page; the client maps it per model.
 const noteBackgroundImageSize = '1024x1536';
+
+/// The words sent to the image model for a background request, the JSON
+/// built when the request starts: `prompt`, `tone`, and the note's `title`
+/// and `body` excerpts.
+///
+/// An empty description leaves the subject and style to the model, guided by
+/// the note. The note is context only, so none of it is drawn as writing.
+String noteBackgroundImagePrompt(String request) {
+  final json = jsonDecode(request) as Map;
+  String field(String key) => (json[key] as String? ?? '').trim();
+  final description = field('prompt');
+  final title = field('title'), body = field('body');
+  final tone = json['tone'] == 'dark'
+      ? 'Keep it mostly dark, so light text written over it stays readable.'
+      : 'Keep it mostly light, so dark text written over it stays readable.';
+  final subject = description.isEmpty
+      ? 'Choose the subject, setting and art style that best suit this note.'
+      : 'Show: $description.';
+  final note = [
+    if (title.isNotEmpty) 'Title: $title',
+    if (body.isNotEmpty) 'Text: $body',
+  ];
+  return [
+    'A full-page background image for a personal note. $subject $tone '
+        'Portrait composition for a tall phone screen. No text, letters, '
+        'logos or watermarks.',
+    if (note.isNotEmpty)
+      'The note it sits behind, for context only; do not write any of it '
+          'into the image:\n${note.join('\n')}',
+  ].join('\n\n');
+}
 
 /// Previews the user has not accepted are deleted after this long.
 const noteBackgroundPreviewLifetime = Duration(hours: 24);

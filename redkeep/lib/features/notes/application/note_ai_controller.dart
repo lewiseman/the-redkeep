@@ -15,6 +15,7 @@ import '../../diary/data/prepare_diary_image.dart';
 import '../../recall/application/recall_controller.dart';
 import '../../sync/application/sync_providers.dart';
 import '../data/note_media_store.dart';
+import '../domain/note_background_contract.dart';
 import '../domain/note_document.dart';
 import '../domain/note_help_contract.dart';
 import '../domain/note_tag.dart';
@@ -189,15 +190,36 @@ class NoteAiController {
         }
         source['pageHash'] = websiteContentHash(html);
       case AiOperation.noteBackground:
-        if (description.trim().isEmpty ||
-            description.runes.length > 240 ||
+        if (description.runes.length > noteBackgroundPromptChars ||
             RegExp(r'[\x00-\x1f\x7f]').hasMatch(description) ||
-            !{'light', 'dark'}.contains(tone)) {
+            !noteBackgroundTones.containsKey(tone)) {
           throw const FormatException(
             'Describe a background in one line of at most 240 characters.',
           );
         }
-        prompt = jsonEncode({'prompt': description.trim(), 'tone': tone});
+        // A new note's words are still only in its editor.
+        final writing = unsaved
+            ? ref.read(noteEditorProvider(id)).value?.text ?? text
+            : text;
+        final title = noteBackgroundExcerpt(
+          writing.title,
+          noteBackgroundTitleChars,
+        );
+        final body = noteBackgroundExcerpt(
+          writing.body,
+          noteBackgroundBodyChars,
+        );
+        if (description.trim().isEmpty && title.isEmpty && body.isEmpty) {
+          throw const FormatException(
+            'Describe the artwork, or write something in this note first.',
+          );
+        }
+        prompt = jsonEncode({
+          'prompt': description.trim(),
+          'tone': tone,
+          'title': title,
+          'body': body,
+        });
       case AiOperation.noteImage || AiOperation.noteScan:
         if (image == null || !image.isImage) {
           throw const FormatException('Choose an image first.');

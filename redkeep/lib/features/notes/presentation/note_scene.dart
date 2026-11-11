@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/bootstrap/bootstrap_providers.dart';
@@ -66,9 +67,21 @@ class NoteScene extends ConsumerWidget {
             backgroundColor: colors.background,
             foregroundColor: colors.foreground,
             surfaceTintColor: Colors.transparent,
+            // Artwork shows untinted behind the status bar; its icons follow
+            // the top of the image so they stay visible.
+            systemOverlayStyle: header == null
+                ? base.appBarTheme.systemOverlayStyle
+                : ThemeData.estimateBrightnessForColor(header) ==
+                      Brightness.light
+                ? SystemUiOverlayStyle.dark
+                : SystemUiOverlayStyle.light,
           ),
         ),
-        child: NotePaperOpacity(opacity: opacity, child: child),
+        child: NotePaperOpacity(
+          opacity: opacity,
+          frosted: image != null,
+          child: child,
+        ),
       ),
     );
   }
@@ -136,13 +149,21 @@ class NotePaperOpacity extends InheritedWidget {
   const NotePaperOpacity({
     super.key,
     required this.opacity,
+    this.frosted = false,
     required super.child,
   });
   final Animation<double> opacity;
+
+  /// Artwork lies behind the paper; it frosts what shows through so the
+  /// lighter paper keeps writing readable.
+  final bool frosted;
   static Animation<double> of(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<NotePaperOpacity>()?.opacity ??
       const AlwaysStoppedAnimation(1);
+  static bool frostedOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<NotePaperOpacity>()?.frosted ??
+      false;
   @override
   bool updateShouldNotify(NotePaperOpacity oldWidget) =>
-      opacity != oldWidget.opacity;
+      opacity != oldWidget.opacity || frosted != oldWidget.frosted;
 }

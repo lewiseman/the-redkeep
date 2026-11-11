@@ -85,8 +85,9 @@ class _NoteArtworkSectionState extends ConsumerState<NoteArtworkSection> {
   }
 
   Future<void> _paint() async {
+    // Empty is fine: the artwork is then chosen to suit the note.
     final text = _prompt.text.trim();
-    if (text.isEmpty || ref.read(_jobs).busy) return;
+    if (ref.read(_jobs).busy) return;
     FocusScope.of(context).unfocus();
     setState(() => _error = null);
     try {
@@ -175,7 +176,7 @@ class _NoteArtworkSectionState extends ConsumerState<NoteArtworkSection> {
             onChanged: (_) => setState(() {}),
             onSubmitted: (_) => _paint(),
             decoration: InputDecoration(
-              hintText: 'Describe artwork to paint',
+              hintText: 'Describe it, or leave empty',
               filled: true,
               fillColor: theme.colorScheme.surfaceContainerHigh,
               border: OutlineInputBorder(
@@ -204,11 +205,18 @@ class _NoteArtworkSectionState extends ConsumerState<NoteArtworkSection> {
                 child: IconButton.filled(
                   key: const ValueKey('note-artwork-paint'),
                   tooltip: 'Paint artwork',
-                  onPressed: painting || _prompt.text.trim().isEmpty
-                      ? null
-                      : _paint,
+                  onPressed: painting ? null : _paint,
                   icon: const Icon(Icons.brush_rounded),
                 ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+            child: Text(
+              'Your note’s title and opening are sent so the artwork suits it.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
           ),
@@ -348,7 +356,7 @@ class _Canvas extends ConsumerWidget {
     final (title, detail) = painting
         ? ('Painting your artwork…', 'A tall page to fit your note.')
         : key == null
-        ? ('No artwork yet', 'Describe some below, or use a photo.')
+        ? ('No artwork yet', 'Paint some to suit your note, or use a photo.')
         : missing
         ? ('Image unavailable', 'Choose or paint another.')
         : ('Artwork ready', 'Apply to set it behind your note.');

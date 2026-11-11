@@ -168,6 +168,8 @@ enum AiOperation {
     photoQuestions => 3200,
     noteWebsite => 100000,
     noteWebsiteRemix => 400000,
+    // A description plus the note's title and opening, in any script.
+    noteBackground => 8000,
     _ => 2000,
   };
   int get contractVersion => this == photoQuestions ? 2 : 1;

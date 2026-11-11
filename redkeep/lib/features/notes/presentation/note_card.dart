@@ -193,15 +193,22 @@ class _NoteCardImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dark =
-        ThemeData.estimateBrightnessForColor(paperColor) == Brightness.dark;
+    final wash = noteCardWash(paperColor);
     return IgnorePointer(
       child: ExcludeSemantics(
         child: Stack(
           fit: StackFit.expand,
           children: [
             Image(
-              image: ResizeImage.resizeIfNeeded(720, null, image),
+              // Background images arrive already wrapped in a ResizeImage;
+              // nesting another one fails, so resize the source instead.
+              image: ResizeImage.resizeIfNeeded(
+                720,
+                null,
+                image is ResizeImage
+                    ? (image as ResizeImage).imageProvider
+                    : image,
+              ),
               fit: BoxFit.cover,
               // A missing local file or failed download leaves colored paper.
               errorBuilder: (_, _, _) => const SizedBox.expand(),
@@ -209,14 +216,10 @@ class _NoteCardImage extends StatelessWidget {
             DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    paperColor.withValues(alpha: .94),
-                    paperColor.withValues(alpha: .88),
-                    paperColor.withValues(alpha: dark ? .82 : .72),
-                  ],
-                  stops: const [0, .5, 1],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: wash,
+                  stops: const [0, .45, 1],
                 ),
               ),
             ),
@@ -225,6 +228,21 @@ class _NoteCardImage extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The paper laid over a card's background image, top to bottom.
+///
+/// The title sits on mostly solid paper; lower down it thins so the artwork
+/// clearly shows. Dark paper keeps a little more, since light ink over a
+/// pale image is harder to read.
+List<Color> noteCardWash(Color paperColor) {
+  final dark =
+      ThemeData.estimateBrightnessForColor(paperColor) == Brightness.dark;
+  return [
+    paperColor.withValues(alpha: dark ? .76 : .72),
+    paperColor.withValues(alpha: dark ? .52 : .46),
+    paperColor.withValues(alpha: dark ? .3 : .22),
+  ];
 }
 
 /// One outline controls the paper, image, border, shadow, and ink clipping.

@@ -14,3 +14,5 @@
   to Flutter's `pubspec.yaml` assets.
 - Run focused checks for changed behavior. Keep tests offline; add or update tests
   for meaningful behavior, not cosmetic edits. Avoid unrelated suites and builds.
+- The app targets Android only. Do not build for iOS or use the iOS Simulator;
+  verify on an Android emulator/device or with offline tests.

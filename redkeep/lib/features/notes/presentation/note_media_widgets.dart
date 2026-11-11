@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/note_media_store.dart';
 import '../domain/note_details.dart';
 import '../domain/note_colors.dart';
+import 'note_color_strip.dart';
 import 'note_scene.dart';
 
 // Verify immutable attachments once per mounted strip, not on every keystroke.
@@ -157,27 +158,13 @@ class _BackgroundPickerState extends ConsumerState<_BackgroundPicker> {
     shrinkWrap: true,
     children: [
       Text('Color & artwork', style: Theme.of(context).textTheme.titleLarge),
-      const SizedBox(height: 20),
-      Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          for (final preset in NoteColors.presets)
-            ChoiceChip(
-              label: Text(preset.label),
-              selected: _background['type'] == preset.type,
-              avatar: CircleAvatar(
-                backgroundColor: preset
-                    .resolveColors(Theme.of(context).colorScheme)
-                    .background,
-                radius: 10,
-              ),
-              onSelected: (_) =>
-                  setState(() => _background['type'] = preset.type),
-            ),
-        ],
+      const SizedBox(height: 16),
+      NoteColorStrip(
+        selected: NoteColors.presetForType(_background['type']),
+        onSelected: (preset) =>
+            setState(() => _background['type'] = preset.type),
       ),
-      const SizedBox(height: 20),
+      const SizedBox(height: 16),
       Text('Artwork', style: Theme.of(context).textTheme.titleMedium),
       const SizedBox(height: 8),
       SizedBox(

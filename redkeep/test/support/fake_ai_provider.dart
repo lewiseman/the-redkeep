@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:redkeep/features/ai/data/ai_provider_store.dart';
+import 'package:redkeep/features/ai/domain/ai_conversation.dart';
 import 'package:redkeep/features/ai/domain/ai_provider.dart';
 
 /// A configured provider with every capability and no spending limit.
@@ -41,6 +42,10 @@ class FakeAiProviderClient implements AiCloudClient {
   bool aborted = false;
   List<String> models = const ['test-model'];
   final requests = <AiChatRequest>[];
+
+  /// Answers for the next conversation turns, in order.
+  final turns = <AiConverseReply>[];
+  final conversations = <AiConverseRequest>[];
   final embedded = <List<String>>[];
   final transcribed = <Uint8List>[];
   final images = <String>[];
@@ -70,6 +75,20 @@ class FakeAiProviderClient implements AiCloudClient {
     requests.add(request);
     await _wait(abort);
     return AiResult(replies.isEmpty ? reply : replies.removeAt(0), usage);
+  }
+
+  @override
+  Future<AiResult<AiConverseReply>> converse(
+    AiCloudSettings settings,
+    AiConverseRequest request, {
+    Future<void>? abort,
+  }) async {
+    conversations.add(request);
+    await _wait(abort);
+    return AiResult(
+      turns.isEmpty ? AiConverseReply(text: reply) : turns.removeAt(0),
+      usage,
+    );
   }
 
   @override

@@ -10,12 +10,10 @@ import '../../../sync/application/sync_providers.dart';
 import '../../application/notes_providers.dart';
 import '../../domain/note_checklist.dart';
 import '../../domain/note_document.dart';
-import '../note_ai_desk.dart';
-import '../note_ai_widgets.dart';
 import '../note_app_bar.dart';
 import '../note_page.dart';
 import 'note_website_card.dart';
-import 'note_website_remix_sheet.dart';
+import '../note_chat_page.dart';
 import 'note_website_view.dart';
 
 /// A note's website on a page of its own. The note's text lives in the note:
@@ -32,35 +30,16 @@ class NoteWebsitePage extends ConsumerWidget {
   void _editText(BuildContext context) =>
       context.push(noteLocation(id), extra: NoteOpen.edit);
 
-  Future<NoteAiLanding?> _regenerate(BuildContext context) =>
-      showNoteAiTools(context, id, initialTool: NoteAiTool.presentation);
+  /// The Maester's chat knows this website: changes and rebuilds happen
+  /// there. Building again only fills in the request; nothing is sent until
+  /// the person sends it.
+  void _openChat(BuildContext context, {String draft = ''}) => context.push(
+    noteChatLocation(id),
+    extra: draft.isEmpty ? null : NoteChatDraftMessage(draft),
+  );
 
-  /// The Maester: remix the page, or build it again from the text.
-  Future<void> _change(
-    BuildContext context,
-    WidgetRef ref, {
-    required bool outdated,
-    required bool canEdit,
-  }) async {
-    final change = await showWebsiteChangeSheet(
-      context,
-      id,
-      outdated: outdated,
-      canEdit: canEdit,
-    );
-    if (!context.mounted) return;
-    switch (change) {
-      case WebsiteChange.rebuild:
-        final landing = await _regenerate(context);
-        if (landing != null && context.mounted) {
-          _offerUndo(context, ref, 'New website built');
-        }
-      case WebsiteChange.remixed:
-        _offerUndo(context, ref, 'Website remixed');
-      case null:
-        break;
-    }
-  }
+  void _regenerate(BuildContext context) =>
+      _openChat(context, draft: 'Build the website again from my latest text.');
 
   void _offerUndo(BuildContext context, WidgetRef ref, String message) {
     final websites = ref.read(noteWebsitesProvider);
@@ -253,16 +232,9 @@ class NoteWebsitePage extends ConsumerWidget {
               alignment: const AlignmentDirectional(.55, -.55),
               child: NoteAiButton(
                 tooltip: outdated
-                    ? 'Change website (text changed)'
-                    : 'Change website',
-                onPressed: canEdit
-                    ? () => _change(
-                        context,
-                        ref,
-                        outdated: outdated,
-                        canEdit: canEdit,
-                      )
-                    : null,
+                    ? 'Ask the Maester (text changed)'
+                    : 'Ask the Maester',
+                onPressed: () => _openChat(context),
               ),
             ),
             if (roomy)

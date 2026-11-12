@@ -30,6 +30,7 @@ part 'app_database.g.dart';
     NoteTags,
     NoteMediaOps,
     NoteWebsites,
+    NoteChatTurns,
     DiaryEntries,
     DiaryDays,
     DiaryMediaOps,
@@ -45,7 +46,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   // Reset changes this generation before disposing editors. Old repositories
   // cannot write after cleanup, even when an async continuation finishes late.
@@ -100,6 +101,10 @@ class AppDatabase extends _$AppDatabase {
         await migrator.addColumn(noteWebsites, noteWebsites.previousHtml);
         await migrator.addColumn(noteWebsites, noteWebsites.previousSourceHash);
         await migrator.addColumn(noteWebsites, noteWebsites.syncChecks);
+      }
+      if (from < 7) {
+        // Each note's Maester conversation, kept on this device only.
+        await migrator.createTable(noteChatTurns);
       }
     },
   );

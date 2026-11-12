@@ -3804,6 +3804,397 @@ class NoteWebsitesCompanion extends UpdateCompanion<NoteWebsiteRow> {
   }
 }
 
+class $NoteChatTurnsTable extends NoteChatTurns
+    with TableInfo<$NoteChatTurnsTable, NoteChatTurnRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $NoteChatTurnsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _noteIdMeta = const VerificationMeta('noteId');
+  @override
+  late final GeneratedColumn<String> noteId = GeneratedColumn<String>(
+    'note_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _atMeta = const VerificationMeta('at');
+  @override
+  late final GeneratedColumn<int> at = GeneratedColumn<int>(
+    'at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _askMeta = const VerificationMeta('ask');
+  @override
+  late final GeneratedColumn<String> ask = GeneratedColumn<String>(
+    'ask',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _replyMeta = const VerificationMeta('reply');
+  @override
+  late final GeneratedColumn<String> reply = GeneratedColumn<String>(
+    'reply',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _actionsMeta = const VerificationMeta(
+    'actions',
+  );
+  @override
+  late final GeneratedColumn<String> actions = GeneratedColumn<String>(
+    'actions',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('[]'),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, noteId, at, ask, reply, actions];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'note_chat_turns';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<NoteChatTurnRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('note_id')) {
+      context.handle(
+        _noteIdMeta,
+        noteId.isAcceptableOrUnknown(data['note_id']!, _noteIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_noteIdMeta);
+    }
+    if (data.containsKey('at')) {
+      context.handle(_atMeta, at.isAcceptableOrUnknown(data['at']!, _atMeta));
+    } else if (isInserting) {
+      context.missing(_atMeta);
+    }
+    if (data.containsKey('ask')) {
+      context.handle(
+        _askMeta,
+        ask.isAcceptableOrUnknown(data['ask']!, _askMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_askMeta);
+    }
+    if (data.containsKey('reply')) {
+      context.handle(
+        _replyMeta,
+        reply.isAcceptableOrUnknown(data['reply']!, _replyMeta),
+      );
+    }
+    if (data.containsKey('actions')) {
+      context.handle(
+        _actionsMeta,
+        actions.isAcceptableOrUnknown(data['actions']!, _actionsMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  NoteChatTurnRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return NoteChatTurnRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      noteId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note_id'],
+      )!,
+      at: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}at'],
+      )!,
+      ask: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}ask'],
+      )!,
+      reply: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reply'],
+      )!,
+      actions: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}actions'],
+      )!,
+    );
+  }
+
+  @override
+  $NoteChatTurnsTable createAlias(String alias) {
+    return $NoteChatTurnsTable(attachedDatabase, alias);
+  }
+}
+
+class NoteChatTurnRow extends DataClass implements Insertable<NoteChatTurnRow> {
+  final String id;
+
+  /// Not a reference: a new note can talk before it is first saved.
+  final String noteId;
+  final int at;
+  final String ask;
+  final String reply;
+
+  /// The Maester's tool calls and what came of them, as JSON.
+  final String actions;
+  const NoteChatTurnRow({
+    required this.id,
+    required this.noteId,
+    required this.at,
+    required this.ask,
+    required this.reply,
+    required this.actions,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['note_id'] = Variable<String>(noteId);
+    map['at'] = Variable<int>(at);
+    map['ask'] = Variable<String>(ask);
+    map['reply'] = Variable<String>(reply);
+    map['actions'] = Variable<String>(actions);
+    return map;
+  }
+
+  NoteChatTurnsCompanion toCompanion(bool nullToAbsent) {
+    return NoteChatTurnsCompanion(
+      id: Value(id),
+      noteId: Value(noteId),
+      at: Value(at),
+      ask: Value(ask),
+      reply: Value(reply),
+      actions: Value(actions),
+    );
+  }
+
+  factory NoteChatTurnRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return NoteChatTurnRow(
+      id: serializer.fromJson<String>(json['id']),
+      noteId: serializer.fromJson<String>(json['noteId']),
+      at: serializer.fromJson<int>(json['at']),
+      ask: serializer.fromJson<String>(json['ask']),
+      reply: serializer.fromJson<String>(json['reply']),
+      actions: serializer.fromJson<String>(json['actions']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'noteId': serializer.toJson<String>(noteId),
+      'at': serializer.toJson<int>(at),
+      'ask': serializer.toJson<String>(ask),
+      'reply': serializer.toJson<String>(reply),
+      'actions': serializer.toJson<String>(actions),
+    };
+  }
+
+  NoteChatTurnRow copyWith({
+    String? id,
+    String? noteId,
+    int? at,
+    String? ask,
+    String? reply,
+    String? actions,
+  }) => NoteChatTurnRow(
+    id: id ?? this.id,
+    noteId: noteId ?? this.noteId,
+    at: at ?? this.at,
+    ask: ask ?? this.ask,
+    reply: reply ?? this.reply,
+    actions: actions ?? this.actions,
+  );
+  NoteChatTurnRow copyWithCompanion(NoteChatTurnsCompanion data) {
+    return NoteChatTurnRow(
+      id: data.id.present ? data.id.value : this.id,
+      noteId: data.noteId.present ? data.noteId.value : this.noteId,
+      at: data.at.present ? data.at.value : this.at,
+      ask: data.ask.present ? data.ask.value : this.ask,
+      reply: data.reply.present ? data.reply.value : this.reply,
+      actions: data.actions.present ? data.actions.value : this.actions,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NoteChatTurnRow(')
+          ..write('id: $id, ')
+          ..write('noteId: $noteId, ')
+          ..write('at: $at, ')
+          ..write('ask: $ask, ')
+          ..write('reply: $reply, ')
+          ..write('actions: $actions')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, noteId, at, ask, reply, actions);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is NoteChatTurnRow &&
+          other.id == this.id &&
+          other.noteId == this.noteId &&
+          other.at == this.at &&
+          other.ask == this.ask &&
+          other.reply == this.reply &&
+          other.actions == this.actions);
+}
+
+class NoteChatTurnsCompanion extends UpdateCompanion<NoteChatTurnRow> {
+  final Value<String> id;
+  final Value<String> noteId;
+  final Value<int> at;
+  final Value<String> ask;
+  final Value<String> reply;
+  final Value<String> actions;
+  final Value<int> rowid;
+  const NoteChatTurnsCompanion({
+    this.id = const Value.absent(),
+    this.noteId = const Value.absent(),
+    this.at = const Value.absent(),
+    this.ask = const Value.absent(),
+    this.reply = const Value.absent(),
+    this.actions = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  NoteChatTurnsCompanion.insert({
+    required String id,
+    required String noteId,
+    required int at,
+    required String ask,
+    this.reply = const Value.absent(),
+    this.actions = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       noteId = Value(noteId),
+       at = Value(at),
+       ask = Value(ask);
+  static Insertable<NoteChatTurnRow> custom({
+    Expression<String>? id,
+    Expression<String>? noteId,
+    Expression<int>? at,
+    Expression<String>? ask,
+    Expression<String>? reply,
+    Expression<String>? actions,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (noteId != null) 'note_id': noteId,
+      if (at != null) 'at': at,
+      if (ask != null) 'ask': ask,
+      if (reply != null) 'reply': reply,
+      if (actions != null) 'actions': actions,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  NoteChatTurnsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? noteId,
+    Value<int>? at,
+    Value<String>? ask,
+    Value<String>? reply,
+    Value<String>? actions,
+    Value<int>? rowid,
+  }) {
+    return NoteChatTurnsCompanion(
+      id: id ?? this.id,
+      noteId: noteId ?? this.noteId,
+      at: at ?? this.at,
+      ask: ask ?? this.ask,
+      reply: reply ?? this.reply,
+      actions: actions ?? this.actions,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (noteId.present) {
+      map['note_id'] = Variable<String>(noteId.value);
+    }
+    if (at.present) {
+      map['at'] = Variable<int>(at.value);
+    }
+    if (ask.present) {
+      map['ask'] = Variable<String>(ask.value);
+    }
+    if (reply.present) {
+      map['reply'] = Variable<String>(reply.value);
+    }
+    if (actions.present) {
+      map['actions'] = Variable<String>(actions.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NoteChatTurnsCompanion(')
+          ..write('id: $id, ')
+          ..write('noteId: $noteId, ')
+          ..write('at: $at, ')
+          ..write('ask: $ask, ')
+          ..write('reply: $reply, ')
+          ..write('actions: $actions, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $DiaryEntriesTable extends DiaryEntries
     with TableInfo<$DiaryEntriesTable, DiaryEntryRow> {
   @override
@@ -6876,6 +7267,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $NoteTagsTable noteTags = $NoteTagsTable(this);
   late final $NoteMediaOpsTable noteMediaOps = $NoteMediaOpsTable(this);
   late final $NoteWebsitesTable noteWebsites = $NoteWebsitesTable(this);
+  late final $NoteChatTurnsTable noteChatTurns = $NoteChatTurnsTable(this);
   late final $DiaryEntriesTable diaryEntries = $DiaryEntriesTable(this);
   late final $DiaryDaysTable diaryDays = $DiaryDaysTable(this);
   late final $DiaryMediaOpsTable diaryMediaOps = $DiaryMediaOpsTable(this);
@@ -6911,6 +7303,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     noteTags,
     noteMediaOps,
     noteWebsites,
+    noteChatTurns,
     diaryEntries,
     diaryDays,
     diaryMediaOps,
@@ -9515,6 +9908,234 @@ typedef $$NoteWebsitesTableProcessedTableManager =
       NoteWebsiteRow,
       PrefetchHooks Function({bool noteId})
     >;
+typedef $$NoteChatTurnsTableCreateCompanionBuilder =
+    NoteChatTurnsCompanion Function({
+      required String id,
+      required String noteId,
+      required int at,
+      required String ask,
+      Value<String> reply,
+      Value<String> actions,
+      Value<int> rowid,
+    });
+typedef $$NoteChatTurnsTableUpdateCompanionBuilder =
+    NoteChatTurnsCompanion Function({
+      Value<String> id,
+      Value<String> noteId,
+      Value<int> at,
+      Value<String> ask,
+      Value<String> reply,
+      Value<String> actions,
+      Value<int> rowid,
+    });
+
+class $$NoteChatTurnsTableFilterComposer
+    extends Composer<_$AppDatabase, $NoteChatTurnsTable> {
+  $$NoteChatTurnsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get noteId => $composableBuilder(
+    column: $table.noteId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get at => $composableBuilder(
+    column: $table.at,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get ask => $composableBuilder(
+    column: $table.ask,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reply => $composableBuilder(
+    column: $table.reply,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get actions => $composableBuilder(
+    column: $table.actions,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$NoteChatTurnsTableOrderingComposer
+    extends Composer<_$AppDatabase, $NoteChatTurnsTable> {
+  $$NoteChatTurnsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get noteId => $composableBuilder(
+    column: $table.noteId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get at => $composableBuilder(
+    column: $table.at,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get ask => $composableBuilder(
+    column: $table.ask,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reply => $composableBuilder(
+    column: $table.reply,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get actions => $composableBuilder(
+    column: $table.actions,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$NoteChatTurnsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $NoteChatTurnsTable> {
+  $$NoteChatTurnsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get noteId =>
+      $composableBuilder(column: $table.noteId, builder: (column) => column);
+
+  GeneratedColumn<int> get at =>
+      $composableBuilder(column: $table.at, builder: (column) => column);
+
+  GeneratedColumn<String> get ask =>
+      $composableBuilder(column: $table.ask, builder: (column) => column);
+
+  GeneratedColumn<String> get reply =>
+      $composableBuilder(column: $table.reply, builder: (column) => column);
+
+  GeneratedColumn<String> get actions =>
+      $composableBuilder(column: $table.actions, builder: (column) => column);
+}
+
+class $$NoteChatTurnsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $NoteChatTurnsTable,
+          NoteChatTurnRow,
+          $$NoteChatTurnsTableFilterComposer,
+          $$NoteChatTurnsTableOrderingComposer,
+          $$NoteChatTurnsTableAnnotationComposer,
+          $$NoteChatTurnsTableCreateCompanionBuilder,
+          $$NoteChatTurnsTableUpdateCompanionBuilder,
+          (
+            NoteChatTurnRow,
+            BaseReferences<_$AppDatabase, $NoteChatTurnsTable, NoteChatTurnRow>,
+          ),
+          NoteChatTurnRow,
+          PrefetchHooks Function()
+        > {
+  $$NoteChatTurnsTableTableManager(_$AppDatabase db, $NoteChatTurnsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$NoteChatTurnsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$NoteChatTurnsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$NoteChatTurnsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> noteId = const Value.absent(),
+                Value<int> at = const Value.absent(),
+                Value<String> ask = const Value.absent(),
+                Value<String> reply = const Value.absent(),
+                Value<String> actions = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => NoteChatTurnsCompanion(
+                id: id,
+                noteId: noteId,
+                at: at,
+                ask: ask,
+                reply: reply,
+                actions: actions,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String noteId,
+                required int at,
+                required String ask,
+                Value<String> reply = const Value.absent(),
+                Value<String> actions = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => NoteChatTurnsCompanion.insert(
+                id: id,
+                noteId: noteId,
+                at: at,
+                ask: ask,
+                reply: reply,
+                actions: actions,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$NoteChatTurnsTable, NoteChatTurnRow>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $NoteChatTurnsTable,
+                    NoteChatTurnRow
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$NoteChatTurnsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $NoteChatTurnsTable,
+      NoteChatTurnRow,
+      $$NoteChatTurnsTableFilterComposer,
+      $$NoteChatTurnsTableOrderingComposer,
+      $$NoteChatTurnsTableAnnotationComposer,
+      $$NoteChatTurnsTableCreateCompanionBuilder,
+      $$NoteChatTurnsTableUpdateCompanionBuilder,
+      (
+        NoteChatTurnRow,
+        BaseReferences<_$AppDatabase, $NoteChatTurnsTable, NoteChatTurnRow>,
+      ),
+      NoteChatTurnRow,
+      PrefetchHooks Function()
+    >;
 typedef $$DiaryEntriesTableCreateCompanionBuilder =
     DiaryEntriesCompanion Function({
       required String id,
@@ -11361,6 +11982,8 @@ class $AppDatabaseManager {
       $$NoteMediaOpsTableTableManager(_db, _db.noteMediaOps);
   $$NoteWebsitesTableTableManager get noteWebsites =>
       $$NoteWebsitesTableTableManager(_db, _db.noteWebsites);
+  $$NoteChatTurnsTableTableManager get noteChatTurns =>
+      $$NoteChatTurnsTableTableManager(_db, _db.noteChatTurns);
   $$DiaryEntriesTableTableManager get diaryEntries =>
       $$DiaryEntriesTableTableManager(_db, _db.diaryEntries);
   $$DiaryDaysTableTableManager get diaryDays =>

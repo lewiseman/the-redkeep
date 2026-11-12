@@ -1,6 +1,5 @@
 import 'note_actions_menu.dart';
 import 'note_ai_sheet.dart';
-import 'note_ai_widgets.dart' show NoteAiTool;
 import 'note_app_bar.dart';
 import '../../../core/presentation/rendering_policy.dart';
 import 'note_scene.dart';
@@ -330,19 +329,12 @@ class _NoteReadViewState extends ConsumerState<NoteReadView> {
     if (mounted && ref.read(syncCanEditProvider)) widget.onEdit();
   }
 
-  /// The desk closes onto the note; a kept result is told on the paper and,
-  /// when words were added at the end, the paper unfolds to show them.
+  /// The Maester's chat opens on its own page. Kept changes land in the
+  /// note while it is open, so the paper stays as it is meanwhile.
   Future<void> _openAi() async {
     _aiOpen = true;
-    final landing = await showNoteAiTools(context, widget.id);
+    await context.push(noteChatLocation(widget.id));
     _aiOpen = false;
-    if (!mounted || landing == null) return;
-    // A new website opens on its own page; the text is unchanged.
-    if (landing.tool == NoteAiTool.presentation) {
-      context.push(noteWebsiteLocation(widget.id));
-      return;
-    }
-    _show(landing);
   }
 
   /// Scanning has its own page; added words are told on the paper, which

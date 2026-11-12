@@ -13,7 +13,6 @@ import '../domain/note_help_contract.dart';
 import 'note_action_dialog.dart';
 import 'note_actions_menu.dart';
 import 'note_ai_sheet.dart';
-import 'note_ai_widgets.dart' show NoteAiTool;
 import 'note_app_bar.dart';
 import 'note_format_bar.dart';
 import 'note_markdown_preview.dart';
@@ -241,18 +240,9 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
                   if (ref.read(noteEditorProvider(widget.id)).value == null) {
                     return;
                   }
-                  final landing = await showNoteAiTools(
-                    context,
-                    widget.id,
-                    editor: true,
-                  );
-                  if (!mounted || landing == null) return;
-                  // A new website opens on its own page.
-                  if (landing.tool == NoteAiTool.presentation) {
-                    this.context.push(noteWebsiteLocation(widget.id));
-                    return;
-                  }
-                  setState(() => _landing = landing);
+                  // The chat reads the open writing and saves it before
+                  // any change is made.
+                  await context.push(noteChatLocation(widget.id));
                 },
               ),
               // The same note actions reading offers; tags and background

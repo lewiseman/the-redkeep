@@ -15,32 +15,32 @@ import 'package:redkeep/features/onboarding/data/drift_onboarding_repository.dar
 import 'generated/schema.dart';
 
 void main() {
-  test('fresh schema matches the complete version 6 snapshot', () async {
+  test('fresh schema matches the complete version 7 snapshot', () async {
     final database = AppDatabase(NativeDatabase.memory());
     addTearDown(database.close);
 
-    expect(database.schemaVersion, 6);
-    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 6);
+    expect(database.schemaVersion, 7);
+    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 7);
     final version = await database
         .customSelect('PRAGMA user_version')
         .getSingle();
-    expect(version.read<int>('user_version'), 6);
+    expect(version.read<int>('user_version'), 7);
   });
 
-  for (final from in [1, 2, 3, 4, 5]) {
+  for (final from in [1, 2, 3, 4, 5, 6]) {
     test('the upgrade from version $from matches the snapshot', () async {
       final verifier = SchemaVerifier(GeneratedHelper());
       final database = AppDatabase(await verifier.startAt(from));
       addTearDown(database.close);
-      await verifier.migrateAndValidate(database, 6);
+      await verifier.migrateAndValidate(database, 7);
     });
   }
 
-  test('version 5 and 6 add local note websites outside sync', () async {
+  test('versions 5 to 7 add local note websites and chats outside sync', () async {
     final verifier = SchemaVerifier(GeneratedHelper());
     final database = AppDatabase(await verifier.startAt(4));
     addTearDown(database.close);
-    await verifier.migrateAndValidate(database, 6);
+    await verifier.migrateAndValidate(database, 7);
     final triggers =
         (await database
                 .customSelect(
@@ -49,7 +49,9 @@ void main() {
                 .get())
             .map((r) => r.read<String>('name'));
     expect(triggers.where((t) => t.contains('note_websites')), isEmpty);
+    expect(triggers.where((t) => t.contains('note_chat')), isEmpty);
     expect(await database.select(database.noteWebsites).get(), isEmpty);
+    expect(await database.select(database.noteChatTurns).get(), isEmpty);
   });
 
   test('version 4 drops stored tasks, daily questions, voices, conversations and recovery copies', () async {
@@ -105,7 +107,7 @@ void main() {
     final version = await database
         .customSelect('PRAGMA user_version')
         .getSingle();
-    expect(version.read<int>('user_version'), 6);
+    expect(version.read<int>('user_version'), 7);
   });
 
   test('upgrading a real version 1 file keeps preferences, writing and recall triggers', () async {
@@ -146,7 +148,7 @@ void main() {
     final version = await database
         .customSelect('PRAGMA user_version')
         .getSingle();
-    expect(version.read<int>('user_version'), 6);
+    expect(version.read<int>('user_version'), 7);
     final columns = await database
         .customSelect('PRAGMA table_info(ai_preferences_table)')
         .get();
@@ -281,7 +283,7 @@ void main() {
       final version = await reopened
           .customSelect('PRAGMA user_version')
           .getSingle();
-      expect(version.read<int>('user_version'), 6);
+      expect(version.read<int>('user_version'), 7);
     },
   );
 

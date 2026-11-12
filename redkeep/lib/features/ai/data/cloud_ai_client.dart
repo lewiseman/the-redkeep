@@ -6,6 +6,7 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
+import '../domain/ai_conversation.dart';
 import '../domain/ai_provider.dart';
 
 /// Rejects anything but a plain https:// address, before a token can be sent.
@@ -358,6 +359,245 @@ class OpenAiCloudClient implements AiCloudClient {
   }
 
   @override
+  Future<AiResult<AiConverseReply>> converse(
+    AiCloudSettings settings,
+    AiConverseRequest request, {
+    Future<void>? abort,
+  }) async {
+    Map<String, Object?> call(AiToolCall c) => {
+      'id': c.id,
+      'type': 'function',
+      'function': {'name': c.name, 'arguments': jsonEncode(c.arguments)},
+    };
+    final messages = <Map<String, Object?>>[
+      {'role': 'system', 'content': request.system},
+      for (final exchange in request.history) ...[
+        {'role': 'user', 'content': exchange.user},
+        {
+          'role': 'assistant',
+          'content': exchange.reply,
+          if (exchange.calls.isNotEmpty)
+            'tool_calls': [for (final c in exchange.calls) call(c)],
+        },
+        for (final result in exchange.results)
+          {
+            'role': 'tool',
+            'tool_call_id': result.callId,
+            'content': result.content,
+          },
+      ],
+      {'role': 'user', 'content': request.user},
+    ];
+    // Some reasoning models take tools only through the Responses API.
+    var responsesOnly = false;
+    Map<String, Object?> body({required bool temperature}) => {
+      'model': request.model,
+      settings.preset.tokenLimitParameter: request.outputTokens,
+      'messages': messages,
+      if (request.tools.isNotEmpty)
+        'tools': [
+          for (final tool in request.tools)
+            {
+              'type': 'function',
+              'function': {
+                'name': tool.name,
+                'description': tool.description,
+                'parameters': tool.parameters,
+              },
+            },
+        ],
+      if (temperature) 'temperature': request.temperature,
+    };
+    final Map<String, dynamic> json;
+    try {
+      json = await transport.json(
+        settings,
+        'POST',
+        '/chat/completions',
+        body: body(temperature: true),
+        abort: abort,
+        timeout: request.timeout,
+        retryWithout: (r) {
+          if (r.status != 400) return false;
+          final text = r.text.toLowerCase();
+          if (text.contains('/v1/responses')) {
+            responsesOnly = true;
+            return false;
+          }
+          return text.contains('temperature');
+        },
+        fallbackBody: () => body(temperature: false),
+      );
+    } on AiProviderFailure catch (failure) {
+      if (responsesOnly && failure.kind == AiProviderFailureKind.rejected) {
+        return _converseResponses(settings, request, abort: abort);
+      }
+      rethrow;
+    }
+    final choices = json['choices'];
+    final choice = choices is List && choices.isNotEmpty ? choices.first : null;
+    if (choice is! Map) {
+      throw const AiProviderFailure(AiProviderFailureKind.invalidResponse);
+    }
+    if (choice['finish_reason'] == 'length') {
+      throw const AiProviderFailure(AiProviderFailureKind.truncated);
+    }
+    final message = choice['message'];
+    if (message is! Map) {
+      throw const AiProviderFailure(AiProviderFailureKind.invalidResponse);
+    }
+    final content = message['content'];
+    final calls = <AiToolCall>[];
+    final toolCalls = message['tool_calls'];
+    if (toolCalls is List) {
+      for (final c in toolCalls) {
+        final function = c is Map ? c['function'] : null;
+        if (c is! Map || c['id'] is! String || function is! Map) continue;
+        final name = function['name'], raw = function['arguments'];
+        Object? arguments;
+        try {
+          arguments = raw is String
+              ? (raw.trim().isEmpty ? const {} : jsonDecode(raw))
+              : raw;
+        } on FormatException {
+          arguments = null;
+        }
+        if (name is! String || arguments is! Map) continue;
+        calls.add(
+          AiToolCall(
+            id: c['id'] as String,
+            name: name,
+            arguments: Map<String, Object?>.from(arguments),
+          ),
+        );
+      }
+    }
+    final reply = AiConverseReply(
+      text: content is String ? content : '',
+      calls: calls,
+    );
+    if (reply.isEmpty) {
+      throw const AiProviderFailure(AiProviderFailureKind.invalidResponse);
+    }
+    final usage = json['usage'];
+    return AiResult(
+      reply,
+      AiUsage(
+        inputTokens: usage is Map ? _int(usage['prompt_tokens']) : 0,
+        outputTokens: usage is Map ? _int(usage['completion_tokens']) : 0,
+      ),
+    );
+  }
+
+  /// The same turn through OpenAI's Responses API, for models that take
+  /// tools only there. Reasoning is kept light so the answer has room.
+  Future<AiResult<AiConverseReply>> _converseResponses(
+    AiCloudSettings settings,
+    AiConverseRequest request, {
+    Future<void>? abort,
+  }) async {
+    final input = <Map<String, Object?>>[
+      for (final exchange in request.history) ...[
+        {'role': 'user', 'content': exchange.user},
+        if (exchange.reply.trim().isNotEmpty)
+          {'role': 'assistant', 'content': exchange.reply},
+        for (final call in exchange.calls)
+          {
+            'type': 'function_call',
+            'call_id': call.id,
+            'name': call.name,
+            'arguments': jsonEncode(call.arguments),
+          },
+        for (final result in exchange.results)
+          {
+            'type': 'function_call_output',
+            'call_id': result.callId,
+            'output': result.content,
+          },
+      ],
+      {'role': 'user', 'content': request.user},
+    ];
+    final json = await transport.json(
+      settings,
+      'POST',
+      '/responses',
+      body: {
+        'model': request.model,
+        'instructions': request.system,
+        'input': input,
+        'max_output_tokens': request.outputTokens,
+        'reasoning': {'effort': 'low'},
+        'store': false,
+        if (request.tools.isNotEmpty)
+          'tools': [
+            for (final tool in request.tools)
+              {
+                'type': 'function',
+                'name': tool.name,
+                'description': tool.description,
+                'parameters': tool.parameters,
+              },
+          ],
+      },
+      abort: abort,
+      timeout: request.timeout,
+    );
+    final details = json['incomplete_details'];
+    if (json['status'] == 'incomplete' &&
+        details is Map &&
+        details['reason'] == 'max_output_tokens') {
+      throw const AiProviderFailure(AiProviderFailureKind.truncated);
+    }
+    final text = StringBuffer();
+    final calls = <AiToolCall>[];
+    final output = json['output'];
+    if (output is List) {
+      for (final item in output) {
+        if (item is! Map) continue;
+        if (item['type'] == 'message' && item['content'] is List) {
+          for (final part in item['content'] as List) {
+            if (part is Map &&
+                part['type'] == 'output_text' &&
+                part['text'] is String) {
+              text.write(part['text']);
+            }
+          }
+        } else if (item['type'] == 'function_call' &&
+            item['call_id'] is String &&
+            item['name'] is String) {
+          Object? arguments;
+          try {
+            final raw = item['arguments'];
+            arguments = raw is String ? jsonDecode(raw) : raw;
+          } on FormatException {
+            arguments = null;
+          }
+          if (arguments is! Map) continue;
+          calls.add(
+            AiToolCall(
+              id: item['call_id'] as String,
+              name: item['name'] as String,
+              arguments: Map<String, Object?>.from(arguments),
+            ),
+          );
+        }
+      }
+    }
+    final reply = AiConverseReply(text: text.toString(), calls: calls);
+    if (reply.isEmpty) {
+      throw const AiProviderFailure(AiProviderFailureKind.invalidResponse);
+    }
+    final usage = json['usage'];
+    return AiResult(
+      reply,
+      AiUsage(
+        inputTokens: usage is Map ? _int(usage['input_tokens']) : 0,
+        outputTokens: usage is Map ? _int(usage['output_tokens']) : 0,
+      ),
+    );
+  }
+
+  @override
   Future<AiResult<List<List<double>>>> embed(
     AiCloudSettings settings,
     String model,
@@ -560,6 +800,123 @@ class AnthropicCloudAdapter extends OpenAiCloudClient {
     );
   }
 
+  /// Tool ids must be plain; ids from another provider are made so.
+  static String _toolId(String id) =>
+      id.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_');
+
+  @override
+  Future<AiResult<AiConverseReply>> converse(
+    AiCloudSettings settings,
+    AiConverseRequest request, {
+    Future<void>? abort,
+  }) async {
+    // Results of a turn's calls open the next user message.
+    List<Map<String, Object?>> userContent(
+      List<AiToolResult> results,
+      String text,
+    ) => [
+      for (final result in results)
+        {
+          'type': 'tool_result',
+          'tool_use_id': _toolId(result.callId),
+          'content': result.content,
+        },
+      {'type': 'text', 'text': text},
+    ];
+    final messages = <Map<String, Object?>>[];
+    var pending = const <AiToolResult>[];
+    for (final exchange in request.history) {
+      messages
+        ..add({'role': 'user', 'content': userContent(pending, exchange.user)})
+        ..add({
+          'role': 'assistant',
+          'content': [
+            if (exchange.reply.trim().isNotEmpty || exchange.calls.isEmpty)
+              {
+                'type': 'text',
+                'text': exchange.reply.trim().isEmpty ? '…' : exchange.reply,
+              },
+            for (final call in exchange.calls)
+              {
+                'type': 'tool_use',
+                'id': _toolId(call.id),
+                'name': call.name,
+                'input': call.arguments,
+              },
+          ],
+        });
+      pending = exchange.results;
+    }
+    messages.add({
+      'role': 'user',
+      'content': userContent(pending, request.user),
+    });
+    Map<String, Object?> body({required bool temperature}) => {
+      'model': request.model,
+      'max_tokens': request.outputTokens,
+      'system': request.system,
+      'messages': messages,
+      if (request.tools.isNotEmpty)
+        'tools': [
+          for (final tool in request.tools)
+            {
+              'name': tool.name,
+              'description': tool.description,
+              'input_schema': tool.parameters,
+            },
+        ],
+      if (temperature) 'temperature': request.temperature,
+    };
+    final json = await transport.json(
+      settings,
+      'POST',
+      '/messages',
+      body: body(temperature: true),
+      abort: abort,
+      timeout: request.timeout,
+      retryWithout: (r) =>
+          r.status == 400 && r.text.toLowerCase().contains('temperature'),
+      fallbackBody: () => body(temperature: false),
+    );
+    if (json['stop_reason'] == 'max_tokens') {
+      throw const AiProviderFailure(AiProviderFailureKind.truncated);
+    }
+    final blocks = json['content'];
+    final text = StringBuffer();
+    final calls = <AiToolCall>[];
+    if (blocks is List) {
+      for (final block in blocks) {
+        if (block is! Map) continue;
+        if (block['type'] == 'text' && block['text'] is String) {
+          text.write(block['text']);
+        } else if (block['type'] == 'tool_use' &&
+            block['id'] is String &&
+            block['name'] is String &&
+            block['input'] is Map) {
+          calls.add(
+            AiToolCall(
+              id: block['id'] as String,
+              name: block['name'] as String,
+              arguments: Map<String, Object?>.from(block['input'] as Map),
+            ),
+          );
+        }
+      }
+    }
+    final reply = AiConverseReply(text: text.toString(), calls: calls);
+    if (reply.isEmpty) {
+      throw const AiProviderFailure(AiProviderFailureKind.invalidResponse);
+    }
+    final usage = json['usage'];
+    return AiResult(
+      reply,
+      AiUsage(
+        inputTokens: usage is Map ? _int(usage['input_tokens']) : 0,
+        outputTokens: usage is Map ? _int(usage['output_tokens']) : 0,
+      ),
+    );
+  }
+
   @override
   Future<AiResult<List<List<double>>>> embed(
     AiCloudSettings settings,
@@ -613,6 +970,13 @@ class CloudAiClient implements AiCloudClient {
     List<String> inputs, {
     Future<void>? abort,
   }) => _for(settings).embed(settings, model, inputs, abort: abort);
+
+  @override
+  Future<AiResult<AiConverseReply>> converse(
+    AiCloudSettings settings,
+    AiConverseRequest request, {
+    Future<void>? abort,
+  }) => _for(settings).converse(settings, request, abort: abort);
 
   @override
   Future<AiResult<String>> transcribe(

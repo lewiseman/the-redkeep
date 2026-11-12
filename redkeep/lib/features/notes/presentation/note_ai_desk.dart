@@ -35,12 +35,14 @@ class NoteAiLanding {
 /// and returns a [NoteAiLanding] so the note can show what changed.
 ///
 /// [initialTool] opens that tool straight away, e.g. Regenerate on a
-/// website page.
+/// website page. [only] limits the desk to those tools, e.g. when writing
+/// and websites belong to the Maester's chat.
 Future<NoteAiLanding?> showNoteAiTools(
   BuildContext context,
   String id, {
   bool editor = false,
   NoteAiTool? initialTool,
+  Set<NoteAiTool>? only,
 }) => showModalBottomSheet<NoteAiLanding>(
   context: context,
   isScrollControlled: true,
@@ -62,6 +64,7 @@ Future<NoteAiLanding?> showNoteAiTools(
         id: id,
         editor: editor,
         initialTool: initialTool,
+        only: only,
         onLanded: (landing) => Navigator.of(sheetContext).pop(landing),
         onClose: () => Navigator.of(sheetContext).pop(),
       ),
@@ -77,10 +80,12 @@ class NoteAiDesk extends ConsumerStatefulWidget {
     required this.onLanded,
     required this.onClose,
     this.initialTool,
+    this.only,
   });
   final String id;
   final bool editor;
   final NoteAiTool? initialTool;
+  final Set<NoteAiTool>? only;
   final ValueChanged<NoteAiLanding> onLanded;
   final VoidCallback onClose;
 
@@ -104,7 +109,8 @@ class _NoteAiDeskState extends ConsumerState<NoteAiDesk> {
     final canEdit = ref.watch(syncCanEditProvider);
     final details = state?.details ?? saved?.details ?? const NoteDetails();
     final title = state?.text.title ?? saved?.text.title ?? '';
-    final tools = draft
+    final only = widget.only;
+    final all = draft
         ? [
             NoteAiTool.template,
             // A new note can start as a website too.
@@ -116,6 +122,10 @@ class _NoteAiDeskState extends ConsumerState<NoteAiDesk> {
               NoteAiTool.image,
             NoteAiTool.presentation,
           ];
+    final tools = [
+      for (final t in all)
+        if (only == null || only.contains(t)) t,
+    ];
     final tool = _tool;
     // A request in flight belongs to its tool; switching would abandon it.
     final busy =

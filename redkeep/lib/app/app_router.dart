@@ -26,6 +26,7 @@ import 'package:go_router/go_router.dart';
 import '../features/appearance/presentation/appearance_page.dart';
 import '../features/onboarding/application/onboarding_controller.dart';
 import '../features/onboarding/presentation/onboarding_page.dart';
+import '../features/notes/presentation/note_chat_page.dart';
 import '../features/notes/presentation/note_page.dart';
 import '../features/notes/presentation/note_scan_page.dart';
 import '../features/notes/presentation/website/note_website_page.dart';
@@ -208,6 +209,22 @@ GoRouter createAppRouter(Ref ref) {
                       NoteScanPage(
                         key: ValueKey(state.uri.path),
                         id: state.pathParameters['id']!,
+                      ),
+                    ),
+                  ),
+                  // The Maester's conversation about this note and its
+                  // website. A sibling, so leaving returns to where it was
+                  // opened: the note or its website.
+                  GoRoute(
+                    path: ':id/maester',
+                    pageBuilder: (context, state) => _page(
+                      state,
+                      NoteChatPage(
+                        key: ValueKey(state.uri.path),
+                        id: state.pathParameters['id']!,
+                        draft: state.extra is NoteChatDraftMessage
+                            ? (state.extra as NoteChatDraftMessage).text
+                            : '',
                       ),
                     ),
                   ),

@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'ai_conversation.dart';
 import 'ai_provider_catalog.dart';
 
 enum AiProviderFormat { openAiCompatible, anthropic }
@@ -261,6 +262,13 @@ abstract interface class AiCloudClient {
     AiCloudSettings settings,
     String model,
     List<String> inputs, {
+    Future<void>? abort,
+  });
+
+  /// A conversation turn in which the model may answer, call [tools], or both.
+  Future<AiResult<AiConverseReply>> converse(
+    AiCloudSettings settings,
+    AiConverseRequest request, {
     Future<void>? abort,
   });
   Future<AiResult<String>> transcribe(

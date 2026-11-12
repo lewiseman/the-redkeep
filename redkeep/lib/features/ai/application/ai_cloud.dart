@@ -10,6 +10,7 @@ import '../../sync/application/sync_providers.dart' show networkServiceProvider;
 import '../data/ai_provider_store.dart';
 import '../data/ai_spend_ledger.dart';
 import '../data/cloud_ai_client.dart';
+import '../domain/ai_conversation.dart';
 import '../domain/ai_provider.dart';
 import '../domain/ai_provider_catalog.dart';
 
@@ -198,6 +199,59 @@ class AiCloud {
           .chat(ready.settings, request, abort: abort),
     );
     return stripSurroundingCodeFence(text);
+  }
+
+  /// One conversation turn with tools. The estimate counts every earlier
+  /// exchange, so long conversations stop before the limit, not after.
+  Future<AiConverseReply> converse({
+    required String system,
+    required List<AiExchange> history,
+    required String user,
+    required List<AiToolSpec> tools,
+    required int outputTokens,
+    double temperature = .3,
+    Future<void>? abort,
+    Duration? timeout,
+  }) async {
+    final ready = await _ready(AiCapability.chat);
+    final request = AiConverseRequest(
+      model: ready.model,
+      system: system,
+      history: history,
+      user: user,
+      tools: tools,
+      outputTokens: outputTokens,
+      temperature: temperature,
+      timeout: timeout,
+    );
+    final sent = StringBuffer(system)..write(user);
+    for (final tool in tools) {
+      sent
+        ..write(tool.description)
+        ..write(jsonEncode(tool.parameters));
+    }
+    for (final exchange in history) {
+      sent
+        ..write(exchange.user)
+        ..write(exchange.reply);
+      for (final call in exchange.calls) {
+        sent.write(jsonEncode(call.arguments));
+      }
+      for (final result in exchange.results) {
+        sent.write(result.content);
+      }
+    }
+    return _run(
+      ready.settings,
+      ready.model,
+      (price) => AiUsage(
+        inputTokens: _tokens(sent.toString()),
+        outputTokens: outputTokens,
+      ).cost(price),
+      () => ref
+          .read(aiCloudClientProvider)
+          .converse(ready.settings, request, abort: abort),
+    );
   }
 
   Future<List<List<double>>> embed(

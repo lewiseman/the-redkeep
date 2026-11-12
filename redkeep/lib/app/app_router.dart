@@ -27,6 +27,7 @@ import '../features/appearance/presentation/appearance_page.dart';
 import '../features/onboarding/application/onboarding_controller.dart';
 import '../features/onboarding/presentation/onboarding_page.dart';
 import '../features/notes/presentation/note_page.dart';
+import '../features/notes/presentation/note_scan_page.dart';
 import '../features/notes/presentation/website/note_website_page.dart';
 import '../features/notes/presentation/notes_list_page.dart';
 import 'bootstrap/bootstrap_controller.dart';
@@ -196,6 +197,17 @@ GoRouter createAppRouter(Ref ref) {
                         key: ValueKey(state.pathParameters['id']),
                         id: state.pathParameters['id']!,
                         startEditing: state.extra == NoteOpen.edit,
+                      ),
+                    ),
+                  ),
+                  // Scanning returns its kept result to the note that opened it.
+                  GoRoute(
+                    path: ':id/scan',
+                    pageBuilder: (context, state) => _page(
+                      state,
+                      NoteScanPage(
+                        key: ValueKey(state.uri.path),
+                        id: state.pathParameters['id']!,
                       ),
                     ),
                   ),

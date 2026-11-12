@@ -109,11 +109,9 @@ class _NoteAiDeskState extends ConsumerState<NoteAiDesk> {
             NoteAiTool.template,
             // A new note can start as a website too.
             if (canEdit) NoteAiTool.presentation,
-            NoteAiTool.scan,
           ]
         : [
             NoteAiTool.writing,
-            if (canEdit) NoteAiTool.scan,
             if (saved.details.attachments.any((a) => a.isImage))
               NoteAiTool.image,
             NoteAiTool.presentation,

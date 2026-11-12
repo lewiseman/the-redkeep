@@ -91,7 +91,7 @@ String _destination(String location) {
   }
   final flow = RegExp(r'^/flow/([0-9a-f]{32})(/edit)?$').firstMatch(location);
   if (flow != null && isThoughtId(flow[1]!)) return location;
-  final match = RegExp(r'^/notes/([0-9a-f]{32})(?:/website)?$')
+  final match = RegExp(r'^/notes/([0-9a-f]{32})(?:/website|/scan)?$')
       .firstMatch(location);
   return match != null && isNoteId(match[1]!)
       ? location
@@ -106,6 +106,10 @@ String noteLocation(String id) =>
 /// A note's generated website, shown on a page of its own.
 String noteWebsiteLocation(String id) =>
     isNoteId(id) ? '/notes/$id/website' : AppDestination.unavailable.location;
+
+/// Scanning a page into a note, on a page of its own.
+String noteScanLocation(String id) =>
+    isNoteId(id) ? '/notes/$id/scan' : AppDestination.unavailable.location;
 
 String _requestedDestination(Uri requested) {
   final isGate =

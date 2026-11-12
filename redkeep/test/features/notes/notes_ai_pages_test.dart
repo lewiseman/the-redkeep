@@ -21,6 +21,7 @@ import '../../support/pump_app.dart';
 
 import 'package:redkeep/features/notes/presentation/note_card.dart';
 import 'package:redkeep/features/notes/presentation/note_read_page.dart';
+import 'package:redkeep/features/notes/presentation/note_scan_page.dart';
 import 'package:redkeep/features/notes/presentation/note_ai_sheet.dart';
 import 'package:redkeep/features/notes/presentation/note_ai_widgets.dart';
 import 'package:redkeep/features/notes/presentation/note_tag_picker.dart';
@@ -715,6 +716,47 @@ void main() {
       await tester.pumpAndSettle();
     }
   });
+
+  testWidgets(
+    'scanning opens its own page from note actions while reading and editing',
+    (tester) async {
+      try {
+        final router = await pumpApp(
+          tester,
+          notes: h.repository,
+          database: h.db,
+          aiProvider: h.aiProvider,
+          aiSettings: testAiSettings,
+          noteMedia: h.media,
+          initialLocation: noteLocation(notesTestId),
+        );
+        // The AI desk no longer offers scanning.
+        await tester.tap(find.byTooltip('AI tools'));
+        await tester.pumpAndSettle();
+        expect(find.byKey(const ValueKey('note-assistant-scan')), findsNothing);
+        await tester.tap(find.byTooltip('Close AI tools'));
+        await tester.pumpAndSettle();
+
+        for (final editing in [false, true]) {
+          if (editing) await startEditing(tester);
+          await tester.tap(find.byTooltip('Note actions'));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Scan a page'));
+          await tester.pumpAndSettle();
+          expect(router.state.uri.path, noteScanLocation(notesTestId));
+          expect(find.byType(NoteScanPage), findsOneWidget);
+          expect(find.text('Read the page'), findsOneWidget);
+          expect(tester.takeException(), isNull);
+          await tester.tap(find.byType(BackButton));
+          await tester.pumpAndSettle();
+          expect(router.state.uri.path, noteLocation(notesTestId));
+        }
+      } finally {
+        await tester.pumpWidget(const SizedBox());
+        await tester.pumpAndSettle();
+      }
+    },
+  );
 
   testWidgets('a new note can start as a website', (tester) async {
     final id = 'f' * 32;

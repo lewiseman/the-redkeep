@@ -266,6 +266,7 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
                       : _togglePin,
                   onBackground: value == null || readOnly ? null : _background,
                   onTags: value == null || readOnly ? null : _tags,
+                  onScan: value == null || readOnly ? null : _scan,
                   onDelete: value == null || readOnly || saved == null
                       ? null
                       : _delete,
@@ -586,6 +587,16 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
         .read(noteEditorProvider(widget.id).notifier)
         .editDetails(latest.details.copy(background: background));
   });
+
+  /// Scanning has its own page; the reviewed words join this draft.
+  Future<void> _scan() async {
+    FocusScope.of(context).unfocus();
+    final landing = await context.push<NoteAiLanding>(
+      noteScanLocation(widget.id),
+    );
+    if (mounted && landing != null) setState(() => _landing = landing);
+  }
+
   Future<void> _tags() => _editTool(() async {
     final value = ref.read(noteEditorProvider(widget.id)).requireValue;
     final tags = await NoteTagPicker.show(

@@ -4,7 +4,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-enum _NoteAction { pin, background, tags, delete }
+enum _NoteAction { pin, background, tags, scan, delete }
 
 /// An anchored menu that dismisses before dispatching a note action.
 class NoteActionsMenu extends StatelessWidget {
@@ -14,6 +14,7 @@ class NoteActionsMenu extends StatelessWidget {
     required this.onTogglePin,
     required this.onBackground,
     required this.onTags,
+    required this.onScan,
     required this.onDelete,
     this.style,
   });
@@ -22,6 +23,9 @@ class NoteActionsMenu extends StatelessWidget {
   final VoidCallback? onTogglePin;
   final VoidCallback? onBackground;
   final VoidCallback? onTags;
+
+  /// Opens the scan page: a photographed page becomes words in the note.
+  final VoidCallback? onScan;
   final VoidCallback? onDelete;
 
   /// Replaces the button's default surface style, e.g. to match a coloured bar.
@@ -38,7 +42,7 @@ class NoteActionsMenu extends StatelessWidget {
 
     return PopupMenuButton<_NoteAction>(
       tooltip: 'Note actions',
-      icon: const Icon(Icons.more_horiz_rounded),
+      icon: const Icon(Icons.more_vert_rounded),
       style:
           style ??
           IconButton.styleFrom(
@@ -72,6 +76,8 @@ class NoteActionsMenu extends StatelessWidget {
             onBackground?.call();
           case _NoteAction.tags:
             onTags?.call();
+          case _NoteAction.scan:
+            onScan?.call();
           case _NoteAction.delete:
             onDelete?.call();
         }
@@ -108,6 +114,17 @@ class NoteActionsMenu extends StatelessWidget {
             icon: Icons.sell_outlined,
             title: 'Edit tags',
             subtitle: 'Choose or create',
+          ),
+        ),
+        PopupMenuItem<_NoteAction>(
+          key: const ValueKey('note-action-scan'),
+          value: _NoteAction.scan,
+          enabled: onScan != null,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: _ActionRow(
+            icon: Icons.document_scanner_outlined,
+            title: 'Scan a page',
+            subtitle: 'Photo to written words',
           ),
         ),
         PopupMenuDivider(height: 16, color: colors.outlineVariant),

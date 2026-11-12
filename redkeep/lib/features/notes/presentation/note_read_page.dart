@@ -138,6 +138,7 @@ class _NoteReadViewState extends ConsumerState<NoteReadView> {
                               ),
                         onTags: busy ? null : () => _tags(note),
                         onBackground: busy ? null : () => _background(note),
+                        onScan: busy ? null : _scan,
                         onDelete: busy ? null : () => _delete(note),
                       ),
                     ),
@@ -341,6 +342,20 @@ class _NoteReadViewState extends ConsumerState<NoteReadView> {
       context.push(noteWebsiteLocation(widget.id));
       return;
     }
+    _show(landing);
+  }
+
+  /// Scanning has its own page; added words are told on the paper, which
+  /// unfolds to show them.
+  Future<void> _scan() async {
+    final landing = await context.push<NoteAiLanding>(
+      noteScanLocation(widget.id),
+    );
+    if (!mounted || landing == null) return;
+    _show(landing);
+  }
+
+  void _show(NoteAiLanding landing) {
     setState(() => _landing = landing);
     if (landing.appended) {
       WidgetsBinding.instance.addPostFrameCallback((_) {

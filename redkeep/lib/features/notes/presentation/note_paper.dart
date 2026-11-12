@@ -428,10 +428,20 @@ class _NotePaperState extends State<NotePaper>
                       children: [
                         // Over artwork the paper is frosted glass: its colors
                         // show through, its detail does not crowd the words.
+                        // [NotePageFrost] blurs the whole page as the paper
+                        // unfolds; the paper adds only what is still missing.
                         if (NotePaperOpacity.frostedOf(context) &&
-                            !RenderingPolicyScope.of(context).simplerEffects)
+                            !RenderingPolicyScope.of(context).simplerEffects &&
+                            NotePageFrost.paperSigma(_expansion.value) > .01)
                           BackdropFilter(
-                            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                            filter: ImageFilter.blur(
+                              sigmaX: NotePageFrost.paperSigma(
+                                _expansion.value,
+                              ),
+                              sigmaY: NotePageFrost.paperSigma(
+                                _expansion.value,
+                              ),
+                            ),
                             child: const SizedBox.expand(),
                           ),
                         FadeTransition(

@@ -1,10 +1,13 @@
 import 'dart:io';
+import 'dart:math' as math;
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/bootstrap/bootstrap_providers.dart';
+import '../../../core/presentation/rendering_policy.dart';
 import '../data/note_media_store.dart';
 import '../domain/note_document.dart';
 import '../domain/note_colors.dart';
@@ -166,4 +169,49 @@ class NotePaperOpacity extends InheritedWidget {
   @override
   bool updateShouldNotify(NotePaperOpacity oldWidget) =>
       opacity != oldWidget.opacity || frosted != oldWidget.frosted;
+}
+
+/// Full frost strength behind a note's writing over artwork.
+const notePaperFrostSigma = 10.0;
+
+/// One blur over the artwork behind the whole note page (bar and body), so
+/// immersive paper and its bar read as one continuous frosted sheet instead
+/// of two blurs meeting at a seam. [amount] is the paper's expansion: the
+/// folded preview leaves the scene sharp around the card.
+class NotePageFrost extends StatelessWidget {
+  const NotePageFrost({super.key, required this.amount, required this.child});
+
+  final double amount;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final sigma = notePaperFrostSigma * amount.clamp(0.0, 1.0);
+    if (sigma <= 0 ||
+        !NotePaperOpacity.frostedOf(context) ||
+        RenderingPolicyScope.of(context).simplerEffects) {
+      return child;
+    }
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        ClipRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
+            child: const SizedBox.expand(),
+          ),
+        ),
+        child,
+      ],
+    );
+  }
+
+  /// The paper's own extra blur, so it always totals full strength on top of
+  /// the page frost (stacked Gaussian blurs add in quadrature).
+  static double paperSigma(double expansion) {
+    final page = notePaperFrostSigma * expansion.clamp(0.0, 1.0);
+    return math.sqrt(
+      math.max(0.0, notePaperFrostSigma * notePaperFrostSigma - page * page),
+    );
+  }
 }

@@ -5,7 +5,13 @@ import '../../recall/application/recall_controller.dart';
 import 'package:redkeep/features/ai/application/ai_cloud.dart';
 import 'package:redkeep/features/ai/domain/ai_provider.dart';
 
+import '../../ai/application/ai_jobs.dart';
+import '../../ai/domain/ai_operation.dart';
+import '../application/note_ai_controller.dart';
+import '../application/note_ai_sources.dart';
+import '../domain/note_help_contract.dart';
 import 'note_action_dialog.dart';
+import 'note_actions_menu.dart';
 import 'note_ai_sheet.dart';
 import 'note_ai_widgets.dart' show NoteAiTool;
 import 'note_app_bar.dart';
@@ -58,6 +64,7 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
   /// Rich editing: the note's Markdown shown as formatted text.
   QuillController? _rich;
   final _richFocus = FocusNode(debugLabel: 'note-body');
+  final _titleFocus = FocusNode(debugLabel: 'note-title');
   final _richScroll = ScrollController();
   StreamSubscription<DocChange>? _richChanges;
 
@@ -66,6 +73,10 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
   bool _loaded = false;
   bool _leaving = false;
   bool _dictating = false;
+  bool _suggestingTitle = false;
+
+  /// Keeps a title request alive; leaving the editor cancels it.
+  ProviderSubscription<AiJobState>? _titleJob;
   NoteAiLanding? _landing;
   late final AppLifecycleListener _lifecycle;
 
@@ -75,6 +86,10 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
     _recall = ref.read(recallControllerProvider.notifier);
     // The keyboard row offers formatting only while the body has the caret.
     _richFocus.addListener(() {
+      if (mounted) setState(() {});
+    });
+    // The keyboard row offers a title suggestion while the title has it.
+    _titleFocus.addListener(() {
       if (mounted) setState(() {});
     });
     // Leaving the app saves too; there is no separate draft to fall back on.
@@ -168,6 +183,8 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
     _recall.flushSoon();
     _lifecycle.dispose();
     _title.dispose();
+    _titleJob?.close();
+    _titleFocus.dispose();
     _richChanges?.cancel();
     _rich?.dispose();
     _richFocus.dispose();
@@ -216,30 +233,42 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
             backTooltip: 'Close editor',
             onBack: () => _finish(widget.onBack),
             actions: [
+              // Reading and editing show the same AI and more buttons, so
+              // switching modes leaves the bar still: no fade-in, and no
+              // dimmed AI while the editor loads (a tap before then does nothing).
               NoteAiButton(
-                onPressed: value == null
-                    ? null
-                    : () async {
-                        final landing = await showNoteAiTools(
-                          context,
-                          widget.id,
-                          editor: true,
-                        );
-                        if (!mounted || landing == null) return;
-                        // A new website opens on its own page.
-                        if (landing.tool == NoteAiTool.presentation) {
-                          this.context.push(noteWebsiteLocation(widget.id));
-                          return;
-                        }
-                        setState(() => _landing = landing);
-                      },
+                onPressed: () async {
+                  if (ref.read(noteEditorProvider(widget.id)).value == null) {
+                    return;
+                  }
+                  final landing = await showNoteAiTools(
+                    context,
+                    widget.id,
+                    editor: true,
+                  );
+                  if (!mounted || landing == null) return;
+                  // A new website opens on its own page.
+                  if (landing.tool == NoteAiTool.presentation) {
+                    this.context.push(noteWebsiteLocation(widget.id));
+                    return;
+                  }
+                  setState(() => _landing = landing);
+                },
               ),
-              NoteBarEntrance(
-                child: IconButton(
-                  tooltip: 'Choose note background',
-                  style: noteBarButtonStyle(context),
-                  icon: const Icon(Icons.color_lens_outlined),
-                  onPressed: value == null || readOnly ? null : _background,
+              // The same note actions reading offers; tags and background
+              // join the draft, pin and delete act on the saved note.
+              KeyedSubtree(
+                key: const ValueKey('note-more-actions'),
+                child: NoteActionsMenu(
+                  isPinned: saved?.pinned ?? false,
+                  onTogglePin: value == null || readOnly || saved == null
+                      ? null
+                      : _togglePin,
+                  onBackground: value == null || readOnly ? null : _background,
+                  onTags: value == null || readOnly ? null : _tags,
+                  onDelete: value == null || readOnly || saved == null
+                      ? null
+                      : _delete,
                 ),
               ),
             ],
@@ -351,6 +380,7 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
                                       return TextField(
                                         key: const ValueKey('note-title'),
                                         controller: _title,
+                                        focusNode: _titleFocus,
                                         enabled: !readOnly,
                                         style: _titleStyle,
                                         decoration: InputDecoration(
@@ -477,11 +507,19 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
                         showDictate: ref
                             .watch(aiCapabilitiesProvider)
                             .contains(AiCapability.transcription),
-                        onTags: readOnly ? null : _tags,
                         onFormat: _rich == null || readOnly
                             ? null
                             : _richFocus.requestFocus,
                         onHideKeyboard: () => FocusScope.of(context).unfocus(),
+                        suggestingTitle: _suggestingTitle,
+                        onSuggestTitle:
+                            _titleFocus.hasFocus &&
+                                !readOnly &&
+                                ref
+                                    .watch(aiCapabilitiesProvider)
+                                    .contains(AiCapability.chat)
+                            ? _suggestTitle
+                            : null,
                       ),
                     ),
                   ),
@@ -561,6 +599,97 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
         .read(noteEditorProvider(widget.id).notifier)
         .editDetails(latest.details.copy(tags: tags));
   });
+
+  /// Saves the writing first so pinning builds on the latest revision; the
+  /// editor then adopts the pinned note.
+  Future<void> _togglePin() => _editTool(() async {
+    final controller = ref.read(noteEditorProvider(widget.id).notifier);
+    if (!await controller.save()) {
+      throw const FormatException(
+        'Save your writing before pinning. Your writing is safe.',
+      );
+    }
+    final note =
+        (await ref.read(notesRepositoryProvider).openDocument(widget.id)).note;
+    if (!mounted || note == null) return;
+    await ref
+        .read(notesActionsProvider.notifier)
+        .organize(note, pinned: !note.pinned, tags: note.tags);
+  });
+
+  Future<void> _delete() async {
+    final confirmed = await showNoteDeleteConfirmation(context);
+    if (confirmed != true || !mounted) return;
+    final controller = ref.read(noteEditorProvider(widget.id).notifier);
+    try {
+      // Settle any pending save so the delete matches the latest revision.
+      await controller.save();
+      final note =
+          (await ref.read(notesRepositoryProvider).openDocument(widget.id))
+              .note;
+      if (!mounted || note == null) return;
+      await ref
+          .read(notesActionsProvider.notifier)
+          .delete(note.id, note.revision);
+      if (!mounted) return;
+      controller.discardChanges();
+      context.go(AppDestination.notes.location);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not delete this note.')),
+        );
+      }
+    }
+  }
+
+  /// Asks AI for titles and writes the first one into the title field.
+  Future<void> _suggestTitle() => _editTool(() async {
+    if (_suggestingTitle) return;
+    final scope = noteAiScope('title', widget.id);
+    final hold = _titleJob = ref.listenManual(aiJobsProvider(scope), (_, _) {});
+    setState(() => _suggestingTitle = true);
+    try {
+      final asked = _title.text;
+      await ref
+          .read(noteAiControllerProvider)
+          .start(AiOperation.noteMetadata, widget.id, scope: scope);
+      if (!mounted) return;
+      final state = hold.read();
+      final job = state.job;
+      if (job == null || job.phase == 'cancelled') return;
+      if (job.phase != 'completed') {
+        throw FormatException(
+          state.message ?? 'No title could be suggested. Try again.',
+        );
+      }
+      final titles = NoteMetadataSuggestions.parse(
+        job.text!,
+        NoteMetadataSource.decode(
+          noteTaskSource(job.source)['payload'] as String,
+        ),
+      ).titles;
+      if (titles.isEmpty) {
+        throw const FormatException('No new title fits this note yet.');
+      }
+      // Typing while it loaded wins over the suggestion.
+      if (_title.text != asked) {
+        throw const FormatException(
+          'The title changed while suggesting, so it was kept as written.',
+        );
+      }
+      _title.value = TextEditingValue(
+        text: titles.first,
+        selection: TextSelection.collapsed(offset: titles.first.length),
+      );
+      _edit(ref.read(noteEditorProvider(widget.id).notifier));
+    } finally {
+      hold.close();
+      if (identical(_titleJob, hold)) _titleJob = null;
+      if (mounted) setState(() => _suggestingTitle = false);
+    }
+  });
+
   Future<void> _dictate() async {
     if (_dictating) return;
     setState(() => _dictating = true);

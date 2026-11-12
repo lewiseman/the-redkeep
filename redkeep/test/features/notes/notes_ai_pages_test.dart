@@ -3,7 +3,6 @@ import 'package:redkeep/features/notes/application/notes_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'dart:convert';
-import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -418,69 +417,41 @@ void main() {
   );
 
   testWidgets(
-    'keeping a result closes the AI desk onto the note and shows what changed',
+    'the keyboard row suggests a title while the title has the caret',
     (tester) async {
-      h.remote.output = noteMetadataOutput;
+      h.remote.output = '{"titles":["Raised bed plan","Tomato care"]}';
+      tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+      addTearDown(tester.view.reset);
       try {
-        final router = await pumpApp(
+        await pumpApp(
           tester,
           notes: h.repository,
           database: h.db,
           aiProvider: h.aiProvider,
-          initialLocation: '/notes',
+          initialLocation: noteLocation(notesTestId),
         );
-        router.go(noteLocation(notesTestId));
+        await startEditing(tester);
+        final suggest = find.byTooltip('Suggest a title');
+        expect(suggest, findsNothing);
+        await tester.tap(find.byKey(const ValueKey('note-title')));
         await tester.pumpAndSettle();
-        await tester.tap(find.byTooltip('AI tools'));
-        await tester.pumpAndSettle();
-        final metadata = find.byKey(const ValueKey('note-assistant-metadata'));
-        await tester.ensureVisible(metadata);
-        await tester.tap(metadata);
-        await tester.pumpAndSettle();
-        // The cards fold into a ribbon to switch crafts in one tap.
-        expect(
-          find.byKey(const ValueKey('note-ribbon-writing')),
-          findsOneWidget,
-        );
-        final generate = find.byKey(const ValueKey('notes-ai-generate'));
-        await tester.ensureVisible(generate);
-        await tester.tap(generate);
+        await tester.tap(suggest);
         for (var i = 0; i < 10; i++) {
           await tester.runAsync(() => Future<void>.delayed(Duration.zero));
           await tester.pumpAndSettle();
         }
-        final title = find.text('Raised bed plan');
-        await tester.ensureVisible(title.last);
-        await tester.tap(title.last);
-        await tester.pumpAndSettle();
-        // The chosen title is written onto the folio before keeping it.
+        expect(h.remote.submissions.single['prompt'], contains(notesTestBody));
         expect(
-          find.descendant(
-            of: find.byKey(const ValueKey('notes-ai-folio')),
-            matching: find.text('Raised bed plan'),
-          ),
-          findsOneWidget,
-        );
-        final apply = find.byKey(const ValueKey('notes-ai-apply'));
-        await tester.ensureVisible(apply);
-        await tester.tap(apply);
-        for (var i = 0; i < 5; i++) {
-          await tester.runAsync(() => Future<void>.delayed(Duration.zero));
-          await tester.pumpAndSettle();
-        }
-        expect(
-          (await h.repository.openDocument(notesTestId)).note!.text.title,
+          tester
+              .widget<TextField>(find.byKey(const ValueKey('note-title')))
+              .controller!
+              .text,
           'Raised bed plan',
         );
         expect(
-          find.byKey(const ValueKey('note-assistant-actions')),
+          find.byKey(const ValueKey('note-assistant-metadata')),
           findsNothing,
         );
-        expect(find.byKey(const ValueKey('note-ai-landing')), findsOneWidget);
-        expect(find.text('Title updated'), findsOneWidget);
-        await tester.tap(find.byKey(const ValueKey('note-ai-landing')));
-        await tester.pumpAndSettle();
-        expect(find.byKey(const ValueKey('note-ai-landing')), findsNothing);
         expect(tester.takeException(), isNull);
       } finally {
         await tester.pumpWidget(const SizedBox());
@@ -535,59 +506,6 @@ void main() {
       await tester.pumpAndSettle();
     }
   });
-
-  testWidgets(
-    'selective metadata review stays disabled until a suggestion is selected',
-    (tester) async {
-      final note = (await h.repository.openDocument(notesTestId)).note!;
-      h.remote.output = noteMetadataOutput;
-      try {
-        await pumpApp(
-          tester,
-          notes: h.repository,
-          database: h.db,
-          aiProvider: h.aiProvider,
-          initialLocation: '/notes',
-        );
-        unawaited(
-          Navigator.of(tester.element(find.byType(Scaffold).first)).push(
-            MaterialPageRoute<void>(
-              builder: (_) =>
-                  NoteAiToolPage(tool: NoteAiTool.metadata, id: note.id),
-            ),
-          ),
-        );
-        await tester.pumpAndSettle();
-        await tester.tap(find.byKey(const ValueKey('notes-ai-generate')));
-        for (var i = 0; i < 10; i++) {
-          await tester.runAsync(() => Future<void>.delayed(Duration.zero));
-          await tester.pumpAndSettle();
-        }
-        FilledButton apply() => tester.widget<FilledButton>(
-          find.byKey(const ValueKey('notes-ai-apply')),
-        );
-        expect(apply().onPressed, isNull);
-        await tester.ensureVisible(find.text('Raised bed plan'));
-        await tester.tap(find.text('Raised bed plan'));
-        await tester.pumpAndSettle();
-        expect(apply().onPressed, isNotNull);
-        await tester.ensureVisible(
-          find.byKey(const ValueKey('notes-ai-apply')),
-        );
-        await tester.tap(find.byKey(const ValueKey('notes-ai-apply')));
-        await tester.pumpAndSettle();
-        expect(
-          (await h.repository.openDocument(note.id)).note!.text.title,
-          'Raised bed plan',
-        );
-        expect(find.text('Undo'), findsNothing);
-        expect(tester.takeException(), isNull);
-      } finally {
-        await tester.pumpWidget(const SizedBox());
-        await tester.pumpAndSettle();
-      }
-    },
-  );
 
   testWidgets(
     'editing attachments saves into the note and Done returns to reading',

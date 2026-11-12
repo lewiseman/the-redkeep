@@ -492,6 +492,33 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  noteTest('the editor offers note actions instead of floating tags', (
+    tester,
+  ) async {
+    await seed();
+    final router = await pumpApp(
+      tester,
+      initialLocation: noteLocation(id),
+      notes: repo,
+    );
+    await startEditing(tester);
+    expect(find.byTooltip('Choose note background'), findsNothing);
+    expect(find.byTooltip('Edit tags'), findsNothing);
+    expect(find.byKey(const ValueKey('note-more-actions')), findsOneWidget);
+    await enterNoteBody(tester, 'Pinned while writing');
+    await tester.pumpAndSettle();
+    await tap(tester, 'Pin note');
+    var saved = (await repo.openDocument(id)).note!;
+    expect(saved.pinned, isTrue);
+    expect(saved.text.body, 'Pinned while writing');
+    expect(bodyField(), findsOneWidget);
+    await tap(tester, 'Delete note');
+    await tap(tester, 'Delete');
+    expect(path(router), '/notes');
+    expect((await repo.openDocument(id)).available, isFalse);
+    expect(tester.takeException(), isNull);
+  });
+
   noteTest('title takes no line breaks; an empty title is skipped', (
     tester,
   ) async {

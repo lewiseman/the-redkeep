@@ -40,7 +40,6 @@ import 'website/note_website_view.dart';
 
 NoteAiTool noteToolForJob(AiJob job) => switch (job.operation) {
   AiOperation.noteTemplate => NoteAiTool.template,
-  AiOperation.noteMetadata => NoteAiTool.metadata,
   AiOperation.noteQuestion => NoteAiTool.search,
   AiOperation.noteImage => NoteAiTool.image,
   AiOperation.noteScan => NoteAiTool.scan,
@@ -110,7 +109,7 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
   final _review = TextEditingController();
   AiOperation _writing = AiOperation.noteMarkdown;
   String _imageMode = 'describe', _backgroundTone = 'light';
-  String? _title, _error, _reviewedJob;
+  String? _error, _reviewedJob;
   NoteAttachment? _image;
   TextSelection? _selection;
 
@@ -156,7 +155,6 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
   }
 
   AiOperation get _operation => switch (widget.tool) {
-    NoteAiTool.metadata => AiOperation.noteMetadata,
     NoteAiTool.template => AiOperation.noteTemplate,
     NoteAiTool.image => AiOperation.noteImage,
     NoteAiTool.scan => AiOperation.noteScan,
@@ -212,12 +210,11 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
     }
   });
   Future<void> _apply(AiJob job) => _run(() async {
-    final result = await ref
+    await ref
         .read(noteAiControllerProvider)
         .apply(
           job,
           scope: _scope,
-          title: _title,
           reviewedText:
               (job.operation == AiOperation.noteScan ||
                   job.operation == AiOperation.noteImage)
@@ -240,10 +237,6 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
         ),
       );
       return;
-    }
-    if (result != null && job.operation == AiOperation.noteMetadata) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Title updated.')));
     }
     if (mounted) Navigator.of(context).maybePop();
   });
@@ -652,8 +645,6 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
           title: 'What is used',
         ),
       ],
-      if (widget.tool == NoteAiTool.metadata)
-        const Text('Choose a title to keep. Your note text stays as it is.'),
       const SizedBox(height: 18),
       FilledButton.icon(
         key: const ValueKey('notes-ai-generate'),
@@ -661,7 +652,6 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
         icon: const Icon(Icons.auto_awesome_rounded),
         label: Text(switch (widget.tool) {
           NoteAiTool.search => 'Ask your notes',
-          NoteAiTool.metadata => 'Suggest titles',
           NoteAiTool.scan => 'Read the page',
           NoteAiTool.background => 'Paint it',
           NoteAiTool.presentation =>
@@ -758,7 +748,6 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
     if (mounted) {
       setState(() {
         _reviewedJob = null;
-        _title = null;
         _split = 1;
       });
     }
@@ -887,36 +876,7 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
           ),
         ),
     ];
-    if (job.operation == AiOperation.noteMetadata) {
-      final suggestions = NoteMetadataSuggestions.parse(
-        job.text!,
-        NoteMetadataSource.decode(source['payload'] as String),
-      );
-      result.addAll([
-        _folio(
-          status: 'Proposal',
-          child: _page(lines: 2, proposedTitle: _title),
-        ),
-        _label('Title'),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            ChoiceChip(
-              label: const Text('Keep current title'),
-              selected: _title == null,
-              onSelected: (_) => setState(() => _title = null),
-            ),
-            for (final title in suggestions.titles)
-              ChoiceChip(
-                label: Text(title),
-                selected: _title == title,
-                onSelected: (_) => setState(() => _title = title),
-              ),
-          ],
-        ),
-      ]);
-    } else if (job.operation == AiOperation.noteBackground) {
+    if (job.operation == AiOperation.noteBackground) {
       result.add(
         _folio(
           status: 'New backdrop',
@@ -1066,17 +1026,11 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
       const SizedBox(height: 16),
       FilledButton.icon(
         key: const ValueKey('notes-ai-apply'),
-        onPressed:
-            canApply &&
-                (job.operation != AiOperation.noteMetadata || _title != null)
-            ? () => _apply(job)
-            : null,
+        onPressed: canApply ? () => _apply(job) : null,
         icon: const Icon(Icons.check_rounded),
         label: Text(
-          job.operation == AiOperation.noteMetadata
-              ? 'Use this title'
-              : job.operation == AiOperation.noteScan ||
-                    job.operation == AiOperation.noteImage
+          job.operation == AiOperation.noteScan ||
+                  job.operation == AiOperation.noteImage
               ? 'Add to note'
               : 'Keep in note',
         ),

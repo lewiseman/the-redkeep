@@ -121,39 +121,26 @@ class _NoteReadViewState extends ConsumerState<NoteReadView> {
                   // preview offers the note's actions instead.
                   AnimatedSwitcher(
                     duration: RenderingPolicyScope.of(context).duration,
-                    child: expansion > .3
-                        ? Padding(
-                            key: const ValueKey('note-edit-action'),
-                            padding: const EdgeInsetsDirectional.only(start: 4),
-                            child: IconButton(
-                              tooltip: 'Edit note',
-                              style: noteBarButtonStyle(context),
-                              onPressed: canEdit ? _edit : null,
-                              icon: const Icon(Icons.edit_outlined),
-                            ),
-                          )
-                        : KeyedSubtree(
-                            key: const ValueKey('note-more-actions'),
-                            child: NoteActionsMenu(
-                              isPinned: note!.pinned,
-                              onTogglePin: busy
-                                  ? null
-                                  : () => _act(
-                                      () => ref
-                                          .read(notesActionsProvider.notifier)
-                                          .organize(
-                                            note,
-                                            pinned: !note.pinned,
-                                            tags: note.tags,
-                                          ),
+                    child: KeyedSubtree(
+                      key: const ValueKey('note-more-actions'),
+                      child: NoteActionsMenu(
+                        isPinned: note!.pinned,
+                        onTogglePin: busy
+                            ? null
+                            : () => _act(
+                                () => ref
+                                    .read(notesActionsProvider.notifier)
+                                    .organize(
+                                      note,
+                                      pinned: !note.pinned,
+                                      tags: note.tags,
                                     ),
-                              onTags: busy ? null : () => _tags(note),
-                              onBackground: busy
-                                  ? null
-                                  : () => _background(note),
-                              onDelete: busy ? null : () => _delete(note),
-                            ),
-                          ),
+                              ),
+                        onTags: busy ? null : () => _tags(note),
+                        onBackground: busy ? null : () => _background(note),
+                        onDelete: busy ? null : () => _delete(note),
+                      ),
+                    ),
                   ),
                 ],
               ],

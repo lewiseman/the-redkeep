@@ -34,13 +34,6 @@ enum NoteAiTool {
     'Organize or edit',
     Color(0xFF75619B),
   ),
-  metadata(
-    'Title ideas',
-    'Pick a title that says what this note is about.',
-    'Name it',
-    'Title ideas',
-    Color(0xFFB5683F),
-  ),
   image(
     'Ask about an image',
     'Choose a photo. Ask or read what is in it.',
@@ -87,7 +80,6 @@ enum NoteAiTool {
   String get landed => switch (this) {
     template => 'Template added to your note',
     writing => 'Your note was rewritten',
-    metadata => 'Title updated',
     image => 'Added to the end of your note',
     scan => 'Page added to the end of your note',
     background => 'New background set',
@@ -191,24 +183,6 @@ class _ToolPainter extends CustomPainter {
         );
         canvas.restore();
         sparkle(64, 15);
-      case NoteAiTool.metadata:
-        sheet(11, 13, 48, 48);
-        final titlePaint = Paint()
-          ..color = ink
-          ..strokeWidth = 4
-          ..strokeCap = StrokeCap.round;
-        canvas.drawLine(const Offset(20, 26), const Offset(47, 26), titlePaint);
-        lines(20, 38, 25, 2);
-        final tag = Path()
-          ..moveTo(37, 51)
-          ..lineTo(58, 51)
-          ..lineTo(70, 61)
-          ..lineTo(58, 71)
-          ..lineTo(37, 71)
-          ..close();
-        canvas.drawPath(tag, Paint()..color = paper);
-        canvas.drawPath(tag, stroke);
-        canvas.drawCircle(const Offset(59, 61), 2.5, Paint()..color = ink);
       case NoteAiTool.image:
       case NoteAiTool.background:
         sheet(10, 18, 53, 43, tinted: true);

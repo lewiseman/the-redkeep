@@ -168,23 +168,24 @@ void main() {
     },
   );
 
-  test('title ideas change only the title and leave the tags alone', () async {
-    h.remote.output = noteMetadataOutput;
-    await actions().start(
-      AiOperation.noteMetadata,
-      notesTestId,
-      scope: notesJobScope,
-    );
-    final saved = (await actions().apply(
-      job(),
-      scope: notesJobScope,
-      title: 'Raised bed plan',
-    ))!;
-    expect(saved.text.title, 'Raised bed plan');
-    expect(saved.text.body, notesTestBody);
-    expect(saved.tags, ['travel']);
-    expect(h.remote.submissions.single['system'], isNot(contains('tags:')));
-  });
+  test(
+    'title ideas ask for titles only and never change the note by themselves',
+    () async {
+      h.remote.output = noteMetadataOutput;
+      await actions().start(
+        AiOperation.noteMetadata,
+        notesTestId,
+        scope: notesJobScope,
+      );
+      expect(job().phase, 'completed');
+      expect(h.remote.submissions.single['system'], isNot(contains('tags:')));
+      // The editor takes the title itself; applying here changes nothing.
+      expect(await actions().apply(job(), scope: notesJobScope), isNull);
+      final note = (await h.repository.openDocument(notesTestId)).note!;
+      expect(note.text.title, 'Garden');
+      expect(note.revision, 1);
+    },
+  );
 
   test('tag ideas send the existing tags and never change the note', () async {
     await h.save(

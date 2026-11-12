@@ -16,10 +16,11 @@ class NoteFormatBar extends StatelessWidget {
     required this.controller,
     required this.onAttach,
     required this.onDictate,
-    required this.onTags,
     required this.onFormat,
     required this.onHideKeyboard,
     this.showDictate = true,
+    this.onSuggestTitle,
+    this.suggestingTitle = false,
   });
 
   /// Height of the row on top of the keyboard.
@@ -35,11 +36,17 @@ class NoteFormatBar extends StatelessWidget {
 
   /// False when the AI provider has no speech-to-text.
   final bool showDictate;
-  final VoidCallback? onTags;
 
   /// Brings the keyboard (and its formatting row) up; null without rich text.
   final VoidCallback? onFormat;
   final VoidCallback onHideKeyboard;
+
+  /// Asks AI for a title; offered on the keyboard row while the title has
+  /// the caret. Null hides it.
+  final VoidCallback? onSuggestTitle;
+
+  /// A title is being suggested; the tool shows progress instead.
+  final bool suggestingTitle;
 
   @override
   Widget build(BuildContext context) {
@@ -77,7 +84,6 @@ class NoteFormatBar extends StatelessWidget {
         icon: Icons.mic_none_rounded,
         onPressed: onDictate,
       ),
-    _Tool(tooltip: 'Edit tags', icon: Icons.sell_outlined, onPressed: onTags),
   ];
 
   Widget _capsule(BuildContext context) {
@@ -150,6 +156,36 @@ class NoteFormatBar extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   child: Row(
                     children: [
+                      if (suggestingTitle)
+                        const Tooltip(
+                          message: 'Suggesting a title',
+                          child: SizedBox.square(
+                            key: ValueKey('note-title-suggesting'),
+                            dimension: 48,
+                            child: Center(
+                              child: SizedBox.square(
+                                dimension: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                            ),
+                          ),
+                        )
+                      else if (onSuggestTitle != null)
+                        _Tool(
+                          tooltip: 'Suggest a title',
+                          icon: Icons.auto_awesome_rounded,
+                          onPressed: onSuggestTitle,
+                        ),
+                      if (suggestingTitle || onSuggestTitle != null)
+                        SizedBox(
+                          height: 24,
+                          child: VerticalDivider(
+                            width: 17,
+                            color: colors.outlineVariant,
+                          ),
+                        ),
                       if (controller != null) ...[
                         _FormatTools(controller: controller),
                         SizedBox(

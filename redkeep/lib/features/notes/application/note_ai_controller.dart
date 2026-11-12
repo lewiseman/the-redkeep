@@ -298,13 +298,14 @@ class NoteAiController {
   Future<NoteDocument?> apply(
     AiJob job, {
     required String scope,
-    String? title,
     String? reviewedText,
   }) async {
-    // Tag ideas are chosen in the tag picker, which saves them itself.
+    // Title and tag ideas are taken where they were asked for, in the
+    // editor and the tag picker.
     if (job.phase != 'completed' ||
         job.text == null ||
         !job.operation.isNote ||
+        job.operation == AiOperation.noteMetadata ||
         job.operation == AiOperation.noteTags) {
       return null;
     }
@@ -393,16 +394,6 @@ class NoteAiController {
       markdownFromPlainText(value),
     ].join('\n\n');
     switch (job.operation) {
-      case AiOperation.noteMetadata:
-        final suggestions = NoteMetadataSuggestions.parse(
-          job.text!,
-          NoteMetadataSource.decode(source['payload'] as String),
-        );
-        if (title == null) return null;
-        if (!suggestions.titles.contains(title)) {
-          throw const FormatException('Choose a suggested title.');
-        }
-        text = PlainTextDocument(title: title, body: text.body);
       case AiOperation.noteTemplate || AiOperation.noteDraft:
         final template = job.operation == AiOperation.noteDraft
             ? NoteTemplate.parse(

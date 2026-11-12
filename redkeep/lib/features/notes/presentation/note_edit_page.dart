@@ -20,6 +20,7 @@ import 'note_typography.dart';
 import '../domain/note_rich_markdown.dart';
 import 'note_scene.dart';
 import 'note_media_widgets.dart';
+import 'note_tag_chips.dart';
 import 'note_tag_picker.dart';
 import '../data/note_media_store.dart';
 import '../domain/note_colors.dart';
@@ -300,7 +301,7 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
                                     ),
                                     if (saved?.tags.isNotEmpty == true) ...[
                                       const SizedBox(height: 20),
-                                      _NoteTagWrap(tags: saved!.tags),
+                                      NoteTagChips(tags: saved!.tags),
                                     ],
                                     const SizedBox(height: 20),
                                     if (saved?.text.body.isNotEmpty == true)
@@ -416,7 +417,7 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
                                     // Same order and gaps as reading, so text stays put.
                                     if (state.details.tags.isNotEmpty) ...[
                                       const SizedBox(height: 20),
-                                      _NoteTagWrap(tags: state.details.tags),
+                                      NoteTagChips(tags: state.details.tags),
                                     ],
                                     const SizedBox(height: 20),
                                     if (_rich case final rich?)
@@ -805,30 +806,6 @@ const _titleStyle = TextStyle(
   height: 1.3,
   fontWeight: FontWeight.bold,
 );
-
-/// The note's tags as reading lays them out.
-class _NoteTagWrap extends StatelessWidget {
-  const _NoteTagWrap({required this.tags});
-  final List<String> tags;
-
-  @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) => Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        for (final tag in tags)
-          ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: constraints.maxWidth),
-            child: Chip(
-              label: Text(tag, maxLines: 1, overflow: TextOverflow.ellipsis),
-              shape: const StadiumBorder(),
-            ),
-          ),
-      ],
-    ),
-  );
-}
 
 /// Turns typed or pasted line breaks in a note title into spaces.
 final noteTitleLineBreaks = FilteringTextInputFormatter.deny(

@@ -4,6 +4,7 @@ import 'note_app_bar.dart';
 import '../../../core/presentation/rendering_policy.dart';
 import 'note_scene.dart';
 import 'note_media_widgets.dart';
+import 'note_tag_chips.dart';
 import 'note_tag_picker.dart';
 import '../domain/note_colors.dart';
 import 'website/note_website_card.dart';
@@ -269,29 +270,7 @@ class _NoteReadViewState extends ConsumerState<NoteReadView> {
                                   if (note.tags.isNotEmpty) ...[
                                     if (note.text.title.trim().isNotEmpty)
                                       const SizedBox(height: 20),
-                                    LayoutBuilder(
-                                      builder: (context, constraints) => Wrap(
-                                        spacing: 8,
-                                        runSpacing: 8,
-                                        children: [
-                                          for (final tag in note.tags)
-                                            ConstrainedBox(
-                                              constraints: BoxConstraints(
-                                                maxWidth: constraints.maxWidth,
-                                              ),
-                                              child: Chip(
-                                                label: Text(
-                                                  tag,
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                ),
-                                                shape: const StadiumBorder(),
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                    ),
+                                    NoteTagChips(tags: note.tags),
                                   ],
                                   if (note.text.title.trim().isNotEmpty ||
                                       note.tags.isNotEmpty)

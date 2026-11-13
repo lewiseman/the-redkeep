@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/tmdb_client.dart';
@@ -24,14 +22,7 @@ const exploreRowLength = 15;
 /// sections or opening a title should not fetch everything again.
 const exploreCacheFor = Duration(minutes: 10);
 
-/// Keeps a provider's result while unwatched, for [exploreCacheFor].
-void cacheExplore(Ref ref) {
-  final link = ref.keepAlive();
-  Timer? release;
-  ref.onCancel(() => release = Timer(exploreCacheFor, link.close));
-  ref.onResume(() => release?.cancel());
-  ref.onDispose(() => release?.cancel());
-}
+void cacheExplore(Ref ref) => keepWhileAway(ref, exploreCacheFor);
 
 /// Curated rows: personal ones from the local catalog, trending from TMDB.
 /// Titles the reader has already saved or swiped are left out.

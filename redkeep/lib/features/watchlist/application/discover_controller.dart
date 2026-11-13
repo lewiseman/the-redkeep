@@ -16,6 +16,9 @@ import '../domain/watch_title.dart';
 import '../domain/watchlist_repository.dart';
 import 'watchlist_providers.dart';
 
+/// How long the deck is kept while the reader is elsewhere.
+const discoverKeptFor = Duration(minutes: 30);
+
 /// How long a match waits for a planned night.
 const matchLifetime = Duration(days: 7);
 
@@ -108,8 +111,31 @@ class DiscoverController extends Notifier<DiscoverState> {
   DiscoverState build() {
     _repository = ref.watch(watchlistRepositoryProvider);
     ref.onDispose(() => _disposed = true);
+    // The same deck, top card and undo when the reader comes back.
+    keepWhileAway(
+      ref,
+      discoverKeptFor,
+      // Outside the life-cycle callback, where state may be read.
+      onReturn: () => scheduleMicrotask(() => unawaited(_prune())),
+    );
     unawaited(_start());
     return const DiscoverState();
+  }
+
+  /// Drops cards saved or swiped elsewhere while Discover was away.
+  Future<void> _prune() async {
+    if (state.cards.isEmpty) return;
+    final seen = {for (final t in await _repository.titles()) t.id};
+    final kept = [
+      for (final c in state.cards)
+        if (!seen.contains(c.title.key.id)) c,
+    ];
+    if (_disposed || kept.length == state.cards.length) return;
+    if (kept.isEmpty) {
+      await _deal();
+    } else {
+      _emit(state.copyWith(cards: kept));
+    }
   }
 
   void _emit(DiscoverState next) {

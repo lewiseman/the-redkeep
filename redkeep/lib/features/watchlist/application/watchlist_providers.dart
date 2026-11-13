@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -34,6 +35,20 @@ final tmdbClientProvider = Provider<TmdbClient?>((ref) {
     region: ref.watch(tmdbRegionProvider),
   );
 });
+
+/// Keeps a provider alive for [duration] after nothing watches it, so moving
+/// between Watchlist sections, or into a title and back, keeps its state.
+/// [onReturn] runs when something watches it again within that time.
+void keepWhileAway(Ref ref, Duration duration, {void Function()? onReturn}) {
+  final link = ref.keepAlive();
+  Timer? release;
+  ref.onCancel(() => release = Timer(duration, link.close));
+  ref.onResume(() {
+    release?.cancel();
+    onReturn?.call();
+  });
+  ref.onDispose(() => release?.cancel());
+}
 
 final watchClockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
 final watchIdProvider = Provider<String Function()>((ref) {

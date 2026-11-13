@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -73,7 +72,7 @@ class WatchProfileView extends ConsumerWidget {
             : IconButton(
                 tooltip: 'Close profile',
                 onPressed: onClose,
-                icon: const Icon(CupertinoIcons.chevron_down),
+                icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 30),
               ),
         actions: [
           if (title != null &&

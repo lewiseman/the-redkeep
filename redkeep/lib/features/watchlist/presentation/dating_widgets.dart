@@ -1,4 +1,8 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+
+import '../../../core/presentation/rendering_policy.dart';
 
 import '../domain/catalog_title.dart';
 import '../domain/explore.dart';
@@ -234,4 +238,193 @@ List<Widget> titleBadges(
     if ((title.year ?? 0) >= thisYear - 1)
       const CardBadge('New', dot: WatchBrand.gold),
   ];
+}
+
+/// Opens a card's profile, and shows how well it matches: a ring that fills
+/// to the score around a chevron and the percentage. Before taste is
+/// learned there is no score, only a quiet dashed ring.
+class MatchProfileButton extends StatefulWidget {
+  const MatchProfileButton({
+    super.key,
+    required this.percent,
+    required this.onPressed,
+  });
+
+  /// 1 to 99, or null while Discover is still learning.
+  final int? percent;
+  final VoidCallback onPressed;
+
+  @override
+  State<MatchProfileButton> createState() => _MatchProfileButtonState();
+}
+
+class _MatchProfileButtonState extends State<MatchProfileButton>
+    with SingleTickerProviderStateMixin {
+  late final _fill = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  );
+  var _started = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_started) return;
+    _started = true;
+    // Each card's ring sweeps in once; still with reduced motion.
+    if (RenderingPolicyScope.of(context).animate) {
+      _fill.forward();
+    } else {
+      _fill.value = 1;
+    }
+  }
+
+  @override
+  void didUpdateWidget(MatchProfileButton old) {
+    super.didUpdateWidget(old);
+    if (old.percent != widget.percent && _fill.isCompleted) _fill.value = 1;
+  }
+
+  @override
+  void dispose() {
+    _fill.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final percent = widget.percent;
+    final policy = RenderingPolicyScope.of(context);
+    final scale = (MediaQuery.textScalerOf(context).scale(14) / 14).clamp(
+      1.0,
+      1.4,
+    );
+    final size = 62.0 * scale;
+    final glow = percent != null && percent >= 80 && !policy.simplerEffects;
+    return Tooltip(
+      message: 'View profile',
+      child: Semantics(
+        button: true,
+        label: percent == null
+            ? 'View profile'
+            : 'View profile, $percent% match',
+        excludeSemantics: true,
+        child: SizedBox.square(
+          dimension: size,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xCC1B1B1F),
+              boxShadow: glow
+                  ? [
+                      BoxShadow(
+                        color: WatchBrand.rose.withValues(alpha: .55),
+                        blurRadius: 18,
+                        spreadRadius: 1,
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Material(
+              type: MaterialType.transparency,
+              shape: const CircleBorder(),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: widget.onPressed,
+                child: AnimatedBuilder(
+                  animation: _fill,
+                  builder: (context, _) {
+                    final t = Curves.easeOutCubic.transform(_fill.value);
+                    final shown = percent == null
+                        ? null
+                        : (percent * t).round();
+                    return CustomPaint(
+                      painter: _MatchRing(
+                        fraction: percent == null ? null : percent / 100 * t,
+                      ),
+                      child: Padding(
+                        padding: EdgeInsets.all(size * .16),
+                        child: FittedBox(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.keyboard_arrow_up_rounded,
+                                color: Colors.white,
+                                size: 22,
+                              ),
+                              if (shown != null)
+                                Text(
+                                  '$shown%',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    height: 1,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -.3,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MatchRing extends CustomPainter {
+  const _MatchRing({required this.fraction});
+
+  /// 0 to 1, or null for the dashed, unscored ring.
+  final double? fraction;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const stroke = 4.0;
+    final rect = (Offset.zero & size).deflate(stroke / 2 + 1.5);
+    final track = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..color = Colors.white24;
+    final fraction = this.fraction;
+    if (fraction == null) {
+      // Twelve short dashes: a score still to come.
+      const dashes = 12;
+      for (var i = 0; i < dashes; i++) {
+        canvas.drawArc(
+          rect,
+          -math.pi / 2 + i * 2 * math.pi / dashes,
+          2 * math.pi / dashes * .45,
+          false,
+          track..strokeCap = StrokeCap.round,
+        );
+      }
+      return;
+    }
+    canvas.drawArc(rect, 0, 2 * math.pi, false, track);
+    if (fraction <= 0) return;
+    final sweep = 2 * math.pi * fraction;
+    final arc = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.round
+      ..shader = SweepGradient(
+        startAngle: 0,
+        endAngle: sweep,
+        colors: const [WatchBrand.rose, WatchBrand.gold],
+        transform: const GradientRotation(-math.pi / 2),
+      ).createShader(rect);
+    canvas.drawArc(rect, -math.pi / 2, sweep, false, arc);
+  }
+
+  @override
+  bool shouldRepaint(_MatchRing old) => old.fraction != fraction;
 }

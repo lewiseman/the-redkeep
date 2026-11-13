@@ -212,6 +212,37 @@ void main() {
     );
   });
 
+  test('chats with a title stay on this device and never sync', () async {
+    await phone.sync();
+    await phone.watchlist.setStatus(matrix, WatchStatus.planned);
+    await phone.sync();
+    final before = Map.of(drive.documents);
+    await phone.db
+        .into(phone.db.watchChatTurns)
+        .insert(
+          WatchChatTurnsCompanion.insert(
+            id: 'c' * 32,
+            titleId: matrix.key.id,
+            at: 1,
+            fromReader: true,
+            body: 'Are you worth the hype?',
+          ),
+        );
+    expect(
+      await (phone.db.select(phone.db.syncRecords)
+            ..where((r) => r.state.equals('pending')))
+          .get(),
+      isEmpty,
+      reason: 'a message queues nothing',
+    );
+    await phone.sync();
+    expect(drive.documents.keys, before.keys);
+    expect(
+      drive.documents.values.map((d) => jsonEncode(d.payload)).join(),
+      isNot(contains('worth the hype')),
+    );
+  });
+
   test('account reset clears every watchlist table', () async {
     await phone.watchlist.setStatus(matrix, WatchStatus.planned);
     await phone.watchlist.createList('Later');

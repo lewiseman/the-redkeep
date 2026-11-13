@@ -162,10 +162,7 @@ List<(String, String)> photosToPreload({
   List<(String, String)> upNext = const [],
   int ahead = 3,
   int nextCard = 2,
-}) => [
-  ...current.skip(index + 1).take(ahead),
-  ...upNext.take(nextCard),
-];
+}) => [...current.skip(index + 1).take(ahead), ...upNext.take(nextCard)];
 
 /// Columns for a poster grid: fewer when space is narrow or text is large.
 int posterColumns(BuildContext context, double width) {

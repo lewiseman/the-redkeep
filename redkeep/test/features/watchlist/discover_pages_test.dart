@@ -6,6 +6,7 @@ import 'package:redkeep/core/storage/app_database.dart';
 import 'package:redkeep/features/appearance/domain/appearance_preferences.dart';
 import 'package:redkeep/features/watchlist/data/drift_watchlist_repository.dart';
 import 'package:redkeep/features/watchlist/domain/catalog_title.dart';
+import 'package:redkeep/features/watchlist/domain/recommender/deck.dart';
 import 'package:redkeep/features/watchlist/domain/recommender/taste.dart';
 import 'package:redkeep/features/watchlist/domain/watch_title.dart';
 
@@ -305,9 +306,63 @@ void main() {
     expect(profile.empty, isFalse, reason: 'the night taught taste');
   });
 
+  pageTest('leaving Discover and coming back keeps the same card, photo and rewind', (tester) async {
+    await repository.cacheTitles([
+      for (var i = 0; i < genres.length; i++)
+        CatalogTitle(
+          key: WatchKey(WatchMedia.movie, i + 1),
+          title: '${genres[i]} film',
+          year: 2015,
+          genres: [genres[i]],
+          language: 'en',
+          posterPath: '/p$i.jpg',
+          backdropPath: '/b$i.jpg',
+          voteAverage: 7,
+          voteCount: 5000 - i,
+        ),
+    ]);
+    await pumpApp(tester, initialLocation: '/watchlist', database: db);
+    await openSection(tester, 'Discover');
+    await tester.tap(find.byTooltip('Nope'));
+    await tester.pumpAndSettle();
+
+    List<DeckCard> deck() => tester.widget<SwipeDeck>(find.byType(SwipeDeck)).cards;
+    String? photo() => tester
+        .widget<WatchPoster>(
+          find.descendant(
+            of: find.byType(TinderCard).last,
+            matching: find.byType(WatchPoster),
+          ),
+        )
+        .path;
+    final card = tester.getRect(find.byType(TinderCard).last);
+    await tester.tapAt(Offset(card.right - 40, card.top + 120));
+    await tester.pumpAndSettle();
+    final top = deck().first.title.key;
+    final second = deck()[1].title.key;
+    final shown = photo();
+    expect(shown, startsWith('/b'), reason: 'on the second photo');
+
+    await openSection(tester, 'Library');
+    await openSection(tester, 'Explore');
+    await openSection(tester, 'Discover');
+    expect(deck().first.title.key, top);
+    expect(photo(), shown);
+    expect(find.byTooltip('Rewind'), findsOneWidget);
+
+    // Saved elsewhere while away: the next card in the same deck moves up.
+    await openSection(tester, 'Library');
+    await repository.setStatus(deck0Title(top), WatchStatus.planned);
+    await openSection(tester, 'Discover');
+    await tester.pumpAndSettle();
+    expect(deck().first.title.key, second);
+  });
+
   pageTest('Discover explains how to add a TMDB key when it has nothing to deal', (tester) async {
     await pumpApp(tester, initialLocation: '/watchlist', database: db);
     await openSection(tester, 'Discover');
     expect(find.text('Discover needs TMDB'), findsOneWidget);
   });
 }
+
+CatalogTitle deck0Title(WatchKey key) => CatalogTitle(key: key, title: 'Saved');

@@ -309,6 +309,19 @@ class _TinderCardState extends ConsumerState<TinderCard> {
   int _photo = 0;
   (String, String)? _shown;
 
+  /// The photo shown survives leaving Discover and coming back.
+  String get _photoId => 'discover-photo-${widget.card.title.key}';
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (widget.background) return;
+    final saved = PageStorage.maybeOf(
+      context,
+    )?.readState(context, identifier: _photoId);
+    if (saved is int) _photo = saved;
+  }
+
   @override
   Widget build(BuildContext context) {
     final card = widget.card;
@@ -339,7 +352,11 @@ class _TinderCardState extends ConsumerState<TinderCard> {
     final height = max(1.0, widget.size.height);
     void flip(int delta) {
       final next = (index + delta).clamp(0, max(0, photos.length - 1)).toInt();
-      if (next != index) setState(() => _photo = next);
+      if (next == index) return;
+      setState(() => _photo = next);
+      PageStorage.maybeOf(
+        context,
+      )?.writeState(context, next, identifier: _photoId);
     }
 
     return ClipRRect(
@@ -463,15 +480,11 @@ class _TinderCardState extends ConsumerState<TinderCard> {
                         ),
                       ),
                       if (!widget.background)
-                        IconButton(
-                          tooltip: 'View profile',
-                          onPressed: _openProfile,
-                          style: IconButton.styleFrom(
-                            backgroundColor: Colors.white24,
-                          ),
-                          icon: const Icon(
-                            Icons.arrow_upward,
-                            color: Colors.white,
+                        Padding(
+                          padding: const EdgeInsets.only(left: 8),
+                          child: MatchProfileButton(
+                            percent: card.showsMatch ? card.matchPercent : null,
+                            onPressed: _openProfile,
                           ),
                         ),
                     ],

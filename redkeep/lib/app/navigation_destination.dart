@@ -5,6 +5,8 @@ import '../features/diary/domain/diary_period.dart';
 import '../features/flow/domain/thought.dart';
 import '../features/diary/domain/diary_document.dart';
 import '../features/notes/domain/note_document.dart';
+import '../features/watchlist/domain/explore.dart';
+import '../features/watchlist/domain/watch_title.dart';
 
 final initialNavigationLocationProvider = Provider<String>(
   (ref) => WidgetsBinding.instance.platformDispatcher.defaultRouteName,
@@ -76,6 +78,8 @@ String _destination(String location) {
     '/notes/ai-search',
     '/diary/search',
     '/flow/search',
+    watchSearchLocation,
+    watchPreferencesLocation,
   }.contains(location)) {
     return location;
   }
@@ -89,6 +93,14 @@ String _destination(String location) {
     r'^/diary/(?:calendar/([a-z0-9-]+)|([a-z0-9-]+)/entries/[0-9a-f]{32}(?:/(?:edit|photos))?)$',
   ).firstMatch(location);
   if (diary != null && DiaryPeriod.tryParse((diary[1] ?? diary[2])!) != null) {
+    return location;
+  }
+  final mood = RegExp(r'^/watchlist/mood/([a-z]+)$').firstMatch(location);
+  if (mood != null && Mood.byId(mood[1]) != null) return location;
+  final watch = RegExp(
+    r'^/watchlist/([a-z]+)/([0-9]+)(?:/chat)?$',
+  ).firstMatch(location);
+  if (watch != null && WatchKey.fromRoute(watch[1], watch[2]) != null) {
     return location;
   }
   final flow = RegExp(r'^/flow/([0-9a-f]{32})(/edit)?$').firstMatch(location);
@@ -149,3 +161,18 @@ String diaryEntryLocation(DiaryPeriod date, String id, {bool edit = false}) =>
 String thoughtLocation(String id, {bool edit = false}) => isThoughtId(id)
     ? '/flow/$id${edit ? '/edit' : ''}'
     : AppDestination.unavailable.location;
+
+const watchSearchLocation = '/watchlist/search';
+const watchPreferencesLocation = '/watchlist/preferences';
+
+/// A film or show, by its TMDB identity.
+String watchTitleLocation(WatchKey key) =>
+    '/watchlist/${key.media.name}/${key.tmdbId}';
+
+/// A conversation with a film or show, in character.
+String watchChatLocation(WatchKey key) => '${watchTitleLocation(key)}/chat';
+
+/// Every title for one Explore mood.
+String watchMoodLocation(String id) => Mood.byId(id) == null
+    ? AppDestination.unavailable.location
+    : '/watchlist/mood/$id';

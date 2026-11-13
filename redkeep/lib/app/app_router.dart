@@ -8,6 +8,13 @@ import '../features/ai/application/ai_lifecycle.dart';
 import '../features/sync/application/sync_providers.dart';
 import 'writing_shell.dart';
 import 'more_page.dart';
+import '../features/watchlist/domain/explore.dart';
+import '../features/watchlist/domain/watch_title.dart';
+import '../features/watchlist/presentation/explore_view.dart';
+import '../features/watchlist/presentation/watch_chat_page.dart';
+import '../features/watchlist/presentation/watch_preferences_page.dart';
+import '../features/watchlist/presentation/watch_search_page.dart';
+import '../features/watchlist/presentation/watch_title_page.dart';
 import '../features/watchlist/presentation/watchlist_page.dart';
 import '../features/flow/presentation/flow_page.dart';
 import '../features/flow/presentation/thought_read_page.dart';
@@ -252,6 +259,67 @@ GoRouter createAppRouter(Ref ref) {
                 parentNavigatorKey: fullPage,
                 pageBuilder: (context, state) =>
                     _page(state, const WatchlistPage()),
+                routes: [
+                  GoRoute(
+                    path: 'search',
+                    parentNavigatorKey: fullPage,
+                    pageBuilder: (context, state) =>
+                        _page(state, const WatchSearchPage()),
+                  ),
+                  GoRoute(
+                    path: 'mood/:id',
+                    parentNavigatorKey: fullPage,
+                    pageBuilder: (context, state) => _page(
+                      state,
+                      WatchMoodPage(
+                        key: ValueKey(state.uri.path),
+                        mood: Mood.byId(state.pathParameters['id'])!,
+                      ),
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'preferences',
+                    parentNavigatorKey: fullPage,
+                    pageBuilder: (context, state) =>
+                        _page(state, const WatchPreferencesPage()),
+                  ),
+                  // Validated by navigationRedirect before it gets here.
+                  GoRoute(
+                    path: ':media/:tmdb/chat',
+                    parentNavigatorKey: fullPage,
+                    pageBuilder: (context, state) => _page(
+                      state,
+                      WatchChatPage(
+                        key: ValueKey(state.uri.path),
+                        watchKey: WatchKey.fromRoute(
+                          state.pathParameters['media'],
+                          state.pathParameters['tmdb'],
+                        )!,
+                        opening: state.extra is WatchChatOpening
+                            ? (state.extra as WatchChatOpening).text
+                            : null,
+                      ),
+                    ),
+                  ),
+                  GoRoute(
+                    path: ':media/:tmdb',
+                    parentNavigatorKey: fullPage,
+                    pageBuilder: (context, state) => _page(
+                      state,
+                      WatchTitlePage(
+                        key: ValueKey(state.uri.path),
+                        watchKey: WatchKey.fromRoute(
+                          state.pathParameters['media'],
+                          state.pathParameters['tmdb'],
+                        )!,
+                        // From Discover: the profile decides the card.
+                        deciding:
+                            state.extra is WatchProfileOpen &&
+                            (state.extra as WatchProfileOpen).deciding,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               GoRoute(
                 path: 'flow',

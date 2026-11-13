@@ -1,3 +1,4 @@
+import 'package:redkeep/features/watchlist/domain/watch_title.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:redkeep/app/navigation_destination.dart';
 
@@ -252,6 +253,35 @@ void main() {
       expect(validatedNavigationLocation(path), '/unavailable');
     }
     expect(thoughtLocation('bad'), '/unavailable');
+  });
+
+  test('Watchlist titles are addressed by TMDB identity only', () {
+    for (final path in [
+      '/watchlist/search',
+      '/watchlist/movie/603',
+      '/watchlist/tv/1399',
+    ]) {
+      expect(validatedNavigationLocation(path), path);
+      final gate = redirect(path, ready: false)!;
+      expect(redirect(redirect(gate, complete: false)!), path);
+    }
+    for (final path in [
+      '/watchlist/person/1',
+      '/watchlist/movie/0',
+      '/watchlist/movie/0603',
+      '/watchlist/movie/1234567890',
+      '/watchlist/movie/603/',
+      '/watchlist/movie/603/edit',
+      '/watchlist/movie/abc',
+      '/watchlist/movie/603?q=1',
+      '/watchlist/search/extra',
+    ]) {
+      expect(validatedNavigationLocation(path), '/unavailable', reason: path);
+    }
+    expect(
+      watchTitleLocation(const WatchKey(WatchMedia.tv, 1399)),
+      '/watchlist/tv/1399',
+    );
   });
 
   test(

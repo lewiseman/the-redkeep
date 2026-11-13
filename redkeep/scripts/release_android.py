@@ -235,6 +235,9 @@ def main():
         raise ReleaseError("env.json must include a configured GOOGLE_SERVER_CLIENT_ID for release sign-in.")
     if location.scheme != "https" or not location.hostname or location.query or location.fragment or location.username or location.password:
         raise ReleaseError("env.json must include an HTTPS ASSET_BASE_URL for the existing artwork download flow.")
+    tmdb = config.get("TMDB_API_KEY", "")
+    if not tmdb or tmdb.startswith("YOUR_"):
+        raise ReleaseError("env.json must include a TMDB_API_KEY for the Watchlist.")
     tools = android_tools()
     source_commit = run("git", "rev-parse", "HEAD", capture=True)
     # Website metadata is generated after building, outside the app source tree.

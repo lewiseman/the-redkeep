@@ -6468,6 +6468,2735 @@ class FlowReflectionsCompanion extends UpdateCompanion<FlowReflectionRow> {
   }
 }
 
+class $WatchCatalogTable extends WatchCatalog
+    with TableInfo<$WatchCatalogTable, WatchCatalogRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $WatchCatalogTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _mediaKeyMeta = const VerificationMeta(
+    'mediaKey',
+  );
+  @override
+  late final GeneratedColumn<String> mediaKey = GeneratedColumn<String>(
+    'media_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _dataMeta = const VerificationMeta('data');
+  @override
+  late final GeneratedColumn<String> data = GeneratedColumn<String>(
+    'data',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _seasonsMeta = const VerificationMeta(
+    'seasons',
+  );
+  @override
+  late final GeneratedColumn<String> seasons = GeneratedColumn<String>(
+    'seasons',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('{}'),
+  );
+  static const VerificationMeta _detailedMeta = const VerificationMeta(
+    'detailed',
+  );
+  @override
+  late final GeneratedColumn<bool> detailed = GeneratedColumn<bool>(
+    'detailed',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("detailed" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _popularityMeta = const VerificationMeta(
+    'popularity',
+  );
+  @override
+  late final GeneratedColumn<double> popularity = GeneratedColumn<double>(
+    'popularity',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _fetchedAtMeta = const VerificationMeta(
+    'fetchedAt',
+  );
+  @override
+  late final GeneratedColumn<int> fetchedAt = GeneratedColumn<int>(
+    'fetched_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    mediaKey,
+    data,
+    seasons,
+    detailed,
+    popularity,
+    fetchedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'watch_catalog';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<WatchCatalogRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('media_key')) {
+      context.handle(
+        _mediaKeyMeta,
+        mediaKey.isAcceptableOrUnknown(data['media_key']!, _mediaKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_mediaKeyMeta);
+    }
+    if (data.containsKey('data')) {
+      context.handle(
+        _dataMeta,
+        this.data.isAcceptableOrUnknown(data['data']!, _dataMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dataMeta);
+    }
+    if (data.containsKey('seasons')) {
+      context.handle(
+        _seasonsMeta,
+        seasons.isAcceptableOrUnknown(data['seasons']!, _seasonsMeta),
+      );
+    }
+    if (data.containsKey('detailed')) {
+      context.handle(
+        _detailedMeta,
+        detailed.isAcceptableOrUnknown(data['detailed']!, _detailedMeta),
+      );
+    }
+    if (data.containsKey('popularity')) {
+      context.handle(
+        _popularityMeta,
+        popularity.isAcceptableOrUnknown(data['popularity']!, _popularityMeta),
+      );
+    }
+    if (data.containsKey('fetched_at')) {
+      context.handle(
+        _fetchedAtMeta,
+        fetchedAt.isAcceptableOrUnknown(data['fetched_at']!, _fetchedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_fetchedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {mediaKey};
+  @override
+  WatchCatalogRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return WatchCatalogRow(
+      mediaKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}media_key'],
+      )!,
+      data: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}data'],
+      )!,
+      seasons: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}seasons'],
+      )!,
+      detailed: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}detailed'],
+      )!,
+      popularity: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}popularity'],
+      )!,
+      fetchedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}fetched_at'],
+      )!,
+    );
+  }
+
+  @override
+  $WatchCatalogTable createAlias(String alias) {
+    return $WatchCatalogTable(attachedDatabase, alias);
+  }
+}
+
+class WatchCatalogRow extends DataClass implements Insertable<WatchCatalogRow> {
+  final String mediaKey;
+
+  /// [CatalogTitle.toJson].
+  final String data;
+
+  /// Fetched seasons of a show, `{"1": [episodes...]}`.
+  final String seasons;
+  final bool detailed;
+  final double popularity;
+  final int fetchedAt;
+  const WatchCatalogRow({
+    required this.mediaKey,
+    required this.data,
+    required this.seasons,
+    required this.detailed,
+    required this.popularity,
+    required this.fetchedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['media_key'] = Variable<String>(mediaKey);
+    map['data'] = Variable<String>(data);
+    map['seasons'] = Variable<String>(seasons);
+    map['detailed'] = Variable<bool>(detailed);
+    map['popularity'] = Variable<double>(popularity);
+    map['fetched_at'] = Variable<int>(fetchedAt);
+    return map;
+  }
+
+  WatchCatalogCompanion toCompanion(bool nullToAbsent) {
+    return WatchCatalogCompanion(
+      mediaKey: Value(mediaKey),
+      data: Value(data),
+      seasons: Value(seasons),
+      detailed: Value(detailed),
+      popularity: Value(popularity),
+      fetchedAt: Value(fetchedAt),
+    );
+  }
+
+  factory WatchCatalogRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return WatchCatalogRow(
+      mediaKey: serializer.fromJson<String>(json['mediaKey']),
+      data: serializer.fromJson<String>(json['data']),
+      seasons: serializer.fromJson<String>(json['seasons']),
+      detailed: serializer.fromJson<bool>(json['detailed']),
+      popularity: serializer.fromJson<double>(json['popularity']),
+      fetchedAt: serializer.fromJson<int>(json['fetchedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'mediaKey': serializer.toJson<String>(mediaKey),
+      'data': serializer.toJson<String>(data),
+      'seasons': serializer.toJson<String>(seasons),
+      'detailed': serializer.toJson<bool>(detailed),
+      'popularity': serializer.toJson<double>(popularity),
+      'fetchedAt': serializer.toJson<int>(fetchedAt),
+    };
+  }
+
+  WatchCatalogRow copyWith({
+    String? mediaKey,
+    String? data,
+    String? seasons,
+    bool? detailed,
+    double? popularity,
+    int? fetchedAt,
+  }) => WatchCatalogRow(
+    mediaKey: mediaKey ?? this.mediaKey,
+    data: data ?? this.data,
+    seasons: seasons ?? this.seasons,
+    detailed: detailed ?? this.detailed,
+    popularity: popularity ?? this.popularity,
+    fetchedAt: fetchedAt ?? this.fetchedAt,
+  );
+  WatchCatalogRow copyWithCompanion(WatchCatalogCompanion data) {
+    return WatchCatalogRow(
+      mediaKey: data.mediaKey.present ? data.mediaKey.value : this.mediaKey,
+      data: data.data.present ? data.data.value : this.data,
+      seasons: data.seasons.present ? data.seasons.value : this.seasons,
+      detailed: data.detailed.present ? data.detailed.value : this.detailed,
+      popularity: data.popularity.present
+          ? data.popularity.value
+          : this.popularity,
+      fetchedAt: data.fetchedAt.present ? data.fetchedAt.value : this.fetchedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WatchCatalogRow(')
+          ..write('mediaKey: $mediaKey, ')
+          ..write('data: $data, ')
+          ..write('seasons: $seasons, ')
+          ..write('detailed: $detailed, ')
+          ..write('popularity: $popularity, ')
+          ..write('fetchedAt: $fetchedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(mediaKey, data, seasons, detailed, popularity, fetchedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is WatchCatalogRow &&
+          other.mediaKey == this.mediaKey &&
+          other.data == this.data &&
+          other.seasons == this.seasons &&
+          other.detailed == this.detailed &&
+          other.popularity == this.popularity &&
+          other.fetchedAt == this.fetchedAt);
+}
+
+class WatchCatalogCompanion extends UpdateCompanion<WatchCatalogRow> {
+  final Value<String> mediaKey;
+  final Value<String> data;
+  final Value<String> seasons;
+  final Value<bool> detailed;
+  final Value<double> popularity;
+  final Value<int> fetchedAt;
+  final Value<int> rowid;
+  const WatchCatalogCompanion({
+    this.mediaKey = const Value.absent(),
+    this.data = const Value.absent(),
+    this.seasons = const Value.absent(),
+    this.detailed = const Value.absent(),
+    this.popularity = const Value.absent(),
+    this.fetchedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  WatchCatalogCompanion.insert({
+    required String mediaKey,
+    required String data,
+    this.seasons = const Value.absent(),
+    this.detailed = const Value.absent(),
+    this.popularity = const Value.absent(),
+    required int fetchedAt,
+    this.rowid = const Value.absent(),
+  }) : mediaKey = Value(mediaKey),
+       data = Value(data),
+       fetchedAt = Value(fetchedAt);
+  static Insertable<WatchCatalogRow> custom({
+    Expression<String>? mediaKey,
+    Expression<String>? data,
+    Expression<String>? seasons,
+    Expression<bool>? detailed,
+    Expression<double>? popularity,
+    Expression<int>? fetchedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (mediaKey != null) 'media_key': mediaKey,
+      if (data != null) 'data': data,
+      if (seasons != null) 'seasons': seasons,
+      if (detailed != null) 'detailed': detailed,
+      if (popularity != null) 'popularity': popularity,
+      if (fetchedAt != null) 'fetched_at': fetchedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  WatchCatalogCompanion copyWith({
+    Value<String>? mediaKey,
+    Value<String>? data,
+    Value<String>? seasons,
+    Value<bool>? detailed,
+    Value<double>? popularity,
+    Value<int>? fetchedAt,
+    Value<int>? rowid,
+  }) {
+    return WatchCatalogCompanion(
+      mediaKey: mediaKey ?? this.mediaKey,
+      data: data ?? this.data,
+      seasons: seasons ?? this.seasons,
+      detailed: detailed ?? this.detailed,
+      popularity: popularity ?? this.popularity,
+      fetchedAt: fetchedAt ?? this.fetchedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (mediaKey.present) {
+      map['media_key'] = Variable<String>(mediaKey.value);
+    }
+    if (data.present) {
+      map['data'] = Variable<String>(data.value);
+    }
+    if (seasons.present) {
+      map['seasons'] = Variable<String>(seasons.value);
+    }
+    if (detailed.present) {
+      map['detailed'] = Variable<bool>(detailed.value);
+    }
+    if (popularity.present) {
+      map['popularity'] = Variable<double>(popularity.value);
+    }
+    if (fetchedAt.present) {
+      map['fetched_at'] = Variable<int>(fetchedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WatchCatalogCompanion(')
+          ..write('mediaKey: $mediaKey, ')
+          ..write('data: $data, ')
+          ..write('seasons: $seasons, ')
+          ..write('detailed: $detailed, ')
+          ..write('popularity: $popularity, ')
+          ..write('fetchedAt: $fetchedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $WatchTitlesTable extends WatchTitles
+    with TableInfo<$WatchTitlesTable, WatchTitleRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $WatchTitlesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _mediaKeyMeta = const VerificationMeta(
+    'mediaKey',
+  );
+  @override
+  late final GeneratedColumn<String> mediaKey = GeneratedColumn<String>(
+    'media_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _posterPathMeta = const VerificationMeta(
+    'posterPath',
+  );
+  @override
+  late final GeneratedColumn<String> posterPath = GeneratedColumn<String>(
+    'poster_path',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _yearMeta = const VerificationMeta('year');
+  @override
+  late final GeneratedColumn<int> year = GeneratedColumn<int>(
+    'year',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _ratingMeta = const VerificationMeta('rating');
+  @override
+  late final GeneratedColumn<int> rating = GeneratedColumn<int>(
+    'rating',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+    'note',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _swipeMeta = const VerificationMeta('swipe');
+  @override
+  late final GeneratedColumn<String> swipe = GeneratedColumn<String>(
+    'swipe',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _matchStateMeta = const VerificationMeta(
+    'matchState',
+  );
+  @override
+  late final GeneratedColumn<String> matchState = GeneratedColumn<String>(
+    'match_state',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _matchedAtMeta = const VerificationMeta(
+    'matchedAt',
+  );
+  @override
+  late final GeneratedColumn<int> matchedAt = GeneratedColumn<int>(
+    'matched_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _expiresAtMeta = const VerificationMeta(
+    'expiresAt',
+  );
+  @override
+  late final GeneratedColumn<int> expiresAt = GeneratedColumn<int>(
+    'expires_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _nightAtMeta = const VerificationMeta(
+    'nightAt',
+  );
+  @override
+  late final GeneratedColumn<int> nightAt = GeneratedColumn<int>(
+    'night_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _outcomeMeta = const VerificationMeta(
+    'outcome',
+  );
+  @override
+  late final GeneratedColumn<String> outcome = GeneratedColumn<String>(
+    'outcome',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _checkedInAtMeta = const VerificationMeta(
+    'checkedInAt',
+  );
+  @override
+  late final GeneratedColumn<int> checkedInAt = GeneratedColumn<int>(
+    'checked_in_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _episodesMeta = const VerificationMeta(
+    'episodes',
+  );
+  @override
+  late final GeneratedColumn<String> episodes = GeneratedColumn<String>(
+    'episodes',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('[]'),
+  );
+  static const VerificationMeta _revisionMeta = const VerificationMeta(
+    'revision',
+  );
+  @override
+  late final GeneratedColumn<int> revision = GeneratedColumn<int>(
+    'revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL CHECK (revision > 0)',
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<int> deletedAt = GeneratedColumn<int>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    mediaKey,
+    title,
+    posterPath,
+    year,
+    status,
+    rating,
+    note,
+    swipe,
+    matchState,
+    matchedAt,
+    expiresAt,
+    nightAt,
+    outcome,
+    checkedInAt,
+    episodes,
+    revision,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'watch_titles';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<WatchTitleRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('media_key')) {
+      context.handle(
+        _mediaKeyMeta,
+        mediaKey.isAcceptableOrUnknown(data['media_key']!, _mediaKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_mediaKeyMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('poster_path')) {
+      context.handle(
+        _posterPathMeta,
+        posterPath.isAcceptableOrUnknown(data['poster_path']!, _posterPathMeta),
+      );
+    }
+    if (data.containsKey('year')) {
+      context.handle(
+        _yearMeta,
+        year.isAcceptableOrUnknown(data['year']!, _yearMeta),
+      );
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('rating')) {
+      context.handle(
+        _ratingMeta,
+        rating.isAcceptableOrUnknown(data['rating']!, _ratingMeta),
+      );
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+        _noteMeta,
+        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
+      );
+    }
+    if (data.containsKey('swipe')) {
+      context.handle(
+        _swipeMeta,
+        swipe.isAcceptableOrUnknown(data['swipe']!, _swipeMeta),
+      );
+    }
+    if (data.containsKey('match_state')) {
+      context.handle(
+        _matchStateMeta,
+        matchState.isAcceptableOrUnknown(data['match_state']!, _matchStateMeta),
+      );
+    }
+    if (data.containsKey('matched_at')) {
+      context.handle(
+        _matchedAtMeta,
+        matchedAt.isAcceptableOrUnknown(data['matched_at']!, _matchedAtMeta),
+      );
+    }
+    if (data.containsKey('expires_at')) {
+      context.handle(
+        _expiresAtMeta,
+        expiresAt.isAcceptableOrUnknown(data['expires_at']!, _expiresAtMeta),
+      );
+    }
+    if (data.containsKey('night_at')) {
+      context.handle(
+        _nightAtMeta,
+        nightAt.isAcceptableOrUnknown(data['night_at']!, _nightAtMeta),
+      );
+    }
+    if (data.containsKey('outcome')) {
+      context.handle(
+        _outcomeMeta,
+        outcome.isAcceptableOrUnknown(data['outcome']!, _outcomeMeta),
+      );
+    }
+    if (data.containsKey('checked_in_at')) {
+      context.handle(
+        _checkedInAtMeta,
+        checkedInAt.isAcceptableOrUnknown(
+          data['checked_in_at']!,
+          _checkedInAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('episodes')) {
+      context.handle(
+        _episodesMeta,
+        episodes.isAcceptableOrUnknown(data['episodes']!, _episodesMeta),
+      );
+    }
+    if (data.containsKey('revision')) {
+      context.handle(
+        _revisionMeta,
+        revision.isAcceptableOrUnknown(data['revision']!, _revisionMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_revisionMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  WatchTitleRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return WatchTitleRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      mediaKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}media_key'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      posterPath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}poster_path'],
+      ),
+      year: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}year'],
+      ),
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      ),
+      rating: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}rating'],
+      ),
+      note: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note'],
+      )!,
+      swipe: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}swipe'],
+      ),
+      matchState: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}match_state'],
+      ),
+      matchedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}matched_at'],
+      ),
+      expiresAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}expires_at'],
+      ),
+      nightAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}night_at'],
+      ),
+      outcome: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}outcome'],
+      ),
+      checkedInAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}checked_in_at'],
+      ),
+      episodes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}episodes'],
+      )!,
+      revision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}revision'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}deleted_at'],
+      ),
+    );
+  }
+
+  @override
+  $WatchTitlesTable createAlias(String alias) {
+    return $WatchTitlesTable(attachedDatabase, alias);
+  }
+}
+
+class WatchTitleRow extends DataClass implements Insertable<WatchTitleRow> {
+  final String id;
+  final String mediaKey;
+  final String title;
+  final String? posterPath;
+  final int? year;
+  final String? status;
+  final int? rating;
+  final String note;
+  final String? swipe;
+  final String? matchState;
+  final int? matchedAt;
+  final int? expiresAt;
+  final int? nightAt;
+  final String? outcome;
+  final int? checkedInAt;
+
+  /// Watched episodes as a JSON array of `s1e4` codes.
+  final String episodes;
+  final int revision;
+  final int createdAt;
+  final int updatedAt;
+  final int? deletedAt;
+  const WatchTitleRow({
+    required this.id,
+    required this.mediaKey,
+    required this.title,
+    this.posterPath,
+    this.year,
+    this.status,
+    this.rating,
+    required this.note,
+    this.swipe,
+    this.matchState,
+    this.matchedAt,
+    this.expiresAt,
+    this.nightAt,
+    this.outcome,
+    this.checkedInAt,
+    required this.episodes,
+    required this.revision,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['media_key'] = Variable<String>(mediaKey);
+    map['title'] = Variable<String>(title);
+    if (!nullToAbsent || posterPath != null) {
+      map['poster_path'] = Variable<String>(posterPath);
+    }
+    if (!nullToAbsent || year != null) {
+      map['year'] = Variable<int>(year);
+    }
+    if (!nullToAbsent || status != null) {
+      map['status'] = Variable<String>(status);
+    }
+    if (!nullToAbsent || rating != null) {
+      map['rating'] = Variable<int>(rating);
+    }
+    map['note'] = Variable<String>(note);
+    if (!nullToAbsent || swipe != null) {
+      map['swipe'] = Variable<String>(swipe);
+    }
+    if (!nullToAbsent || matchState != null) {
+      map['match_state'] = Variable<String>(matchState);
+    }
+    if (!nullToAbsent || matchedAt != null) {
+      map['matched_at'] = Variable<int>(matchedAt);
+    }
+    if (!nullToAbsent || expiresAt != null) {
+      map['expires_at'] = Variable<int>(expiresAt);
+    }
+    if (!nullToAbsent || nightAt != null) {
+      map['night_at'] = Variable<int>(nightAt);
+    }
+    if (!nullToAbsent || outcome != null) {
+      map['outcome'] = Variable<String>(outcome);
+    }
+    if (!nullToAbsent || checkedInAt != null) {
+      map['checked_in_at'] = Variable<int>(checkedInAt);
+    }
+    map['episodes'] = Variable<String>(episodes);
+    map['revision'] = Variable<int>(revision);
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<int>(deletedAt);
+    }
+    return map;
+  }
+
+  WatchTitlesCompanion toCompanion(bool nullToAbsent) {
+    return WatchTitlesCompanion(
+      id: Value(id),
+      mediaKey: Value(mediaKey),
+      title: Value(title),
+      posterPath: posterPath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(posterPath),
+      year: year == null && nullToAbsent ? const Value.absent() : Value(year),
+      status: status == null && nullToAbsent
+          ? const Value.absent()
+          : Value(status),
+      rating: rating == null && nullToAbsent
+          ? const Value.absent()
+          : Value(rating),
+      note: Value(note),
+      swipe: swipe == null && nullToAbsent
+          ? const Value.absent()
+          : Value(swipe),
+      matchState: matchState == null && nullToAbsent
+          ? const Value.absent()
+          : Value(matchState),
+      matchedAt: matchedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(matchedAt),
+      expiresAt: expiresAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(expiresAt),
+      nightAt: nightAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(nightAt),
+      outcome: outcome == null && nullToAbsent
+          ? const Value.absent()
+          : Value(outcome),
+      checkedInAt: checkedInAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(checkedInAt),
+      episodes: Value(episodes),
+      revision: Value(revision),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+    );
+  }
+
+  factory WatchTitleRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return WatchTitleRow(
+      id: serializer.fromJson<String>(json['id']),
+      mediaKey: serializer.fromJson<String>(json['mediaKey']),
+      title: serializer.fromJson<String>(json['title']),
+      posterPath: serializer.fromJson<String?>(json['posterPath']),
+      year: serializer.fromJson<int?>(json['year']),
+      status: serializer.fromJson<String?>(json['status']),
+      rating: serializer.fromJson<int?>(json['rating']),
+      note: serializer.fromJson<String>(json['note']),
+      swipe: serializer.fromJson<String?>(json['swipe']),
+      matchState: serializer.fromJson<String?>(json['matchState']),
+      matchedAt: serializer.fromJson<int?>(json['matchedAt']),
+      expiresAt: serializer.fromJson<int?>(json['expiresAt']),
+      nightAt: serializer.fromJson<int?>(json['nightAt']),
+      outcome: serializer.fromJson<String?>(json['outcome']),
+      checkedInAt: serializer.fromJson<int?>(json['checkedInAt']),
+      episodes: serializer.fromJson<String>(json['episodes']),
+      revision: serializer.fromJson<int>(json['revision']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+      deletedAt: serializer.fromJson<int?>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'mediaKey': serializer.toJson<String>(mediaKey),
+      'title': serializer.toJson<String>(title),
+      'posterPath': serializer.toJson<String?>(posterPath),
+      'year': serializer.toJson<int?>(year),
+      'status': serializer.toJson<String?>(status),
+      'rating': serializer.toJson<int?>(rating),
+      'note': serializer.toJson<String>(note),
+      'swipe': serializer.toJson<String?>(swipe),
+      'matchState': serializer.toJson<String?>(matchState),
+      'matchedAt': serializer.toJson<int?>(matchedAt),
+      'expiresAt': serializer.toJson<int?>(expiresAt),
+      'nightAt': serializer.toJson<int?>(nightAt),
+      'outcome': serializer.toJson<String?>(outcome),
+      'checkedInAt': serializer.toJson<int?>(checkedInAt),
+      'episodes': serializer.toJson<String>(episodes),
+      'revision': serializer.toJson<int>(revision),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+      'deletedAt': serializer.toJson<int?>(deletedAt),
+    };
+  }
+
+  WatchTitleRow copyWith({
+    String? id,
+    String? mediaKey,
+    String? title,
+    Value<String?> posterPath = const Value.absent(),
+    Value<int?> year = const Value.absent(),
+    Value<String?> status = const Value.absent(),
+    Value<int?> rating = const Value.absent(),
+    String? note,
+    Value<String?> swipe = const Value.absent(),
+    Value<String?> matchState = const Value.absent(),
+    Value<int?> matchedAt = const Value.absent(),
+    Value<int?> expiresAt = const Value.absent(),
+    Value<int?> nightAt = const Value.absent(),
+    Value<String?> outcome = const Value.absent(),
+    Value<int?> checkedInAt = const Value.absent(),
+    String? episodes,
+    int? revision,
+    int? createdAt,
+    int? updatedAt,
+    Value<int?> deletedAt = const Value.absent(),
+  }) => WatchTitleRow(
+    id: id ?? this.id,
+    mediaKey: mediaKey ?? this.mediaKey,
+    title: title ?? this.title,
+    posterPath: posterPath.present ? posterPath.value : this.posterPath,
+    year: year.present ? year.value : this.year,
+    status: status.present ? status.value : this.status,
+    rating: rating.present ? rating.value : this.rating,
+    note: note ?? this.note,
+    swipe: swipe.present ? swipe.value : this.swipe,
+    matchState: matchState.present ? matchState.value : this.matchState,
+    matchedAt: matchedAt.present ? matchedAt.value : this.matchedAt,
+    expiresAt: expiresAt.present ? expiresAt.value : this.expiresAt,
+    nightAt: nightAt.present ? nightAt.value : this.nightAt,
+    outcome: outcome.present ? outcome.value : this.outcome,
+    checkedInAt: checkedInAt.present ? checkedInAt.value : this.checkedInAt,
+    episodes: episodes ?? this.episodes,
+    revision: revision ?? this.revision,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+  );
+  WatchTitleRow copyWithCompanion(WatchTitlesCompanion data) {
+    return WatchTitleRow(
+      id: data.id.present ? data.id.value : this.id,
+      mediaKey: data.mediaKey.present ? data.mediaKey.value : this.mediaKey,
+      title: data.title.present ? data.title.value : this.title,
+      posterPath: data.posterPath.present
+          ? data.posterPath.value
+          : this.posterPath,
+      year: data.year.present ? data.year.value : this.year,
+      status: data.status.present ? data.status.value : this.status,
+      rating: data.rating.present ? data.rating.value : this.rating,
+      note: data.note.present ? data.note.value : this.note,
+      swipe: data.swipe.present ? data.swipe.value : this.swipe,
+      matchState: data.matchState.present
+          ? data.matchState.value
+          : this.matchState,
+      matchedAt: data.matchedAt.present ? data.matchedAt.value : this.matchedAt,
+      expiresAt: data.expiresAt.present ? data.expiresAt.value : this.expiresAt,
+      nightAt: data.nightAt.present ? data.nightAt.value : this.nightAt,
+      outcome: data.outcome.present ? data.outcome.value : this.outcome,
+      checkedInAt: data.checkedInAt.present
+          ? data.checkedInAt.value
+          : this.checkedInAt,
+      episodes: data.episodes.present ? data.episodes.value : this.episodes,
+      revision: data.revision.present ? data.revision.value : this.revision,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WatchTitleRow(')
+          ..write('id: $id, ')
+          ..write('mediaKey: $mediaKey, ')
+          ..write('title: $title, ')
+          ..write('posterPath: $posterPath, ')
+          ..write('year: $year, ')
+          ..write('status: $status, ')
+          ..write('rating: $rating, ')
+          ..write('note: $note, ')
+          ..write('swipe: $swipe, ')
+          ..write('matchState: $matchState, ')
+          ..write('matchedAt: $matchedAt, ')
+          ..write('expiresAt: $expiresAt, ')
+          ..write('nightAt: $nightAt, ')
+          ..write('outcome: $outcome, ')
+          ..write('checkedInAt: $checkedInAt, ')
+          ..write('episodes: $episodes, ')
+          ..write('revision: $revision, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    mediaKey,
+    title,
+    posterPath,
+    year,
+    status,
+    rating,
+    note,
+    swipe,
+    matchState,
+    matchedAt,
+    expiresAt,
+    nightAt,
+    outcome,
+    checkedInAt,
+    episodes,
+    revision,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is WatchTitleRow &&
+          other.id == this.id &&
+          other.mediaKey == this.mediaKey &&
+          other.title == this.title &&
+          other.posterPath == this.posterPath &&
+          other.year == this.year &&
+          other.status == this.status &&
+          other.rating == this.rating &&
+          other.note == this.note &&
+          other.swipe == this.swipe &&
+          other.matchState == this.matchState &&
+          other.matchedAt == this.matchedAt &&
+          other.expiresAt == this.expiresAt &&
+          other.nightAt == this.nightAt &&
+          other.outcome == this.outcome &&
+          other.checkedInAt == this.checkedInAt &&
+          other.episodes == this.episodes &&
+          other.revision == this.revision &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt);
+}
+
+class WatchTitlesCompanion extends UpdateCompanion<WatchTitleRow> {
+  final Value<String> id;
+  final Value<String> mediaKey;
+  final Value<String> title;
+  final Value<String?> posterPath;
+  final Value<int?> year;
+  final Value<String?> status;
+  final Value<int?> rating;
+  final Value<String> note;
+  final Value<String?> swipe;
+  final Value<String?> matchState;
+  final Value<int?> matchedAt;
+  final Value<int?> expiresAt;
+  final Value<int?> nightAt;
+  final Value<String?> outcome;
+  final Value<int?> checkedInAt;
+  final Value<String> episodes;
+  final Value<int> revision;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<int?> deletedAt;
+  final Value<int> rowid;
+  const WatchTitlesCompanion({
+    this.id = const Value.absent(),
+    this.mediaKey = const Value.absent(),
+    this.title = const Value.absent(),
+    this.posterPath = const Value.absent(),
+    this.year = const Value.absent(),
+    this.status = const Value.absent(),
+    this.rating = const Value.absent(),
+    this.note = const Value.absent(),
+    this.swipe = const Value.absent(),
+    this.matchState = const Value.absent(),
+    this.matchedAt = const Value.absent(),
+    this.expiresAt = const Value.absent(),
+    this.nightAt = const Value.absent(),
+    this.outcome = const Value.absent(),
+    this.checkedInAt = const Value.absent(),
+    this.episodes = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  WatchTitlesCompanion.insert({
+    required String id,
+    required String mediaKey,
+    required String title,
+    this.posterPath = const Value.absent(),
+    this.year = const Value.absent(),
+    this.status = const Value.absent(),
+    this.rating = const Value.absent(),
+    this.note = const Value.absent(),
+    this.swipe = const Value.absent(),
+    this.matchState = const Value.absent(),
+    this.matchedAt = const Value.absent(),
+    this.expiresAt = const Value.absent(),
+    this.nightAt = const Value.absent(),
+    this.outcome = const Value.absent(),
+    this.checkedInAt = const Value.absent(),
+    this.episodes = const Value.absent(),
+    required int revision,
+    required int createdAt,
+    required int updatedAt,
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       mediaKey = Value(mediaKey),
+       title = Value(title),
+       revision = Value(revision),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<WatchTitleRow> custom({
+    Expression<String>? id,
+    Expression<String>? mediaKey,
+    Expression<String>? title,
+    Expression<String>? posterPath,
+    Expression<int>? year,
+    Expression<String>? status,
+    Expression<int>? rating,
+    Expression<String>? note,
+    Expression<String>? swipe,
+    Expression<String>? matchState,
+    Expression<int>? matchedAt,
+    Expression<int>? expiresAt,
+    Expression<int>? nightAt,
+    Expression<String>? outcome,
+    Expression<int>? checkedInAt,
+    Expression<String>? episodes,
+    Expression<int>? revision,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? deletedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (mediaKey != null) 'media_key': mediaKey,
+      if (title != null) 'title': title,
+      if (posterPath != null) 'poster_path': posterPath,
+      if (year != null) 'year': year,
+      if (status != null) 'status': status,
+      if (rating != null) 'rating': rating,
+      if (note != null) 'note': note,
+      if (swipe != null) 'swipe': swipe,
+      if (matchState != null) 'match_state': matchState,
+      if (matchedAt != null) 'matched_at': matchedAt,
+      if (expiresAt != null) 'expires_at': expiresAt,
+      if (nightAt != null) 'night_at': nightAt,
+      if (outcome != null) 'outcome': outcome,
+      if (checkedInAt != null) 'checked_in_at': checkedInAt,
+      if (episodes != null) 'episodes': episodes,
+      if (revision != null) 'revision': revision,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  WatchTitlesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? mediaKey,
+    Value<String>? title,
+    Value<String?>? posterPath,
+    Value<int?>? year,
+    Value<String?>? status,
+    Value<int?>? rating,
+    Value<String>? note,
+    Value<String?>? swipe,
+    Value<String?>? matchState,
+    Value<int?>? matchedAt,
+    Value<int?>? expiresAt,
+    Value<int?>? nightAt,
+    Value<String?>? outcome,
+    Value<int?>? checkedInAt,
+    Value<String>? episodes,
+    Value<int>? revision,
+    Value<int>? createdAt,
+    Value<int>? updatedAt,
+    Value<int?>? deletedAt,
+    Value<int>? rowid,
+  }) {
+    return WatchTitlesCompanion(
+      id: id ?? this.id,
+      mediaKey: mediaKey ?? this.mediaKey,
+      title: title ?? this.title,
+      posterPath: posterPath ?? this.posterPath,
+      year: year ?? this.year,
+      status: status ?? this.status,
+      rating: rating ?? this.rating,
+      note: note ?? this.note,
+      swipe: swipe ?? this.swipe,
+      matchState: matchState ?? this.matchState,
+      matchedAt: matchedAt ?? this.matchedAt,
+      expiresAt: expiresAt ?? this.expiresAt,
+      nightAt: nightAt ?? this.nightAt,
+      outcome: outcome ?? this.outcome,
+      checkedInAt: checkedInAt ?? this.checkedInAt,
+      episodes: episodes ?? this.episodes,
+      revision: revision ?? this.revision,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (mediaKey.present) {
+      map['media_key'] = Variable<String>(mediaKey.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (posterPath.present) {
+      map['poster_path'] = Variable<String>(posterPath.value);
+    }
+    if (year.present) {
+      map['year'] = Variable<int>(year.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (rating.present) {
+      map['rating'] = Variable<int>(rating.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    if (swipe.present) {
+      map['swipe'] = Variable<String>(swipe.value);
+    }
+    if (matchState.present) {
+      map['match_state'] = Variable<String>(matchState.value);
+    }
+    if (matchedAt.present) {
+      map['matched_at'] = Variable<int>(matchedAt.value);
+    }
+    if (expiresAt.present) {
+      map['expires_at'] = Variable<int>(expiresAt.value);
+    }
+    if (nightAt.present) {
+      map['night_at'] = Variable<int>(nightAt.value);
+    }
+    if (outcome.present) {
+      map['outcome'] = Variable<String>(outcome.value);
+    }
+    if (checkedInAt.present) {
+      map['checked_in_at'] = Variable<int>(checkedInAt.value);
+    }
+    if (episodes.present) {
+      map['episodes'] = Variable<String>(episodes.value);
+    }
+    if (revision.present) {
+      map['revision'] = Variable<int>(revision.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<int>(deletedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WatchTitlesCompanion(')
+          ..write('id: $id, ')
+          ..write('mediaKey: $mediaKey, ')
+          ..write('title: $title, ')
+          ..write('posterPath: $posterPath, ')
+          ..write('year: $year, ')
+          ..write('status: $status, ')
+          ..write('rating: $rating, ')
+          ..write('note: $note, ')
+          ..write('swipe: $swipe, ')
+          ..write('matchState: $matchState, ')
+          ..write('matchedAt: $matchedAt, ')
+          ..write('expiresAt: $expiresAt, ')
+          ..write('nightAt: $nightAt, ')
+          ..write('outcome: $outcome, ')
+          ..write('checkedInAt: $checkedInAt, ')
+          ..write('episodes: $episodes, ')
+          ..write('revision: $revision, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $WatchListsTable extends WatchLists
+    with TableInfo<$WatchListsTable, WatchListRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $WatchListsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _itemsMeta = const VerificationMeta('items');
+  @override
+  late final GeneratedColumn<String> items = GeneratedColumn<String>(
+    'items',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('[]'),
+  );
+  static const VerificationMeta _revisionMeta = const VerificationMeta(
+    'revision',
+  );
+  @override
+  late final GeneratedColumn<int> revision = GeneratedColumn<int>(
+    'revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL CHECK (revision > 0)',
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<int> deletedAt = GeneratedColumn<int>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    items,
+    revision,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'watch_lists';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<WatchListRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('items')) {
+      context.handle(
+        _itemsMeta,
+        items.isAcceptableOrUnknown(data['items']!, _itemsMeta),
+      );
+    }
+    if (data.containsKey('revision')) {
+      context.handle(
+        _revisionMeta,
+        revision.isAcceptableOrUnknown(data['revision']!, _revisionMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_revisionMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  WatchListRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return WatchListRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      items: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}items'],
+      )!,
+      revision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}revision'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}deleted_at'],
+      ),
+    );
+  }
+
+  @override
+  $WatchListsTable createAlias(String alias) {
+    return $WatchListsTable(attachedDatabase, alias);
+  }
+}
+
+class WatchListRow extends DataClass implements Insertable<WatchListRow> {
+  final String id;
+  final String name;
+
+  /// JSON array of title ids, newest first.
+  final String items;
+  final int revision;
+  final int createdAt;
+  final int updatedAt;
+  final int? deletedAt;
+  const WatchListRow({
+    required this.id,
+    required this.name,
+    required this.items,
+    required this.revision,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['name'] = Variable<String>(name);
+    map['items'] = Variable<String>(items);
+    map['revision'] = Variable<int>(revision);
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<int>(deletedAt);
+    }
+    return map;
+  }
+
+  WatchListsCompanion toCompanion(bool nullToAbsent) {
+    return WatchListsCompanion(
+      id: Value(id),
+      name: Value(name),
+      items: Value(items),
+      revision: Value(revision),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+    );
+  }
+
+  factory WatchListRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return WatchListRow(
+      id: serializer.fromJson<String>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      items: serializer.fromJson<String>(json['items']),
+      revision: serializer.fromJson<int>(json['revision']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+      deletedAt: serializer.fromJson<int?>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'name': serializer.toJson<String>(name),
+      'items': serializer.toJson<String>(items),
+      'revision': serializer.toJson<int>(revision),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+      'deletedAt': serializer.toJson<int?>(deletedAt),
+    };
+  }
+
+  WatchListRow copyWith({
+    String? id,
+    String? name,
+    String? items,
+    int? revision,
+    int? createdAt,
+    int? updatedAt,
+    Value<int?> deletedAt = const Value.absent(),
+  }) => WatchListRow(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    items: items ?? this.items,
+    revision: revision ?? this.revision,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+  );
+  WatchListRow copyWithCompanion(WatchListsCompanion data) {
+    return WatchListRow(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      items: data.items.present ? data.items.value : this.items,
+      revision: data.revision.present ? data.revision.value : this.revision,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WatchListRow(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('items: $items, ')
+          ..write('revision: $revision, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, name, items, revision, createdAt, updatedAt, deletedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is WatchListRow &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.items == this.items &&
+          other.revision == this.revision &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt);
+}
+
+class WatchListsCompanion extends UpdateCompanion<WatchListRow> {
+  final Value<String> id;
+  final Value<String> name;
+  final Value<String> items;
+  final Value<int> revision;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<int?> deletedAt;
+  final Value<int> rowid;
+  const WatchListsCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.items = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  WatchListsCompanion.insert({
+    required String id,
+    required String name,
+    this.items = const Value.absent(),
+    required int revision,
+    required int createdAt,
+    required int updatedAt,
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       name = Value(name),
+       revision = Value(revision),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<WatchListRow> custom({
+    Expression<String>? id,
+    Expression<String>? name,
+    Expression<String>? items,
+    Expression<int>? revision,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? deletedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (items != null) 'items': items,
+      if (revision != null) 'revision': revision,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  WatchListsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? name,
+    Value<String>? items,
+    Value<int>? revision,
+    Value<int>? createdAt,
+    Value<int>? updatedAt,
+    Value<int?>? deletedAt,
+    Value<int>? rowid,
+  }) {
+    return WatchListsCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      items: items ?? this.items,
+      revision: revision ?? this.revision,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (items.present) {
+      map['items'] = Variable<String>(items.value);
+    }
+    if (revision.present) {
+      map['revision'] = Variable<int>(revision.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<int>(deletedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WatchListsCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('items: $items, ')
+          ..write('revision: $revision, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $WatchProfilesTable extends WatchProfiles
+    with TableInfo<$WatchProfilesTable, WatchProfileRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $WatchProfilesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _stateMeta = const VerificationMeta('state');
+  @override
+  late final GeneratedColumn<String> state = GeneratedColumn<String>(
+    'state',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('{}'),
+  );
+  static const VerificationMeta _revisionMeta = const VerificationMeta(
+    'revision',
+  );
+  @override
+  late final GeneratedColumn<int> revision = GeneratedColumn<int>(
+    'revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL CHECK (revision > 0)',
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<int> deletedAt = GeneratedColumn<int>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    state,
+    revision,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'watch_profiles';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<WatchProfileRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('state')) {
+      context.handle(
+        _stateMeta,
+        state.isAcceptableOrUnknown(data['state']!, _stateMeta),
+      );
+    }
+    if (data.containsKey('revision')) {
+      context.handle(
+        _revisionMeta,
+        revision.isAcceptableOrUnknown(data['revision']!, _revisionMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_revisionMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  WatchProfileRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return WatchProfileRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      state: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}state'],
+      )!,
+      revision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}revision'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}deleted_at'],
+      ),
+    );
+  }
+
+  @override
+  $WatchProfilesTable createAlias(String alias) {
+    return $WatchProfilesTable(attachedDatabase, alias);
+  }
+}
+
+class WatchProfileRow extends DataClass implements Insertable<WatchProfileRow> {
+  final String id;
+  final String state;
+  final int revision;
+  final int createdAt;
+  final int updatedAt;
+  final int? deletedAt;
+  const WatchProfileRow({
+    required this.id,
+    required this.state,
+    required this.revision,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['state'] = Variable<String>(state);
+    map['revision'] = Variable<int>(revision);
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<int>(deletedAt);
+    }
+    return map;
+  }
+
+  WatchProfilesCompanion toCompanion(bool nullToAbsent) {
+    return WatchProfilesCompanion(
+      id: Value(id),
+      state: Value(state),
+      revision: Value(revision),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+    );
+  }
+
+  factory WatchProfileRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return WatchProfileRow(
+      id: serializer.fromJson<String>(json['id']),
+      state: serializer.fromJson<String>(json['state']),
+      revision: serializer.fromJson<int>(json['revision']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+      deletedAt: serializer.fromJson<int?>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'state': serializer.toJson<String>(state),
+      'revision': serializer.toJson<int>(revision),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+      'deletedAt': serializer.toJson<int?>(deletedAt),
+    };
+  }
+
+  WatchProfileRow copyWith({
+    String? id,
+    String? state,
+    int? revision,
+    int? createdAt,
+    int? updatedAt,
+    Value<int?> deletedAt = const Value.absent(),
+  }) => WatchProfileRow(
+    id: id ?? this.id,
+    state: state ?? this.state,
+    revision: revision ?? this.revision,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+  );
+  WatchProfileRow copyWithCompanion(WatchProfilesCompanion data) {
+    return WatchProfileRow(
+      id: data.id.present ? data.id.value : this.id,
+      state: data.state.present ? data.state.value : this.state,
+      revision: data.revision.present ? data.revision.value : this.revision,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WatchProfileRow(')
+          ..write('id: $id, ')
+          ..write('state: $state, ')
+          ..write('revision: $revision, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, state, revision, createdAt, updatedAt, deletedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is WatchProfileRow &&
+          other.id == this.id &&
+          other.state == this.state &&
+          other.revision == this.revision &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt);
+}
+
+class WatchProfilesCompanion extends UpdateCompanion<WatchProfileRow> {
+  final Value<String> id;
+  final Value<String> state;
+  final Value<int> revision;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<int?> deletedAt;
+  final Value<int> rowid;
+  const WatchProfilesCompanion({
+    this.id = const Value.absent(),
+    this.state = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  WatchProfilesCompanion.insert({
+    required String id,
+    this.state = const Value.absent(),
+    required int revision,
+    required int createdAt,
+    required int updatedAt,
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       revision = Value(revision),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<WatchProfileRow> custom({
+    Expression<String>? id,
+    Expression<String>? state,
+    Expression<int>? revision,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? deletedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (state != null) 'state': state,
+      if (revision != null) 'revision': revision,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  WatchProfilesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? state,
+    Value<int>? revision,
+    Value<int>? createdAt,
+    Value<int>? updatedAt,
+    Value<int?>? deletedAt,
+    Value<int>? rowid,
+  }) {
+    return WatchProfilesCompanion(
+      id: id ?? this.id,
+      state: state ?? this.state,
+      revision: revision ?? this.revision,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (state.present) {
+      map['state'] = Variable<String>(state.value);
+    }
+    if (revision.present) {
+      map['revision'] = Variable<int>(revision.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<int>(deletedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WatchProfilesCompanion(')
+          ..write('id: $id, ')
+          ..write('state: $state, ')
+          ..write('revision: $revision, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $WatchChatTurnsTable extends WatchChatTurns
+    with TableInfo<$WatchChatTurnsTable, WatchChatTurnRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $WatchChatTurnsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleIdMeta = const VerificationMeta(
+    'titleId',
+  );
+  @override
+  late final GeneratedColumn<String> titleId = GeneratedColumn<String>(
+    'title_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _atMeta = const VerificationMeta('at');
+  @override
+  late final GeneratedColumn<int> at = GeneratedColumn<int>(
+    'at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _fromReaderMeta = const VerificationMeta(
+    'fromReader',
+  );
+  @override
+  late final GeneratedColumn<bool> fromReader = GeneratedColumn<bool>(
+    'from_reader',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("from_reader" IN (0, 1))',
+    ),
+  );
+  static const VerificationMeta _bodyMeta = const VerificationMeta('body');
+  @override
+  late final GeneratedColumn<String> body = GeneratedColumn<String>(
+    'body',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, titleId, at, fromReader, body];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'watch_chat_turns';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<WatchChatTurnRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('title_id')) {
+      context.handle(
+        _titleIdMeta,
+        titleId.isAcceptableOrUnknown(data['title_id']!, _titleIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleIdMeta);
+    }
+    if (data.containsKey('at')) {
+      context.handle(_atMeta, at.isAcceptableOrUnknown(data['at']!, _atMeta));
+    } else if (isInserting) {
+      context.missing(_atMeta);
+    }
+    if (data.containsKey('from_reader')) {
+      context.handle(
+        _fromReaderMeta,
+        fromReader.isAcceptableOrUnknown(data['from_reader']!, _fromReaderMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_fromReaderMeta);
+    }
+    if (data.containsKey('body')) {
+      context.handle(
+        _bodyMeta,
+        body.isAcceptableOrUnknown(data['body']!, _bodyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_bodyMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  WatchChatTurnRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return WatchChatTurnRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      titleId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title_id'],
+      )!,
+      at: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}at'],
+      )!,
+      fromReader: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}from_reader'],
+      )!,
+      body: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}body'],
+      )!,
+    );
+  }
+
+  @override
+  $WatchChatTurnsTable createAlias(String alias) {
+    return $WatchChatTurnsTable(attachedDatabase, alias);
+  }
+}
+
+class WatchChatTurnRow extends DataClass
+    implements Insertable<WatchChatTurnRow> {
+  final String id;
+  final String titleId;
+  final int at;
+  final bool fromReader;
+  final String body;
+  const WatchChatTurnRow({
+    required this.id,
+    required this.titleId,
+    required this.at,
+    required this.fromReader,
+    required this.body,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['title_id'] = Variable<String>(titleId);
+    map['at'] = Variable<int>(at);
+    map['from_reader'] = Variable<bool>(fromReader);
+    map['body'] = Variable<String>(body);
+    return map;
+  }
+
+  WatchChatTurnsCompanion toCompanion(bool nullToAbsent) {
+    return WatchChatTurnsCompanion(
+      id: Value(id),
+      titleId: Value(titleId),
+      at: Value(at),
+      fromReader: Value(fromReader),
+      body: Value(body),
+    );
+  }
+
+  factory WatchChatTurnRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return WatchChatTurnRow(
+      id: serializer.fromJson<String>(json['id']),
+      titleId: serializer.fromJson<String>(json['titleId']),
+      at: serializer.fromJson<int>(json['at']),
+      fromReader: serializer.fromJson<bool>(json['fromReader']),
+      body: serializer.fromJson<String>(json['body']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'titleId': serializer.toJson<String>(titleId),
+      'at': serializer.toJson<int>(at),
+      'fromReader': serializer.toJson<bool>(fromReader),
+      'body': serializer.toJson<String>(body),
+    };
+  }
+
+  WatchChatTurnRow copyWith({
+    String? id,
+    String? titleId,
+    int? at,
+    bool? fromReader,
+    String? body,
+  }) => WatchChatTurnRow(
+    id: id ?? this.id,
+    titleId: titleId ?? this.titleId,
+    at: at ?? this.at,
+    fromReader: fromReader ?? this.fromReader,
+    body: body ?? this.body,
+  );
+  WatchChatTurnRow copyWithCompanion(WatchChatTurnsCompanion data) {
+    return WatchChatTurnRow(
+      id: data.id.present ? data.id.value : this.id,
+      titleId: data.titleId.present ? data.titleId.value : this.titleId,
+      at: data.at.present ? data.at.value : this.at,
+      fromReader: data.fromReader.present
+          ? data.fromReader.value
+          : this.fromReader,
+      body: data.body.present ? data.body.value : this.body,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WatchChatTurnRow(')
+          ..write('id: $id, ')
+          ..write('titleId: $titleId, ')
+          ..write('at: $at, ')
+          ..write('fromReader: $fromReader, ')
+          ..write('body: $body')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, titleId, at, fromReader, body);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is WatchChatTurnRow &&
+          other.id == this.id &&
+          other.titleId == this.titleId &&
+          other.at == this.at &&
+          other.fromReader == this.fromReader &&
+          other.body == this.body);
+}
+
+class WatchChatTurnsCompanion extends UpdateCompanion<WatchChatTurnRow> {
+  final Value<String> id;
+  final Value<String> titleId;
+  final Value<int> at;
+  final Value<bool> fromReader;
+  final Value<String> body;
+  final Value<int> rowid;
+  const WatchChatTurnsCompanion({
+    this.id = const Value.absent(),
+    this.titleId = const Value.absent(),
+    this.at = const Value.absent(),
+    this.fromReader = const Value.absent(),
+    this.body = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  WatchChatTurnsCompanion.insert({
+    required String id,
+    required String titleId,
+    required int at,
+    required bool fromReader,
+    required String body,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       titleId = Value(titleId),
+       at = Value(at),
+       fromReader = Value(fromReader),
+       body = Value(body);
+  static Insertable<WatchChatTurnRow> custom({
+    Expression<String>? id,
+    Expression<String>? titleId,
+    Expression<int>? at,
+    Expression<bool>? fromReader,
+    Expression<String>? body,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (titleId != null) 'title_id': titleId,
+      if (at != null) 'at': at,
+      if (fromReader != null) 'from_reader': fromReader,
+      if (body != null) 'body': body,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  WatchChatTurnsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? titleId,
+    Value<int>? at,
+    Value<bool>? fromReader,
+    Value<String>? body,
+    Value<int>? rowid,
+  }) {
+    return WatchChatTurnsCompanion(
+      id: id ?? this.id,
+      titleId: titleId ?? this.titleId,
+      at: at ?? this.at,
+      fromReader: fromReader ?? this.fromReader,
+      body: body ?? this.body,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (titleId.present) {
+      map['title_id'] = Variable<String>(titleId.value);
+    }
+    if (at.present) {
+      map['at'] = Variable<int>(at.value);
+    }
+    if (fromReader.present) {
+      map['from_reader'] = Variable<bool>(fromReader.value);
+    }
+    if (body.present) {
+      map['body'] = Variable<String>(body.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WatchChatTurnsCompanion(')
+          ..write('id: $id, ')
+          ..write('titleId: $titleId, ')
+          ..write('at: $at, ')
+          ..write('fromReader: $fromReader, ')
+          ..write('body: $body, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $SyncOperationsTable extends SyncOperations
     with TableInfo<$SyncOperationsTable, SyncOperation> {
   @override
@@ -7277,6 +10006,11 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $FlowReflectionsTable flowReflections = $FlowReflectionsTable(
     this,
   );
+  late final $WatchCatalogTable watchCatalog = $WatchCatalogTable(this);
+  late final $WatchTitlesTable watchTitles = $WatchTitlesTable(this);
+  late final $WatchListsTable watchLists = $WatchListsTable(this);
+  late final $WatchProfilesTable watchProfiles = $WatchProfilesTable(this);
+  late final $WatchChatTurnsTable watchChatTurns = $WatchChatTurnsTable(this);
   late final $SyncOperationsTable syncOperations = $SyncOperationsTable(this);
   late final $SyncValuesTable syncValues = $SyncValuesTable(this);
   late final $SyncRecordsTable syncRecords = $SyncRecordsTable(this);
@@ -7287,6 +10021,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final Index flowThoughtsOrder = Index(
     'flow_thoughts_order',
     'CREATE INDEX flow_thoughts_order ON flow_thoughts (created_at DESC, id DESC)',
+  );
+  late final Index watchTitlesOrder = Index(
+    'watch_titles_order',
+    'CREATE INDEX watch_titles_order ON watch_titles (updated_at DESC, id DESC)',
   );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
@@ -7310,11 +10048,17 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     photoQuestionCache,
     flowThoughts,
     flowReflections,
+    watchCatalog,
+    watchTitles,
+    watchLists,
+    watchProfiles,
+    watchChatTurns,
     syncOperations,
     syncValues,
     syncRecords,
     diaryEntriesDayOrder,
     flowThoughtsOrder,
+    watchTitlesOrder,
   ];
 }
 
@@ -11449,6 +14193,1426 @@ typedef $$FlowReflectionsTableProcessedTableManager =
       FlowReflectionRow,
       PrefetchHooks Function()
     >;
+typedef $$WatchCatalogTableCreateCompanionBuilder =
+    WatchCatalogCompanion Function({
+      required String mediaKey,
+      required String data,
+      Value<String> seasons,
+      Value<bool> detailed,
+      Value<double> popularity,
+      required int fetchedAt,
+      Value<int> rowid,
+    });
+typedef $$WatchCatalogTableUpdateCompanionBuilder =
+    WatchCatalogCompanion Function({
+      Value<String> mediaKey,
+      Value<String> data,
+      Value<String> seasons,
+      Value<bool> detailed,
+      Value<double> popularity,
+      Value<int> fetchedAt,
+      Value<int> rowid,
+    });
+
+class $$WatchCatalogTableFilterComposer
+    extends Composer<_$AppDatabase, $WatchCatalogTable> {
+  $$WatchCatalogTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get mediaKey => $composableBuilder(
+    column: $table.mediaKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get data => $composableBuilder(
+    column: $table.data,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get seasons => $composableBuilder(
+    column: $table.seasons,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get detailed => $composableBuilder(
+    column: $table.detailed,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get popularity => $composableBuilder(
+    column: $table.popularity,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get fetchedAt => $composableBuilder(
+    column: $table.fetchedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$WatchCatalogTableOrderingComposer
+    extends Composer<_$AppDatabase, $WatchCatalogTable> {
+  $$WatchCatalogTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get mediaKey => $composableBuilder(
+    column: $table.mediaKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get data => $composableBuilder(
+    column: $table.data,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get seasons => $composableBuilder(
+    column: $table.seasons,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get detailed => $composableBuilder(
+    column: $table.detailed,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get popularity => $composableBuilder(
+    column: $table.popularity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get fetchedAt => $composableBuilder(
+    column: $table.fetchedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$WatchCatalogTableAnnotationComposer
+    extends Composer<_$AppDatabase, $WatchCatalogTable> {
+  $$WatchCatalogTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get mediaKey =>
+      $composableBuilder(column: $table.mediaKey, builder: (column) => column);
+
+  GeneratedColumn<String> get data =>
+      $composableBuilder(column: $table.data, builder: (column) => column);
+
+  GeneratedColumn<String> get seasons =>
+      $composableBuilder(column: $table.seasons, builder: (column) => column);
+
+  GeneratedColumn<bool> get detailed =>
+      $composableBuilder(column: $table.detailed, builder: (column) => column);
+
+  GeneratedColumn<double> get popularity => $composableBuilder(
+    column: $table.popularity,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get fetchedAt =>
+      $composableBuilder(column: $table.fetchedAt, builder: (column) => column);
+}
+
+class $$WatchCatalogTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $WatchCatalogTable,
+          WatchCatalogRow,
+          $$WatchCatalogTableFilterComposer,
+          $$WatchCatalogTableOrderingComposer,
+          $$WatchCatalogTableAnnotationComposer,
+          $$WatchCatalogTableCreateCompanionBuilder,
+          $$WatchCatalogTableUpdateCompanionBuilder,
+          (
+            WatchCatalogRow,
+            BaseReferences<_$AppDatabase, $WatchCatalogTable, WatchCatalogRow>,
+          ),
+          WatchCatalogRow,
+          PrefetchHooks Function()
+        > {
+  $$WatchCatalogTableTableManager(_$AppDatabase db, $WatchCatalogTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$WatchCatalogTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$WatchCatalogTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$WatchCatalogTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> mediaKey = const Value.absent(),
+                Value<String> data = const Value.absent(),
+                Value<String> seasons = const Value.absent(),
+                Value<bool> detailed = const Value.absent(),
+                Value<double> popularity = const Value.absent(),
+                Value<int> fetchedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => WatchCatalogCompanion(
+                mediaKey: mediaKey,
+                data: data,
+                seasons: seasons,
+                detailed: detailed,
+                popularity: popularity,
+                fetchedAt: fetchedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String mediaKey,
+                required String data,
+                Value<String> seasons = const Value.absent(),
+                Value<bool> detailed = const Value.absent(),
+                Value<double> popularity = const Value.absent(),
+                required int fetchedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => WatchCatalogCompanion.insert(
+                mediaKey: mediaKey,
+                data: data,
+                seasons: seasons,
+                detailed: detailed,
+                popularity: popularity,
+                fetchedAt: fetchedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$WatchCatalogTable, WatchCatalogRow>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $WatchCatalogTable,
+                    WatchCatalogRow
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$WatchCatalogTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $WatchCatalogTable,
+      WatchCatalogRow,
+      $$WatchCatalogTableFilterComposer,
+      $$WatchCatalogTableOrderingComposer,
+      $$WatchCatalogTableAnnotationComposer,
+      $$WatchCatalogTableCreateCompanionBuilder,
+      $$WatchCatalogTableUpdateCompanionBuilder,
+      (
+        WatchCatalogRow,
+        BaseReferences<_$AppDatabase, $WatchCatalogTable, WatchCatalogRow>,
+      ),
+      WatchCatalogRow,
+      PrefetchHooks Function()
+    >;
+typedef $$WatchTitlesTableCreateCompanionBuilder =
+    WatchTitlesCompanion Function({
+      required String id,
+      required String mediaKey,
+      required String title,
+      Value<String?> posterPath,
+      Value<int?> year,
+      Value<String?> status,
+      Value<int?> rating,
+      Value<String> note,
+      Value<String?> swipe,
+      Value<String?> matchState,
+      Value<int?> matchedAt,
+      Value<int?> expiresAt,
+      Value<int?> nightAt,
+      Value<String?> outcome,
+      Value<int?> checkedInAt,
+      Value<String> episodes,
+      required int revision,
+      required int createdAt,
+      required int updatedAt,
+      Value<int?> deletedAt,
+      Value<int> rowid,
+    });
+typedef $$WatchTitlesTableUpdateCompanionBuilder =
+    WatchTitlesCompanion Function({
+      Value<String> id,
+      Value<String> mediaKey,
+      Value<String> title,
+      Value<String?> posterPath,
+      Value<int?> year,
+      Value<String?> status,
+      Value<int?> rating,
+      Value<String> note,
+      Value<String?> swipe,
+      Value<String?> matchState,
+      Value<int?> matchedAt,
+      Value<int?> expiresAt,
+      Value<int?> nightAt,
+      Value<String?> outcome,
+      Value<int?> checkedInAt,
+      Value<String> episodes,
+      Value<int> revision,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+      Value<int?> deletedAt,
+      Value<int> rowid,
+    });
+
+class $$WatchTitlesTableFilterComposer
+    extends Composer<_$AppDatabase, $WatchTitlesTable> {
+  $$WatchTitlesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get mediaKey => $composableBuilder(
+    column: $table.mediaKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get posterPath => $composableBuilder(
+    column: $table.posterPath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get year => $composableBuilder(
+    column: $table.year,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get rating => $composableBuilder(
+    column: $table.rating,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get swipe => $composableBuilder(
+    column: $table.swipe,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get matchState => $composableBuilder(
+    column: $table.matchState,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get matchedAt => $composableBuilder(
+    column: $table.matchedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get expiresAt => $composableBuilder(
+    column: $table.expiresAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get nightAt => $composableBuilder(
+    column: $table.nightAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get outcome => $composableBuilder(
+    column: $table.outcome,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get checkedInAt => $composableBuilder(
+    column: $table.checkedInAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get episodes => $composableBuilder(
+    column: $table.episodes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$WatchTitlesTableOrderingComposer
+    extends Composer<_$AppDatabase, $WatchTitlesTable> {
+  $$WatchTitlesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get mediaKey => $composableBuilder(
+    column: $table.mediaKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get posterPath => $composableBuilder(
+    column: $table.posterPath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get year => $composableBuilder(
+    column: $table.year,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get rating => $composableBuilder(
+    column: $table.rating,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get swipe => $composableBuilder(
+    column: $table.swipe,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get matchState => $composableBuilder(
+    column: $table.matchState,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get matchedAt => $composableBuilder(
+    column: $table.matchedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get expiresAt => $composableBuilder(
+    column: $table.expiresAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get nightAt => $composableBuilder(
+    column: $table.nightAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get outcome => $composableBuilder(
+    column: $table.outcome,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get checkedInAt => $composableBuilder(
+    column: $table.checkedInAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get episodes => $composableBuilder(
+    column: $table.episodes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$WatchTitlesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $WatchTitlesTable> {
+  $$WatchTitlesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get mediaKey =>
+      $composableBuilder(column: $table.mediaKey, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get posterPath => $composableBuilder(
+    column: $table.posterPath,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get year =>
+      $composableBuilder(column: $table.year, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<int> get rating =>
+      $composableBuilder(column: $table.rating, builder: (column) => column);
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<String> get swipe =>
+      $composableBuilder(column: $table.swipe, builder: (column) => column);
+
+  GeneratedColumn<String> get matchState => $composableBuilder(
+    column: $table.matchState,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get matchedAt =>
+      $composableBuilder(column: $table.matchedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get expiresAt =>
+      $composableBuilder(column: $table.expiresAt, builder: (column) => column);
+
+  GeneratedColumn<int> get nightAt =>
+      $composableBuilder(column: $table.nightAt, builder: (column) => column);
+
+  GeneratedColumn<String> get outcome =>
+      $composableBuilder(column: $table.outcome, builder: (column) => column);
+
+  GeneratedColumn<int> get checkedInAt => $composableBuilder(
+    column: $table.checkedInAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get episodes =>
+      $composableBuilder(column: $table.episodes, builder: (column) => column);
+
+  GeneratedColumn<int> get revision =>
+      $composableBuilder(column: $table.revision, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+}
+
+class $$WatchTitlesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $WatchTitlesTable,
+          WatchTitleRow,
+          $$WatchTitlesTableFilterComposer,
+          $$WatchTitlesTableOrderingComposer,
+          $$WatchTitlesTableAnnotationComposer,
+          $$WatchTitlesTableCreateCompanionBuilder,
+          $$WatchTitlesTableUpdateCompanionBuilder,
+          (
+            WatchTitleRow,
+            BaseReferences<_$AppDatabase, $WatchTitlesTable, WatchTitleRow>,
+          ),
+          WatchTitleRow,
+          PrefetchHooks Function()
+        > {
+  $$WatchTitlesTableTableManager(_$AppDatabase db, $WatchTitlesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$WatchTitlesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$WatchTitlesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$WatchTitlesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> mediaKey = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String?> posterPath = const Value.absent(),
+                Value<int?> year = const Value.absent(),
+                Value<String?> status = const Value.absent(),
+                Value<int?> rating = const Value.absent(),
+                Value<String> note = const Value.absent(),
+                Value<String?> swipe = const Value.absent(),
+                Value<String?> matchState = const Value.absent(),
+                Value<int?> matchedAt = const Value.absent(),
+                Value<int?> expiresAt = const Value.absent(),
+                Value<int?> nightAt = const Value.absent(),
+                Value<String?> outcome = const Value.absent(),
+                Value<int?> checkedInAt = const Value.absent(),
+                Value<String> episodes = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => WatchTitlesCompanion(
+                id: id,
+                mediaKey: mediaKey,
+                title: title,
+                posterPath: posterPath,
+                year: year,
+                status: status,
+                rating: rating,
+                note: note,
+                swipe: swipe,
+                matchState: matchState,
+                matchedAt: matchedAt,
+                expiresAt: expiresAt,
+                nightAt: nightAt,
+                outcome: outcome,
+                checkedInAt: checkedInAt,
+                episodes: episodes,
+                revision: revision,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String mediaKey,
+                required String title,
+                Value<String?> posterPath = const Value.absent(),
+                Value<int?> year = const Value.absent(),
+                Value<String?> status = const Value.absent(),
+                Value<int?> rating = const Value.absent(),
+                Value<String> note = const Value.absent(),
+                Value<String?> swipe = const Value.absent(),
+                Value<String?> matchState = const Value.absent(),
+                Value<int?> matchedAt = const Value.absent(),
+                Value<int?> expiresAt = const Value.absent(),
+                Value<int?> nightAt = const Value.absent(),
+                Value<String?> outcome = const Value.absent(),
+                Value<int?> checkedInAt = const Value.absent(),
+                Value<String> episodes = const Value.absent(),
+                required int revision,
+                required int createdAt,
+                required int updatedAt,
+                Value<int?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => WatchTitlesCompanion.insert(
+                id: id,
+                mediaKey: mediaKey,
+                title: title,
+                posterPath: posterPath,
+                year: year,
+                status: status,
+                rating: rating,
+                note: note,
+                swipe: swipe,
+                matchState: matchState,
+                matchedAt: matchedAt,
+                expiresAt: expiresAt,
+                nightAt: nightAt,
+                outcome: outcome,
+                checkedInAt: checkedInAt,
+                episodes: episodes,
+                revision: revision,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$WatchTitlesTable, WatchTitleRow>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $WatchTitlesTable,
+                    WatchTitleRow
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$WatchTitlesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $WatchTitlesTable,
+      WatchTitleRow,
+      $$WatchTitlesTableFilterComposer,
+      $$WatchTitlesTableOrderingComposer,
+      $$WatchTitlesTableAnnotationComposer,
+      $$WatchTitlesTableCreateCompanionBuilder,
+      $$WatchTitlesTableUpdateCompanionBuilder,
+      (
+        WatchTitleRow,
+        BaseReferences<_$AppDatabase, $WatchTitlesTable, WatchTitleRow>,
+      ),
+      WatchTitleRow,
+      PrefetchHooks Function()
+    >;
+typedef $$WatchListsTableCreateCompanionBuilder = WatchListsCompanion Function({
+  required String id,
+  required String name,
+  Value<String> items,
+  required int revision,
+  required int createdAt,
+  required int updatedAt,
+  Value<int?> deletedAt,
+  Value<int> rowid,
+});
+typedef $$WatchListsTableUpdateCompanionBuilder = WatchListsCompanion Function({
+  Value<String> id,
+  Value<String> name,
+  Value<String> items,
+  Value<int> revision,
+  Value<int> createdAt,
+  Value<int> updatedAt,
+  Value<int?> deletedAt,
+  Value<int> rowid,
+});
+
+class $$WatchListsTableFilterComposer
+    extends Composer<_$AppDatabase, $WatchListsTable> {
+  $$WatchListsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get items => $composableBuilder(
+    column: $table.items,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$WatchListsTableOrderingComposer
+    extends Composer<_$AppDatabase, $WatchListsTable> {
+  $$WatchListsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get items => $composableBuilder(
+    column: $table.items,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$WatchListsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $WatchListsTable> {
+  $$WatchListsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get items =>
+      $composableBuilder(column: $table.items, builder: (column) => column);
+
+  GeneratedColumn<int> get revision =>
+      $composableBuilder(column: $table.revision, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+}
+
+class $$WatchListsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $WatchListsTable,
+          WatchListRow,
+          $$WatchListsTableFilterComposer,
+          $$WatchListsTableOrderingComposer,
+          $$WatchListsTableAnnotationComposer,
+          $$WatchListsTableCreateCompanionBuilder,
+          $$WatchListsTableUpdateCompanionBuilder,
+          (
+            WatchListRow,
+            BaseReferences<_$AppDatabase, $WatchListsTable, WatchListRow>,
+          ),
+          WatchListRow,
+          PrefetchHooks Function()
+        > {
+  $$WatchListsTableTableManager(_$AppDatabase db, $WatchListsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$WatchListsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$WatchListsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$WatchListsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> items = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => WatchListsCompanion(
+                id: id,
+                name: name,
+                items: items,
+                revision: revision,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String name,
+                Value<String> items = const Value.absent(),
+                required int revision,
+                required int createdAt,
+                required int updatedAt,
+                Value<int?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => WatchListsCompanion.insert(
+                id: id,
+                name: name,
+                items: items,
+                revision: revision,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$WatchListsTable, WatchListRow>(table),
+                  BaseReferences<_$AppDatabase, $WatchListsTable, WatchListRow>(
+                    db,
+                    table,
+                    e,
+                  ),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$WatchListsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $WatchListsTable,
+      WatchListRow,
+      $$WatchListsTableFilterComposer,
+      $$WatchListsTableOrderingComposer,
+      $$WatchListsTableAnnotationComposer,
+      $$WatchListsTableCreateCompanionBuilder,
+      $$WatchListsTableUpdateCompanionBuilder,
+      (
+        WatchListRow,
+        BaseReferences<_$AppDatabase, $WatchListsTable, WatchListRow>,
+      ),
+      WatchListRow,
+      PrefetchHooks Function()
+    >;
+typedef $$WatchProfilesTableCreateCompanionBuilder =
+    WatchProfilesCompanion Function({
+      required String id,
+      Value<String> state,
+      required int revision,
+      required int createdAt,
+      required int updatedAt,
+      Value<int?> deletedAt,
+      Value<int> rowid,
+    });
+typedef $$WatchProfilesTableUpdateCompanionBuilder =
+    WatchProfilesCompanion Function({
+      Value<String> id,
+      Value<String> state,
+      Value<int> revision,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+      Value<int?> deletedAt,
+      Value<int> rowid,
+    });
+
+class $$WatchProfilesTableFilterComposer
+    extends Composer<_$AppDatabase, $WatchProfilesTable> {
+  $$WatchProfilesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$WatchProfilesTableOrderingComposer
+    extends Composer<_$AppDatabase, $WatchProfilesTable> {
+  $$WatchProfilesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$WatchProfilesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $WatchProfilesTable> {
+  $$WatchProfilesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get state =>
+      $composableBuilder(column: $table.state, builder: (column) => column);
+
+  GeneratedColumn<int> get revision =>
+      $composableBuilder(column: $table.revision, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+}
+
+class $$WatchProfilesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $WatchProfilesTable,
+          WatchProfileRow,
+          $$WatchProfilesTableFilterComposer,
+          $$WatchProfilesTableOrderingComposer,
+          $$WatchProfilesTableAnnotationComposer,
+          $$WatchProfilesTableCreateCompanionBuilder,
+          $$WatchProfilesTableUpdateCompanionBuilder,
+          (
+            WatchProfileRow,
+            BaseReferences<_$AppDatabase, $WatchProfilesTable, WatchProfileRow>,
+          ),
+          WatchProfileRow,
+          PrefetchHooks Function()
+        > {
+  $$WatchProfilesTableTableManager(_$AppDatabase db, $WatchProfilesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$WatchProfilesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$WatchProfilesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$WatchProfilesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> state = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => WatchProfilesCompanion(
+                id: id,
+                state: state,
+                revision: revision,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                Value<String> state = const Value.absent(),
+                required int revision,
+                required int createdAt,
+                required int updatedAt,
+                Value<int?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => WatchProfilesCompanion.insert(
+                id: id,
+                state: state,
+                revision: revision,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$WatchProfilesTable, WatchProfileRow>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $WatchProfilesTable,
+                    WatchProfileRow
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$WatchProfilesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $WatchProfilesTable,
+      WatchProfileRow,
+      $$WatchProfilesTableFilterComposer,
+      $$WatchProfilesTableOrderingComposer,
+      $$WatchProfilesTableAnnotationComposer,
+      $$WatchProfilesTableCreateCompanionBuilder,
+      $$WatchProfilesTableUpdateCompanionBuilder,
+      (
+        WatchProfileRow,
+        BaseReferences<_$AppDatabase, $WatchProfilesTable, WatchProfileRow>,
+      ),
+      WatchProfileRow,
+      PrefetchHooks Function()
+    >;
+typedef $$WatchChatTurnsTableCreateCompanionBuilder =
+    WatchChatTurnsCompanion Function({
+      required String id,
+      required String titleId,
+      required int at,
+      required bool fromReader,
+      required String body,
+      Value<int> rowid,
+    });
+typedef $$WatchChatTurnsTableUpdateCompanionBuilder =
+    WatchChatTurnsCompanion Function({
+      Value<String> id,
+      Value<String> titleId,
+      Value<int> at,
+      Value<bool> fromReader,
+      Value<String> body,
+      Value<int> rowid,
+    });
+
+class $$WatchChatTurnsTableFilterComposer
+    extends Composer<_$AppDatabase, $WatchChatTurnsTable> {
+  $$WatchChatTurnsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get titleId => $composableBuilder(
+    column: $table.titleId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get at => $composableBuilder(
+    column: $table.at,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get fromReader => $composableBuilder(
+    column: $table.fromReader,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$WatchChatTurnsTableOrderingComposer
+    extends Composer<_$AppDatabase, $WatchChatTurnsTable> {
+  $$WatchChatTurnsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get titleId => $composableBuilder(
+    column: $table.titleId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get at => $composableBuilder(
+    column: $table.at,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get fromReader => $composableBuilder(
+    column: $table.fromReader,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$WatchChatTurnsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $WatchChatTurnsTable> {
+  $$WatchChatTurnsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get titleId =>
+      $composableBuilder(column: $table.titleId, builder: (column) => column);
+
+  GeneratedColumn<int> get at =>
+      $composableBuilder(column: $table.at, builder: (column) => column);
+
+  GeneratedColumn<bool> get fromReader => $composableBuilder(
+    column: $table.fromReader,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get body =>
+      $composableBuilder(column: $table.body, builder: (column) => column);
+}
+
+class $$WatchChatTurnsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $WatchChatTurnsTable,
+          WatchChatTurnRow,
+          $$WatchChatTurnsTableFilterComposer,
+          $$WatchChatTurnsTableOrderingComposer,
+          $$WatchChatTurnsTableAnnotationComposer,
+          $$WatchChatTurnsTableCreateCompanionBuilder,
+          $$WatchChatTurnsTableUpdateCompanionBuilder,
+          (
+            WatchChatTurnRow,
+            BaseReferences<
+              _$AppDatabase,
+              $WatchChatTurnsTable,
+              WatchChatTurnRow
+            >,
+          ),
+          WatchChatTurnRow,
+          PrefetchHooks Function()
+        > {
+  $$WatchChatTurnsTableTableManager(
+    _$AppDatabase db,
+    $WatchChatTurnsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$WatchChatTurnsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$WatchChatTurnsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$WatchChatTurnsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> titleId = const Value.absent(),
+                Value<int> at = const Value.absent(),
+                Value<bool> fromReader = const Value.absent(),
+                Value<String> body = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => WatchChatTurnsCompanion(
+                id: id,
+                titleId: titleId,
+                at: at,
+                fromReader: fromReader,
+                body: body,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String titleId,
+                required int at,
+                required bool fromReader,
+                required String body,
+                Value<int> rowid = const Value.absent(),
+              }) => WatchChatTurnsCompanion.insert(
+                id: id,
+                titleId: titleId,
+                at: at,
+                fromReader: fromReader,
+                body: body,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$WatchChatTurnsTable, WatchChatTurnRow>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $WatchChatTurnsTable,
+                    WatchChatTurnRow
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$WatchChatTurnsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $WatchChatTurnsTable,
+      WatchChatTurnRow,
+      $$WatchChatTurnsTableFilterComposer,
+      $$WatchChatTurnsTableOrderingComposer,
+      $$WatchChatTurnsTableAnnotationComposer,
+      $$WatchChatTurnsTableCreateCompanionBuilder,
+      $$WatchChatTurnsTableUpdateCompanionBuilder,
+      (
+        WatchChatTurnRow,
+        BaseReferences<_$AppDatabase, $WatchChatTurnsTable, WatchChatTurnRow>,
+      ),
+      WatchChatTurnRow,
+      PrefetchHooks Function()
+    >;
 typedef $$SyncOperationsTableCreateCompanionBuilder =
     SyncOperationsCompanion Function({
       required String type,
@@ -11996,6 +16160,16 @@ class $AppDatabaseManager {
       $$FlowThoughtsTableTableManager(_db, _db.flowThoughts);
   $$FlowReflectionsTableTableManager get flowReflections =>
       $$FlowReflectionsTableTableManager(_db, _db.flowReflections);
+  $$WatchCatalogTableTableManager get watchCatalog =>
+      $$WatchCatalogTableTableManager(_db, _db.watchCatalog);
+  $$WatchTitlesTableTableManager get watchTitles =>
+      $$WatchTitlesTableTableManager(_db, _db.watchTitles);
+  $$WatchListsTableTableManager get watchLists =>
+      $$WatchListsTableTableManager(_db, _db.watchLists);
+  $$WatchProfilesTableTableManager get watchProfiles =>
+      $$WatchProfilesTableTableManager(_db, _db.watchProfiles);
+  $$WatchChatTurnsTableTableManager get watchChatTurns =>
+      $$WatchChatTurnsTableTableManager(_db, _db.watchChatTurns);
   $$SyncOperationsTableTableManager get syncOperations =>
       $$SyncOperationsTableTableManager(_db, _db.syncOperations);
   $$SyncValuesTableTableManager get syncValues =>

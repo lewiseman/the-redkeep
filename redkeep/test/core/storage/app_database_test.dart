@@ -15,26 +15,50 @@ import 'package:redkeep/features/onboarding/data/drift_onboarding_repository.dar
 import 'generated/schema.dart';
 
 void main() {
-  test('fresh schema matches the complete version 7 snapshot', () async {
+  test('fresh schema matches the complete version 8 snapshot', () async {
     final database = AppDatabase(NativeDatabase.memory());
     addTearDown(database.close);
 
-    expect(database.schemaVersion, 7);
-    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 7);
+    expect(database.schemaVersion, 8);
+    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 8);
     final version = await database
         .customSelect('PRAGMA user_version')
         .getSingle();
-    expect(version.read<int>('user_version'), 7);
+    expect(version.read<int>('user_version'), 8);
   });
 
-  for (final from in [1, 2, 3, 4, 5, 6]) {
+  for (final from in [1, 2, 3, 4, 5, 6, 7]) {
     test('the upgrade from version $from matches the snapshot', () async {
       final verifier = SchemaVerifier(GeneratedHelper());
       final database = AppDatabase(await verifier.startAt(from));
       addTearDown(database.close);
-      await verifier.migrateAndValidate(database, 7);
+      await verifier.migrateAndValidate(database, 8);
     });
   }
+
+  test('version 8 syncs watchlist titles, lists and taste, not the catalog or chats', () async {
+    Future<Set<String>> triggers(AppDatabase database) async => (await database
+            .customSelect(
+              "SELECT name FROM sqlite_master WHERE type = 'trigger' AND name LIKE 'sync_watch%'",
+            )
+            .get())
+        .map((r) => r.read<String>('name'))
+        .toSet();
+    final verifier = SchemaVerifier(GeneratedHelper());
+    final upgraded = AppDatabase(await verifier.startAt(7));
+    addTearDown(upgraded.close);
+    await verifier.migrateAndValidate(upgraded, 8);
+    final fresh = AppDatabase(NativeDatabase.memory());
+    addTearDown(fresh.close);
+    await fresh.customSelect('SELECT 1').get();
+    final expected = {
+      for (final table in ['watch_titles', 'watch_lists', 'watch_profiles'])
+        for (final event in ['insert', 'update', 'delete'])
+          'sync_${table}_$event',
+    };
+    expect(await triggers(upgraded), expected);
+    expect(await triggers(fresh), expected);
+  });
 
   test('versions 5 to 7 add local note websites and chats outside sync', () async {
     final verifier = SchemaVerifier(GeneratedHelper());
@@ -107,7 +131,7 @@ void main() {
     final version = await database
         .customSelect('PRAGMA user_version')
         .getSingle();
-    expect(version.read<int>('user_version'), 7);
+    expect(version.read<int>('user_version'), 8);
   });
 
   test('upgrading a real version 1 file keeps preferences, writing and recall triggers', () async {
@@ -148,7 +172,7 @@ void main() {
     final version = await database
         .customSelect('PRAGMA user_version')
         .getSingle();
-    expect(version.read<int>('user_version'), 7);
+    expect(version.read<int>('user_version'), 8);
     final columns = await database
         .customSelect('PRAGMA table_info(ai_preferences_table)')
         .get();
@@ -283,7 +307,7 @@ void main() {
       final version = await reopened
           .customSelect('PRAGMA user_version')
           .getSingle();
-      expect(version.read<int>('user_version'), 7);
+      expect(version.read<int>('user_version'), 8);
     },
   );
 

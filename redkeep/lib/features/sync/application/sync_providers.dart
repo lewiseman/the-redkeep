@@ -12,6 +12,7 @@ import '../../../app/storage_providers.dart';
 import '../../notes/application/notes_providers.dart';
 import '../../diary/application/diary_providers.dart';
 import '../../flow/application/flow_providers.dart';
+import '../../watchlist/application/watchlist_providers.dart';
 import '../data/drift_sync_store.dart';
 import '../data/drift_account_reset_data.dart';
 import '../data/drift_sync_collection.dart';
@@ -38,7 +39,14 @@ final networkServiceProvider = Provider<NetworkService>(
 );
 final syncBackendProvider = Provider<SyncBackend>((ref) {
   final backend = GoogleDriveBackend(
-    documentIdFields: const {'note': 'id', 'diary': 'id', 'thought': 'id'},
+    documentIdFields: const {
+      'note': 'id',
+      'diary': 'id',
+      'thought': 'id',
+      'watch': 'id',
+      'watchlist': 'id',
+      'watchtaste': 'id',
+    },
   );
   ref.onDispose(backend.dispose);
   return backend;
@@ -81,7 +89,14 @@ final syncConfigurationProvider = FutureProvider<SyncEngineConfig>((ref) async {
     deviceName: device.deviceName,
     network: ref.watch(networkServiceProvider),
     collections: [
-      for (final type in ['note', 'diary', 'thought'])
+      for (final type in [
+        'note',
+        'diary',
+        'thought',
+        'watch',
+        'watchlist',
+        'watchtaste',
+      ])
         DriftSyncCollection(db, type),
     ],
     storage: storage,
@@ -128,6 +143,7 @@ final syncCoordinatorProvider = FutureProvider<void>((ref) async {
       ref.invalidate(notesRepositoryProvider);
       ref.invalidate(diaryRepositoryProvider);
       ref.invalidate(flowRepositoryProvider);
+      ref.invalidate(watchlistRepositoryProvider);
       ref.read(aiResumeAfterResetProvider)();
     }
   }, fireImmediately: true);
@@ -141,6 +157,9 @@ final syncCoordinatorProvider = FutureProvider<void>((ref) async {
           db.diaryEntries,
           db.diaryDays,
           db.flowThoughts,
+          db.watchTitles,
+          db.watchLists,
+          db.watchProfiles,
         ]),
       )
       .listen((_) {

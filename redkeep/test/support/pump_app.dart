@@ -6,6 +6,9 @@ import 'package:redkeep/core/storage/app_database.dart';
 import 'package:redkeep/features/recall/application/recall_controller.dart';
 
 import 'fake_ai.dart';
+import 'fake_watch_reminders.dart';
+import 'package:redkeep/features/watchlist/application/discover_controller.dart';
+import 'package:redkeep/features/watchlist/presentation/watch_widgets.dart';
 
 import 'package:redkeep/features/ai/application/ai_lifecycle.dart';
 import 'package:redkeep/features/appearance/application/appearance_typography.dart';
@@ -64,6 +67,7 @@ Future<GoRouter> pumpApp(
   AiCloudSettings? aiSettings = testAiSettings,
   FakeEmbedder? embedder,
   VoiceCapture Function(String)? voiceCapture,
+  FakeWatchReminders? watchReminders,
 }) async {
   final db = database ?? AppDatabase(NativeDatabase.memory());
   if (database == null) addTearDown(db.close);
@@ -76,6 +80,10 @@ Future<GoRouter> pumpApp(
         if (voiceCapture != null)
           voiceCaptureFactoryProvider.overrideWithValue(voiceCapture),
         appDatabaseProvider.overrideWithValue(db),
+        watchPostersEnabledProvider.overrideWithValue(false),
+        watchRemindersProvider.overrideWithValue(
+          watchReminders ?? FakeWatchReminders(),
+        ),
         recallVectorsProvider.overrideWith((ref) async => MemoryVectors()),
         recallEmbedderProvider.overrideWithValue(embedder ?? FakeEmbedder()),
         syncEnabledProvider.overrideWithValue(false),

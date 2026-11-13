@@ -33,6 +33,10 @@ void main() {
     expect(find.text('Local QVAC'), findsNothing);
     expect(find.text('Brain'), findsNothing);
     expect(find.text('Colors, theme and fonts'), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.text('Watchlist')).dy,
+      lessThan(tester.getTopLeft(find.text('Appearance')).dy),
+    );
     expect(find.byType(SyncAccountCard), findsNothing);
     expect(aiProvider.requests, isEmpty);
 
@@ -148,7 +152,7 @@ void main() {
           paints.where((paint) => paint.painter != null).length,
           showArtwork && !layout.simple && !layout.reduced ? 3 : 0,
         );
-        for (final label in ['Appearance', 'Watchlist', 'Grand Maestar']) {
+        for (final label in ['Watchlist', 'Appearance', 'Grand Maestar']) {
           final entry = find.text(label);
           await tester.ensureVisible(entry);
           await tester.pumpAndSettle();

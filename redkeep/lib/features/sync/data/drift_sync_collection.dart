@@ -11,6 +11,7 @@ import 'package:drift/drift.dart';
 import 'package:sync_wise/sync_wise.dart';
 
 import '../../../core/storage/app_database.dart';
+import '../../watchlist/data/watchlist_sync.dart';
 
 /// Diary wire schema 3; notes and thoughts use schema 1. Revisions and drafts
 /// stay private to the local editor.
@@ -23,6 +24,9 @@ class DriftSyncCollection implements SyncCollection {
   String get label => switch (type) {
     'note' => 'notes',
     'diary' => 'diary',
+    'watch' => 'watchlist titles',
+    'watchlist' => 'watchlist lists',
+    'watchtaste' => 'watchlist taste',
     _ => 'thoughts',
   };
   @override
@@ -80,7 +84,11 @@ class DriftSyncCollection implements SyncCollection {
           )
           .toList();
     } else {
-      final table = type == 'note' ? 'notes' : 'flow_thoughts';
+      final table = switch (type) {
+        'note' => 'notes',
+        'thought' => 'flow_thoughts',
+        _ => watchlistTables[type]!,
+      };
       final rows = await db
           .customSelect(
             'SELECT * FROM $table WHERE id = ?',
@@ -167,6 +175,8 @@ class DriftSyncCollection implements SyncCollection {
           _validateText(item, title: false);
           _validateDiaryMedia(item);
         }
+      } else if (watchlistTables.containsKey(type)) {
+        validateWatchlistPayload(type, payload);
       } else {
         _validateText(payload, title: type == 'note');
         if (type == 'note' && payload['details'] != null) {
@@ -278,6 +288,8 @@ class DriftSyncCollection implements SyncCollection {
         await (db.delete(
           db.flowThoughts,
         )..where((r) => r.id.equals(document.id))).go();
+      } else if (watchlistTables.containsKey(type)) {
+        await removeWatchlistDocument(db, type, document.id);
       } else {
         throw const FormatException('Diary days use entry tombstones.');
       }
@@ -299,6 +311,8 @@ class DriftSyncCollection implements SyncCollection {
       for (final item in (p['entries'] as List).cast<Map<String, dynamic>>()) {
         await _putDiaryEntry(document.id, item);
       }
+    } else if (watchlistTables.containsKey(type)) {
+      await putWatchlistDocument(db, type, p);
     } else if (type == 'note') {
       final old = await (db.select(
         db.notes,

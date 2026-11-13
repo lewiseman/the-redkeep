@@ -89,15 +89,6 @@ class _MorePageState extends ConsumerState<MorePage> {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               MoreIndexEntry(
-                                title: 'Appearance',
-                                description: 'Colors, theme and fonts',
-                                artworkBuilder: (dimension) => LocalArtwork(
-                                  assetKey: 'more.appearance',
-                                  dimension: dimension,
-                                ),
-                                onTap: () => context.push('/settings'),
-                              ),
-                              MoreIndexEntry(
                                 title: 'Watchlist',
                                 description: 'Films and shows to watch',
                                 artworkBuilder: (dimension) => LocalArtwork(
@@ -106,6 +97,15 @@ class _MorePageState extends ConsumerState<MorePage> {
                                   highResolution: true,
                                 ),
                                 onTap: () => context.push('/watchlist'),
+                              ),
+                              MoreIndexEntry(
+                                title: 'Appearance',
+                                description: 'Colors, theme and fonts',
+                                artworkBuilder: (dimension) => LocalArtwork(
+                                  assetKey: 'more.appearance',
+                                  dimension: dimension,
+                                ),
+                                onTap: () => context.push('/settings'),
                               ),
                               MoreIndexEntry(
                                 title: 'Grand Maestar',

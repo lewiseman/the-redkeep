@@ -2,18 +2,22 @@ import '../../../core/storage/app_database.dart';
 
 /// Triggers run in the same SQLite transaction as each authoritative write,
 /// including tag changes and permanent removal. Drafts never enter the outbox.
-Future<void> installSyncTriggers(AppDatabase db) async {
+Future<void> installSyncTriggers(AppDatabase db, {Set<String>? only}) async {
   for (final spec in [
     ('notes', 'note', 'id'),
     ('flow_thoughts', 'thought', 'id'),
     ('diary_entries', 'diary', 'period_key'),
     ('diary_days', 'diary', 'period_key'),
     ('note_tags', 'note', 'note_id'),
+    ('watch_titles', 'watch', 'id'),
+    ('watch_lists', 'watchlist', 'id'),
+    ('watch_profiles', 'watchtaste', 'id'),
   ]) {
     final (table, type, field) = spec;
+    if (only != null && !only.contains(table)) continue;
     for (final event in ['INSERT', 'UPDATE', 'DELETE']) {
       final row = event == 'DELETE' ? 'OLD' : 'NEW';
-      final removed = table == 'notes' || table == 'flow_thoughts'
+      final removed = _wholeDocuments.contains(table)
           ? (event == 'DELETE' ? 1 : 0)
           : 0;
       final creation =
@@ -21,7 +25,7 @@ Future<void> installSyncTriggers(AppDatabase db) async {
           ? "INSERT OR IGNORE INTO sync_operations(type, id, document_id) VALUES ('$type', NEW.id, NEW.$field);"
           : '';
       await db.customStatement('''
-        CREATE TRIGGER sync_${table}_${event.toLowerCase()}
+        CREATE TRIGGER IF NOT EXISTS sync_${table}_${event.toLowerCase()}
         AFTER $event ON $table BEGIN
           $creation
           INSERT INTO sync_records(type, document_id, state, removed)
@@ -32,3 +36,13 @@ Future<void> installSyncTriggers(AppDatabase db) async {
     }
   }
 }
+
+/// Tables whose rows are whole documents: removing a row removes it remotely.
+const _wholeDocuments = {
+  'notes',
+  'flow_thoughts',
+  ...watchlistSyncTables,
+};
+
+/// Added in schema 8.
+const watchlistSyncTables = {'watch_titles', 'watch_lists', 'watch_profiles'};

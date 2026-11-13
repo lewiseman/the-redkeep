@@ -12,6 +12,7 @@ import '../../features/onboarding/data/onboarding_table.dart';
 import '../../features/notes/data/notes_tables.dart';
 import '../../features/diary/data/diary_tables.dart';
 import '../../features/flow/data/flow_tables.dart';
+import '../../features/watchlist/data/watchlist_tables.dart';
 
 import '../../features/sync/data/sync_tables.dart';
 import '../../features/sync/data/sync_schema.dart';
@@ -37,6 +38,11 @@ part 'app_database.g.dart';
     PhotoQuestionCache,
     FlowThoughts,
     FlowReflections,
+    WatchCatalog,
+    WatchTitles,
+    WatchLists,
+    WatchProfiles,
+    WatchChatTurns,
     SyncOperations,
     SyncValues,
     SyncRecords,
@@ -46,7 +52,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   // Reset changes this generation before disposing editors. Old repositories
   // cannot write after cleanup, even when an async continuation finishes late.
@@ -105,6 +111,20 @@ class AppDatabase extends _$AppDatabase {
       if (from < 7) {
         // Each note's Maester conversation, kept on this device only.
         await migrator.createTable(noteChatTurns);
+      }
+      if (from < 8) {
+        // The Watchlist: synced titles, lists and taste, plus a local catalog
+        // and conversations.
+        await migrator.createTable(watchCatalog);
+        await migrator.createTable(watchTitles);
+        await customStatement(
+          'CREATE INDEX IF NOT EXISTS watch_titles_order '
+          'ON watch_titles (updated_at DESC, id DESC)',
+        );
+        await migrator.createTable(watchLists);
+        await migrator.createTable(watchProfiles);
+        await migrator.createTable(watchChatTurns);
+        await installSyncTriggers(this, only: watchlistSyncTables);
       }
     },
   );

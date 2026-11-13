@@ -318,9 +318,8 @@ class _MatchProfileButtonState extends State<MatchProfileButton>
               boxShadow: glow
                   ? [
                       BoxShadow(
-                        color: WatchBrand.rose.withValues(alpha: .55),
-                        blurRadius: 18,
-                        spreadRadius: 1,
+                        color: WatchBrand.rose.withValues(alpha: .35),
+                        blurRadius: 12,
                       ),
                     ]
                   : null,

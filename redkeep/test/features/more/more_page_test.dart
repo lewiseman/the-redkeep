@@ -9,6 +9,7 @@ import 'package:redkeep/features/appearance/presentation/appearance_page.dart';
 import 'package:redkeep/features/assets/presentation/local_artwork.dart';
 import 'package:redkeep/features/more/presentation/more_index_entry.dart';
 import 'package:redkeep/features/sync/presentation/sync_card.dart';
+import 'package:redkeep/features/watchlist/presentation/watchlist_page.dart';
 
 import '../../support/fake_appearance_repository.dart';
 import '../../support/fake_ai_provider.dart';
@@ -40,6 +41,11 @@ void main() {
     expect(find.byType(AppearancePage), findsOneWidget);
     router.pop();
     await tester.pumpAndSettle();
+    await tester.tap(find.text('Watchlist'));
+    await tester.pumpAndSettle();
+    expect(find.byType(WatchlistPage), findsOneWidget);
+    router.pop();
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Grand Maestar'));
     await tester.pumpAndSettle();
     expect(find.byType(AiSettingsPage), findsOneWidget);
@@ -68,6 +74,20 @@ void main() {
       expect(
         local.file.readAsBytesSync(),
         File('../website/public/art/more_appearance.png').readAsBytesSync(),
+      );
+      final watchlist = tester.widget<Image>(
+        find.descendant(
+          of: find.byWidgetPredicate(
+            (widget) =>
+                widget is LocalArtwork && widget.assetKey == 'more.watchlist',
+          ),
+          matching: find.byType(Image),
+        ),
+      );
+      expect(
+        ((watchlist.image as ResizeImage).imageProvider as FileImage).file
+            .readAsBytesSync(),
+        File('../website/public/art/more_watchlist.webp').readAsBytesSync(),
       );
       final branding = tester.widget<Image>(
         find.byWidgetPredicate((widget) {
@@ -126,21 +146,20 @@ void main() {
         );
         expect(
           paints.where((paint) => paint.painter != null).length,
-          showArtwork && !layout.simple && !layout.reduced ? 2 : 0,
+          showArtwork && !layout.simple && !layout.reduced ? 3 : 0,
         );
-        for (final label in ['Appearance', 'Grand Maestar']) {
+        for (final label in ['Appearance', 'Watchlist', 'Grand Maestar']) {
           final entry = find.text(label);
           await tester.ensureVisible(entry);
           await tester.pumpAndSettle();
           expect(entry.hitTestable(), findsOneWidget);
           await tester.tap(entry);
           await tester.pumpAndSettle();
-          expect(
-            label == 'Appearance'
-                ? find.byType(AppearancePage)
-                : find.byType(AiSettingsPage),
-            findsOneWidget,
-          );
+          expect(switch (label) {
+            'Appearance' => find.byType(AppearancePage),
+            'Watchlist' => find.byType(WatchlistPage),
+            _ => find.byType(AiSettingsPage),
+          }, findsOneWidget);
           router.pop();
           await tester.pumpAndSettle();
           expect(tester.takeException(), isNull);

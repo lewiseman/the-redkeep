@@ -227,7 +227,13 @@ void main() {
 
   test('Flow IDs and More survive both gates; malformed and future routes fail safely', () {
     const id = '0123456789abcdef0123456789abcdef';
-    for (final path in ['/more', '/flow', '/flow/$id', '/flow/$id/edit']) {
+    for (final path in [
+      '/more',
+      '/watchlist',
+      '/flow',
+      '/flow/$id',
+      '/flow/$id/edit',
+    ]) {
       expect(validatedNavigationLocation(path), path);
       final gate = redirect(path, ready: false)!;
       expect(redirect(redirect(gate, complete: false)!), path);

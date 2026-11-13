@@ -8,6 +8,7 @@ import '../features/ai/application/ai_lifecycle.dart';
 import '../features/sync/application/sync_providers.dart';
 import 'writing_shell.dart';
 import 'more_page.dart';
+import '../features/watchlist/presentation/watchlist_page.dart';
 import '../features/flow/presentation/flow_page.dart';
 import '../features/flow/presentation/thought_read_page.dart';
 import '../features/flow/presentation/thought_edit_page.dart';
@@ -245,6 +246,12 @@ GoRouter createAppRouter(Ref ref) {
               GoRoute(
                 path: 'more',
                 pageBuilder: (context, state) => _page(state, const MorePage()),
+              ),
+              GoRoute(
+                path: 'watchlist',
+                parentNavigatorKey: fullPage,
+                pageBuilder: (context, state) =>
+                    _page(state, const WatchlistPage()),
               ),
               GoRoute(
                 path: 'flow',

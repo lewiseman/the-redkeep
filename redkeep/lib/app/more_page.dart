@@ -98,6 +98,16 @@ class _MorePageState extends ConsumerState<MorePage> {
                                 onTap: () => context.push('/settings'),
                               ),
                               MoreIndexEntry(
+                                title: 'Watchlist',
+                                description: 'Films and shows to watch',
+                                artworkBuilder: (dimension) => LocalArtwork(
+                                  assetKey: 'more.watchlist',
+                                  dimension: dimension,
+                                  highResolution: true,
+                                ),
+                                onTap: () => context.push('/watchlist'),
+                              ),
+                              MoreIndexEntry(
                                 title: 'Grand Maestar',
                                 status: maestar.label,
                                 ready: maestar.ready,

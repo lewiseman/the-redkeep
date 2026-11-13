@@ -341,3 +341,17 @@ controls remain in use.
 Release order: publish `flow_reflect.png` through the website hosting process
 before releasing the updated mobile catalog. Preparing and validating the
 canonical source offline does not publish it.
+
+## Watchlist entry — 13 November 2026
+
+The user supplied the Watchlist illustration in chat for a new More page entry.
+`website/public/art/more_watchlist.webp` is a byte-for-byte copy of that file:
+183,756 bytes, SHA-256
+`1bdd1dd323bdbadca6329e219f22027b60c042c0db0e208976227f1f13edbc6c`. It is
+user-supplied artwork, registered as `more.watchlist`, revision `v1`, installed
+at `more/watchlist-v1.webp` through the existing verified download flow. The
+illustration is not added to the Flutter bundle.
+
+Release order: publish `more_watchlist.webp` through the website hosting
+process before releasing the updated mobile catalog. Preparing this canonical
+source and validating it offline do not publish it.

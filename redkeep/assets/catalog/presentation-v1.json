@@ -217,6 +217,15 @@
       "bytes": 201799,
       "sha256": "c9a7d0c754143a2c607e4d8c7602969feab0450dd795c5d6d811eb919522f5ba",
       "provenance": "tool/assets/PROVENANCE.md"
+    },
+    {
+      "key": "more.watchlist",
+      "revision": "v1",
+      "path": "more/watchlist-v1.webp",
+      "sourcePath": "more_watchlist.webp",
+      "bytes": 183756,
+      "sha256": "1bdd1dd323bdbadca6329e219f22027b60c042c0db0e208976227f1f13edbc6c",
+      "provenance": "tool/assets/PROVENANCE.md"
     }
   ]
 }

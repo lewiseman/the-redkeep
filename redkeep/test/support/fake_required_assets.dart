@@ -38,6 +38,7 @@ class FakeRequiredAssets implements RequiredAssets {
     'diary.calendar.pin' => 'diary_calendar_pin.png',
     'notes.add' => 'notes_add.png',
     'more.appearance' => 'more_appearance.png',
+    'more.watchlist' => 'more_watchlist.webp',
     'flow.reflect' => 'flow_reflect.png',
     _ when key.startsWith('navigation.') && key.endsWith('.active') =>
       '${key.split('.')[1]}.png',

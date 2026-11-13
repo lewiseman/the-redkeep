@@ -65,6 +65,7 @@ void main() {
   final journeys = <(String, String, List<(String, bool)>, Type)>[
     ('Appearance from More', '/more', [('/settings', true)], MorePage),
     ('Grand Maestar from More', '/more', [('/settings/brain', true)], MorePage),
+    ('Watchlist from More', '/more', [('/watchlist', true)], MorePage),
     (
       'the Library from Grand Maestar',
       '/more',

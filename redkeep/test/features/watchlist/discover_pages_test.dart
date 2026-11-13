@@ -12,6 +12,7 @@ import 'package:redkeep/features/watchlist/domain/watch_title.dart';
 
 import '../../support/fake_appearance_repository.dart';
 import '../../support/fake_watch_reminders.dart';
+import 'package:redkeep/features/watchlist/presentation/dating_widgets.dart';
 import 'package:redkeep/features/watchlist/presentation/discover_view.dart';
 import 'package:redkeep/features/watchlist/presentation/watch_title_page.dart';
 import 'package:redkeep/features/watchlist/presentation/watch_widgets.dart';
@@ -183,6 +184,13 @@ void main() {
 
     // Tags live on the profile, not the card.
     expect(find.text('On Netflix'), findsNothing);
+    // The year is a chip on its own line, above the name.
+    final onCard = find.byType(TinderCard).last;
+    final year = find.descendant(of: onCard, matching: find.widgetWithText(YearChip, '2016'));
+    final cardName = find.descendant(of: onCard, matching: find.text('Arrival'));
+    expect(year, findsOneWidget);
+    expect(tester.getBottomLeft(year).dy, lessThanOrEqualTo(tester.getTopLeft(cardName).dy));
+    expect(tester.getTopLeft(year).dx, closeTo(tester.getTopLeft(cardName).dx, 1));
 
     // The card grows into the profile in place; the bars move away.
     await tester.tap(find.byTooltip('View profile'));

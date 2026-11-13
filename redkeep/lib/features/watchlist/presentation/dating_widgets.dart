@@ -342,29 +342,55 @@ class _MatchProfileButtonState extends State<MatchProfileButton>
                       painter: _MatchRing(
                         fraction: percent == null ? null : percent / 100 * t,
                       ),
-                      child: Padding(
-                        padding: EdgeInsets.all(size * .16),
-                        child: FittedBox(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.keyboard_arrow_up_rounded,
-                                color: Colors.white,
-                                size: 22,
-                              ),
-                              if (shown != null)
-                                Text(
-                                  '$shown%',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 15,
-                                    height: 1,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: -.3,
+                      // Even margins inside the ring; the pair is drawn at
+                      // its own size and only shrinks for very large text.
+                      child: Center(
+                        child: SizedBox.square(
+                          dimension: size * .62,
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // The glyph's box is mostly air: clip it to
+                                // the chevron so the pair centres by eye.
+                                SizedBox(
+                                  width: 20,
+                                  height: shown == null ? 20 : 10,
+                                  child: OverflowBox(
+                                    maxWidth: 28,
+                                    maxHeight: 28,
+                                    child: Icon(
+                                      Icons.keyboard_arrow_up_rounded,
+                                      color: Colors.white,
+                                      size: shown == null ? 28 : 24,
+                                    ),
                                   ),
                                 ),
-                            ],
+                                if (shown != null) ...[
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    '$shown%',
+                                    textHeightBehavior:
+                                        const TextHeightBehavior(
+                                          applyHeightToFirstAscent: false,
+                                          applyHeightToLastDescent: false,
+                                        ),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 13,
+                                      height: 1,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: -.2,
+                                      // Digits keep their width as it counts.
+                                      fontFeatures: [
+                                        FontFeature.tabularFigures(),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -427,4 +453,33 @@ class _MatchRing extends CustomPainter {
 
   @override
   bool shouldRepaint(_MatchRing old) => old.fraction != fraction;
+}
+
+/// A title's year as a small frosted chip, above its name on a card.
+class YearChip extends StatelessWidget {
+  const YearChip({super.key, required this.year});
+  final int year;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: Colors.white.withValues(alpha: .16),
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: Colors.white.withValues(alpha: .35)),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      child: Text(
+        '$year',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 13,
+          height: 1.2,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 1.2,
+          fontFeatures: [FontFeature.tabularFigures()],
+        ),
+      ),
+    ),
+  );
 }

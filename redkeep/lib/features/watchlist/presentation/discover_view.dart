@@ -316,9 +316,8 @@ class _TinderCardState extends ConsumerState<TinderCard> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (widget.background) return;
-    final saved = PageStorage.maybeOf(
-      context,
-    )?.readState(context, identifier: _photoId);
+    final saved = PageStorage.maybeOf(context)
+        ?.readState(context, identifier: _photoId);
     if (saved is int) _photo = saved;
   }
 
@@ -354,9 +353,8 @@ class _TinderCardState extends ConsumerState<TinderCard> {
       final next = (index + delta).clamp(0, max(0, photos.length - 1)).toInt();
       if (next == index) return;
       setState(() => _photo = next);
-      PageStorage.maybeOf(
-        context,
-      )?.writeState(context, next, identifier: _photoId);
+      PageStorage.maybeOf(context)
+          ?.writeState(context, next, identifier: _photoId);
     }
 
     return ClipRRect(
@@ -453,30 +451,26 @@ class _TinderCardState extends ConsumerState<TinderCard> {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Expanded(
-                        child: Text.rich(
-                          TextSpan(
-                            children: [
-                              TextSpan(
-                                text: title.title,
-                                style: const TextStyle(
-                                  fontSize: 28,
-                                  height: 1.1,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              if (title.year != null)
-                                TextSpan(
-                                  text: '  ${title.year}',
-                                  style: const TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.w400,
-                                  ),
-                                ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (title.year != null) ...[
+                              YearChip(year: title.year!),
+                              const SizedBox(height: 6),
                             ],
-                          ),
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(color: Colors.white),
+                            Text(
+                              title.title,
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 28,
+                                height: 1.1,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       if (!widget.background)

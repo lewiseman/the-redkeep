@@ -57,4 +57,27 @@ void main() {
     expect(find.textContaining('%'), findsNothing);
     expect(find.bySemanticsLabel('View profile'), findsOneWidget);
   });
+
+  testWidgets('keeps its size, with the chevron and score centred inside', (
+    tester,
+  ) async {
+    for (final percent in [87, null]) {
+      await pump(tester, percent: percent, reduce: true);
+      final button = find.byType(MatchProfileButton);
+      expect(tester.getSize(button), const Size(62, 62));
+      final content = find.descendant(
+        of: button,
+        matching: find.byType(Column),
+      );
+      final outer = tester.getRect(button);
+      final inner = tester.getRect(content);
+      expect((inner.center - outer.center).distance, lessThan(.5));
+      expect(
+        (inner.top - outer.top) - (outer.bottom - inner.bottom),
+        closeTo(0, .5),
+        reason: 'even space above and below',
+      );
+      expect(inner.top - outer.top, greaterThan(14), reason: 'clear of the ring');
+    }
+  });
 }

@@ -15,6 +15,7 @@ import '../domain/catalog_title.dart';
 import '../domain/dating_profile.dart';
 import '../domain/recommender/feature_space.dart';
 import '../domain/watch_title.dart';
+import '../domain/recommender/deck.dart';
 import 'dating_widgets.dart';
 import 'watch_list_sheet.dart';
 import 'watch_seasons.dart';
@@ -40,8 +41,12 @@ class WatchProfileView extends ConsumerWidget {
     required this.watchKey,
     this.onClose,
     this.onDecide,
+    this.card,
   });
   final WatchKey watchKey;
+
+  /// The Discover card it grew from, whose match and tags it shows.
+  final DeckCard? card;
 
   /// Shown as a chevron in place of the back button.
   final VoidCallback? onClose;
@@ -57,16 +62,12 @@ class WatchProfileView extends ConsumerWidget {
     // Without fresh details, what was saved is enough to act on.
     final title =
         catalog.value ?? (saved == null ? null : catalogFromWatchTitle(saved));
-    final heading = title == null
-        ? ''
-        : title.year == null
-        ? title.title
-        : '${title.title}, ${title.year}';
     return Scaffold(
       backgroundColor: palette.ground,
       appBar: watchAppBar(
         context,
-        title: heading,
+        // The name sits under the first photo, not up here.
+        title: '',
         leading: onClose == null
             ? null
             : IconButton(
@@ -117,6 +118,7 @@ class WatchProfileView extends ConsumerWidget {
                     saved: saved,
                     stale: catalog.hasError,
                     deciding: deciding,
+                    card: card,
                   ),
                   if (deciding)
                     Positioned(
@@ -138,11 +140,13 @@ class _Profile extends ConsumerStatefulWidget {
     required this.saved,
     required this.stale,
     required this.deciding,
+    this.card,
   });
   final CatalogTitle title;
   final WatchTitle? saved;
   final bool stale;
   final bool deciding;
+  final DeckCard? card;
 
   @override
   ConsumerState<_Profile> createState() => _ProfileState();
@@ -327,11 +331,76 @@ class _ProfileState extends ConsumerState<_Profile> {
         ),
     ];
 
-    // Photos between sections, like a dating profile.
+    // The match and tags: the card's own when it came from the deck,
+    // otherwise from taste once there is enough of it.
+    final card = widget.card;
+    final taste = ref.watch(watchProfileProvider).value;
+    final enjoyment = card != null
+        ? (card.showsMatch ? card.enjoyment : null)
+        : taste == null || taste.coldStart
+        ? null
+        : taste.enjoyment(FeatureSpace.vector(title));
+    final badges = titleBadges(
+      title,
+      thisYear: ref.watch(watchClockProvider)().year,
+      enjoyment: enjoyment,
+      slot: card?.slot,
+    );
+    final header = Padding(
+      padding: const EdgeInsets.fromLTRB(4, 4, 4, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Semantics(
+            header: true,
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: title.title,
+                    style: const TextStyle(
+                      fontSize: 28,
+                      height: 1.1,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  if (title.year != null)
+                    TextSpan(
+                      text: '  ${title.year}',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w400,
+                        color: palette.muted,
+                      ),
+                    ),
+                ],
+              ),
+              style: TextStyle(color: palette.ink),
+            ),
+          ),
+          if (card != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              card.reason,
+              style: TextStyle(color: palette.muted, fontSize: 15),
+            ),
+          ],
+          if (badges.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Wrap(spacing: 6, runSpacing: 6, children: badges),
+          ],
+        ],
+      ),
+    );
+
+    // The first photo, the name and tags, then photos between sections,
+    // like a dating profile.
     final profileParts = <Widget>[];
     var s = 0;
+    if (photos.isEmpty) profileParts.add(header);
     for (var i = 0; i < photos.length; i++) {
       profileParts.add(photo(i));
+      if (i == 0) profileParts.add(header);
       for (var k = 0; k < (i == 0 ? 2 : 1) && s < sections.length; k++) {
         profileParts.add(sections[s++]);
       }

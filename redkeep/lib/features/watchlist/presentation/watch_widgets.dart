@@ -35,7 +35,7 @@ class WatchPoster extends ConsumerWidget {
     final palette = MorePalette.of(context);
     final path = ref.watch(watchPostersEnabledProvider) ? this.path : null;
     final fade = RenderingPolicyScope.of(context).animate
-        ? const Duration(milliseconds: 200)
+        ? const Duration(milliseconds: 320)
         : Duration.zero;
     final blank = ColoredBox(
       color: palette.cloth,
@@ -57,14 +57,115 @@ class WatchPoster extends ConsumerWidget {
                 imageUrl: TmdbClient.image(path, size: size),
                 fit: fit,
                 fadeInDuration: fade,
+                fadeInCurve: Curves.easeOut,
                 fadeOutDuration: fade,
-                placeholder: (_, _) => blank,
+                placeholder: (_, _) => const WatchShimmer(),
                 errorWidget: (_, _, _) => blank,
               ),
       ),
     );
   }
 }
+
+/// A soft band of light passing over a loading image. Still with reduced
+/// motion or simpler effects.
+class WatchShimmer extends StatefulWidget {
+  const WatchShimmer({super.key});
+
+  @override
+  State<WatchShimmer> createState() => _WatchShimmerState();
+}
+
+class _WatchShimmerState extends State<WatchShimmer>
+    with SingleTickerProviderStateMixin {
+  late final _sweep = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1300),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final policy = RenderingPolicyScope.of(context);
+    if (policy.animate && !policy.simplerEffects) {
+      if (!_sweep.isAnimating) _sweep.repeat();
+    } else {
+      _sweep.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _sweep.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = MorePalette.of(context);
+    final base = palette.cloth;
+    final light = Color.lerp(base, palette.paper, .9)!;
+    if (!_sweep.isAnimating) return ColoredBox(color: base);
+    return AnimatedBuilder(
+      animation: _sweep,
+      builder: (context, _) => DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: const Alignment(-1, -.3),
+            end: const Alignment(1, .3),
+            colors: [base, light, base],
+            stops: const [.35, .5, .65],
+            transform: _Sweep(_sweep.value),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Sweep extends GradientTransform {
+  const _Sweep(this.t);
+  final double t;
+
+  @override
+  Matrix4 transform(Rect bounds, {TextDirection? textDirection}) =>
+      Matrix4.translationValues(bounds.width * (t * 3 - 1.5), 0, 0);
+}
+
+/// Warms the image cache for photos about to be shown, once each.
+void preloadWatchPhotos(
+  BuildContext context,
+  WidgetRef ref,
+  Iterable<(String, String)> photos,
+) {
+  if (!ref.read(watchPostersEnabledProvider)) return;
+  if (_preloaded.length > 400) _preloaded.clear();
+  for (final (path, size) in photos) {
+    final url = TmdbClient.image(path, size: size);
+    if (!_preloaded.add(url)) continue;
+    precacheImage(
+      CachedNetworkImageProvider(url),
+      context,
+      onError: (_, _) => _preloaded.remove(url),
+    );
+  }
+}
+
+/// URLs already asked for this run; the image cache keeps the pictures.
+final _preloaded = <String>{};
+
+/// Photos worth loading ahead: the next [ahead] after [index] on this card,
+/// and the first [nextCard] of the card after it.
+List<(String, String)> photosToPreload({
+  required List<(String, String)> current,
+  required int index,
+  List<(String, String)> upNext = const [],
+  int ahead = 3,
+  int nextCard = 2,
+}) => [
+  ...current.skip(index + 1).take(ahead),
+  ...upNext.take(nextCard),
+];
 
 /// Columns for a poster grid: fewer when space is narrow or text is large.
 int posterColumns(BuildContext context, double width) {

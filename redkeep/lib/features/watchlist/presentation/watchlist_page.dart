@@ -229,6 +229,7 @@ class _WatchlistPageState extends ConsumerState<WatchlistPage>
                   child: WatchProfileView(
                     key: ValueKey(profile.key),
                     watchKey: profile.key,
+                    card: profile.card,
                     onClose: _closeProfile,
                     onDecide: _closeProfile,
                   ),

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../domain/catalog_title.dart';
+import '../domain/explore.dart';
+import '../domain/recommender/deck.dart';
 import '../domain/watch_title.dart';
 
 /// Discover's dating-app colours, kept to the deck, profiles and matches.
@@ -169,6 +172,8 @@ class CardBadge extends StatelessWidget {
     decoration: BoxDecoration(
       color: dot != null ? Colors.white : color,
       borderRadius: BorderRadius.circular(20),
+      // White tags need an edge on a light page.
+      border: dot != null ? Border.all(color: Colors.black12) : null,
     ),
     child: Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -198,4 +203,35 @@ class CardBadge extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// A title's tags: how well it suits the reader, what kind of find it is,
+/// where it streams and whether it is new. [enjoyment] is null while taste
+/// is still being learned; [slot] is known only on the deck.
+List<Widget> titleBadges(
+  CatalogTitle title, {
+  required int thisYear,
+  double? enjoyment,
+  DeckSlot? slot,
+}) {
+  final gem = isHiddenGem(title);
+  final outOfLeague =
+      enjoyment != null && desirability(title) >= .78 && enjoyment < .5;
+  return [
+    if (enjoyment != null)
+      CardBadge(
+        '${(enjoyment * 100).round().clamp(1, 99)}% match',
+        color: WatchBrand.rose,
+      ),
+    if (gem) const CardBadge('Hidden gem', color: Colors.teal),
+    if (outOfLeague)
+      const CardBadge('Out of your league', color: Colors.deepPurple),
+    if (slot == DeckSlot.wildcard && !gem && !outOfLeague)
+      const CardBadge('Wildcard', color: WatchBrand.gold, dark: true),
+    if (title.media == WatchMedia.tv) const CardBadge('Series'),
+    if (title.providers.isNotEmpty)
+      CardBadge('On ${title.providers.first}', dot: WatchBrand.like),
+    if ((title.year ?? 0) >= thisYear - 1)
+      const CardBadge('New', dot: WatchBrand.gold),
+  ];
 }

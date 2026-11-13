@@ -87,7 +87,7 @@ void main() {
     ]);
     await pumpApp(tester, initialLocation: '/watchlist/movie/603', database: db);
 
-    expect(find.text('The Matrix, 1999'), findsOneWidget);
+    expect(find.text('The Matrix  1999', findRichText: true), findsOneWidget);
     expect(find.text('Lana Wachowski'), findsOneWidget, reason: 'raised by');
     expect(find.text('2h 16m'), findsOneWidget, reason: 'height');
     expect(find.text('Max'), findsOneWidget, reason: 'lives on');

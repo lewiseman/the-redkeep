@@ -82,17 +82,15 @@ void main() {
     await openSection(tester, 'Discover');
 
     expect(find.byTooltip('Search films and shows'), findsNothing);
-    expect(find.text('Learning your type · swipe 15 more'), findsOneWidget);
+    expect(find.textContaining('Learning your type'), findsNothing);
     expect(find.text('Getting to know your taste'), findsOneWidget);
     await tester.tap(find.byTooltip('Nope'));
     await tester.pumpAndSettle();
-    expect(find.text('Learning your type · swipe 14 more'), findsOneWidget);
     var rows = await db.select(db.watchTitles).get();
     expect(rows.single.swipe, 'nope');
 
     await tester.tap(find.byTooltip('Rewind'));
     await tester.pumpAndSettle();
-    expect(find.text('Learning your type · swipe 15 more'), findsOneWidget);
     expect(await repository.titles(), isEmpty);
 
     // Up: already watched, straight into the Library, no match.
@@ -146,6 +144,7 @@ void main() {
         backdrops: ['/a2.jpg'],
         voteAverage: 7.6,
         voteCount: 18000,
+        providers: ['Netflix'],
         detailed: true,
       ),
     ]);
@@ -181,24 +180,44 @@ void main() {
         .height;
     expect(barHeight(NavigationBar), greaterThan(0));
 
+    // Tags live on the profile, not the card.
+    expect(find.text('On Netflix'), findsNothing);
+
     // The card grows into the profile in place; the bars move away.
     await tester.tap(find.byTooltip('View profile'));
     await tester.pump(const Duration(milliseconds: 150));
-    expect(find.text('Arrival, 2016'), findsOneWidget, reason: 'mid-growth');
+    expect(find.byType(WatchProfileView), findsOneWidget, reason: 'mid-growth');
     expect(barHeight(NavigationBar), greaterThan(0));
     await tester.pumpAndSettle();
-    expect(find.text('Arrival, 2016'), findsOneWidget);
     expect(barHeight(NavigationBar), 0);
     expect(barHeight(AppBar), 0, reason: 'the Watchlist bar, not the profile');
     Finder inProfile(Finder f) =>
         find.descendant(of: find.byType(WatchProfileView), matching: f);
     expect(inProfile(find.byType(BackButton)), findsNothing);
     expect(inProfile(find.byTooltip('Close profile')), findsOneWidget);
+    // No name in the bar: the first photo, then the name and tags.
+    final profileAppBar = inProfile(find.byType(AppBar));
+    expect(
+      find.descendant(of: profileAppBar, matching: find.textContaining('Arrival')),
+      findsNothing,
+    );
+    final profileList = inProfile(find.byType(Scrollable)).first;
+    final name = find.text('Arrival  2016', findRichText: true);
+    await tester.scrollUntilVisible(inProfile(name), 200, scrollable: profileList);
+    expect(inProfile(find.text('Getting to know your taste')), findsOneWidget);
+    expect(inProfile(find.text('On Netflix')), findsOneWidget);
+    expect(
+      tester.getTopLeft(inProfile(name)).dy,
+      greaterThan(
+        tester.getBottomLeft(inProfile(find.byType(WatchPoster)).first).dy - 1,
+      ),
+      reason: 'below the first photo',
+    );
 
     // The chevron shrinks it back into the same, undecided card.
     await tester.tap(find.byTooltip('Close profile'));
     await tester.pumpAndSettle();
-    expect(find.text('Arrival, 2016'), findsNothing);
+    expect(find.byType(WatchProfileView), findsNothing);
     expect(barHeight(NavigationBar), greaterThan(0));
     expect(await db.select(db.watchTitles).get(), isEmpty);
     expect(photo(), '/a1.jpg', reason: 'the same card, on the same photo');
@@ -224,7 +243,7 @@ void main() {
 
     await tester.tap(find.byTooltip('Like').last);
     await tester.pumpAndSettle();
-    expect(find.text('Arrival, 2016'), findsNothing, reason: 'the profile closed');
+    expect(find.byType(WatchProfileView), findsNothing, reason: 'the profile closed');
     final row = await db.select(db.watchTitles).getSingle();
     expect(row.swipe, 'like');
     expect(row.matchState, 'active', reason: 'early likes always match');

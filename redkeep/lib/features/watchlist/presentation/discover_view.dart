@@ -6,11 +6,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/navigation_destination.dart';
 import '../../../core/presentation/rendering_policy.dart';
-import '../../sync/presentation/sync_material.dart';
 import '../application/discover_controller.dart';
 import '../application/watchlist_providers.dart';
 import '../domain/catalog_title.dart';
-import '../domain/explore.dart';
 import '../domain/recommender/deck.dart';
 import '../domain/watch_title.dart';
 import 'dating_widgets.dart';
@@ -27,8 +25,12 @@ class ProfileRequest {
     required this.photoPath,
     required this.photoSize,
     required this.decide,
+    this.card,
   });
   final WatchKey key;
+
+  /// The card itself, for its match and tags on the profile.
+  final DeckCard? card;
 
   /// Where the card is on screen, in global coordinates.
   final Rect from;
@@ -93,7 +95,6 @@ class _Deck extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final palette = MorePalette.of(context);
     final controller = ref.read(discoverProvider.notifier);
     Future<void> swipe(SwipeChoice choice) async {
       await runWatchAction(context, () => controller.swipe(choice));
@@ -113,14 +114,6 @@ class _Deck extends ConsumerWidget {
           padding: const EdgeInsets.fromLTRB(10, 4, 10, 10),
           child: Column(
             children: [
-              if (state.coldStartLeft > 0)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Text(
-                    'Learning your type · swipe ${state.coldStartLeft} more',
-                    style: TextStyle(color: palette.muted, fontSize: 13),
-                  ),
-                ),
               Expanded(
                 child: state.cards.isEmpty
                     ? const WatchLoading()
@@ -235,6 +228,7 @@ class _SwipeDeckState extends State<SwipeDeck>
               onDecide: (choice) => _settle(choice, animate: animate),
               onRewind: widget.onRewind,
               onOpenProfile: widget.onOpenProfile,
+              upNext: next,
             );
             return Stack(
               fit: StackFit.expand,
@@ -290,6 +284,7 @@ class TinderCard extends ConsumerStatefulWidget {
     this.onDecide,
     this.onRewind,
     this.onOpenProfile,
+    this.upNext,
     this.background = false,
   });
 
@@ -299,6 +294,9 @@ class TinderCard extends ConsumerStatefulWidget {
   final void Function(SwipeChoice choice)? onDecide;
   final VoidCallback? onRewind;
   final void Function(ProfileRequest request)? onOpenProfile;
+
+  /// The card after this one, whose first photos load ahead of time.
+  final DeckCard? upNext;
 
   /// The card waiting underneath: nothing fetched, no controls.
   final bool background;
@@ -314,30 +312,28 @@ class _TinderCardState extends ConsumerState<TinderCard> {
   @override
   Widget build(BuildContext context) {
     final card = widget.card;
-    // The top card fetches details: more photos and a fuller profile.
-    final title = widget.background
-        ? card.title
-        : ref.watch(catalogTitleProvider(card.title.key)).value ?? card.title;
+    // Details bring more photos and a fuller profile. The top card asks for
+    // the next card's too, so it arrives ready.
+    final title =
+        ref.watch(catalogTitleProvider(card.title.key)).value ?? card.title;
     final photos = title.photos;
     final index = photos.isEmpty ? 0 : _photo.clamp(0, photos.length - 1);
     final photo = _shown = photos.isEmpty ? null : photos[index];
-    final thisYear = ref.watch(watchClockProvider)().year;
-    final gem = isHiddenGem(title);
-    final outOfLeague = desirability(title) >= .78 && card.enjoyment < .5;
-    final badges = <Widget>[
-      if (card.showsMatch)
-        CardBadge('${card.matchPercent}% match', color: WatchBrand.rose),
-      if (gem) const CardBadge('Hidden gem', color: Colors.teal),
-      if (outOfLeague)
-        const CardBadge('Out of your league', color: Colors.deepPurple),
-      if (card.slot == DeckSlot.wildcard && !gem && !outOfLeague)
-        const CardBadge('Wildcard', color: WatchBrand.gold, dark: true),
-      if (title.media == WatchMedia.tv) const CardBadge('Series'),
-      if (title.providers.isNotEmpty)
-        CardBadge('On ${title.providers.first}', dot: WatchBrand.like),
-      if ((title.year ?? 0) >= thisYear - 1)
-        const CardBadge('New', dot: WatchBrand.gold),
-    ];
+    final upNext = widget.upNext;
+    if (!widget.background) {
+      final nextTitle = upNext == null
+          ? null
+          : ref.watch(catalogTitleProvider(upNext.title.key)).value ??
+                upNext.title;
+      final ahead = photosToPreload(
+        current: photos,
+        index: index,
+        upNext: nextTitle?.photos ?? const [],
+      );
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) preloadWatchPhotos(context, ref, ahead);
+      });
+    }
     final drag = widget.drag;
     final width = max(1.0, widget.size.width);
     final height = max(1.0, widget.size.height);
@@ -436,9 +432,6 @@ class _TinderCardState extends ConsumerState<TinderCard> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (badges.isNotEmpty)
-                    Wrap(spacing: 6, runSpacing: 6, children: badges),
-                  const SizedBox(height: 8),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
@@ -526,6 +519,7 @@ class _TinderCardState extends ConsumerState<TinderCard> {
         photoPath: _shown?.$1,
         photoSize: _shown?.$2 ?? 'w780',
         decide: decide,
+        card: widget.card,
       ),
     );
   }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/tmdb_client.dart';
@@ -18,11 +20,25 @@ class ExploreRow {
 
 const exploreRowLength = 15;
 
+/// How long Explore's results outlive the page: moving between Watchlist
+/// sections or opening a title should not fetch everything again.
+const exploreCacheFor = Duration(minutes: 10);
+
+/// Keeps a provider's result while unwatched, for [exploreCacheFor].
+void cacheExplore(Ref ref) {
+  final link = ref.keepAlive();
+  Timer? release;
+  ref.onCancel(() => release = Timer(exploreCacheFor, link.close));
+  ref.onResume(() => release?.cancel());
+  ref.onDispose(() => release?.cancel());
+}
+
 /// Curated rows: personal ones from the local catalog, trending from TMDB.
 /// Titles the reader has already saved or swiped are left out.
 final exploreRowsProvider = FutureProvider.autoDispose<List<ExploreRow>>((
   ref,
 ) async {
+  cacheExplore(ref);
   final repository = ref.watch(watchlistRepositoryProvider);
   final client = ref.watch(tmdbClientProvider);
   final profile = WatchProfile.fromJson(await repository.readProfile() ?? {});
@@ -91,6 +107,7 @@ final moodTitlesProvider = FutureProvider.autoDispose
     .family<List<CatalogTitle>, String>((ref, id) async {
       final mood = Mood.byId(id);
       if (mood == null) return const [];
+      cacheExplore(ref);
       final repository = ref.watch(watchlistRepositoryProvider);
       final client = ref.watch(tmdbClientProvider);
       final local = [

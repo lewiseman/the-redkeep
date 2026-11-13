@@ -285,9 +285,12 @@ AppBar watchAppBar(
   required String title,
   List<Widget>? actions,
   PreferredSizeWidget? bottom,
+  Widget? leading,
 }) {
   final palette = MorePalette.of(context);
   return AppBar(
+    leading: leading,
+    automaticallyImplyLeading: leading == null,
     backgroundColor: palette.ground,
     foregroundColor: palette.ink,
     surfaceTintColor: Colors.transparent,

@@ -124,7 +124,11 @@ void main() {
         200,
         scrollable: find.byType(Scrollable).first,
       );
-      expect(find.text('Quiet Gem'), findsWidgets);
+      await tester.scrollUntilVisible(
+        find.text('Quiet Gem'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(find.text('Saved Already'), findsNothing, reason: 'already saved');
 
       await tester.scrollUntilVisible(
@@ -140,6 +144,46 @@ void main() {
           find.descendant(of: find.byType(WatchMoodPage), matching: find.text(text));
       expect(onMood('Paddington 2'), findsOneWidget);
       expect(onMood('The Thing'), findsNothing);
+    });
+
+    pageTest('coming back to Explore keeps its rows instead of loading again', (tester) async {
+      await repository.cacheTitles([
+        film(1, 'Paddington 2', ['Family', 'Comedy'], runtime: 104),
+        film(2, 'The Thing', ['Horror'], year: 1982),
+      ]);
+      await pumpApp(tester, initialLocation: '/watchlist', database: db);
+      Future<void> open(String section) async {
+        await tester.tap(find.descendant(
+          of: find.byType(NavigationBar),
+          matching: find.text(section),
+        ));
+        await tester.pumpAndSettle();
+      }
+
+      await open('Explore');
+      expect(find.text('Paddington 2'), findsWidgets);
+
+      // Away: a new title reaches the catalog, and one is saved.
+      await open('Library');
+      await repository.cacheTitles([film(3, 'Newcomer', ['Drama'], votes: 9999)]);
+      await repository.setStatus(
+        film(2, 'The Thing', ['Horror'], year: 1982),
+        WatchStatus.planned,
+      );
+      await open('Explore');
+      await tester.pump();
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.text('Newcomer'), findsNothing, reason: 'the rows were kept');
+      expect(
+        find.descendant(of: find.byType(ExploreView), matching: find.text('The Thing')),
+        findsNothing,
+        reason: 'saved titles still drop out',
+      );
+
+      // Pulling down asks again.
+      await tester.fling(find.byType(ExploreView), const Offset(0, 400), 1000);
+      await tester.pumpAndSettle();
+      expect(find.text('Newcomer'), findsWidgets);
     });
   });
 }

@@ -17,12 +17,36 @@ import 'dating_widgets.dart';
 import 'match_overlay.dart';
 import 'night_planner.dart';
 import 'watch_chat_page.dart';
-import 'watch_title_page.dart';
 import 'watch_widgets.dart';
+
+/// A card asking to grow into its full profile.
+class ProfileRequest {
+  const ProfileRequest({
+    required this.key,
+    required this.from,
+    required this.photoPath,
+    required this.photoSize,
+    required this.decide,
+  });
+  final WatchKey key;
+
+  /// Where the card is on screen, in global coordinates.
+  final Rect from;
+
+  /// The photo the card was showing, to fade from.
+  final String? photoPath;
+  final String photoSize;
+
+  /// Decides the card from the profile.
+  final void Function(SwipeChoice choice) decide;
+}
 
 /// One card at a time: left for nope, right to like, up if already watched.
 class DiscoverView extends ConsumerWidget {
-  const DiscoverView({super.key});
+  const DiscoverView({super.key, this.onOpenProfile});
+
+  /// Expands a card into its profile. Without it, the profile opens as a page.
+  final void Function(ProfileRequest request)? onOpenProfile;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -57,14 +81,15 @@ class DiscoverView extends ConsumerWidget {
           child: const Text('Dealbreakers'),
         ),
       ),
-      DiscoverPhase.ready => _Deck(state: state),
+      DiscoverPhase.ready => _Deck(state: state, onOpenProfile: onOpenProfile),
     };
   }
 }
 
 class _Deck extends ConsumerWidget {
-  const _Deck({required this.state});
+  const _Deck({required this.state, this.onOpenProfile});
   final DiscoverState state;
+  final void Function(ProfileRequest request)? onOpenProfile;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -103,6 +128,7 @@ class _Deck extends ConsumerWidget {
                         key: ValueKey(state.cards.first.title.key),
                         cards: state.cards,
                         onSwipe: swipe,
+                        onOpenProfile: onOpenProfile,
                         onRewind: state.canUndo
                             ? () => runWatchAction(context, controller.undo)
                             : null,
@@ -124,10 +150,12 @@ class SwipeDeck extends StatefulWidget {
     required this.cards,
     required this.onSwipe,
     this.onRewind,
+    this.onOpenProfile,
   });
   final List<DeckCard> cards;
   final Future<void> Function(SwipeChoice choice) onSwipe;
   final VoidCallback? onRewind;
+  final void Function(ProfileRequest request)? onOpenProfile;
 
   @override
   State<SwipeDeck> createState() => _SwipeDeckState();
@@ -206,6 +234,7 @@ class _SwipeDeckState extends State<SwipeDeck>
               size: _size,
               onDecide: (choice) => _settle(choice, animate: animate),
               onRewind: widget.onRewind,
+              onOpenProfile: widget.onOpenProfile,
             );
             return Stack(
               fit: StackFit.expand,
@@ -260,6 +289,7 @@ class TinderCard extends ConsumerStatefulWidget {
     this.size = Size.zero,
     this.onDecide,
     this.onRewind,
+    this.onOpenProfile,
     this.background = false,
   });
 
@@ -268,6 +298,7 @@ class TinderCard extends ConsumerStatefulWidget {
   final Size size;
   final void Function(SwipeChoice choice)? onDecide;
   final VoidCallback? onRewind;
+  final void Function(ProfileRequest request)? onOpenProfile;
 
   /// The card waiting underneath: nothing fetched, no controls.
   final bool background;
@@ -278,6 +309,7 @@ class TinderCard extends ConsumerStatefulWidget {
 
 class _TinderCardState extends ConsumerState<TinderCard> {
   int _photo = 0;
+  (String, String)? _shown;
 
   @override
   Widget build(BuildContext context) {
@@ -288,7 +320,7 @@ class _TinderCardState extends ConsumerState<TinderCard> {
         : ref.watch(catalogTitleProvider(card.title.key)).value ?? card.title;
     final photos = title.photos;
     final index = photos.isEmpty ? 0 : _photo.clamp(0, photos.length - 1);
-    final photo = photos.isEmpty ? null : photos[index];
+    final photo = _shown = photos.isEmpty ? null : photos[index];
     final thisYear = ref.watch(watchClockProvider)().year;
     final gem = isHiddenGem(title);
     final outOfLeague = desirability(title) >= .78 && card.enjoyment < .5;
@@ -477,13 +509,25 @@ class _TinderCardState extends ConsumerState<TinderCard> {
     );
   }
 
-  /// The whole profile, with its own nope, watched and like.
-  Future<void> _openProfile() async {
-    final choice = await context.push<SwipeChoice>(
-      watchTitleLocation(widget.card.title.key),
-      extra: const WatchProfileOpen(deciding: true),
+  /// The whole profile, grown from this card, with its own nope, watched
+  /// and like.
+  void _openProfile() {
+    final open = widget.onOpenProfile;
+    final box = context.findRenderObject() as RenderBox?;
+    final decide = widget.onDecide;
+    if (open == null || box == null || !box.hasSize || decide == null) {
+      context.push(watchTitleLocation(widget.card.title.key));
+      return;
+    }
+    open(
+      ProfileRequest(
+        key: widget.card.title.key,
+        from: box.localToGlobal(Offset.zero) & box.size,
+        photoPath: _shown?.$1,
+        photoSize: _shown?.$2 ?? 'w780',
+        decide: decide,
+      ),
     );
-    if (choice != null && mounted) widget.onDecide?.call(choice);
   }
 }
 

@@ -312,10 +312,6 @@ GoRouter createAppRouter(Ref ref) {
                           state.pathParameters['media'],
                           state.pathParameters['tmdb'],
                         )!,
-                        // From Discover: the profile decides the card.
-                        deciding:
-                            state.extra is WatchProfileOpen &&
-                            (state.extra as WatchProfileOpen).deciding,
                       ),
                     ),
                   ),

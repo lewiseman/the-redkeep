@@ -8,10 +8,12 @@ import '../../sync/presentation/sync_material.dart';
 import '../application/discover_controller.dart';
 import '../application/watchlist_providers.dart';
 import '../domain/watch_title.dart';
+import '../../../core/presentation/rendering_policy.dart';
 import 'discover_view.dart';
 import 'explore_view.dart';
 import 'likes_view.dart';
 import 'watch_list_sheet.dart';
+import 'watch_title_page.dart';
 import 'watch_widgets.dart';
 
 enum WatchSection { discover, explore, library, likes }
@@ -24,8 +26,55 @@ class WatchlistPage extends ConsumerStatefulWidget {
   ConsumerState<WatchlistPage> createState() => _WatchlistPageState();
 }
 
-class _WatchlistPageState extends ConsumerState<WatchlistPage> {
+class _WatchlistPageState extends ConsumerState<WatchlistPage>
+    with SingleTickerProviderStateMixin {
   var _section = WatchSection.library;
+  final _stack = GlobalKey();
+
+  /// 0 shows the deck with its bars; 1, the profile grown from a card.
+  late final _grow = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 380),
+  );
+  ProfileRequest? _profile;
+  bool _closing = false;
+
+  @override
+  void dispose() {
+    _grow.dispose();
+    super.dispose();
+  }
+
+  bool get _animate => RenderingPolicyScope.of(context).animate;
+
+  /// The card grows into its profile as the bars move away.
+  void _openProfile(ProfileRequest request) {
+    if (_profile != null) return;
+    setState(() => _profile = request);
+    if (_animate) {
+      _grow.forward(from: 0);
+    } else {
+      _grow.value = 1;
+    }
+  }
+
+  /// Back into the card; a decision then swipes it.
+  Future<void> _closeProfile([SwipeChoice? choice]) async {
+    final request = _profile;
+    if (request == null || _closing) return;
+    _closing = true;
+    if (_animate) {
+      await _grow.reverse();
+    } else {
+      _grow.value = 0;
+    }
+    if (!mounted) return;
+    setState(() {
+      _profile = null;
+      _closing = false;
+    });
+    if (choice != null) request.decide(choice);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,97 +89,237 @@ class _WatchlistPageState extends ConsumerState<WatchlistPage> {
               ).waiting,
       ),
     );
-    return Scaffold(
+    final bars = ReverseAnimation(
+      CurvedAnimation(parent: _grow, curve: Curves.easeInOutCubic),
+    );
+    final profile = _profile;
+    final appBar = watchAppBar(
+      context,
+      title: switch (_section) {
+        WatchSection.discover => 'Discover',
+        WatchSection.explore => 'Explore',
+        WatchSection.library => 'Watchlist',
+        WatchSection.likes => 'Likes',
+      },
+      actions: [
+        // Explore has its own search box; Discover is only the deck.
+        if (_section == WatchSection.library)
+          IconButton(
+            tooltip: 'Search films and shows',
+            icon: const Icon(Icons.search),
+            onPressed: () => context.push(watchSearchLocation),
+          ),
+        if (_section == WatchSection.discover)
+          IconButton(
+            tooltip: 'Dealbreakers',
+            icon: const Icon(Icons.tune),
+            onPressed: () => context.push(watchPreferencesLocation),
+          ),
+        if (_section == WatchSection.library)
+          IconButton(
+            tooltip: 'New list',
+            icon: const Icon(Icons.playlist_add),
+            onPressed: () async {
+              final name = await askListName(context);
+              if (name == null || !context.mounted) return;
+              await runWatchAction(
+                context,
+                () => ref.read(watchlistRepositoryProvider).createList(name),
+              );
+            },
+          ),
+      ],
+    );
+    final navigation = NavigationBar(
+      selectedIndex: _section.index,
       backgroundColor: palette.ground,
-      appBar: watchAppBar(
-        context,
-        title: switch (_section) {
-          WatchSection.discover => 'Discover',
-          WatchSection.explore => 'Explore',
-          WatchSection.library => 'Watchlist',
-          WatchSection.likes => 'Likes',
-        },
-        actions: [
-          // Explore has its own search box; Discover is only the deck.
-          if (_section == WatchSection.library)
-            IconButton(
-              tooltip: 'Search films and shows',
-              icon: const Icon(Icons.search),
-              onPressed: () => context.push(watchSearchLocation),
-            ),
-          if (_section == WatchSection.discover)
-            IconButton(
-              tooltip: 'Dealbreakers',
-              icon: const Icon(Icons.tune),
-              onPressed: () => context.push(watchPreferencesLocation),
-            ),
-          if (_section == WatchSection.library)
-            IconButton(
-              tooltip: 'New list',
-              icon: const Icon(Icons.playlist_add),
-              onPressed: () async {
-                final name = await askListName(context);
-                if (name == null || !context.mounted) return;
-                await runWatchAction(
-                  context,
-                  () => ref.read(watchlistRepositoryProvider).createList(name),
-                );
-              },
-            ),
-        ],
-      ),
-      body: SafeArea(
-        top: false,
-        bottom: false,
-        child: switch (_section) {
-          WatchSection.discover => const DiscoverView(),
-          WatchSection.explore => const ExploreView(),
-          WatchSection.library => const LibraryView(),
-          WatchSection.likes => const LikesView(),
-        },
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _section.index,
+      indicatorColor: palette.cloth,
+      labelBehavior: MediaQuery.textScalerOf(context).scale(14) > 24
+          ? NavigationDestinationLabelBehavior.onlyShowSelected
+          : NavigationDestinationLabelBehavior.alwaysShow,
+      onDestinationSelected: (i) =>
+          setState(() => _section = WatchSection.values[i]),
+      destinations: [
+        const NavigationDestination(
+          icon: Icon(Icons.style_outlined),
+          selectedIcon: Icon(Icons.style),
+          label: 'Discover',
+        ),
+        const NavigationDestination(
+          icon: Icon(Icons.explore_outlined),
+          selectedIcon: Icon(Icons.explore),
+          label: 'Explore',
+        ),
+        const NavigationDestination(
+          icon: Icon(Icons.video_library_outlined),
+          selectedIcon: Icon(Icons.video_library),
+          label: 'Library',
+        ),
+        NavigationDestination(
+          icon: Badge(
+            isLabelVisible: waiting > 0,
+            label: Text('$waiting'),
+            child: const Icon(Icons.favorite_outline),
+          ),
+          selectedIcon: Badge(
+            isLabelVisible: waiting > 0,
+            label: Text('$waiting'),
+            child: const Icon(Icons.favorite),
+          ),
+          label: 'Likes',
+        ),
+      ],
+    );
+    return PopScope(
+      // Back closes an open profile before it leaves the Watchlist.
+      canPop: profile == null,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _closeProfile();
+      },
+      child: Scaffold(
         backgroundColor: palette.ground,
-        indicatorColor: palette.cloth,
-        labelBehavior: MediaQuery.textScalerOf(context).scale(14) > 24
-            ? NavigationDestinationLabelBehavior.onlyShowSelected
-            : NavigationDestinationLabelBehavior.alwaysShow,
-        onDestinationSelected: (i) =>
-            setState(() => _section = WatchSection.values[i]),
-        destinations: [
-          const NavigationDestination(
-            icon: Icon(Icons.style_outlined),
-            selectedIcon: Icon(Icons.style),
-            label: 'Discover',
+        // In the Scaffold's own slot, so snackbars sit above it.
+        bottomNavigationBar: ExcludeSemantics(
+          excluding: profile != null,
+          child: SizeTransition(
+            sizeFactor: bars,
+            alignment: Alignment.topCenter,
+            child: FadeTransition(opacity: bars, child: navigation),
           ),
-          const NavigationDestination(
-            icon: Icon(Icons.explore_outlined),
-            selectedIcon: Icon(Icons.explore),
-            label: 'Explore',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.video_library_outlined),
-            selectedIcon: Icon(Icons.video_library),
-            label: 'Library',
-          ),
-          NavigationDestination(
-            icon: Badge(
-              isLabelVisible: waiting > 0,
-              label: Text('$waiting'),
-              child: const Icon(Icons.favorite_outline),
+        ),
+        body: Stack(
+          key: _stack,
+          children: [
+            IgnorePointer(
+              ignoring: profile != null,
+              child: ExcludeSemantics(
+                excluding: profile != null,
+                child: Column(
+                  children: [
+                    // The bar slides off the top edge.
+                    SizeTransition(
+                      sizeFactor: bars,
+                      alignment: Alignment.bottomCenter,
+                      child: FadeTransition(opacity: bars, child: appBar),
+                    ),
+                    Expanded(
+                      child: MediaQuery.removePadding(
+                        context: context,
+                        removeTop: true,
+                        child: switch (_section) {
+                          WatchSection.discover => DiscoverView(
+                            onOpenProfile: _openProfile,
+                          ),
+                          WatchSection.explore => const ExploreView(),
+                          WatchSection.library => const LibraryView(),
+                          WatchSection.likes => const LikesView(),
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-            selectedIcon: Badge(
-              isLabelVisible: waiting > 0,
-              label: Text('$waiting'),
-              child: const Icon(Icons.favorite),
-            ),
-            label: 'Likes',
-          ),
-        ],
+            if (profile != null)
+              Positioned.fill(
+                child: _GrowingProfile(
+                  stack: _stack,
+                  request: profile,
+                  grow: _grow,
+                  child: WatchProfileView(
+                    key: ValueKey(profile.key),
+                    watchKey: profile.key,
+                    onClose: _closeProfile,
+                    onDecide: _closeProfile,
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
+}
+
+/// The profile, laid out at full size, scaled and clipped into the card's
+/// place, then grown to fill the screen. The card's photo fades into it.
+class _GrowingProfile extends StatelessWidget {
+  const _GrowingProfile({
+    required this.stack,
+    required this.request,
+    required this.grow,
+    required this.child,
+  });
+  final GlobalKey stack;
+  final ProfileRequest request;
+  final Animation<double> grow;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, box) {
+      final full = Offset.zero & box.biggest;
+      final local = stack.currentContext?.findRenderObject() as RenderBox?;
+      final from = local == null || !local.hasSize
+          ? full
+          : Rect.fromPoints(
+              local.globalToLocal(request.from.topLeft),
+              local.globalToLocal(request.from.bottomRight),
+            );
+      return AnimatedBuilder(
+        animation: grow,
+        child: child,
+        builder: (context, child) {
+          final t = Curves.easeInOutCubic.transform(grow.value);
+          final rect = Rect.lerp(from, full, t)!;
+          final scale = rect.width / full.width;
+          final photo = (1 - t / .45).clamp(0.0, 1.0);
+          return Stack(
+            children: [
+              Positioned.fromRect(
+                rect: rect,
+                child: IgnorePointer(
+                  ignoring: grow.value < 1,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(18 * (1 - t)),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        OverflowBox(
+                          alignment: Alignment.topLeft,
+                          minWidth: full.width,
+                          maxWidth: full.width,
+                          minHeight: full.height,
+                          maxHeight: full.height,
+                          child: Transform.scale(
+                            scale: scale,
+                            alignment: Alignment.topLeft,
+                            child: child,
+                          ),
+                        ),
+                        if (photo > 0)
+                          IgnorePointer(
+                            child: Opacity(
+                              opacity: photo,
+                              child: WatchPoster(
+                                path: request.photoPath,
+                                size: request.photoSize,
+                                radius: 0,
+                                media: request.key.media,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
 }
 
 class LibraryView extends ConsumerWidget {

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -19,25 +20,34 @@ import 'watch_list_sheet.dart';
 import 'watch_seasons.dart';
 import 'watch_widgets.dart';
 
-/// How a profile was opened. From Discover it decides the card.
-class WatchProfileOpen {
-  const WatchProfileOpen({this.deciding = false});
-  final bool deciding;
+/// A film or show's own page, reached by its address.
+class WatchTitlePage extends StatelessWidget {
+  const WatchTitlePage({super.key, required this.watchKey});
+  final WatchKey watchKey;
+
+  @override
+  Widget build(BuildContext context) => WatchProfileView(watchKey: watchKey);
 }
 
 /// A film or show as a dating profile: photos between prompts, facts and
 /// flags, then the reader's own status, rating, note, lists and episodes.
-class WatchTitlePage extends ConsumerWidget {
-  const WatchTitlePage({
+///
+/// Expanded from a Discover card it has one way out, the chevron, and its
+/// nope, watched and like decide that card.
+class WatchProfileView extends ConsumerWidget {
+  const WatchProfileView({
     super.key,
     required this.watchKey,
-    this.deciding = false,
+    this.onClose,
+    this.onDecide,
   });
   final WatchKey watchKey;
 
-  /// Opened from a Discover card: nope, watched and like float below, and
-  /// parts of the profile can be liked.
-  final bool deciding;
+  /// Shown as a chevron in place of the back button.
+  final VoidCallback? onClose;
+  final void Function(SwipeChoice choice)? onDecide;
+
+  bool get deciding => onDecide != null;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -57,6 +67,13 @@ class WatchTitlePage extends ConsumerWidget {
       appBar: watchAppBar(
         context,
         title: heading,
+        leading: onClose == null
+            ? null
+            : IconButton(
+                tooltip: 'Close profile',
+                onPressed: onClose,
+                icon: const Icon(CupertinoIcons.chevron_down),
+              ),
         actions: [
           if (title != null &&
               saved?.matchState != null &&
@@ -77,15 +94,6 @@ class WatchTitlePage extends ConsumerWidget {
               ),
               label: Text(saved?.status?.label ?? 'Add'),
             ),
-          if (deciding) ...[
-            IconButton.filled(
-              tooltip: 'Close profile',
-              style: IconButton.styleFrom(backgroundColor: WatchBrand.rose),
-              onPressed: () => context.pop(),
-              icon: const Icon(Icons.arrow_downward, color: Colors.white),
-            ),
-            const SizedBox(width: 8),
-          ],
         ],
       ),
       body: SafeArea(
@@ -115,9 +123,7 @@ class WatchTitlePage extends ConsumerWidget {
                       left: 0,
                       right: 0,
                       bottom: 20,
-                      child: DecisionRow(
-                        onDecide: (choice) => context.pop(choice),
-                      ),
+                      child: DecisionRow(onDecide: onDecide),
                     ),
                 ],
               ),

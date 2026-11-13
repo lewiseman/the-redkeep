@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/navigation_destination.dart';
 import '../../sync/presentation/sync_material.dart';
 import '../application/explore_providers.dart';
+import '../application/watchlist_providers.dart';
 import '../domain/catalog_title.dart';
 import '../domain/explore.dart';
 import 'watch_list_sheet.dart';
@@ -30,9 +31,30 @@ class ExploreView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = MorePalette.of(context);
     final rows = ref.watch(exploreRowsProvider);
+    // Titles saved or swiped since the rows were built drop out at once,
+    // without fetching again.
+    final seen = {
+      for (final t in ref.watch(watchTitlesProvider).value ?? const []) t.id,
+    };
+    // Earlier rows stay up while fresh ones load.
+    final shown = rows.value
+        ?.map(
+          (row) => ExploreRow(
+            title: row.title,
+            subtitle: row.subtitle,
+            titles: [
+              for (final t in row.titles)
+                if (!seen.contains(t.key.id)) t,
+            ],
+          ),
+        )
+        .where((row) => row.titles.isNotEmpty)
+        .toList();
     return RefreshIndicator(
       onRefresh: () => ref.refresh(exploreRowsProvider.future),
       child: ListView(
+        // Coming back to Explore returns to the same place.
+        key: const PageStorageKey('watch-explore'),
         padding: const EdgeInsets.only(bottom: 32),
         children: [
           Padding(
@@ -74,8 +96,8 @@ class ExploreView extends ConsumerWidget {
           ),
           const _Heading('In the mood for'),
           const _Moods(),
-          ...switch (rows) {
-            AsyncData(:final value) when value.isEmpty => [
+          ...switch (shown) {
+            final value? when value.isEmpty => [
               const Padding(
                 padding: EdgeInsets.only(top: 24),
                 child: WatchMessage(
@@ -86,10 +108,8 @@ class ExploreView extends ConsumerWidget {
                 ),
               ),
             ],
-            AsyncData(:final value) => [
-              for (final row in value) _Row(row: row),
-            ],
-            AsyncError() => [
+            final value? => [for (final row in value) _Row(row: row)],
+            _ when rows.hasError => [
               const Padding(
                 padding: EdgeInsets.only(top: 24),
                 child: WatchMessage(
@@ -254,21 +274,22 @@ class WatchMoodPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = MorePalette.of(context);
     final titles = ref.watch(moodTitlesProvider(mood.id));
+    final value = titles.value;
     return Scaffold(
       backgroundColor: palette.ground,
       appBar: watchAppBar(context, title: mood.label),
       body: SafeArea(
         top: false,
-        child: switch (titles) {
-          AsyncData(:final value) when value.isEmpty => const WatchMessage(
+        child: switch (value) {
+          final value? when value.isEmpty => const WatchMessage(
             title: 'Nothing for this mood yet',
             body: 'Open Discover once to gather titles, or try another mood.',
           ),
-          AsyncData(:final value) => PosterGrid(
+          final value? => PosterGrid(
             itemCount: value.length,
             itemBuilder: (context, i) => _Row._tile(context, value[i]),
           ),
-          AsyncError() => WatchMessage(
+          _ when titles.hasError => WatchMessage(
             title: 'This mood could not load',
             body: 'Try again in a moment.',
             action: TextButton(

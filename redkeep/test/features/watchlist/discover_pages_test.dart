@@ -12,6 +12,7 @@ import 'package:redkeep/features/watchlist/domain/watch_title.dart';
 import '../../support/fake_appearance_repository.dart';
 import '../../support/fake_watch_reminders.dart';
 import 'package:redkeep/features/watchlist/presentation/discover_view.dart';
+import 'package:redkeep/features/watchlist/presentation/watch_title_page.dart';
 import 'package:redkeep/features/watchlist/presentation/watch_widgets.dart';
 
 import '../../support/pump_app.dart';
@@ -172,9 +173,38 @@ void main() {
     await tester.pumpAndSettle();
     expect(photo(), '/a1.jpg');
 
+    double barHeight(Type bar) => tester
+        .getSize(find.ancestor(
+          of: find.byType(bar),
+          matching: find.byType(SizeTransition),
+        ).first)
+        .height;
+    expect(barHeight(NavigationBar), greaterThan(0));
+
+    // The card grows into the profile in place; the bars move away.
     await tester.tap(find.byTooltip('View profile'));
+    await tester.pump(const Duration(milliseconds: 150));
+    expect(find.text('Arrival, 2016'), findsOneWidget, reason: 'mid-growth');
+    expect(barHeight(NavigationBar), greaterThan(0));
     await tester.pumpAndSettle();
     expect(find.text('Arrival, 2016'), findsOneWidget);
+    expect(barHeight(NavigationBar), 0);
+    expect(barHeight(AppBar), 0, reason: 'the Watchlist bar, not the profile');
+    Finder inProfile(Finder f) =>
+        find.descendant(of: find.byType(WatchProfileView), matching: f);
+    expect(inProfile(find.byType(BackButton)), findsNothing);
+    expect(inProfile(find.byTooltip('Close profile')), findsOneWidget);
+
+    // The chevron shrinks it back into the same, undecided card.
+    await tester.tap(find.byTooltip('Close profile'));
+    await tester.pumpAndSettle();
+    expect(find.text('Arrival, 2016'), findsNothing);
+    expect(barHeight(NavigationBar), greaterThan(0));
+    expect(await db.select(db.watchTitles).get(), isEmpty);
+    expect(photo(), '/a1.jpg', reason: 'the same card, on the same photo');
+
+    await tester.tap(find.byTooltip('View profile'));
+    await tester.pumpAndSettle();
     final list = find
         .descendant(of: find.byType(ListView).last, matching: find.byType(Scrollable))
         .first;

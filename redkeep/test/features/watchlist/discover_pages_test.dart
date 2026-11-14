@@ -2,6 +2,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:redkeep/features/watchlist/presentation/watch_navbar.dart';
 import 'package:redkeep/core/storage/app_database.dart';
 import 'package:redkeep/features/appearance/domain/appearance_preferences.dart';
 import 'package:redkeep/features/watchlist/data/drift_watchlist_repository.dart';
@@ -61,7 +62,15 @@ void main() {
 
   Future<void> openSection(WidgetTester tester, String label) async {
     await tester.tap(find.descendant(
-      of: find.byType(NavigationBar),
+      of: find.byType(WatchNavbar),
+      matching: find.text(label),
+    ));
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> openTab(WidgetTester tester, String label) async {
+    await tester.tap(find.descendant(
+      of: find.byType(TabBar),
       matching: find.text(label),
     ));
     await tester.pumpAndSettle();
@@ -125,8 +134,16 @@ void main() {
     final profile = WatchProfile.fromJson((await repository.readProfile())!);
     expect(profile.swipes, 2, reason: 'the rewound nope is forgotten');
 
-    await openSection(tester, 'Likes');
+    // Three sections; the night sits on the Library's Planned tab.
+    expect(
+      find.descendant(of: find.byType(WatchNavbar), matching: find.byType(Icon)),
+      findsNWidgets(3),
+    );
+    await openSection(tester, 'Library');
+    await openTab(tester, 'Planned');
     expect(find.text('Upcoming nights'), findsOneWidget);
+    await openTab(tester, 'Likes');
+    expect(find.text('No matches yet'), findsOneWidget);
   });
 
   pageTest('a card flips photos, opens its profile, and the profile decides', (tester) async {
@@ -180,7 +197,7 @@ void main() {
           matching: find.byType(SizeTransition),
         ).first)
         .height;
-    expect(barHeight(NavigationBar), greaterThan(0));
+    expect(barHeight(WatchNavbar), greaterThan(0));
 
     // Tags live on the profile, not the card.
     expect(find.text('On Netflix'), findsNothing);
@@ -196,9 +213,9 @@ void main() {
     await tester.tap(find.byTooltip('View profile'));
     await tester.pump(const Duration(milliseconds: 150));
     expect(find.byType(WatchProfileView), findsOneWidget, reason: 'mid-growth');
-    expect(barHeight(NavigationBar), greaterThan(0));
+    expect(barHeight(WatchNavbar), greaterThan(0));
     await tester.pumpAndSettle();
-    expect(barHeight(NavigationBar), 0);
+    expect(barHeight(WatchNavbar), 0);
     expect(barHeight(AppBar), 0, reason: 'the Watchlist bar, not the profile');
     Finder inProfile(Finder f) =>
         find.descendant(of: find.byType(WatchProfileView), matching: f);
@@ -227,7 +244,7 @@ void main() {
     await tester.tap(find.byTooltip('Close profile'));
     await tester.pumpAndSettle();
     expect(find.byType(WatchProfileView), findsNothing);
-    expect(barHeight(NavigationBar), greaterThan(0));
+    expect(barHeight(WatchNavbar), greaterThan(0));
     expect(await db.select(db.watchTitles).get(), isEmpty);
     expect(photo(), '/a1.jpg', reason: 'the same card, on the same photo');
 
@@ -262,7 +279,7 @@ void main() {
     expect(find.text('It’s a'), findsNothing);
   });
 
-  pageTest('Likes checks in on a past night and lets a stale match drift', (tester) async {
+  pageTest('Planned checks in on a past night; Likes lets a stale match drift', (tester) async {
     final now = DateTime.now().toUtc();
     const night = CatalogTitle(
       key: WatchKey(WatchMedia.movie, 10),
@@ -275,6 +292,7 @@ void main() {
       night,
       (_) => WatchTitlesCompanion(
         matchState: const Value('dated'),
+        status: const Value('planned'),
         nightAt: Value(now.subtract(const Duration(hours: 3)).millisecondsSinceEpoch),
       ),
     );
@@ -293,11 +311,14 @@ void main() {
       ),
     );
     await pumpApp(tester, initialLocation: '/watchlist', database: db);
-    await openSection(tester, 'Likes');
-
-    expect(find.text('How did it go?'), findsOneWidget);
+    await openSection(tester, 'Library');
+    await openTab(tester, 'Likes');
     expect(find.text('3 days to plan a night'), findsOneWidget);
-    expect(find.text('Drifted away'), findsOneWidget);
+    expect(find.text('Heat'), findsNothing, reason: 'drifted out of Likes');
+    expect(find.text('Paddington 2'), findsNothing, reason: 'planned, not liked');
+
+    await openTab(tester, 'Planned');
+    expect(find.text('How did it go?'), findsOneWidget);
 
     await tester.tap(find.text('Check in'));
     await tester.pumpAndSettle();
@@ -309,7 +330,7 @@ void main() {
         .getSingle();
     expect(row.outcome, 'loved');
     expect(row.status, 'completed');
-    expect(find.text('Loved'), findsOneWidget);
+    expect(find.text('How did it go?'), findsNothing);
     final profile = WatchProfile.fromJson((await repository.readProfile())!);
     expect(profile.empty, isFalse, reason: 'the night taught taste');
   });

@@ -420,9 +420,8 @@ class WatchNights {
         matchState: Value(MatchState.dated.name),
         nightAt: Value(at.toUtc().millisecondsSinceEpoch),
         expiresAt: const Value(null),
-        status: current?.status == null
-            ? Value(WatchStatus.planned.name)
-            : const Value.absent(),
+        // A planned night moves the title out of Likes and into Planned.
+        status: Value(WatchStatus.planned.name),
       ),
     );
     try {
@@ -433,7 +432,7 @@ class WatchNights {
     await resyncReminders(_ref);
   }
 
-  /// Back to an open match with a fresh week.
+  /// Back to an open match in Likes with a fresh week.
   Future<void> cancelNight(WatchTitle title) async {
     await _repository.edit(
       await _catalog(title),
@@ -441,6 +440,7 @@ class WatchNights {
         matchState: Value(MatchState.active.name),
         nightAt: const Value(null),
         expiresAt: Value(_now.add(matchLifetime).millisecondsSinceEpoch),
+        status: const Value(null),
       ),
     );
     await resyncReminders(_ref);
@@ -450,10 +450,16 @@ class WatchNights {
     final catalog = await _catalog(title);
     await _repository.edit(
       catalog,
-      (_) => WatchTitlesCompanion(
+      (current) => WatchTitlesCompanion(
         matchState: Value(MatchState.unmatched.name),
         nightAt: const Value(null),
         expiresAt: const Value(null),
+        // Planned only because of the night: it leaves with the match.
+        status:
+            current?.matchState == MatchState.dated &&
+                current?.status == WatchStatus.planned
+            ? const Value(null)
+            : const Value.absent(),
       ),
     );
     await updateProfile(
@@ -486,10 +492,35 @@ class WatchNights {
     await resyncReminders(_ref);
   }
 
+  /// Moves a title to a status. A title is either liked (a live match with
+  /// no status) or in a status, never both: moving a live match anywhere
+  /// but its own place ends the match quietly, without teaching taste.
+  Future<void> setStatus(CatalogTitle title, WatchStatus? status) async {
+    var ended = false;
+    await _repository.edit(title, (current) {
+      final live =
+          current != null &&
+          current.outcome == null &&
+          (current.matchState == MatchState.active ||
+              current.matchState == MatchState.dated);
+      final home = current?.matchState == MatchState.dated
+          ? WatchStatus.planned
+          : null;
+      ended = live && status != home;
+      return WatchTitlesCompanion(
+        status: Value(status?.name),
+        matchState: ended ? const Value(null) : const Value.absent(),
+        expiresAt: ended ? const Value(null) : const Value.absent(),
+        nightAt: ended ? const Value(null) : const Value.absent(),
+      );
+    });
+    if (ended) await resyncReminders(_ref);
+  }
+
   Future<void> resync() => resyncReminders(_ref);
 }
 
-/// Likes, grouped as the page shows them.
+/// Live matches and planned nights, as Likes and Planned show them.
 class LikesGroups {
   LikesGroups(List<WatchTitle> titles, DateTime now)
     : checkIn = [
@@ -502,7 +533,7 @@ class LikesGroups {
       ],
       matches = [
         for (final t in titles)
-          if (t.matchState == MatchState.active) t,
+          if (isLiked(t)) t,
       ]..sort((a, b) => (a.expiresAt ?? now).compareTo(b.expiresAt ?? now)),
       upcoming = [
         for (final t in titles)
@@ -511,28 +542,18 @@ class LikesGroups {
               t.nightAt != null &&
               t.nightAt!.isAfter(now))
             t,
-      ]..sort((a, b) => a.nightAt!.compareTo(b.nightAt!)),
-      loved = [
-        for (final t in titles)
-          if (t.outcome == NightOutcome.loved) t,
-      ],
-      exes = [
-        for (final t in titles)
-          if (t.outcome == NightOutcome.neverAgain ||
-              t.matchState == MatchState.ghosted ||
-              t.matchState == MatchState.unmatched)
-            t,
-      ];
+      ]..sort((a, b) => a.nightAt!.compareTo(b.nightAt!));
 
-  final List<WatchTitle> checkIn, matches, upcoming, loved, exes;
+  /// In Likes: a live match not yet moved to a status.
+  static bool isLiked(WatchTitle t) =>
+      t.matchState == MatchState.active && t.status == null;
 
-  bool get isEmpty =>
-      checkIn.isEmpty &&
-      matches.isEmpty &&
-      upcoming.isEmpty &&
-      loved.isEmpty &&
-      exes.isEmpty;
+  /// New matches in Likes.
+  final List<WatchTitle> matches;
 
-  /// For the section switcher's badge.
+  /// Nights in Planned: past ones to check in on, and those to come.
+  final List<WatchTitle> checkIn, upcoming;
+
+  /// For the Library's badge.
   int get waiting => checkIn.length + matches.length;
 }

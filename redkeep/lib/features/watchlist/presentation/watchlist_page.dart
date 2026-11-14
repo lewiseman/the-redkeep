@@ -13,12 +13,13 @@ import 'discover_view.dart';
 import 'explore_view.dart';
 import 'likes_view.dart';
 import 'watch_list_sheet.dart';
+import 'watch_navbar.dart';
 import 'watch_title_page.dart';
 import 'watch_widgets.dart';
 
-enum WatchSection { discover, explore, library, likes }
+enum WatchSection { discover, explore, library }
 
-/// The Watchlist, opened from More: Discover, the Library, and Likes.
+/// The Watchlist, opened from More: Discover, Explore and the Library.
 class WatchlistPage extends ConsumerStatefulWidget {
   const WatchlistPage({super.key});
 
@@ -99,7 +100,6 @@ class _WatchlistPageState extends ConsumerState<WatchlistPage>
         WatchSection.discover => 'Discover',
         WatchSection.explore => 'Explore',
         WatchSection.library => 'Watchlist',
-        WatchSection.likes => 'Likes',
       },
       actions: [
         // Explore has its own search box; Discover is only the deck.
@@ -130,43 +130,27 @@ class _WatchlistPageState extends ConsumerState<WatchlistPage>
           ),
       ],
     );
-    final navigation = NavigationBar(
+    final navigation = WatchNavbar(
       selectedIndex: _section.index,
-      backgroundColor: palette.ground,
-      indicatorColor: palette.cloth,
-      labelBehavior: MediaQuery.textScalerOf(context).scale(14) > 24
-          ? NavigationDestinationLabelBehavior.onlyShowSelected
-          : NavigationDestinationLabelBehavior.alwaysShow,
-      onDestinationSelected: (i) =>
-          setState(() => _section = WatchSection.values[i]),
+      onSelected: (i) => setState(() => _section = WatchSection.values[i]),
       destinations: [
-        const NavigationDestination(
-          icon: Icon(Icons.style_outlined),
-          selectedIcon: Icon(Icons.style),
+        (
           label: 'Discover',
+          icon: Icons.style_outlined,
+          selectedIcon: Icons.style,
+          badge: 0,
         ),
-        const NavigationDestination(
-          icon: Icon(Icons.explore_outlined),
-          selectedIcon: Icon(Icons.explore),
+        (
           label: 'Explore',
+          icon: Icons.explore_outlined,
+          selectedIcon: Icons.explore,
+          badge: 0,
         ),
-        const NavigationDestination(
-          icon: Icon(Icons.video_library_outlined),
-          selectedIcon: Icon(Icons.video_library),
+        (
           label: 'Library',
-        ),
-        NavigationDestination(
-          icon: Badge(
-            isLabelVisible: waiting > 0,
-            label: Text('$waiting'),
-            child: const Icon(Icons.favorite_outline),
-          ),
-          selectedIcon: Badge(
-            isLabelVisible: waiting > 0,
-            label: Text('$waiting'),
-            child: const Icon(Icons.favorite),
-          ),
-          label: 'Likes',
+          icon: Icons.auto_stories_outlined,
+          selectedIcon: Icons.auto_stories,
+          badge: waiting,
         ),
       ],
     );
@@ -212,7 +196,6 @@ class _WatchlistPageState extends ConsumerState<WatchlistPage>
                           ),
                           WatchSection.explore => const ExploreView(),
                           WatchSection.library => const LibraryView(),
-                          WatchSection.likes => const LikesView(),
                         },
                       ),
                     ),
@@ -329,8 +312,12 @@ class LibraryView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final library = ref.watch(libraryProvider);
+    final now = ref.watch(watchClockProvider)().toUtc();
     return switch (library) {
-      AsyncData(:final value) => _Tabs(library: value),
+      AsyncData(:final value) => _Tabs(
+        library: value,
+        likes: LikesGroups(value.titles, now),
+      ),
       AsyncError() => const WatchMessage(
         title: 'The Watchlist could not open',
         body: 'Close it and try again.',
@@ -341,8 +328,16 @@ class LibraryView extends ConsumerWidget {
 }
 
 class _Tabs extends StatelessWidget {
-  const _Tabs({required this.library});
+  const _Tabs({required this.library, required this.likes});
   final Library library;
+  final LikesGroups likes;
+
+  /// New matches on Likes; nights to check in on, on Planned.
+  int _waiting(LibraryTab tab) => switch (tab) {
+    LikesTab() => likes.matches.length,
+    StatusTab(status: WatchStatus.planned) => likes.checkIn.length,
+    _ => 0,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -363,14 +358,26 @@ class _Tabs extends StatelessWidget {
               unselectedLabelColor: palette.muted,
               indicatorColor: palette.accent,
               dividerColor: palette.rule,
-              tabs: [for (final tab in tabs) Tab(text: tab.label)],
+              tabs: [
+                for (final tab in tabs)
+                  Tab(
+                    child: Badge(
+                      isLabelVisible: _waiting(tab) > 0,
+                      label: Text('${_waiting(tab)}'),
+                      offset: const Offset(14, -6),
+                      child: Text(tab.label),
+                    ),
+                  ),
+              ],
             ),
           ),
           Expanded(
             child: TabBarView(
               children: [
                 for (final tab in tabs)
-                  _LibraryGrid(library: library, tab: tab),
+                  tab is LikesTab
+                      ? const LikesTabView()
+                      : _LibraryGrid(library: library, likes: likes, tab: tab),
               ],
             ),
           ),
@@ -381,14 +388,29 @@ class _Tabs extends StatelessWidget {
 }
 
 class _LibraryGrid extends ConsumerWidget {
-  const _LibraryGrid({required this.library, required this.tab});
+  const _LibraryGrid({
+    required this.library,
+    required this.likes,
+    required this.tab,
+  });
   final Library library;
+  final LikesGroups likes;
   final LibraryTab tab;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = MorePalette.of(context);
-    final titles = library.titlesFor(tab);
+    final tab = this.tab;
+    final nights = tab is StatusTab && tab.status == WatchStatus.planned
+        ? likes
+        : null;
+    final hidden = nights == null
+        ? const <String>{}
+        : PlannedNights.idsOf(nights);
+    final titles = [
+      for (final t in library.titlesFor(tab))
+        if (!hidden.contains(t.id)) t,
+    ];
     final header = switch (tab) {
       ListTab(:final list) => Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 4, 0),
@@ -452,7 +474,7 @@ class _LibraryGrid extends ConsumerWidget {
       ),
       _ => null,
     };
-    final Widget body = titles.isEmpty
+    final Widget body = titles.isEmpty && hidden.isEmpty
         ? WatchMessage(
             title: _emptyTitle(tab),
             body: _emptyBody(tab),
@@ -472,6 +494,9 @@ class _LibraryGrid extends ConsumerWidget {
                 : null,
           )
         : PosterGrid(
+            header: nights == null || hidden.isEmpty
+                ? null
+                : PlannedNights(likes: nights),
             itemCount: titles.length,
             itemBuilder: (context, i) {
               final title = titles[i];
@@ -500,6 +525,7 @@ class _LibraryGrid extends ConsumerWidget {
 
   static String _emptyTitle(LibraryTab tab) => switch (tab) {
     AllTab() => 'Nothing on your watchlist yet',
+    LikesTab() => 'No matches yet',
     StatusTab(:final status) => switch (status) {
       WatchStatus.planned => 'Nothing planned yet',
       WatchStatus.watching => 'Nothing on the go',
@@ -512,6 +538,7 @@ class _LibraryGrid extends ConsumerWidget {
 
   static String _emptyBody(LibraryTab tab) => switch (tab) {
     AllTab() => 'Films and shows you want to watch will gather here.',
+    LikesTab() => 'Like titles in Discover.',
     ListTab() => 'Open a title and add it to this list.',
     StatusTab() => 'Open a title to give it this status.',
   };

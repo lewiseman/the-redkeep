@@ -288,11 +288,15 @@ class PosterGrid extends StatelessWidget {
     required this.itemCount,
     required this.itemBuilder,
     this.padding = const EdgeInsets.fromLTRB(16, 12, 16, 32),
+    this.header,
   });
 
   final int itemCount;
   final IndexedWidgetBuilder itemBuilder;
   final EdgeInsets padding;
+
+  /// Scrolls with the grid, above it.
+  final Widget? header;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
@@ -304,16 +308,33 @@ class PosterGrid extends StatelessWidget {
       // Poster plus two title lines and the year, at the current text size.
       final tileHeight =
           tileWidth * 1.5 + 6 + scale * (13 * 1.25 * 2 + 12 * 1.3) + 4;
-      return GridView.builder(
-        padding: padding,
-        itemCount: itemCount,
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: columns,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 16,
-          mainAxisExtent: tileHeight,
-        ),
-        itemBuilder: itemBuilder,
+      final delegate = SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: columns,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 16,
+        mainAxisExtent: tileHeight,
+      );
+      final header = this.header;
+      if (header == null) {
+        return GridView.builder(
+          padding: padding,
+          itemCount: itemCount,
+          gridDelegate: delegate,
+          itemBuilder: itemBuilder,
+        );
+      }
+      return CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(child: header),
+          SliverPadding(
+            padding: padding,
+            sliver: SliverGrid.builder(
+              itemCount: itemCount,
+              gridDelegate: delegate,
+              itemBuilder: itemBuilder,
+            ),
+          ),
+        ],
       );
     },
   );

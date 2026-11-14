@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../../core/presentation/rendering_policy.dart';
+import '../../sync/presentation/sync_material.dart';
 
 import '../domain/catalog_title.dart';
 import '../domain/explore.dart';
@@ -38,8 +39,9 @@ abstract final class WatchBrand {
   };
 }
 
-/// Round nope / watched / like buttons, on cards and profiles.
-class DecisionButton extends StatelessWidget {
+/// Nope / watched / like, as paper seals: a paper disc with an inked rim
+/// and a stitched inner ring, pressed in like a stamp. On cards and profiles.
+class DecisionButton extends StatefulWidget {
   const DecisionButton({
     super.key,
     required this.choice,
@@ -52,28 +54,191 @@ class DecisionButton extends StatelessWidget {
   final double size;
 
   @override
+  State<DecisionButton> createState() => _DecisionButtonState();
+}
+
+class _DecisionButtonState extends State<DecisionButton> {
+  bool _pressed = false;
+
+  void _press(bool pressed) {
+    if (_pressed != pressed) setState(() => _pressed = pressed);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final (icon, tooltip) = switch (choice) {
-      SwipeChoice.nope => (Icons.close, 'Nope'),
-      SwipeChoice.like => (Icons.favorite, 'Like'),
-      SwipeChoice.watched => (Icons.visibility, 'Already watched'),
+    final palette = MorePalette.of(context);
+    final policy = RenderingPolicyScope.of(context);
+    final enabled = widget.onPressed != null;
+    final size = widget.size;
+    final (icon, tooltip) = switch (widget.choice) {
+      SwipeChoice.nope => (Icons.close_rounded, 'Nope'),
+      SwipeChoice.like => (Icons.favorite_rounded, 'Like'),
+      SwipeChoice.watched => (null, 'Already watched'),
     };
-    return SizedBox.square(
-      dimension: size,
-      child: IconButton(
-        tooltip: tooltip,
-        onPressed: onPressed,
-        iconSize: size * .48,
-        style: IconButton.styleFrom(
-          backgroundColor: const Color(0xCC1B1B1F),
-          foregroundColor: WatchBrand.of(choice),
-          disabledBackgroundColor: const Color(0x661B1B1F),
-          shape: const CircleBorder(),
+    // The brand colour, steeped in the page's ink so it reads as printed.
+    final ink = Color.lerp(WatchBrand.of(widget.choice), palette.ink, .28)!;
+    final shadow = policy.simplerEffects
+        ? null
+        : [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: _pressed ? .22 : .32),
+              blurRadius: _pressed ? 4 : 12,
+              offset: Offset(0, _pressed ? 1 : 4),
+            ),
+          ];
+    return Tooltip(
+      message: tooltip,
+      child: Semantics(
+        button: true,
+        enabled: enabled,
+        label: tooltip,
+        excludeSemantics: true,
+        onTap: widget.onPressed,
+        child: Opacity(
+          opacity: enabled ? 1 : .55,
+          child: AnimatedScale(
+            scale: _pressed ? .9 : 1,
+            duration: policy.reducedMotion
+                ? Duration.zero
+                : Duration(milliseconds: _pressed ? 70 : 160),
+            curve: Curves.easeOutCubic,
+            child: Container(
+              width: size,
+              height: size,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: palette.paper,
+                gradient: policy.simplerEffects
+                    ? null
+                    : RadialGradient(
+                        center: const Alignment(-.3, -.4),
+                        radius: .9,
+                        colors: [palette.paper, palette.cloth],
+                      ),
+                border: Border.all(color: ink, width: size * .035),
+                boxShadow: shadow,
+              ),
+              child: Material(
+                type: MaterialType.transparency,
+                shape: const CircleBorder(),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: widget.onPressed,
+                  onHighlightChanged: _press,
+                  splashColor: ink.withValues(alpha: .14),
+                  highlightColor: Colors.transparent,
+                  excludeFromSemantics: true,
+                  child: CustomPaint(
+                    painter: _StitchRing(color: ink.withValues(alpha: .45)),
+                    child: Center(
+                      child: icon == null
+                          ? WatchedStubIcon(color: ink, size: size * .62)
+                          : Icon(icon, color: ink, size: size * .46),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
         ),
-        icon: Icon(icon),
       ),
     );
   }
+}
+
+/// "Already watched": a torn cinema ticket stub, ticked, set at a slant.
+class WatchedStubIcon extends StatelessWidget {
+  const WatchedStubIcon({super.key, required this.color, this.size = 24});
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => SizedBox.square(
+    dimension: size,
+    child: CustomPaint(painter: _StubPainter(color)),
+  );
+}
+
+class _StubPainter extends CustomPainter {
+  const _StubPainter(this.color);
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final s = size.shortestSide;
+    canvas.save();
+    canvas.translate(size.width / 2, size.height / 2);
+    canvas.rotate(-.22);
+    final w = s * .96, h = s * .62, r = s * .07, notch = s * .09;
+    final body = RRect.fromRectAndRadius(
+      Rect.fromCenter(center: Offset.zero, width: w, height: h),
+      Radius.circular(r),
+    );
+    // The stub, with a bite out of each side like a torn ticket.
+    final outline = Path.combine(
+      PathOperation.difference,
+      Path()..addRRect(body),
+      Path()
+        ..addOval(Rect.fromCircle(center: Offset(-w / 2, 0), radius: notch))
+        ..addOval(Rect.fromCircle(center: Offset(w / 2, 0), radius: notch)),
+    );
+    final stroke = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = s * .07
+      ..strokeJoin = StrokeJoin.round
+      ..strokeCap = StrokeCap.round;
+    canvas.drawPath(outline, stroke);
+    // Perforation before the counterfoil.
+    final perf = w * .27;
+    final dots = Paint()..color = color;
+    for (var i = -1; i <= 1; i++) {
+      canvas.drawCircle(Offset(perf, i * h * .24), s * .035, dots);
+    }
+    // The tick.
+    final tick = Path()
+      ..moveTo(-w * .3, 0)
+      ..lineTo(-w * .17, h * .16)
+      ..lineTo(w * .05, -h * .17);
+    canvas.drawPath(tick, stroke);
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _StubPainter old) => color != old.color;
+}
+
+/// A running stitch just inside a seal's rim.
+class _StitchRing extends CustomPainter {
+  const _StitchRing({required this.color});
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final radius =
+        size.shortestSide / 2 - math.max(4.0, size.shortestSide * .1);
+    if (radius <= 0) return;
+    final center = size.center(Offset.zero);
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1.2
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+    final stitches = (2 * math.pi * radius / 7).floor();
+    final sweep = 2 * math.pi / stitches;
+    for (var i = 0; i < stitches; i++) {
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        i * sweep,
+        sweep * .55,
+        false,
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _StitchRing old) => color != old.color;
 }
 
 /// Nope, Watched and Like, centred, Watched smaller between them.
@@ -87,19 +252,21 @@ class DecisionRow extends StatelessWidget {
     children: [
       DecisionButton(
         choice: SwipeChoice.nope,
+        size: 62,
         onPressed: onDecide == null ? null : () => onDecide!(SwipeChoice.nope),
       ),
-      const SizedBox(width: 18),
+      const SizedBox(width: 22),
       DecisionButton(
         choice: SwipeChoice.watched,
-        size: 46,
+        size: 48,
         onPressed: onDecide == null
             ? null
             : () => onDecide!(SwipeChoice.watched),
       ),
-      const SizedBox(width: 18),
+      const SizedBox(width: 22),
       DecisionButton(
         choice: SwipeChoice.like,
+        size: 62,
         onPressed: onDecide == null ? null : () => onDecide!(SwipeChoice.like),
       ),
     ],

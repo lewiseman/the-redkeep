@@ -1,6 +1,7 @@
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:redkeep/features/watchlist/presentation/watch_navbar.dart';
 import 'package:redkeep/app/navigation_destination.dart';
 import 'package:redkeep/core/storage/app_database.dart';
 import 'package:redkeep/features/watchlist/data/drift_watchlist_repository.dart';
@@ -107,7 +108,7 @@ void main() {
       );
       await pumpApp(tester, initialLocation: '/watchlist', database: db);
       await tester.tap(find.descendant(
-        of: find.byType(NavigationBar),
+        of: find.byType(WatchNavbar),
         matching: find.text('Explore'),
       ));
       await tester.pumpAndSettle();
@@ -154,7 +155,7 @@ void main() {
       await pumpApp(tester, initialLocation: '/watchlist', database: db);
       Future<void> open(String section) async {
         await tester.tap(find.descendant(
-          of: find.byType(NavigationBar),
+          of: find.byType(WatchNavbar),
           matching: find.text(section),
         ));
         await tester.pumpAndSettle();

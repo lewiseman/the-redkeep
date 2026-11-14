@@ -15,15 +15,15 @@ import '../domain/watch_title.dart';
 import 'night_planner.dart';
 import 'watch_widgets.dart';
 
-/// Matches, planned nights, and how past ones went.
-class LikesView extends ConsumerStatefulWidget {
-  const LikesView({super.key});
+/// The Library's Likes tab: live matches waiting for a night.
+class LikesTabView extends ConsumerStatefulWidget {
+  const LikesTabView({super.key});
 
   @override
-  ConsumerState<LikesView> createState() => _LikesViewState();
+  ConsumerState<LikesTabView> createState() => _LikesTabViewState();
 }
 
-class _LikesViewState extends ConsumerState<LikesView> {
+class _LikesTabViewState extends ConsumerState<LikesTabView> {
   @override
   void initState() {
     super.initState();
@@ -44,8 +44,8 @@ class _LikesViewState extends ConsumerState<LikesView> {
             )
           : const WatchLoading();
     }
-    final likes = LikesGroups(value, now);
-    if (likes.isEmpty) {
+    final matches = LikesGroups(value, now).matches;
+    if (matches.isEmpty) {
       return const WatchMessage(
         title: 'No matches yet',
         body: 'Like titles in Discover. When one likes you back, plan a night.',
@@ -54,26 +54,35 @@ class _LikesViewState extends ConsumerState<LikesView> {
     return ListView(
       padding: const EdgeInsets.only(bottom: 32),
       children: [
-        _Group('How did it go?', [
-          for (final t in likes.checkIn)
-            _LikeTile(title: t, kind: _Kind.checkIn),
-        ]),
         _Group('New matches', [
-          for (final t in likes.matches) _LikeTile(title: t, kind: _Kind.match),
-        ]),
-        _Group('Upcoming nights', [
-          for (final t in likes.upcoming)
-            _LikeTile(title: t, kind: _Kind.night),
-        ]),
-        _Group('Loved', [
-          for (final t in likes.loved) _LikeTile(title: t, kind: _Kind.loved),
-        ]),
-        _Group('Exes', [
-          for (final t in likes.exes) _LikeTile(title: t, kind: _Kind.ex),
+          for (final t in matches) _LikeTile(title: t, kind: _Kind.match),
         ]),
       ],
     );
   }
+}
+
+/// Above the Planned tab's posters: nights to check in on and to come.
+class PlannedNights extends StatelessWidget {
+  const PlannedNights({super.key, required this.likes});
+  final LikesGroups likes;
+
+  /// Titles shown here, kept out of the poster grid below.
+  static Set<String> idsOf(LikesGroups likes) => {
+    for (final t in [...likes.checkIn, ...likes.upcoming]) t.id,
+  };
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      _Group('How did it go?', [
+        for (final t in likes.checkIn) _LikeTile(title: t, kind: _Kind.checkIn),
+      ]),
+      _Group('Upcoming nights', [
+        for (final t in likes.upcoming) _LikeTile(title: t, kind: _Kind.night),
+      ]),
+    ],
+  );
 }
 
 class _Group extends StatelessWidget {
@@ -113,7 +122,7 @@ class _Group extends StatelessWidget {
   }
 }
 
-enum _Kind { checkIn, match, night, loved, ex }
+enum _Kind { checkIn, match, night }
 
 class _LikeTile extends ConsumerWidget {
   const _LikeTile({required this.title, required this.kind});
@@ -131,29 +140,19 @@ class _LikeTile extends ConsumerWidget {
       _Kind.checkIn => 'Watched ${format.format(title.nightAt!.toLocal())}?',
       _Kind.match => _expiry(title.expiresAt, now),
       _Kind.night => format.format(title.nightAt!.toLocal()),
-      _Kind.loved =>
-        title.checkedInAt == null
-            ? 'Loved'
-            : 'Together since ${DateFormat.yMMMd().format(title.checkedInAt!.toLocal())}',
-      _Kind.ex => switch (title) {
-        WatchTitle(outcome: NightOutcome.neverAgain) => 'Never again',
-        WatchTitle(matchState: MatchState.ghosted) => 'Drifted away',
-        _ => 'Unmatched',
-      },
     };
     final urgent =
         kind == _Kind.match &&
         title.expiresAt != null &&
         title.expiresAt!.difference(now) < const Duration(days: 2);
     final menu = <(String, Future<void> Function())>[
-      if (chat && kind != _Kind.ex)
+      if (chat)
         ('Chat', () async => context.push(watchChatLocation(title.key))),
       if (kind == _Kind.night) ...[
         ('Reschedule', () async => planNightFlow(context, ref, title)),
         ('Cancel night', () => nights.cancelNight(title)),
       ],
-      if (kind == _Kind.match || kind == _Kind.night)
-        ('Unmatch', () => nights.unmatch(title)),
+      if (kind != _Kind.checkIn) ('Unmatch', () => nights.unmatch(title)),
     ];
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),

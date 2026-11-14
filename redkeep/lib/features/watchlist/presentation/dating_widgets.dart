@@ -132,7 +132,7 @@ class _DecisionButtonState extends State<DecisionButton> {
                     painter: _StitchRing(color: ink.withValues(alpha: .45)),
                     child: Center(
                       child: icon == null
-                          ? WatchedStubIcon(color: ink, size: size * .62)
+                          ? WatchedStubIcon(color: ink, size: size * .46)
                           : Icon(icon, color: ink, size: size * .46),
                     ),
                   ),

@@ -1,14 +1,14 @@
 {
-  "version": "1.0.3",
-  "buildNumber": 4,
-  "tag": "v1.0.3+4",
+  "version": "1.0.4",
+  "buildNumber": 5,
+  "tag": "v1.0.4+5",
   "downloadUrl": "https://github.com/lewiseman/the-redkeep/releases/latest/download/redkeep-arm64-v8a.apk",
   "artifactName": "redkeep-arm64-v8a.apk",
   "buildType": "arm64",
-  "sourceCommit": "99dadd635d5af407fdbec253b6f2411bebf6efca",
+  "sourceCommit": "d8e2691fea2505688a903845318c74422ae77f81",
   "sourceDirty": false,
-  "sizeBytes": 45853001,
-  "sha256": "6d9f23e0548aeae8d57dfd470e04621d00535ac1c45abe32fcdc7249159ae7ba",
+  "sizeBytes": 47941024,
+  "sha256": "56db5a3c8db022b03000cd0746e1c143c38f110e4465f7a5f81789766a397c0f",
   "minSdk": 30,
   "architectures": [
     "arm64-v8a"

@@ -1273,6 +1273,54 @@ void main() {
       },
     );
   });
+
+  noteTest('scrolling the collection slides the bottom bar away and back', (
+    tester,
+  ) async {
+    for (var index = 0; index < 24; index++) {
+      await seed(
+        noteId: index.toRadixString(16).padLeft(32, '0'),
+        title: 'Note $index',
+        body: 'Line\n' * 6,
+      );
+    }
+    await pumpApp(tester, initialLocation: '/notes', notes: repo);
+    expect(navbarHidden(tester), isFalse);
+    final add = find.byKey(const ValueKey('notes-add-button'));
+    final bar = find.byType(RedkeepBottomNavbar);
+    // The list runs under the floating bar; its add button stays above it.
+    expect(
+      tester.getRect(add).bottom,
+      lessThanOrEqualTo(tester.getRect(bar).top),
+    );
+    final list = find.byKey(const PageStorageKey('notes-collection'));
+    await tester.drag(list, const Offset(0, -400));
+    await tester.pumpAndSettle();
+    expect(navbarHidden(tester), isTrue);
+    // A hidden bar cannot be tapped through.
+    expect(
+      tester
+          .widget<IgnorePointer>(
+            find
+                .ancestor(
+                  of: find.byType(RedkeepBottomNavbar),
+                  matching: find.byType(IgnorePointer),
+                )
+                .first,
+          )
+          .ignoring,
+      isTrue,
+    );
+    expect(add.hitTestable(), findsOneWidget);
+    await tester.drag(list, const Offset(0, 120));
+    await tester.pumpAndSettle();
+    expect(navbarHidden(tester), isFalse);
+    expect(
+      tester.getRect(add).bottom,
+      lessThanOrEqualTo(tester.getRect(bar).top),
+    );
+    expect(tester.takeException(), isNull);
+  });
 }
 
 /// Editing is a state of the note page; this is what the Edit control does.
@@ -1280,3 +1328,14 @@ Future<void> startEditing(WidgetTester tester) async {
   tester.widget<NoteReadView>(find.byType(NoteReadView)).onEdit();
   await tester.pumpAndSettle();
 }
+
+bool navbarHidden(WidgetTester tester) =>
+    tester
+        .widget<AnimatedSlide>(
+          find.ancestor(
+            of: find.byType(RedkeepBottomNavbar),
+            matching: find.byType(AnimatedSlide),
+          ),
+        )
+        .offset !=
+    Offset.zero;

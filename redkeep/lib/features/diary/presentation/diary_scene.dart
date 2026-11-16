@@ -22,6 +22,8 @@ class DiaryScene extends StatelessWidget {
     required this.collapse,
     required this.headerHeight,
     this.collapseExtent = 80,
+    this.navbarInset = 0,
+    this.systemInset = 0,
     required this.turn,
     required this.direction,
     required this.busy,
@@ -43,6 +45,13 @@ class DiaryScene extends StatelessWidget {
   final DiaryPaperDay Function() next;
   final DateTime today;
   final double collapse, headerHeight, turn, collapseExtent;
+
+  /// Height of the floating bottom bar the resting paper stays above. The
+  /// immersive (collapsed) paper runs under it to the screen's bottom edge.
+  final double navbarInset;
+
+  /// System gesture inset kept clear below the last line when immersive.
+  final double systemInset;
   final int direction;
   final bool busy, blocked, reduced;
   final Animation<double> fade;
@@ -63,7 +72,7 @@ class DiaryScene extends StatelessWidget {
       final left = (w * .123).clamp(32.0, 64.0) * (1 - collapse);
       final right = 20 * (1 - collapse);
       final gap = 12 * (1 - collapse);
-      final bottom = 40 * (1 - collapse);
+      final bottom = (40 + navbarInset) * (1 - collapse);
       final simple = RenderingPolicyScope.of(context).simplerEffects;
       final shape = DiaryPaperShape.forDate(
         day.calendarDate,
@@ -95,7 +104,10 @@ class DiaryScene extends StatelessWidget {
         restLeft,
         headerHeight + 12,
         w - 20,
-        math.max(headerHeight + 12, h - collapseExtent * collapse - 40),
+        math.max(
+          headerHeight + 12,
+          h - collapseExtent * collapse - 40 - navbarInset,
+        ),
       );
       final showPreview =
           !simple && collapse < 1 && previewLeft + rect.width > 0;
@@ -191,7 +203,9 @@ class DiaryScene extends StatelessWidget {
                       minimumHeight: rect.height,
                     ),
                   ),
-                  SliverToBoxAdapter(child: SizedBox(height: bottom)),
+                  SliverToBoxAdapter(
+                    child: SizedBox(height: bottom + systemInset * collapse),
+                  ),
                   const SliverFillRemaining(
                     hasScrollBody: false,
                     child: SizedBox(),

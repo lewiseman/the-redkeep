@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/navigation_destination.dart';
+import '../../../app/writing_shell.dart';
 import '../../../core/presentation/diary_typography.dart';
 import '../../../core/presentation/rendering_policy.dart';
 import '../application/diary_providers.dart';
@@ -79,6 +80,7 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
   bool _settling = false;
   bool _commitTurn = false;
   bool _readingTurn = false;
+  bool _immersive = false;
 
   DateTime get _today => TimeHelper.dateOnly(ref.read(diaryClockProvider)());
   DiaryPeriod _requestedDate(DiaryReaderDay request) =>
@@ -105,9 +107,22 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
   bool get _atTop => _outerOffset.abs() < .5 && _innerOffset.abs() < .5;
   bool get _blocked => _timeline.neighbor(_selectedDate, -_direction) == null;
 
+  /// A fully collapsed header is the immersive reader: the paper fills the
+  /// screen, so the shell slides its bottom bar away until the header returns.
+  void _outerScrolled() {
+    // A little hysteresis: the clamped outer edge can settle a pixel short.
+    final immersive = _immersive
+        ? _outerOffset > _collapseExtent - 12
+        : _outerOffset >= _collapseExtent - .5;
+    if (immersive == _immersive) return;
+    _immersive = immersive;
+    BottomNavbarVisibilityNotification(hidden: immersive).dispatch(context);
+  }
+
   @override
   void initState() {
     super.initState();
+    _outer.addListener(_outerScrolled);
     _turn.value = 0;
     _fade.addStatusListener((status) {
       if (status == AnimationStatus.completed && _fadingFrom != null) {
@@ -291,6 +306,7 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
   void dispose() {
     _turn.dispose();
     _fade.dispose();
+    _outer.removeListener(_outerScrolled);
     _outer.dispose();
     super.dispose();
   }
@@ -324,6 +340,9 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
       _paperTypography = requestedTypography;
     }
     final top = MediaQuery.paddingOf(context).top;
+    // The shell's bar floats over this page; at rest the paper ends above it.
+    final navbarInset = MediaQuery.paddingOf(context).bottom;
+    final systemInset = MediaQuery.viewPaddingOf(context).bottom;
     final width = MediaQuery.sizeOf(context).width;
     final artworkWidth = diaryHeaderArtworkWidth(width);
     final artworkTop = 60 - artworkWidth * .41;
@@ -459,6 +478,8 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
                       collapse: (_outerOffset / _collapseExtent).clamp(0, 1),
                       headerHeight: top + 82,
                       collapseExtent: _collapseExtent,
+                      navbarInset: navbarInset,
+                      systemInset: systemInset,
                       turn: _readingTurn ? 0 : _turn.value.clamp(0, 1),
                       direction: _direction,
                       busy: _busy,

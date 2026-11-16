@@ -129,6 +129,29 @@ void main() {
     ),
   );
 
+  for (final location in ['/', '/diary']) {
+    sceneTest('the immersive reader at $location slides the bottom bar away', (
+      tester,
+    ) async {
+      await seed(body: List.filled(80, 'A long remembered line.').join('\n'));
+      await pumpApp(tester, initialLocation: location, diary: repo);
+      expect(navbarHidden(tester), isFalse);
+      final paper = find.byKey(const ValueKey('diary-active-paper'));
+      await tester.dragFrom(
+        tester.getRect(paper).center,
+        const Offset(0, -300),
+      );
+      await tester.pumpAndSettle();
+      expect(scene(tester).collapse, 1);
+      expect(navbarHidden(tester), isTrue);
+      await tester.dragFrom(tester.getRect(paper).center, const Offset(0, 900));
+      await tester.pumpAndSettle();
+      expect(scene(tester).collapse, lessThan(1));
+      expect(navbarHidden(tester), isFalse);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   sceneTest(
     'landing is today; paper and calendar share turns, cancellation and the future boundary',
     (tester) async {
@@ -640,3 +663,14 @@ Future<void> capture(WidgetTester tester, String name) async {
     image.dispose();
   });
 }
+
+bool navbarHidden(WidgetTester tester) =>
+    tester
+        .widget<AnimatedSlide>(
+          find.ancestor(
+            of: find.byType(RedkeepBottomNavbar),
+            matching: find.byType(AnimatedSlide),
+          ),
+        )
+        .offset !=
+    Offset.zero;

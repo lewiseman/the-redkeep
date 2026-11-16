@@ -37,8 +37,12 @@ class RedkeepBottomNavbar extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onSelected;
 
-  static const _maxContentWidth = 700.0;
-  static const _sidePadding = 12.0;
+  static const _maxContentWidth = 600.0;
+  static const _innerPadding = 6.0;
+  static const _radius = 24.0;
+
+  /// Space around the floating rectangle; content shows through it.
+  static const _margin = EdgeInsets.fromLTRB(12, 0, 12, 8);
 
   static Iterable<String> visibleArtworkKeys(int selectedIndex) sync* {
     for (var index = 0; index < _destinations.length; index++) {
@@ -57,87 +61,116 @@ class RedkeepBottomNavbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final duration = RenderingPolicyScope.of(context).reducedMotion
+    final policy = RenderingPolicyScope.of(context);
+    final colors = Theme.of(context).colorScheme;
+    final dark = colors.brightness == Brightness.dark;
+    final duration = policy.reducedMotion
         ? Duration.zero
         : const Duration(milliseconds: 260);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        gradient: RenderingPolicyScope.of(context).simplerEffects
-            ? null
-            : LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Theme.of(context).colorScheme.surfaceContainerLow,
-                  Theme.of(context).colorScheme.surface,
-                ],
+    final shape = BorderRadius.circular(_radius);
+    return SafeArea(
+      top: false,
+      minimum: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: _margin,
+        child: Center(
+          heightFactor: 1,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: _maxContentWidth),
+            // A solid surface: nothing behind the bar is sampled or blurred.
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: colors.surfaceContainerLow,
+                borderRadius: shape,
+                gradient: policy.simplerEffects
+                    ? null
+                    : LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          colors.surfaceContainerLow,
+                          colors.surfaceContainer,
+                        ],
+                      ),
+                border: Border.all(color: colors.outlineVariant, width: 0.66),
+                boxShadow: policy.simplerEffects
+                    ? null
+                    : [
+                        BoxShadow(
+                          color: colors.shadow.withValues(
+                            alpha: dark ? .42 : .14,
+                          ),
+                          blurRadius: 22,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
               ),
-        border: Border(
-          top: BorderSide(
-            color: Theme.of(context).colorScheme.outlineVariant,
-            width: 0.66,
-          ),
-        ),
-      ),
-      child: Stack(
-        children: [
-          if (!RenderingPolicyScope.of(context).simplerEffects)
-            Positioned.fill(
-              child: IgnorePointer(
-                child: TweenAnimationBuilder<Color?>(
-                  tween: ColorTween(end: Theme.of(context).colorScheme.primary),
-                  duration: duration,
-                  curve: Curves.easeOutCubic,
-                  builder: (context, accent, _) =>
-                      TweenAnimationBuilder<double>(
-                        tween: Tween<double>(end: selectedIndex.toDouble()),
-                        duration: duration,
-                        curve: Curves.easeOutCubic,
-                        builder: (context, position, _) => CustomPaint(
-                          painter: _NavigationEdgeGlowPainter(
-                            position: position,
-                            accent: accent!,
-                            dark:
-                                Theme.of(context).colorScheme.brightness ==
-                                Brightness.dark,
-                            destinationCount: _destinations.length,
-                            insets: MediaQuery.paddingOf(context),
-                            textDirection: Directionality.of(context),
+              child: ClipRRect(
+                borderRadius: shape,
+                child: Stack(
+                  children: [
+                    if (!policy.simplerEffects)
+                      Positioned.fill(
+                        child: IgnorePointer(
+                          child: TweenAnimationBuilder<Color?>(
+                            tween: ColorTween(end: colors.primary),
+                            duration: duration,
+                            curve: Curves.easeOutCubic,
+                            builder: (context, accent, _) =>
+                                TweenAnimationBuilder<double>(
+                                  tween: Tween<double>(
+                                    end: selectedIndex.toDouble(),
+                                  ),
+                                  duration: duration,
+                                  curve: Curves.easeOutCubic,
+                                  builder: (context, position, _) =>
+                                      CustomPaint(
+                                        painter: _NavigationEdgeGlowPainter(
+                                          position: position,
+                                          accent: accent!,
+                                          dark: dark,
+                                          destinationCount:
+                                              _destinations.length,
+                                          textDirection: Directionality.of(
+                                            context,
+                                          ),
+                                        ),
+                                      ),
+                                ),
                           ),
                         ),
                       ),
-                ),
-              ),
-            ),
-          SafeArea(
-            top: false,
-            minimum: const EdgeInsets.only(bottom: 8),
-            child: Center(
-              heightFactor: 1,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: _maxContentWidth),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: _sidePadding),
-                  child: Row(
-                    children: [
-                      for (var index = 0; index < _destinations.length; index++)
-                        Expanded(
-                          child: _NavigationDestination(
-                            label: _destinations[index].label,
-                            image: _destinations[index].image,
-                            selectedImage: _destinations[index].selectedImage,
-                            selected: index == selectedIndex,
-                            onSelected: () => _select(index),
-                          ),
-                        ),
-                    ],
-                  ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: _innerPadding,
+                        vertical: 2,
+                      ),
+                      child: Row(
+                        children: [
+                          for (
+                            var index = 0;
+                            index < _destinations.length;
+                            index++
+                          )
+                            Expanded(
+                              child: _NavigationDestination(
+                                label: _destinations[index].label,
+                                image: _destinations[index].image,
+                                selectedImage:
+                                    _destinations[index].selectedImage,
+                                selected: index == selectedIndex,
+                                onSelected: () => _select(index),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -270,7 +303,6 @@ class _NavigationEdgeGlowPainter extends CustomPainter {
     required this.accent,
     required this.dark,
     required this.destinationCount,
-    required this.insets,
     required this.textDirection,
   });
 
@@ -278,28 +310,19 @@ class _NavigationEdgeGlowPainter extends CustomPainter {
   final Color accent;
   final bool dark;
   final int destinationCount;
-  final EdgeInsets insets;
   final TextDirection textDirection;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final availableWidth = size.width - insets.horizontal;
-    final contentWidth = availableWidth.clamp(
-      0.0,
-      RedkeepBottomNavbar._maxContentWidth,
-    );
+    // Painted inside the rounded bar, which matches the destination row.
     final itemWidth =
-        (contentWidth - 2 * RedkeepBottomNavbar._sidePadding) /
-        destinationCount;
+        (size.width - 2 * RedkeepBottomNavbar._innerPadding) / destinationCount;
     if (itemWidth <= 0) return;
     final visualPosition = textDirection == TextDirection.rtl
         ? destinationCount - 1 - position
         : position;
     final centerX =
-        insets.left +
-        (availableWidth - contentWidth) / 2 +
-        RedkeepBottomNavbar._sidePadding +
-        itemWidth * (visualPosition + .5);
+        RedkeepBottomNavbar._innerPadding + itemWidth * (visualPosition + .5);
 
     canvas.save();
     canvas.clipRect(Offset.zero & size);
@@ -375,6 +398,5 @@ class _NavigationEdgeGlowPainter extends CustomPainter {
       accent != oldDelegate.accent ||
       dark != oldDelegate.dark ||
       destinationCount != oldDelegate.destinationCount ||
-      insets != oldDelegate.insets ||
       textDirection != oldDelegate.textDirection;
 }

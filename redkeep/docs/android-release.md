@@ -77,7 +77,8 @@ without committing the source and rebuilding.
    npm test -- --grep 'release downloads|readable without JavaScript'
    ```
 
-4. Deploy through the website's existing Vercel project after the APK is available.
+4. Push the metadata commit to `main`. The website deploys automatically on push,
+   so push it only after the release is published and the APK is available.
    The landing page links directly to the APK; the footer links to release notes
    and installation instructions. The stable URLs need no changes on later releases.
 

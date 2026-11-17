@@ -355,3 +355,12 @@ illustration is not added to the Flutter bundle.
 Release order: publish `more_watchlist.webp` through the website hosting
 process before releasing the updated mobile catalog. Preparing this canonical
 source and validating it offline do not publish it.
+
+## Flow removal — 17 November 2026
+
+Flow was removed from the app. Its quick thoughts now live in the diary as
+text-only entries, saved with a button that reuses `navigation.flow.inactive`.
+The download catalog no longer lists `navigation.flow.active`, `flow.reflect`
+or `onboarding.chapter.flow`, so the app stops downloading them; the website
+keeps its own copies of that art. Images already installed on a device are
+left in place.

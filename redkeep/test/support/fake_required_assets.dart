@@ -39,7 +39,6 @@ class FakeRequiredAssets implements RequiredAssets {
     'notes.add' => 'notes_add.png',
     'more.appearance' => 'more_appearance.png',
     'more.watchlist' => 'more_watchlist.webp',
-    'flow.reflect' => 'flow_reflect.png',
     _ when key.startsWith('navigation.') && key.endsWith('.active') =>
       '${key.split('.')[1]}.png',
     _ when key.startsWith('navigation.') =>
@@ -48,7 +47,6 @@ class FakeRequiredAssets implements RequiredAssets {
     'onboarding.material.paper' => 'paper-edge.webp',
     'onboarding.material.binding' => 'binding-cloth.webp',
     'onboarding.chapter.maester' => 'ai.webp',
-    'onboarding.chapter.flow' => 'flow.jpg',
     'onboarding.chapter.appearance' => 'appearance.jpg',
     _ when key.startsWith('appearance.theme.') =>
       'theme_${key.split('.').last}.png',

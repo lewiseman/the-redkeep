@@ -126,7 +126,7 @@ class _SlidingNavbar extends StatelessWidget {
               ? Duration(milliseconds: hidden ? 220 : 260)
               : Duration.zero,
           curve: hidden ? Curves.easeInCubic : Curves.easeOutCubic,
-          // The bar's glow uses blurs; slide its cached layer instead of
+          // The bar's shadows use blurs; slide its cached layer instead of
           // repainting it on every frame of the move.
           child: RepaintBoundary(
             key: const ValueKey('bottom-navbar-slide'),

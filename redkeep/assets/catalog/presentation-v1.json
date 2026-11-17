@@ -57,15 +57,6 @@
       "sourcePath": "diary.webp"
     },
     {
-      "key": "onboarding.chapter.flow",
-      "revision": "v1",
-      "path": "onboarding/flow.jpg",
-      "bytes": 544939,
-      "sha256": "7bc3e0986659a6cba3b77e9071b6eaecb488c7b596158fc9b334083ef10e70fe",
-      "provenance": "tool/assets/PROVENANCE.md",
-      "sourcePath": "flow.jpg"
-    },
-    {
       "key": "onboarding.chapter.maester",
       "revision": "v1",
       "path": "onboarding/ai.webp",
@@ -156,15 +147,6 @@
       "sourcePath": "navigation/flow_inactive.png"
     },
     {
-      "key": "navigation.flow.active",
-      "revision": "v1",
-      "path": "navigation/flow-active-v1.png",
-      "bytes": 33484,
-      "sha256": "ff43eb8e4e9206c1fa11afcfeea190ae5bd2ab08df5d1b5ee4e193b1f60df2ac",
-      "provenance": "tool/assets/PROVENANCE.md",
-      "sourcePath": "flow.png"
-    },
-    {
       "key": "navigation.more.inactive",
       "revision": "v1",
       "path": "navigation/more-inactive-v1.png",
@@ -208,15 +190,6 @@
       "sha256": "329082a440f8212a45a896077338ac2e009df29223a72d488bca844a2d1cf75b",
       "provenance": "tool/assets/PROVENANCE.md",
       "sourcePath": "more_appearance.png"
-    },
-    {
-      "key": "flow.reflect",
-      "revision": "v1",
-      "path": "flow/reflect-v1.png",
-      "sourcePath": "flow_reflect.png",
-      "bytes": 201799,
-      "sha256": "c9a7d0c754143a2c607e4d8c7602969feab0450dd795c5d6d811eb919522f5ba",
-      "provenance": "tool/assets/PROVENANCE.md"
     },
     {
       "key": "more.watchlist",

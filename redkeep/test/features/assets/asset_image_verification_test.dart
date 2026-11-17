@@ -255,7 +255,7 @@ void main() {
       final catalog = AssetCatalog.parse(
         await File('assets/catalog/presentation-v1.json').readAsString(),
       );
-      expect(catalog.assets, hasLength(25));
+      expect(catalog.assets, hasLength(22));
       expect(catalog.asset('more.watchlist').sourcePath, 'more_watchlist.webp');
       expect(catalog.asset('more.watchlist').path, 'more/watchlist-v1.webp');
       expect(
@@ -273,7 +273,16 @@ void main() {
         expect(asset.bytes, local.length);
         expect(asset.sha256, sha256.convert(local).toString());
       }
-      expect(catalog.assets.any((a) => a.key == 'flow.mascot'), isFalse);
+      // The app keeps only the inactive Flow icon, for diary thoughts.
+      for (final key in [
+        'flow.mascot',
+        'flow.reflect',
+        'onboarding.chapter.flow',
+        'navigation.flow.active',
+      ]) {
+        expect(catalog.assets.any((a) => a.key == key), isFalse, reason: key);
+      }
+      expect(catalog.asset('navigation.flow.inactive').path, isNotEmpty);
       // Branding is always bundled, even on a fresh offline installation.
       for (final entry in {
         'ink-paper.webp': 'ink-paper.webp',

@@ -306,7 +306,6 @@ class _NotesListPageState extends ConsumerState<NotesListPage> {
                                     (filter.pinnedOnly
                                         ? NoteTagStrip.pinned
                                         : NoteTagStrip.all),
-                          isLoading: tags.isLoading,
                           onSelected: _collection,
                         ),
                       ),

@@ -435,56 +435,55 @@ void main() {
     },
   );
 
-  sceneTest(
-    'the curved date pin stays on today while focus and page turns move',
-    (tester) async {
-      final router = await pumpApp(
-        tester,
-        initialLocation: '/diary',
-        diary: repo,
+  sceneTest('today stays circled on the cord while focus and page turns move', (
+    tester,
+  ) async {
+    final router = await pumpApp(
+      tester,
+      initialLocation: '/diary',
+      diary: repo,
+    );
+    final circle = find.byKey(const ValueKey('diary-calendar-today'));
+    final todayTab = find.byKey(
+      ValueKey(
+        'diary-calendar-date-${DateTime(2026, 11, 2).toIso8601String()}',
+      ),
+    );
+    void expectTodayCircled() {
+      expect(circle, findsOneWidget);
+      expect(find.descendant(of: todayTab, matching: circle), findsOneWidget);
+      expect(
+        tester
+            .getRect(circle)
+            .overlaps(tester.getRect(find.byType(DiaryCalendar).last)),
+        isTrue,
       );
-      final pin = find.byKey(const ValueKey('diary-calendar-pin'));
-      final todayTab = find.byKey(
-        ValueKey(
-          'diary-calendar-date-${DateTime(2026, 11, 2).toIso8601String()}',
-        ),
-      );
-      void expectTodayPinned() {
-        expect(pin, findsOneWidget);
-        expect(find.descendant(of: todayTab, matching: pin), findsOneWidget);
-        expect(
-          tester
-              .getRect(pin)
-              .overlaps(tester.getRect(find.byType(DiaryCalendar).last)),
-          isTrue,
-        );
-        for (final opacity in tester.widgetList<Opacity>(
-          find.ancestor(of: pin, matching: find.byType(Opacity)),
-        )) {
-          expect(opacity.opacity, greaterThan(0));
-        }
+      for (final opacity in tester.widgetList<Opacity>(
+        find.ancestor(of: circle, matching: find.byType(Opacity)),
+      )) {
+        expect(opacity.opacity, greaterThan(0));
       }
+    }
 
-      expectTodayPinned();
-      scene(tester).onDateChanged(DiaryPeriod(2026, 11, 1));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 60));
-      expectTodayPinned();
-      await tester.pumpAndSettle();
-      expect(scene(tester).day.date, today.shift(-1));
-      expectTodayPinned();
-      scene(tester).onDateChanged(DiaryPeriod(2026, 10, 31));
-      await tester.pumpAndSettle();
-      expectTodayPinned();
-      goDiaryDay(tester, router, today.shift(-10)!);
-      await tester.pumpAndSettle();
-      expect(pin, findsNothing);
-      goDiaryDay(tester, router, today);
-      await tester.pumpAndSettle();
-      expectTodayPinned();
-      expect(tester.takeException(), isNull);
-    },
-  );
+    expectTodayCircled();
+    scene(tester).onDateChanged(DiaryPeriod(2026, 11, 1));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 60));
+    expectTodayCircled();
+    await tester.pumpAndSettle();
+    expect(scene(tester).day.date, today.shift(-1));
+    expectTodayCircled();
+    scene(tester).onDateChanged(DiaryPeriod(2026, 10, 31));
+    await tester.pumpAndSettle();
+    expectTodayCircled();
+    goDiaryDay(tester, router, today.shift(-10)!);
+    await tester.pumpAndSettle();
+    expect(circle, findsNothing);
+    goDiaryDay(tester, router, today);
+    await tester.pumpAndSettle();
+    expectTodayCircled();
+    expect(tester.takeException(), isNull);
+  });
 
   sceneTest(
     'simpler effects switch pages without a slide; future writing remains addressable',

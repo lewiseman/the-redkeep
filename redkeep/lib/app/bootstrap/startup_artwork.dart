@@ -4,8 +4,6 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/assets/presentation/local_artwork.dart';
-import '../../features/diary/presentation/diary_artwork.dart';
-import '../../features/diary/presentation/diary_calendar.dart';
 import '../bottom_navbar.dart';
 import '../navigation_destination.dart';
 import '../writing_shell.dart';
@@ -32,9 +30,6 @@ final startupArtworkProvider = FutureProvider<void>((ref) async {
     return;
   }
 
-  final dispatcher = WidgetsBinding.instance.platformDispatcher;
-  final view = dispatcher.implicitView ?? dispatcher.views.firstOrNull;
-  final media = view == null ? null : MediaQueryData.fromView(view);
   final images = [
     for (final key in [
       ...RedkeepBottomNavbar.visibleArtworkKeys(
@@ -44,14 +39,6 @@ final startupArtworkProvider = FutureProvider<void>((ref) async {
       if (destination == '/more') 'more.appearance',
     ])
       ref.watch(localArtworkFileProvider(key).future).then(localArtworkImage),
-    if (isDiary && media != null && !media.size.isEmpty) ...[
-      ref.watch(
-        diaryImageProvider((
-          diaryCalendarPinArtworkKey,
-          diaryArtworkDecodeWidth(diaryCalendarPinSize, media.devicePixelRatio),
-        )).future,
-      ),
-    ],
   ];
   await Future.wait(
     images.map((image) async {

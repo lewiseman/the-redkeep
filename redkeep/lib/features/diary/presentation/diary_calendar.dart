@@ -1,7 +1,6 @@
 import 'package:intl/intl.dart';
 
 import '../../../core/presentation/rendering_policy.dart';
-import 'diary_artwork.dart';
 import '../domain/diary_period.dart';
 import '../domain/diary_raven.dart';
 import '../domain/diary_timeline.dart';
@@ -13,11 +12,6 @@ import 'dart:ui' as ui;
 
 import 'diary_style.dart';
 import 'diary_paper_stamp.dart';
-
-const diaryCalendarPinArtworkKey = 'diary.calendar.pin';
-const diaryCalendarPinSize = 24.0;
-const _calendarPinOverhang = 13.0;
-const _calendarPinHorizontalOffset = 8.0;
 
 /// How far a resting tab hangs below the cord, on a short loop of it.
 const _tabHang = 12.0;
@@ -298,8 +292,7 @@ class DiaryCalendar extends StatelessWidget {
     final when = switch (letter.echo) {
       DiaryEcho.year => 'a year ago today',
       DiaryEcho.month => 'a month ago today',
-      DiaryEcho.weeks when letter.weeks == 1 => 'last $weekday',
-      DiaryEcho.weeks => '${letter.weeks} ${weekday}s ago',
+      DiaryEcho.week => 'last $weekday',
     };
     return 'A raven brings your page from $when, '
         '${letter.from.label(locale)}. Open it';
@@ -337,9 +330,8 @@ class DiaryCalendar extends StatelessWidget {
     if (date == null) {
       return const Positioned(left: 0, top: 0, child: SizedBox.shrink());
     }
-    final pinned = date.isDay && date.isCurrent(today);
-    // Today's tab is pinned onto the cord; the others hang from a loop.
-    final hang = pinned ? 0.0 : _tabHang;
+    final isToday = date.isDay && date.isCurrent(today);
+    const hang = _tabHang;
     final expandedPointY = _CalendarThreadPainter.heightAt(expandedX, width);
     final drop = _pulled ? _dropAt(x, width) : 0.0;
     final centerY =
@@ -362,6 +354,19 @@ class DiaryCalendar extends StatelessWidget {
     )!;
     final ink = Color.lerp(inactiveInk, context.colors.primary, prominence)!;
     final sway = math.sin(dayOffset.abs() * math.pi);
+    final numberCenterY =
+        drop +
+        ui.lerpDouble(
+          ui.lerpDouble(expandedPointY + 16 + hang, 50, prominence),
+          24,
+          collapse,
+        )! -
+        lift;
+    final numberSize = ui.lerpDouble(
+      ui.lerpDouble(13, date.isDay ? 23 : 14, prominence),
+      ui.lerpDouble(12.5, 17, prominence),
+      collapse,
+    )!;
     final tilt =
         (relativeDay.sign * .035 * (1 - prominence) + dayOffset * .065 * sway) *
         (1 - collapse);
@@ -403,32 +408,21 @@ class DiaryCalendar extends StatelessWidget {
                           cordY: drop + expandedPointY,
                           prominence: prominence,
                           collapse: collapse,
-                          pinned: pinned,
                           sealed: written.contains(date),
                         ),
                       ),
                     ),
-                    if (pinned && collapse < 1)
-                      Positioned(
-                        top:
-                            centerY -
-                            _DatePaperPainter.heightFor(prominence, collapse) /
-                                2 -
-                            _calendarPinOverhang,
-                        left: _calendarPinHorizontalOffset,
-                        right: -_calendarPinHorizontalOffset,
-                        height: diaryCalendarPinSize,
+                    // Today's date is circled in ink, as by hand.
+                    if (isToday)
+                      Positioned.fill(
                         child: IgnorePointer(
-                          child: Opacity(
-                            opacity: 1 - collapse,
-                            child: Center(
-                              child: DiaryArtwork(
-                                assetKey: diaryCalendarPinArtworkKey,
-                                key: const ValueKey('diary-calendar-pin'),
-                                width: diaryCalendarPinSize,
-                                height: diaryCalendarPinSize,
-                                fit: BoxFit.contain,
-                              ),
+                          child: CustomPaint(
+                            key: const ValueKey('diary-calendar-today'),
+                            painter: _TodayCirclePainter(
+                              center: numberCenterY,
+                              size: textScaler.scale(numberSize),
+                              weight: prominence,
+                              color: context.colors.primary,
                             ),
                           ),
                         ),
@@ -437,25 +431,10 @@ class DiaryCalendar extends StatelessWidget {
                       text: date.shortLabel(
                         Localizations.localeOf(context).toString(),
                       ),
-                      centerY:
-                          drop +
-                          ui.lerpDouble(
-                            ui.lerpDouble(
-                              expandedPointY + 16 + hang,
-                              50,
-                              prominence,
-                            ),
-                            24,
-                            collapse,
-                          )! -
-                          lift,
+                      centerY: numberCenterY,
                       style: TextStyle(
                         color: ink,
-                        fontSize: ui.lerpDouble(
-                          ui.lerpDouble(13, date.isDay ? 23 : 14, prominence),
-                          ui.lerpDouble(12.5, 17, prominence),
-                          collapse,
-                        ),
+                        fontSize: numberSize,
                         fontWeight: FontWeight.lerp(
                           FontWeight.w400,
                           FontWeight.w600,
@@ -726,7 +705,6 @@ class _DatePaperPainter extends CustomPainter {
     required this.cordY,
     required this.prominence,
     required this.collapse,
-    required this.pinned,
     this.sealed = false,
   });
 
@@ -739,7 +717,6 @@ class _DatePaperPainter extends CustomPainter {
 
   /// Where the cord crosses this tab's column, in the tab's own coordinates.
   final double cordY;
-  final bool pinned;
 
   /// How surely the tab's eyelet sits on the cord: only the resting tabs
   /// beside the selected one hang from it by a loop.
@@ -771,54 +748,48 @@ class _DatePaperPainter extends CustomPainter {
         edgeScale: .35,
         opacity: visibility,
       ).paintRect(canvas, bounds);
-      if (!pinned) {
-        final eyelet = Offset(size.width / 2, bounds.top + 9);
-        canvas.drawCircle(
-          eyelet,
-          1.2,
-          Paint()
-            ..color = colors.onSurfaceVariant.withValues(
-              alpha: .3 * visibility,
+      final eyelet = Offset(size.width / 2, bounds.top + 9);
+      canvas.drawCircle(
+        eyelet,
+        1.2,
+        Paint()
+          ..color = colors.onSurfaceVariant.withValues(alpha: .3 * visibility),
+      );
+      canvas.drawCircle(
+        eyelet,
+        2.1,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = .55
+          ..color = colors.onSurfaceVariant.withValues(alpha: .24 * visibility),
+      );
+      // A resting tab hangs below the cord from a short loop of it,
+      // tied through its eyelet.
+      final looped = threaded * visibility;
+      if (looped > 0 && cordY < eyelet.dy - 2) {
+        canvas.drawPath(
+          Path()
+            ..moveTo(eyelet.dx - .4, eyelet.dy)
+            ..quadraticBezierTo(
+              eyelet.dx - 1.8,
+              (eyelet.dy + cordY) / 2,
+              eyelet.dx,
+              cordY,
+            )
+            ..moveTo(eyelet.dx + .4, eyelet.dy)
+            ..quadraticBezierTo(
+              eyelet.dx + 1.8,
+              (eyelet.dy + cordY) / 2,
+              eyelet.dx,
+              cordY,
             ),
-        );
-        canvas.drawCircle(
-          eyelet,
-          2.1,
           Paint()
             ..style = PaintingStyle.stroke
-            ..strokeWidth = .55
-            ..color = colors.onSurfaceVariant.withValues(
-              alpha: .24 * visibility,
-            ),
+            ..strokeWidth = 1.05
+            ..strokeCap = StrokeCap.round
+            ..color = _CalendarThreadPainter.cordColor(colors)
+                .withValues(alpha: .7 * looped),
         );
-        // A resting tab hangs below the cord from a short loop of it,
-        // tied through its eyelet.
-        final looped = threaded * visibility;
-        if (looped > 0 && cordY < eyelet.dy - 2) {
-          canvas.drawPath(
-            Path()
-              ..moveTo(eyelet.dx - .4, eyelet.dy)
-              ..quadraticBezierTo(
-                eyelet.dx - 1.8,
-                (eyelet.dy + cordY) / 2,
-                eyelet.dx,
-                cordY,
-              )
-              ..moveTo(eyelet.dx + .4, eyelet.dy)
-              ..quadraticBezierTo(
-                eyelet.dx + 1.8,
-                (eyelet.dy + cordY) / 2,
-                eyelet.dx,
-                cordY,
-              ),
-            Paint()
-              ..style = PaintingStyle.stroke
-              ..strokeWidth = 1.05
-              ..strokeCap = StrokeCap.round
-              ..color = _CalendarThreadPainter.cordColor(colors)
-                  .withValues(alpha: .7 * looped),
-          );
-        }
       }
     }
     // A day with writing carries a small seal of red wax on its corner.
@@ -850,8 +821,62 @@ class _DatePaperPainter extends CustomPainter {
       date != oldDelegate.date ||
       centerY != oldDelegate.centerY ||
       cordY != oldDelegate.cordY ||
-      sealed != oldDelegate.sealed ||
       prominence != oldDelegate.prominence ||
       collapse != oldDelegate.collapse ||
-      pinned != oldDelegate.pinned;
+      sealed != oldDelegate.sealed;
+}
+
+/// A loop of ink drawn around today's date, a little uneven and overrunning
+/// its start, the way a pen circles a day on a paper calendar.
+class _TodayCirclePainter extends CustomPainter {
+  const _TodayCirclePainter({
+    required this.center,
+    required this.size,
+    required this.weight,
+    required this.color,
+  });
+
+  /// The date's vertical centre and its scaled font size.
+  final double center, size;
+
+  /// The tab's prominence: the centre tab's circle is drawn a touch bolder.
+  final double weight;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size box) {
+    final radius = size * .72 + 2;
+    final rx = radius * 1.15, ry = radius * .8;
+    final c = Offset(box.width / 2, center);
+    const steps = 48;
+    final path = Path();
+    for (var i = 0; i <= steps; i++) {
+      final t = i / steps;
+      // Just over one turn, closing a little inside where it began.
+      final a = -2.0 + t * 2 * math.pi * 1.1;
+      final wobble = (1 + .05 * math.sin(3 * a + .7)) * (1 - .07 * t);
+      final x = rx * math.cos(a) * wobble, y = ry * math.sin(a) * wobble;
+      // Tilted slightly, as a hand would draw it.
+      final point = c + Offset(x - y * .12, y + x * .12);
+      i == 0
+          ? path.moveTo(point.dx, point.dy)
+          : path.lineTo(point.dx, point.dy);
+    }
+    canvas.drawPath(
+      path,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..strokeWidth = ui.lerpDouble(1.1, 1.5, weight)!
+        ..color = color.withValues(alpha: ui.lerpDouble(.6, .85, weight)!),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_TodayCirclePainter oldDelegate) =>
+      center != oldDelegate.center ||
+      size != oldDelegate.size ||
+      weight != oldDelegate.weight ||
+      color != oldDelegate.color;
 }

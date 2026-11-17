@@ -10,7 +10,7 @@ void main() {
     expect(diaryRavenLetter(today, const {}), isNull);
   });
 
-  test('prefers a year ago, then a month ago, then recent weekdays', () {
+  test('prefers a year ago, then a month ago, then last week', () {
     final written = {
       DiaryPeriod(2025, 11, 17),
       DiaryPeriod(2026, 10, 17),
@@ -28,27 +28,14 @@ void main() {
     written.remove(DiaryPeriod(2026, 10, 17));
     expect(
       diaryRavenLetter(today, written),
-      DiaryRavenLetter(
-        from: DiaryPeriod(2026, 11, 10),
-        echo: DiaryEcho.weeks,
-        weeks: 1,
-      ),
+      DiaryRavenLetter(from: DiaryPeriod(2026, 11, 10), echo: DiaryEcho.week),
     );
   });
 
-  test('finds the nearest of the last four same weekdays', () {
-    expect(
-      diaryRavenLetter(today, {
-        DiaryPeriod(2026, 11, 3),
-        DiaryPeriod(2026, 10, 20),
-      }),
-      DiaryRavenLetter(
-        from: DiaryPeriod(2026, 11, 3),
-        echo: DiaryEcho.weeks,
-        weeks: 2,
-      ),
-    );
-    expect(diaryRavenLetter(today, {DiaryPeriod(2026, 10, 13)}), isNull);
+  test('only the same weekday last week counts, not earlier weeks', () {
+    expect(diaryRavenLetter(today, {DiaryPeriod(2026, 11, 3)}), isNull);
+    expect(diaryRavenLetter(today, {DiaryPeriod(2026, 10, 27)}), isNull);
+    expect(diaryRavenLetter(today, {DiaryPeriod(2026, 11, 11)}), isNull);
   });
 
   test('handles dates missing from the earlier month or year', () {

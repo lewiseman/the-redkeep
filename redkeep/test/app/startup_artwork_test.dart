@@ -7,7 +7,6 @@ import 'package:redkeep/app/bootstrap/bootstrap_providers.dart';
 import 'package:redkeep/app/bootstrap/startup_artwork.dart';
 import 'package:redkeep/app/navigation_destination.dart';
 import 'package:redkeep/features/assets/presentation/local_artwork.dart';
-import 'package:redkeep/features/diary/presentation/diary_artwork.dart';
 
 import '../support/fake_required_assets.dart';
 
@@ -34,7 +33,6 @@ void main() {
         'navigation.diary.active': 120,
         'navigation.notes.inactive': 120,
         'navigation.more.inactive': 120,
-        'diary.calendar.pin': 48,
       };
       expect(assets.resolved, unorderedEquals(expected.keys));
       for (final entry in expected.entries) {
@@ -52,10 +50,6 @@ void main() {
         container
             .read(localArtworkFileProvider('navigation.diary.active'))
             .hasValue,
-        isTrue,
-      );
-      expect(
-        container.read(diaryImageProvider(('diary.calendar.pin', 48))).hasValue,
         isTrue,
       );
       expect(assets.resolved, unorderedEquals(expected.keys));

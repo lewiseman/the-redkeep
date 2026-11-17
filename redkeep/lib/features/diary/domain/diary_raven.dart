@@ -2,36 +2,26 @@ import 'civil_date.dart';
 import 'diary_period.dart';
 
 /// How far back a raven's letter comes from.
-enum DiaryEcho { year, month, weeks }
+enum DiaryEcho { year, month, week }
 
 /// An earlier written day that echoes the page being read: the same date a
-/// year or a month before, or the same weekday in one of the last few weeks.
+/// year or a month before, or the same weekday a week before.
 class DiaryRavenLetter {
-  const DiaryRavenLetter({
-    required this.from,
-    required this.echo,
-    this.weeks = 0,
-  });
+  const DiaryRavenLetter({required this.from, required this.echo});
 
   final DiaryPeriod from;
   final DiaryEcho echo;
 
-  /// For a [DiaryEcho.weeks] letter, how many weeks before.
-  final int weeks;
-
   @override
   bool operator ==(Object other) =>
-      other is DiaryRavenLetter &&
-      other.from == from &&
-      other.echo == echo &&
-      other.weeks == weeks;
+      other is DiaryRavenLetter && other.from == from && other.echo == echo;
 
   @override
-  int get hashCode => Object.hash(from, echo, weeks);
+  int get hashCode => Object.hash(from, echo);
 }
 
 /// The letter a raven brings to [date], or none. A year ago comes first, then
-/// a month ago, then the nearest of the last four same weekdays. Only days
+/// a month ago, then the same weekday last week. Only days
 /// that have writing, as listed in [written], are ever brought back.
 DiaryRavenLetter? diaryRavenLetter(DiaryPeriod date, Set<DiaryPeriod> written) {
   if (!date.isDay) return null;
@@ -58,16 +48,12 @@ DiaryRavenLetter? diaryRavenLetter(DiaryPeriod date, Set<DiaryPeriod> written) {
       echo: DiaryEcho.month,
     );
   }
-  for (var weeks = 1; weeks <= 4; weeks++) {
-    final earlier = day.shift(-7 * weeks);
-    // A month ago is already checked; skip a same-date weekday clash.
-    if (earlier != null && earlier != monthAgo && wrote(earlier)) {
-      return DiaryRavenLetter(
-        from: DiaryPeriod.day(earlier),
-        echo: DiaryEcho.weeks,
-        weeks: weeks,
-      );
-    }
+  final weekAgo = day.shift(-7);
+  if (wrote(weekAgo)) {
+    return DiaryRavenLetter(
+      from: DiaryPeriod.day(weekAgo!),
+      echo: DiaryEcho.week,
+    );
   }
   return null;
 }

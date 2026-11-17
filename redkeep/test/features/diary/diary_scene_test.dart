@@ -8,6 +8,8 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:redkeep/features/diary/presentation/diary_search_loading.dart';
+import 'package:redkeep/features/diary/presentation/diary_search_opening.dart';
 import 'package:redkeep/app/navigation_destination.dart';
 import 'package:redkeep/app/bottom_navbar.dart';
 import 'package:redkeep/core/storage/app_database.dart';
@@ -653,6 +655,54 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  sceneTest('typing on the opening page rebuilds nothing above the field', (
+    tester,
+  ) async {
+    await seed();
+    await pumpApp(tester, initialLocation: '/diary/search', diary: repo);
+    await submit(tester, 'coffee');
+    await tester.tap(find.byTooltip('Clear search'));
+    await tester.pumpAndSettle();
+    final card = find.byKey(const ValueKey('diary-search-recent-0'));
+    final before = tester.element(card);
+    final input = find.byKey(const ValueKey('diary-search-input'));
+    for (final text in ['w', 'wa', 'wal', 'w', '']) {
+      await tester.enterText(input, text);
+      await tester.pump();
+      expect(find.byType(DiarySearchOpening), findsOneWidget, reason: text);
+      expect(tester.element(card), same(before), reason: text);
+    }
+    expect(tester.takeException(), isNull);
+  });
+
+  sceneTest('the loading scene waits before it appears', (tester) async {
+    await seed();
+    final slow = StreamController<List<DiaryListing>>.broadcast();
+    addTearDown(slow.close);
+    repo.searches['slow'] = slow;
+    await pumpApp(tester, initialLocation: '/diary/search', diary: repo);
+    await submit(tester, 'slow', settle: false);
+    final loading = find.byKey(const ValueKey('diary-search-loading'));
+    double opacity() => tester
+        .widget<AnimatedOpacity>(
+          find.descendant(of: loading, matching: find.byType(AnimatedOpacity)),
+        )
+        .opacity;
+    expect(loading, findsOneWidget);
+    expect(opacity(), 0);
+    expect(find.bySemanticsLabel(RegExp('Looking through')), findsNothing);
+    await tester.pump(DiarySearchLoading.revealAfter);
+    // The scan loops while shown, so wait out the fade instead of settling.
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(opacity(), 1);
+    expect(find.bySemanticsLabel(RegExp('Looking through')), findsOneWidget);
+    slow.add([DiaryListing(id: id, date: today)]);
+    await tester.pumpAndSettle();
+    expect(loading, findsNothing);
+    expect(find.byKey(const ValueKey('diary-search-match-0')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   sceneTest(
     'query changes and clear detach pending searches; errors can retry',

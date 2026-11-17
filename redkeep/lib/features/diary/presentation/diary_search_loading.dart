@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'diary_style.dart';
@@ -5,6 +6,8 @@ import 'diary_search_paper.dart';
 import 'diary_search_scene.dart';
 
 /// Indeterminate activity, without invented progress percentages or stages.
+/// Most keyword searches finish within a few frames, so it appears only once a
+/// search has taken [revealAfter]; a fast one never flashes the scene.
 class DiarySearchLoading extends StatefulWidget {
   const DiarySearchLoading({
     super.key,
@@ -15,6 +18,8 @@ class DiarySearchLoading extends StatefulWidget {
 
   final String query;
   final bool reduced, compact;
+
+  static const revealAfter = Duration(milliseconds: 300);
 
   @override
   State<DiarySearchLoading> createState() => _DiarySearchLoadingState();
@@ -28,16 +33,23 @@ class _DiarySearchLoadingState extends State<DiarySearchLoading>
     duration: const Duration(milliseconds: 2200),
   );
 
+  Timer? _reveal;
+  bool _shown = false;
+
   @override
   void initState() {
     super.initState();
-    if (!widget.reduced) _scan.repeat();
+    _reveal = Timer(DiarySearchLoading.revealAfter, () {
+      if (!mounted) return;
+      setState(() => _shown = true);
+      if (!widget.reduced) _scan.repeat();
+    });
   }
 
   @override
   void didUpdateWidget(DiarySearchLoading oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.reduced == widget.reduced) return;
+    if (!_shown || oldWidget.reduced == widget.reduced) return;
     if (widget.reduced) {
       _scan.stop();
       _scan.value = 0;
@@ -48,12 +60,24 @@ class _DiarySearchLoadingState extends State<DiarySearchLoading>
 
   @override
   void dispose() {
+    _reveal?.cancel();
     _scan.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) => Column(
+  Widget build(BuildContext context) => ExcludeSemantics(
+    excluding: !_shown,
+    child: AnimatedOpacity(
+      opacity: _shown ? 1 : 0,
+      duration: widget.reduced
+          ? Duration.zero
+          : const Duration(milliseconds: 200),
+      child: _content(context),
+    ),
+  );
+
+  Widget _content(BuildContext context) => Column(
     children: [
       SizedBox(height: widget.compact ? 8 : 30),
       RepaintBoundary(

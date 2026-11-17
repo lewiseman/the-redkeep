@@ -27,7 +27,12 @@ class DiarySearchOpening extends ConsumerWidget {
         Padding(
           padding: const EdgeInsets.only(bottom: 10),
           child: Center(
-            child: SizedBox(
+            // The keyboard shrinks the scene; ease it rather than jump.
+            child: AnimatedContainer(
+              duration: reduced
+                  ? Duration.zero
+                  : const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
               height: compact ? 100 : 156,
               child: DiarySearchScene(reduced: reduced, compact: compact),
             ),
@@ -60,28 +65,23 @@ class DiaryRecentSearches extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: 1),
-      duration: reduced ? Duration.zero : const Duration(milliseconds: 220),
-      curve: Curves.easeOutCubic,
-      builder: (context, value, child) => Opacity(opacity: value, child: child),
-      child: Column(
-        children: [
-          for (final (i, query) in searches.indexed) ...[
-            if (i > 0) const SizedBox(height: 12),
-            Transform.rotate(
-              angle: reduced ? 0 : const [-.018, .012, -.01][i % 3],
-              child: _QuestionCard(
-                key: ValueKey('diary-search-recent-$i'),
-                query: query,
-                index: i,
-                icon: Icons.history_rounded,
-                onTap: () => onSearch(query),
-              ),
+    // The page's switcher already fades the opening in.
+    return Column(
+      children: [
+        for (final (i, query) in searches.indexed) ...[
+          if (i > 0) const SizedBox(height: 12),
+          Transform.rotate(
+            angle: reduced ? 0 : const [-.018, .012, -.01][i % 3],
+            child: _QuestionCard(
+              key: ValueKey('diary-search-recent-$i'),
+              query: query,
+              index: i,
+              icon: Icons.history_rounded,
+              onTap: () => onSearch(query),
             ),
-          ],
+          ),
         ],
-      ),
+      ],
     );
   }
 }

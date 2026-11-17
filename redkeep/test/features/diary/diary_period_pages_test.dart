@@ -13,6 +13,7 @@ import 'package:redkeep/features/diary/presentation/diary_writing_prompt.dart';
 
 import '../../support/fake_appearance_repository.dart';
 import '../../support/pump_app.dart';
+import '../../support/diary_calendar.dart';
 import '../../support/diary_reader.dart';
 
 final _today = DiaryPeriod(2026, 11, 2);
@@ -51,10 +52,7 @@ void main() {
             diary: repo,
             initialLocation: diaryCalendarLocation(_today),
           );
-          await _tap(
-            tester,
-            find.byKey(ValueKey('calendar-lens-${period.kind.name}')),
-          );
+          await zoomCalendarTo(tester, period.kind);
           final button = find
               .byKey(ValueKey('calendar-period-${period.key}'))
               .first;
@@ -275,10 +273,7 @@ void main() {
               repository: appearance,
               initialLocation: diaryCalendarLocation(_today),
             );
-            await _tap(
-              tester,
-              find.byKey(const ValueKey('calendar-lens-week')),
-            );
+            await zoomCalendarTo(tester, DiaryPeriodKind.week);
             await _tap(
               tester,
               find

@@ -8,16 +8,17 @@ import '../domain/diary_period.dart';
 import 'diary_paper_stamp.dart';
 import 'diary_style.dart';
 
-/// Which kind of page a calendar tap opens. The lens makes the choice
-/// explicit instead of scattering add buttons through every week and month.
+/// Which kind of page a calendar tap opens, ordered from the widest view
+/// to the closest: pinching the calendar moves between them, so its zoom
+/// depth is the lens's index.
 enum DiaryCalendarLens {
-  day('Day', 'Tap a day to write it'),
-  week('Week', 'Tap a week to write about all seven days'),
-  month('Month', 'Tap a month to write its page'),
-  year('Year', 'One page for the whole year');
+  year('Year', 'Year', 'One page for the whole year'),
+  month('Month', 'Months', 'Tap a month to write its page'),
+  week('Week', 'Weeks', 'Tap a week to write about all seven days'),
+  day('Day', 'Days', 'Tap a day to write it');
 
-  const DiaryCalendarLens(this.label, this.hint);
-  final String label, hint;
+  const DiaryCalendarLens(this.label, this.title, this.hint);
+  final String label, title, hint;
 
   static DiaryCalendarLens of(DiaryPeriodKind? kind) => switch (kind) {
     DiaryPeriodKind.week => week,
@@ -26,7 +27,16 @@ enum DiaryCalendarLens {
     _ => day,
   };
 
+  int get depth => index;
   bool get isGrid => this == day || this == week;
+}
+
+/// Marks the month a calendar region shows, so a pinch can zoom into
+/// whichever month sits under the fingers.
+@immutable
+class DiaryCalendarAnchor {
+  const DiaryCalendarAnchor(this.month);
+  final DateTime month;
 }
 
 int _ordinal(int year, int month, int day) => year * 10000 + month * 100 + day;
@@ -95,154 +105,6 @@ class DiaryCalendarMarks {
 
 String plural(int count, String noun) => '$count $noun${count == 1 ? '' : 's'}';
 
-/// Fades a freshly mounted lens in. No outgoing copy is kept alive, so keyed
-/// calendar pages can never be mounted twice during a quick switch.
-class DiaryCalendarFadeIn extends StatelessWidget {
-  const DiaryCalendarFadeIn({super.key, required this.child});
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final policy = RenderingPolicyScope.of(context);
-    if (!policy.animate) return child;
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOutCubic,
-      child: child,
-      builder: (context, value, child) => Opacity(
-        opacity: value,
-        child: Transform.translate(
-          offset: Offset(0, 10 * (1 - value)),
-          child: child,
-        ),
-      ),
-    );
-  }
-}
-
-/// A paper-tab segmented control: Day · Week · Month · Year.
-class DiaryCalendarLensBar extends StatelessWidget {
-  const DiaryCalendarLensBar({
-    super.key,
-    required this.lens,
-    required this.onChanged,
-  });
-
-  final DiaryCalendarLens lens;
-  final ValueChanged<DiaryCalendarLens> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final simple = RenderingPolicyScope.of(context).simplerEffects;
-    final scaler = MediaQuery.textScalerOf(context);
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // Large text keeps every label readable by wrapping the tabs instead of
-        // shrinking them into a fixed track.
-        final fits = constraints.maxWidth / 4 >= scaler.scale(14) * 4.2 + 16;
-        final segments = [
-          for (final value in DiaryCalendarLens.values)
-            _LensSegment(
-              lens: value,
-              selected: value == lens,
-              simple: simple,
-              onTap: () => onChanged(value),
-            ),
-        ];
-        if (!fits) {
-          return Wrap(
-            alignment: WrapAlignment.center,
-            spacing: 6,
-            runSpacing: 6,
-            children: segments,
-          );
-        }
-        return Container(
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            color: colors.onSurface.withValues(
-              alpha: context.isDark ? .06 : .04,
-            ),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Row(children: [for (final s in segments) Expanded(child: s)]),
-        );
-      },
-    );
-  }
-}
-
-class _LensSegment extends StatelessWidget {
-  const _LensSegment({
-    required this.lens,
-    required this.selected,
-    required this.simple,
-    required this.onTap,
-  });
-
-  final DiaryCalendarLens lens;
-  final bool selected, simple;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return Semantics(
-      button: true,
-      selected: selected,
-      label: '${lens.label} pages',
-      hint: lens.hint,
-      onTap: onTap,
-      excludeSemantics: true,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          key: ValueKey('calendar-lens-${lens.name}'),
-          onTap: onTap,
-          excludeFromSemantics: true,
-          borderRadius: BorderRadius.circular(10),
-          child: CustomPaint(
-            painter: selected
-                ? DiaryPaperStamp(
-                    paper: colors.surface,
-                    ink: colors.primary,
-                    shadowColor: colors.shadow,
-                    variant: lens.index,
-                    edgeScale: simple ? 0 : .4,
-                    shadow: !simple,
-                  )
-                : null,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 44, minWidth: 64),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 8,
-                ),
-                child: Center(
-                  child: Text(
-                    lens.label,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                      color: selected
-                          ? colors.primary
-                          : colors.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// The verb on every tappable period: "+ Add" until it has writing, then
 /// "Open". Icon and wording carry the state without relying on color.
 class DiaryPeriodAction extends StatelessWidget {
@@ -294,7 +156,10 @@ class DiaryPeriodAction extends StatelessWidget {
 }
 
 /// Twelve month cards, each with a dot portrait of the days written.
-class DiaryCalendarMonths extends StatelessWidget {
+///
+/// Zoomed into from the year, the card for [focus] is brought to about
+/// [focusAlignment] down the view, where the fingers were.
+class DiaryCalendarMonths extends StatefulWidget {
   const DiaryCalendarMonths({
     super.key,
     required this.year,
@@ -303,6 +168,8 @@ class DiaryCalendarMonths extends StatelessWidget {
     required this.selected,
     required this.inset,
     required this.onSelect,
+    this.focus,
+    this.focusAlignment = .3,
   });
 
   final int year;
@@ -311,10 +178,37 @@ class DiaryCalendarMonths extends StatelessWidget {
   final DiaryPeriod? selected;
   final double inset;
   final ValueChanged<DiaryPeriod> onSelect;
+  final DateTime? focus;
+  final double focusAlignment;
+
+  @override
+  State<DiaryCalendarMonths> createState() => _DiaryCalendarMonthsState();
+}
+
+class _DiaryCalendarMonthsState extends State<DiaryCalendarMonths> {
+  final _focusKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.focus == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final target = _focusKey.currentContext;
+      if (!mounted || target == null) return;
+      Scrollable.ensureVisible(
+        target,
+        alignment: widget.focusAlignment.clamp(0.0, 1.0),
+      );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final scaler = MediaQuery.textScalerOf(context);
+    final inset = widget.inset;
+    final focus = widget.focus?.year == widget.year
+        ? widget.focus!.month
+        : null;
     return LayoutBuilder(
       builder: (context, constraints) {
         final tileWidth = math.max(148.0, scaler.scale(14) * 10);
@@ -322,35 +216,46 @@ class DiaryCalendarMonths extends StatelessWidget {
             .floor()
             .clamp(1, 4);
         final rows = (12 / columns).ceil();
-        return ListView.builder(
-          key: ValueKey('calendar-months-$year'),
+        // Twelve cards are few enough to lay out at once, so a zoom can
+        // bring any of them into view on its first frame.
+        return SingleChildScrollView(
+          key: ValueKey('calendar-months-${widget.year}'),
           padding: EdgeInsets.fromLTRB(inset, 12, inset, 32),
-          itemCount: rows,
-          itemBuilder: (context, row) => Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                for (var column = 0; column < columns; column++)
-                  Expanded(
-                    child: row * columns + column < 12
-                        ? Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 5),
-                            child: _MonthTile(
-                              period: DiaryPeriod.month(
-                                year,
-                                row * columns + column + 1,
-                              ),
-                              lastDate: lastDate,
-                              marks: marks,
-                              selected: selected,
-                              onSelect: onSelect,
-                            ),
-                          )
-                        : const SizedBox.shrink(),
+          child: Column(
+            children: [
+              for (var row = 0; row < rows; row++)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (var column = 0; column < columns; column++)
+                        Expanded(
+                          child: row * columns + column < 12
+                              ? Padding(
+                                  key: row * columns + column + 1 == focus
+                                      ? _focusKey
+                                      : null,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 5,
+                                  ),
+                                  child: _MonthTile(
+                                    period: DiaryPeriod.month(
+                                      widget.year,
+                                      row * columns + column + 1,
+                                    ),
+                                    lastDate: widget.lastDate,
+                                    marks: widget.marks,
+                                    selected: widget.selected,
+                                    onSelect: widget.onSelect,
+                                  ),
+                                )
+                              : const SizedBox.shrink(),
+                        ),
+                    ],
                   ),
-              ],
-            ),
+                ),
+            ],
           ),
         );
       },
@@ -440,7 +345,7 @@ class _MonthTile extends StatelessWidget {
         ],
       ),
     );
-    return Semantics(
+    final tile = Semantics(
       key: ValueKey('calendar-month-tile-${period.key}'),
       button: started,
       enabled: started,
@@ -489,6 +394,11 @@ class _MonthTile extends StatelessWidget {
           ),
         ),
       ),
+    );
+    return MetaData(
+      metaData: DiaryCalendarAnchor(DateTime(period.year, period.month)),
+      behavior: HitTestBehavior.translucent,
+      child: tile,
     );
   }
 }
@@ -732,6 +642,13 @@ class _YearRibbon extends StatelessWidget {
   final DateTime lastDate;
   final DiaryCalendarMarks marks;
 
+  Widget _anchor(int month, {required double height, Widget? child}) =>
+      MetaData(
+        metaData: DiaryCalendarAnchor(DateTime(year, month)),
+        behavior: HitTestBehavior.translucent,
+        child: SizedBox(width: double.infinity, height: height, child: child),
+      );
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
@@ -750,7 +667,8 @@ class _YearRibbon extends StatelessWidget {
               child: Column(
                 children: [
                   for (var month = 1; month <= 12; month++)
-                    SizedBox(
+                    _anchor(
+                      month,
                       height: rowHeight,
                       child: Align(
                         alignment: AlignmentDirectional.centerStart,
@@ -784,6 +702,13 @@ class _YearRibbon extends StatelessWidget {
                     rowHeight: rowHeight,
                     ink: colors.primary,
                     faint: colors.onSurfaceVariant,
+                  ),
+                  // Each row marks its month, so a pinch on it zooms there.
+                  child: Column(
+                    children: [
+                      for (var month = 1; month <= 12; month++)
+                        _anchor(month, height: rowHeight),
+                    ],
                   ),
                 ),
               ),

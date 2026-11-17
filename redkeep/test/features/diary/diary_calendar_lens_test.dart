@@ -10,6 +10,7 @@ import 'package:redkeep/features/diary/domain/diary_period.dart';
 import 'package:redkeep/features/diary/presentation/diary_calendar_overview.dart';
 
 import '../../support/pump_app.dart';
+import '../../support/diary_calendar.dart';
 import '../../support/diary_reader.dart';
 
 final _today = DiaryPeriod(2026, 11, 2);
@@ -71,15 +72,7 @@ void main() {
       diary: repo,
       database: db,
     );
-    final lens = tester.widget<Semantics>(
-      find
-          .ancestor(
-            of: find.byKey(const ValueKey('calendar-lens-month')),
-            matching: find.byType(Semantics),
-          )
-          .first,
-    );
-    expect(lens.properties.selected, isTrue);
+    expect(calendarLens(tester), 'Month');
     final october = tester.widget<Semantics>(
       _key('calendar-month-tile-${month.key}'),
     );
@@ -107,8 +100,7 @@ void main() {
       database: db,
     );
     expect(_day(_today).hitTestable(), findsOneWidget);
-    await tester.tap(_key('calendar-lens-week'));
-    await tester.pumpAndSettle();
+    await zoomCalendarTo(tester, DiaryPeriodKind.week);
     final band = _key('calendar-period-${week.key}').first;
     final semantics = tester.widget<Semantics>(
       find.ancestor(of: band, matching: find.byType(Semantics)).first,
@@ -118,6 +110,77 @@ void main() {
     await tester.tap(band);
     await tester.pumpAndSettle();
     expectDiaryDay(tester, router, week);
+    expect(tester.takeException(), isNull);
+  });
+
+  lensTest('pinching zooms between lenses around the fingers', (tester) async {
+    await writeDay(
+      DiaryPeriod(2026, 10, 5),
+      '11111111111111111111111111111111',
+    );
+    await pumpApp(
+      tester,
+      initialLocation: diaryCalendarLocation(DiaryPeriod.month(2026, 10)),
+      diary: repo,
+      database: db,
+    );
+    final stage = _key('calendar-zoom-2026');
+    expect(calendarLens(tester), 'Month');
+
+    // Pinching in rises from the months to the whole year.
+    await pinchCalendar(tester, tester.getCenter(stage), apart: .6);
+    expect(calendarLens(tester), 'Year');
+    expect(_key('calendar-year-overview-2026'), findsOneWidget);
+    expect(_key('calendar-months-2026'), findsNothing);
+
+    // Spreading on October's row of the ribbon dives into October.
+    final october = find
+        .byWidgetPredicate(
+          (widget) =>
+              widget is MetaData &&
+              widget.metaData is DiaryCalendarAnchor &&
+              (widget.metaData as DiaryCalendarAnchor).month ==
+                  DateTime(2026, 10),
+        )
+        .last;
+    await tester.ensureVisible(october);
+    await tester.pumpAndSettle();
+    await pinchCalendar(tester, tester.getCenter(october), apart: 1.6);
+    expect(calendarLens(tester), 'Month');
+    final tile = _key('calendar-month-tile-month-2026-10');
+    expect(tile.hitTestable(), findsOneWidget);
+
+    // And spreading on October's card opens October's weeks there: its
+    // first week (Sep 28, whose Thursday is in October) under the fingers.
+    final fingers = tester.getCenter(tile);
+    await pinchCalendar(tester, fingers, apart: 1.6);
+    expect(calendarLens(tester), 'Week');
+    final first = _key('calendar-period-week-2026-09-28').hitTestable();
+    expect(first, findsOneWidget);
+    expect(tester.getRect(first).top, lessThan(fingers.dy));
+
+    // A pinch that barely moves springs back to the lens it left.
+    await pinchCalendar(tester, tester.getCenter(stage), apart: 1.05);
+    expect(calendarLens(tester), 'Week');
+    expect(tester.takeException(), isNull);
+  });
+
+  lensTest('the dial dives from the year back to the selected day', (
+    tester,
+  ) async {
+    await pumpApp(
+      tester,
+      initialLocation: diaryCalendarLocation(_today),
+      diary: repo,
+      database: db,
+    );
+    await zoomCalendarTo(tester, DiaryPeriodKind.year);
+    expect(_key('calendar-year-overview-2026'), findsOneWidget);
+    // One tap past the year dives through months and weeks to days.
+    await tester.tap(calendarZoomDial);
+    await tester.pumpAndSettle();
+    expect(calendarLens(tester), 'Day');
+    expect(_day(_today).hitTestable(), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -196,8 +259,7 @@ void main() {
       diary: repo,
       database: db,
     );
-    await tester.tap(_key('calendar-lens-year'));
-    await tester.pumpAndSettle();
+    await zoomCalendarTo(tester, DiaryPeriodKind.year);
     expect(find.text('day written'), findsOneWidget);
     expect(find.text('month written'), findsOneWidget);
     expect(find.text('weeks written'), findsOneWidget);
@@ -227,13 +289,14 @@ void main() {
       diary: repo,
       database: db,
     );
-    for (final lens in ['week', 'month', 'year', 'day']) {
-      final tab = _key('calendar-lens-$lens');
-      await tester.ensureVisible(tab);
-      await tester.pumpAndSettle();
-      await tester.tap(tab);
-      await tester.pumpAndSettle();
-      expect(tester.takeException(), isNull, reason: lens);
+    for (final kind in [
+      DiaryPeriodKind.week,
+      DiaryPeriodKind.month,
+      DiaryPeriodKind.year,
+      DiaryPeriodKind.day,
+    ]) {
+      await zoomCalendarTo(tester, kind);
+      expect(tester.takeException(), isNull, reason: kind.name);
     }
   });
 }

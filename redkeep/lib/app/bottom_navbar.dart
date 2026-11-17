@@ -68,7 +68,7 @@ class RedkeepBottomNavbar extends StatefulWidget {
 class _NavMetrics {
   const _NavMetrics({required this.labelWidth, required this.height});
 
-  static const icon = 36.0;
+  static const icon = 44.0;
   static const slotPadding = 14.0;
   static const labelGap = 8.0;
   static const verticalPadding = 12.0;

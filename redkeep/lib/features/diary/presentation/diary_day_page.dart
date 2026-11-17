@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,6 +17,8 @@ import '../domain/diary_period.dart';
 import '../domain/diary_timeline.dart';
 import 'diary_style.dart';
 import 'diary_artwork.dart';
+import 'diary_calendar_curtain.dart';
+import 'diary_calendar_page.dart';
 import 'diary_header.dart';
 import 'diary_scene.dart';
 
@@ -53,6 +56,15 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
     stiffness: 310,
     damping: 29,
   );
+  static const _pullSpring = SpringDescription(
+    mass: 1,
+    stiffness: 190,
+    damping: 27,
+  );
+
+  /// A pull past this fraction of its travel, or a downward fling, opens the
+  /// calendar when the finger lifts.
+  static const _pullCommit = .2;
   final _outer = ScrollController();
   final _nested = GlobalKey<NestedScrollViewState>();
   late final _turn = AnimationController.unbounded(vsync: this);
@@ -81,6 +93,23 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
   bool _commitTurn = false;
   bool _readingTurn = false;
   bool _immersive = false;
+
+  /// The reader's pull down to the calendar; see [DiaryCalendarCurtain].
+  late final _pull = AnimationController(vsync: this);
+  final _pointers = <int>{};
+  VelocityTracker? _pointerVelocity;
+  int? _pullPointer;
+
+  /// Only a touch that began on the resting page may pull it. Swiping down
+  /// from the immersive reader restores the page and stops there.
+  bool _downAtRest = false;
+  double _pullDistance = 600;
+  bool _calendarShown = false;
+  bool _calendarOpen = false;
+
+  /// Where the calendar is headed once no finger holds the pull.
+  bool _calendarTarget = false;
+  bool _navbarHidden = false;
 
   DateTime get _today => TimeHelper.dateOnly(ref.read(diaryClockProvider)());
   DiaryPeriod _requestedDate(DiaryReaderDay request) =>
@@ -116,7 +145,20 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
         : _outerOffset >= _collapseExtent - .5;
     if (immersive == _immersive) return;
     _immersive = immersive;
-    BottomNavbarVisibilityNotification(hidden: immersive).dispatch(context);
+    _syncNavbar();
+  }
+
+  /// The immersive reader and the calendar both send the bottom bar away.
+  /// A pull hides it once letting go would open the calendar, so the bar's
+  /// exit says what release will do, and returns it if the finger retreats.
+  void _syncNavbar() {
+    final calendar = _pullPointer != null
+        ? _pull.value >= _pullCommit
+        : _calendarTarget;
+    final hidden = _immersive || calendar;
+    if (hidden == _navbarHidden) return;
+    _navbarHidden = hidden;
+    BottomNavbarVisibilityNotification(hidden: hidden).dispatch(context);
   }
 
   @override
@@ -146,7 +188,9 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
     final date = _requestedDate(next);
     if (date != _selectedDate ||
         (next.selection != null && next.selection != previous?.selection)) {
-      _replaceDate(date, fade: true, publish: false);
+      // A day chosen elsewhere (search) lands on its page, not the calendar.
+      if (_calendarShown) _dismissCalendar();
+      _replaceDate(date, fade: !_calendarShown, publish: false);
     }
   }
 
@@ -187,7 +231,7 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
   }
 
   void _selectDate(DiaryPeriod date) {
-    if (_busy || !date.hasStarted(_today)) return;
+    if (_busy || _calendarShown || !date.hasStarted(_today)) return;
     final previous = _timeline.neighbor(_selectedDate, -1);
     final next = _timeline.neighbor(_selectedDate, 1);
     if (_atTop && (date == previous || date == next) && !_reduced) {
@@ -198,17 +242,141 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
     }
   }
 
-  Future<void> _pickDate() async {
-    if (_busy) return;
-    final date = await context.push<DiaryPeriod>(
-      diaryCalendarLocation(_selectedDate),
-      extra: true,
-    );
-    if (date != null && mounted) _selectDate(date);
+  void _openCalendar() {
+    if (_busy || _calendarShown) return;
+    setState(() => _calendarShown = true);
+    _calendarTarget = true;
+    _syncNavbar();
+    _afterNextFrame(() => _settlePull(open: true));
   }
 
-  void _openSearch() {
-    if (!_busy) context.push('/diary/search');
+  /// Building the calendar or a newly chosen day is the heaviest frame of
+  /// the motion. Let it land before the spring starts, so none of the
+  /// spring's travel is spent inside that frame.
+  void _afterNextFrame(VoidCallback start) {
+    final shown = _calendarShown;
+    WidgetsBinding.instance.endOfFrame.then((_) {
+      if (mounted && _calendarShown == shown && _pullPointer == null) start();
+    });
+  }
+
+  /// Returns to the reader, on [date] when the calendar chose one. The page
+  /// is replaced while hidden, so it rises on the thread already turned.
+  void _closeCalendar([DiaryPeriod? date]) {
+    if (!_calendarShown || _pullPointer != null) return;
+    if (date != null && date != _selectedDate) {
+      _replaceDate(date);
+      _calendarTarget = false;
+      _syncNavbar();
+      setState(() => _calendarOpen = false);
+      _afterNextFrame(() => _settlePull(open: false));
+    } else {
+      _settlePull(open: false);
+    }
+  }
+
+  void _dismissCalendar() {
+    _pull.stop();
+    _pull.value = 0;
+    _pullPointer = null;
+    _calendarTarget = false;
+    _syncNavbar();
+    setState(() {
+      _calendarShown = false;
+      _calendarOpen = false;
+    });
+  }
+
+  /// A downward overscroll at the very top of the resting page starts the
+  /// pull. From then on the raw pointer drives it, so the finger can also
+  /// push the page back up without the scroll view taking over.
+  bool _scrolled(ScrollNotification notification) {
+    if (notification is OverscrollNotification &&
+        notification.metrics.axis == Axis.vertical &&
+        notification.dragDetails != null &&
+        notification.overscroll < 0 &&
+        _pointers.length == 1 &&
+        _downAtRest &&
+        _pullPointer == null &&
+        !_calendarShown &&
+        !_busy &&
+        _atTop) {
+      _pullPointer = _pointers.single;
+      _pull.value = (-notification.overscroll / _pullDistance).clamp(0, 1);
+      setState(() => _calendarShown = true);
+    }
+    return false;
+  }
+
+  void _pointerDown(PointerDownEvent event) {
+    _pointers.add(event.pointer);
+    if (_pointers.length == 1) {
+      _downAtRest = _atTop && !_busy && !_calendarShown;
+      _pointerVelocity = VelocityTracker.withKind(event.kind)
+        ..addPosition(event.timeStamp, event.position);
+    }
+  }
+
+  void _pointerMove(PointerMoveEvent event) {
+    if (_pointers.length == 1 && _pointers.contains(event.pointer)) {
+      _pointerVelocity?.addPosition(event.timeStamp, event.position);
+    }
+    if (event.pointer != _pullPointer) return;
+    final before = _pull.value;
+    _pull.value = (before + event.delta.dy / _pullDistance).clamp(0, 1);
+    if ((before < _pullCommit) != (_pull.value < _pullCommit)) {
+      HapticFeedback.selectionClick();
+      _syncNavbar();
+    }
+  }
+
+  void _pointerUp(PointerUpEvent event) {
+    _pointers.remove(event.pointer);
+    if (event.pointer != _pullPointer) return;
+    final velocity = _pointerVelocity?.getVelocity().pixelsPerSecond.dy ?? 0;
+    final open =
+        velocity > 700 || (_pull.value >= _pullCommit && velocity > -300);
+    _settlePull(open: open, velocity: velocity / _pullDistance);
+  }
+
+  void _pointerCancel(PointerCancelEvent event) {
+    _pointers.remove(event.pointer);
+    if (event.pointer == _pullPointer) _settlePull(open: false);
+    // An accepted Flutter drag can report a pointer cancellation as an end.
+    // Catch it before the gesture recognizer so neither surface commits it.
+    if (_dragging) _settle(commit: false);
+  }
+
+  Future<void> _settlePull({required bool open, double velocity = 0}) async {
+    _pullPointer = null;
+    _calendarTarget = open;
+    _syncNavbar();
+    final target = open ? 1.0 : 0.0;
+    if (_calendarOpen) setState(() => _calendarOpen = false);
+    try {
+      if (!_reduced && _pull.value != target) {
+        await _pull
+            .animateWith(
+              SpringSimulation(
+                _pullSpring,
+                _pull.value,
+                target,
+                velocity.clamp(-8.0, 8.0),
+                tolerance: const Tolerance(distance: .001, velocity: .01),
+              ),
+            )
+            .orCancel;
+      }
+    } on TickerCanceled {
+      // Another pull, a dismissal or disposal took over.
+      return;
+    }
+    if (!mounted) return;
+    _pull.value = target;
+    setState(() {
+      _calendarOpen = open;
+      _calendarShown = open;
+    });
   }
 
   void _dragStart(DragStartDetails details) {
@@ -219,7 +387,7 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
   void _calendarDragStart() => _beginDrag(reading: !_atTop);
 
   void _beginDrag({bool reading = false}) {
-    if (_busy) return;
+    if (_busy || _calendarShown) return;
     _dragDistance = 0;
     _fade.value = 1;
     setState(() {
@@ -306,6 +474,7 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
   void dispose() {
     _turn.dispose();
     _fade.dispose();
+    _pull.dispose();
     _outer.removeListener(_outerScrolled);
     _outer.dispose();
     super.dispose();
@@ -344,6 +513,14 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
     final navbarInset = MediaQuery.paddingOf(context).bottom;
     final systemInset = MediaQuery.viewPaddingOf(context).bottom;
     final width = MediaQuery.sizeOf(context).width;
+    // The resting thread hangs below the month; the page travels until it,
+    // the thread and the hanging date tab have all left the screen.
+    final calendarTop = top + 10 + _controlsHeight;
+    _pullDistance = math.max(
+      200,
+      MediaQuery.sizeOf(context).height - calendarTop + 30,
+    );
+    final calendarActive = _calendarShown || _pullPointer != null;
     final artworkWidth = diaryHeaderArtworkWidth(width);
     final artworkTop = 60 - artworkWidth * .41;
     final page = Stack(
@@ -426,82 +603,106 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
         SafeArea(
           top: false,
           bottom: false,
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 700),
-              child: NestedScrollView(
-                key: _nested,
-                controller: _outer,
-                physics: _busy
-                    ? const NeverScrollableScrollPhysics()
-                    : const ClampingScrollPhysics(
-                        parent: AlwaysScrollableScrollPhysics(),
+          child: ExcludeSemantics(
+            excluding: _calendarOpen,
+            child: IgnorePointer(
+              ignoring: _calendarShown,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 700),
+                  child: NestedScrollView(
+                    key: _nested,
+                    controller: _outer,
+                    physics: _busy || calendarActive
+                        ? const NeverScrollableScrollPhysics()
+                        : const ClampingScrollPhysics(
+                            parent: AlwaysScrollableScrollPhysics(),
+                          ),
+                    headerSliverBuilder: (context, innerScrolled) => [
+                      SliverOverlapAbsorber(
+                        handle: NestedScrollView.sliverOverlapAbsorberHandleFor(
+                          context,
+                        ),
+                        sliver: SliverPersistentHeader(
+                          pinned: true,
+                          delegate: DiaryHeaderDelegate(
+                            topInset: top,
+                            selectedDate: _selectedDate,
+                            timeline: _timeline,
+                            lastDate: _today,
+                            controlsHeight: _controlsHeight,
+                            onDateChanged: _selectDate,
+                            onPickDate: _openCalendar,
+                            enabled: !_busy && !calendarActive,
+                            turn: _turn,
+                            pull: _pull,
+                            turnDirection: _direction,
+                            turning: _busy,
+                            onDayDragStart: _settling
+                                ? null
+                                : _calendarDragStart,
+                            onDayDragUpdate: _settling ? null : _updateTurn,
+                            onDayDragEnd: _settling ? null : _endTurn,
+                            onDayDragCancel: _dragging
+                                ? () => _settle(commit: false)
+                                : null,
+                          ),
+                        ),
                       ),
-                headerSliverBuilder: (context, innerScrolled) => [
-                  SliverOverlapAbsorber(
-                    handle: NestedScrollView.sliverOverlapAbsorberHandleFor(
-                      context,
-                    ),
-                    sliver: SliverPersistentHeader(
-                      pinned: true,
-                      delegate: DiaryHeaderDelegate(
-                        topInset: top,
-                        selectedDate: _selectedDate,
-                        timeline: _timeline,
-                        lastDate: _today,
-                        controlsHeight: _controlsHeight,
-                        onDateChanged: _selectDate,
-                        onSearch: _openSearch,
-                        onPickDate: _pickDate,
-                        enabled: !_busy,
-                        turn: _turn,
-                        turnDirection: _direction,
-                        turning: _busy,
-                        onDayDragStart: _settling ? null : _calendarDragStart,
-                        onDayDragUpdate: _settling ? null : _updateTurn,
-                        onDayDragEnd: _settling ? null : _endTurn,
-                        onDayDragCancel: _dragging
-                            ? () => _settle(commit: false)
-                            : null,
+                    ],
+                    body: Builder(
+                      builder: (context) => AnimatedBuilder(
+                        animation: _pull,
+                        builder: (context, scene) => Transform.translate(
+                          offset: Offset(
+                            0,
+                            DiaryCalendarCurtain.midDrop(
+                              _pull.value,
+                              _pullDistance,
+                            ),
+                          ),
+                          child: scene,
+                        ),
+                        child: AnimatedBuilder(
+                          animation: Listenable.merge([_outer, _turn]),
+                          builder: (context, _) => DiaryScene(
+                            day: _day,
+                            previous: _previous,
+                            next: () => _next ?? _day,
+                            today: _today,
+                            collapse: (_outerOffset / _collapseExtent).clamp(
+                              0,
+                              1,
+                            ),
+                            headerHeight: top + 82,
+                            collapseExtent: _collapseExtent,
+                            navbarInset: navbarInset,
+                            systemInset: systemInset,
+                            turn: _readingTurn ? 0 : _turn.value.clamp(0, 1),
+                            direction: _direction,
+                            busy: _busy || calendarActive,
+                            blocked: _blocked,
+                            reduced: _reduced,
+                            fade: _fade,
+                            fadingFrom: _fadingFrom,
+                            fadingOffset: _fadingOffset,
+                            onCardWidth: (width) => _cardWidth = width,
+                            onDateChanged: _selectDate,
+                            onDragStart: (_dragging || (!_settling && _atTop))
+                                ? _dragStart
+                                : null,
+                            onDragUpdate: (_dragging || (!_settling && _atTop))
+                                ? _dragUpdate
+                                : null,
+                            onDragEnd: (_dragging || (!_settling && _atTop))
+                                ? _dragEnd
+                                : null,
+                            onDragCancel: _dragging
+                                ? () => _settle(commit: false)
+                                : null,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                ],
-                body: Builder(
-                  builder: (context) => AnimatedBuilder(
-                    animation: Listenable.merge([_outer, _turn]),
-                    builder: (context, _) => DiaryScene(
-                      day: _day,
-                      previous: _previous,
-                      next: () => _next ?? _day,
-                      today: _today,
-                      collapse: (_outerOffset / _collapseExtent).clamp(0, 1),
-                      headerHeight: top + 82,
-                      collapseExtent: _collapseExtent,
-                      navbarInset: navbarInset,
-                      systemInset: systemInset,
-                      turn: _readingTurn ? 0 : _turn.value.clamp(0, 1),
-                      direction: _direction,
-                      busy: _busy,
-                      blocked: _blocked,
-                      reduced: _reduced,
-                      fade: _fade,
-                      fadingFrom: _fadingFrom,
-                      fadingOffset: _fadingOffset,
-                      onCardWidth: (width) => _cardWidth = width,
-                      onDateChanged: _selectDate,
-                      onDragStart: (_dragging || (!_settling && _atTop))
-                          ? _dragStart
-                          : null,
-                      onDragUpdate: (_dragging || (!_settling && _atTop))
-                          ? _dragUpdate
-                          : null,
-                      onDragEnd: (_dragging || (!_settling && _atTop))
-                          ? _dragEnd
-                          : null,
-                      onDragCancel: _dragging
-                          ? () => _settle(commit: false)
-                          : null,
                     ),
                   ),
                 ),
@@ -509,15 +710,50 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
             ),
           ),
         ),
+        if (_calendarShown)
+          Positioned.fill(
+            child: DiaryCalendarCurtain(
+              pull: _pull,
+              calendarTop: calendarTop,
+              distance: _pullDistance,
+              selectedDate: _selectedDate,
+              timeline: _timeline,
+              lastDate: _today,
+              open: _calendarOpen,
+              // The bar has left, so the calendar keeps clear of the system
+              // gesture area only, not of the bar's resting space.
+              calendar: MediaQuery(
+                data: MediaQuery.of(context).copyWith(
+                  padding: MediaQuery.paddingOf(context)
+                      .copyWith(bottom: systemInset),
+                ),
+                child: DiaryCalendarPage(
+                  key: const ValueKey('diary-embedded-calendar'),
+                  selected: _selectedDate,
+                  onSelected: _closeCalendar,
+                  onClose: _closeCalendar,
+                ),
+              ),
+            ),
+          ),
       ],
     );
-    return Listener(
-      // An accepted Flutter drag can report a pointer cancellation as an end.
-      // Catch it before the gesture recognizer so neither surface commits it.
-      onPointerCancel: (_) {
-        if (_dragging) _settle(commit: false);
+    return PopScope(
+      canPop: !_calendarShown,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _closeCalendar();
       },
-      child: DiaryTypographyScope(value: _paperTypography!, child: page),
+      child: Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: _pointerDown,
+        onPointerMove: _pointerMove,
+        onPointerUp: _pointerUp,
+        onPointerCancel: _pointerCancel,
+        child: NotificationListener<ScrollNotification>(
+          onNotification: _scrolled,
+          child: DiaryTypographyScope(value: _paperTypography!, child: page),
+        ),
+      ),
     );
   }
 }

@@ -85,6 +85,13 @@ void main() {
       return;
     }
     if (label == 'Calendar for this month') {
+      // The month above the thread shows only on the resting page.
+      FocusManager.instance.primaryFocus?.unfocus();
+      tester
+          .state<NestedScrollViewState>(find.byType(NestedScrollView).last)
+          .outerController
+          .jumpTo(0);
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('diary-date-control')).last);
       await tester.pumpAndSettle();
       return;

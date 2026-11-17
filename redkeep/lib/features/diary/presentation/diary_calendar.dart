@@ -25,6 +25,8 @@ class DiaryCalendar extends StatelessWidget {
     this.enabled = true,
     this.collapseProgress = 0,
     this.dayOffset = 0,
+    this.edgeDrop = 0,
+    this.midDrop = 0,
     this.onDayDragStart,
     this.onDayDragUpdate,
     this.onDayDragEnd,
@@ -41,6 +43,18 @@ class DiaryCalendar extends StatelessWidget {
   /// Fractional calendar days from [selectedDate], driven by the sheet turn.
   /// There is no second controller or delayed animation after a date commits.
   final double dayOffset;
+
+  /// How far a downward pull has drawn the thread's ends and its lowest point.
+  /// The tabs ride the stretched thread and may hang below the calendar.
+  final double edgeDrop, midDrop;
+
+  bool get _pulled => edgeDrop != 0 || midDrop != 0;
+
+  /// Extra drop of the thread at [x], following the stretched curve.
+  double _dropAt(double x, double width) {
+    final fraction = (x / width).clamp(0.0, 1.0);
+    return edgeDrop + (midDrop - edgeDrop) * 4 * fraction * (1 - fraction);
+  }
 
   final VoidCallback? onDayDragStart, onDayDragCancel;
 
@@ -123,7 +137,7 @@ class DiaryCalendar extends StatelessWidget {
                           ),
                     onHorizontalDragCancel: onDayDragCancel,
                     child: Stack(
-                      clipBehavior: Clip.hardEdge,
+                      clipBehavior: _pulled ? Clip.none : Clip.hardEdge,
                       children: [
                         Positioned.fill(
                           child: IgnorePointer(
@@ -131,12 +145,15 @@ class DiaryCalendar extends StatelessWidget {
                               painter: _CalendarThreadPainter(
                                 colors: context.colors,
                                 collapse: collapse,
+                                edgeDrop: edgeDrop,
+                                midDrop: midDrop,
                               ),
                             ),
                           ),
                         ),
                         Positioned.fill(
                           child: ClipRect(
+                            clipBehavior: _pulled ? Clip.none : Clip.hardEdge,
                             clipper: _CalendarContentClipper(contentInset),
                             child: Stack(
                               clipBehavior: Clip.none,
@@ -202,7 +219,9 @@ class DiaryCalendar extends StatelessWidget {
       collapse,
     )!;
     final expandedPointY = _CalendarThreadPainter.heightAt(expandedX, width);
+    final drop = _pulled ? _dropAt(x, width) : 0.0;
     final centerY =
+        drop +
         ui.lerpDouble(
           ui.lerpDouble(expandedPointY + 24, 62, prominence),
           _CalendarThreadPainter.compactCenterY,
@@ -298,6 +317,7 @@ class DiaryCalendar extends StatelessWidget {
                         Localizations.localeOf(context).toString(),
                       ),
                       centerY:
+                          drop +
                           ui.lerpDouble(
                             ui.lerpDouble(expandedPointY + 16, 50, prominence),
                             24,
@@ -327,6 +347,7 @@ class DiaryCalendar extends StatelessWidget {
                           ? '${date.day}–${date.end.day}'
                           : date.kind.name,
                       centerY:
+                          drop +
                           ui.lerpDouble(
                             ui.lerpDouble(expandedPointY + 33, 71, prominence),
                             42,
@@ -383,10 +404,49 @@ class _CalendarContentClipper extends CustomClipper<Rect> {
       inset != oldClipper.inset;
 }
 
+/// The thread's ends and quadratic control point, in calendar coordinates.
+/// A pull lowers its ends by [edgeDrop] and its lowest point by [midDrop], so
+/// the reader can reveal what lies above the very line it draws.
+({double edge, double control}) diaryCalendarThreadCurve({
+  double collapse = 0,
+  double edgeDrop = 0,
+  double midDrop = 0,
+}) {
+  const compact = _CalendarThreadPainter.compactCenterY;
+  // A quadratic's midpoint lies halfway between its ends and control point.
+  return (
+    edge: ui.lerpDouble(-15, compact, collapse)! + edgeDrop,
+    control: ui.lerpDouble(119, compact, collapse)! + 2 * midDrop - edgeDrop,
+  );
+}
+
+/// The calendar's thread across [width]; see [diaryCalendarThreadCurve].
+Path diaryCalendarThreadPath(
+  double width, {
+  double collapse = 0,
+  double edgeDrop = 0,
+  double midDrop = 0,
+}) {
+  final inset = 48 * collapse;
+  final curve = diaryCalendarThreadCurve(
+    collapse: collapse,
+    edgeDrop: edgeDrop,
+    midDrop: midDrop,
+  );
+  return Path()
+    ..moveTo(inset, curve.edge)
+    ..quadraticBezierTo(width / 2, curve.control, width - inset, curve.edge);
+}
+
 class _CalendarThreadPainter extends CustomPainter {
-  const _CalendarThreadPainter({required this.collapse, required this.colors});
+  const _CalendarThreadPainter({
+    required this.collapse,
+    required this.colors,
+    this.edgeDrop = 0,
+    this.midDrop = 0,
+  });
   final ColorScheme colors;
-  final double collapse;
+  final double collapse, edgeDrop, midDrop;
   static const compactCenterY = 33.0;
 
   static double heightAt(double x, double width, {double collapse = 0}) {
@@ -398,14 +458,11 @@ class _CalendarThreadPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final inset = 48 * collapse;
-    final edgeY = ui.lerpDouble(-15, compactCenterY, collapse)!;
-    final path = Path()..moveTo(inset, edgeY);
-    path.quadraticBezierTo(
-      size.width / 2,
-      ui.lerpDouble(119, compactCenterY, collapse)!,
-      size.width - inset,
-      edgeY,
+    final path = diaryCalendarThreadPath(
+      size.width,
+      collapse: collapse,
+      edgeDrop: edgeDrop,
+      midDrop: midDrop,
     );
     canvas.drawPath(
       path.shift(Offset(0, .8 * (1 - collapse))),
@@ -427,7 +484,10 @@ class _CalendarThreadPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_CalendarThreadPainter oldDelegate) =>
-      collapse != oldDelegate.collapse || colors != oldDelegate.colors;
+      collapse != oldDelegate.collapse ||
+      edgeDrop != oldDelegate.edgeDrop ||
+      midDrop != oldDelegate.midDrop ||
+      colors != oldDelegate.colors;
 }
 
 class _DatePaperPainter extends CustomPainter {

@@ -2,7 +2,6 @@ import 'diary_style.dart';
 import '../domain/diary_period.dart';
 import '../domain/diary_timeline.dart';
 import 'diary_calendar.dart';
-import 'diary_header_control.dart';
 
 /// A pinned header whose geometry follows the same scroll offset as the feed.
 /// Keeping it inside the sliver layout avoids offset feedback as it contracts.
@@ -15,9 +14,9 @@ class DiaryHeaderDelegate extends SliverPersistentHeaderDelegate {
     this.enabled = true,
     required this.controlsHeight,
     required this.onDateChanged,
-    required this.onSearch,
     required this.onPickDate,
     this.turn = kAlwaysDismissedAnimation,
+    this.pull = kAlwaysDismissedAnimation,
     this.turnDirection = 1,
     this.turning = false,
     this.onDayDragStart,
@@ -33,9 +32,12 @@ class DiaryHeaderDelegate extends SliverPersistentHeaderDelegate {
   final bool enabled;
   final double controlsHeight;
   final ValueChanged<DiaryPeriod> onDateChanged;
-  final VoidCallback? onSearch;
   final VoidCallback onPickDate;
   final Animation<double> turn;
+
+  /// The pull towards the calendar. While it runs, the reader draws the
+  /// stretched thread itself, so this header's own thread steps aside.
+  final Animation<double> pull;
   final int turnDirection;
   final bool turning;
   final VoidCallback? onDayDragStart, onDayDragCancel;
@@ -54,11 +56,8 @@ class DiaryHeaderDelegate extends SliverPersistentHeaderDelegate {
     bool overlapsContent,
   ) {
     final progress = (shrinkOffset / (maxExtent - minExtent)).clamp(0.0, 1.0);
-    final expandedTop = 6 + controlsHeight / 2 - 24;
-    final actionTop = topInset + expandedTop + (17 - expandedTop) * progress;
-    final actionInset = 14 * (1 - progress);
     final foreground = AnimatedBuilder(
-      animation: turn,
+      animation: Listenable.merge([turn, pull]),
       builder: (context, _) {
         final offset = turning
             ? -turnDirection * turn.value.clamp(0.0, 1.0)
@@ -67,6 +66,11 @@ class DiaryHeaderDelegate extends SliverPersistentHeaderDelegate {
         final displayDate = offset.abs() >= .5 && incoming != null
             ? incoming
             : selectedDate;
+        final pulling = pull.value > 0;
+        // The month fades as the header collapses or the thread is pulled.
+        final labelOpacity =
+            (1 - progress / .45).clamp(0.0, 1.0) *
+            (1 - pull.value * 12).clamp(0.0, 1.0);
         return ClipRect(
           child: Stack(
             children: [
@@ -75,42 +79,36 @@ class DiaryHeaderDelegate extends SliverPersistentHeaderDelegate {
                   SizedBox(height: topInset + 6),
                   SizedBox(height: controlsHeight * (1 - progress)),
                   SizedBox(height: 4 * (1 - progress)),
-                  DiaryCalendar(
-                    selectedDate: selectedDate,
-                    timeline: timeline,
-                    lastDate: lastDate,
-                    enabled: enabled,
-                    onDateChanged: onDateChanged,
-                    collapseProgress: progress,
-                    dayOffset: offset,
-                    onDayDragStart: onDayDragStart,
-                    onDayDragUpdate: onDayDragUpdate,
-                    onDayDragEnd: onDayDragEnd,
-                    onDayDragCancel: onDayDragCancel,
+                  Opacity(
+                    opacity: pulling ? 0 : 1,
+                    child: DiaryCalendar(
+                      selectedDate: selectedDate,
+                      timeline: timeline,
+                      lastDate: lastDate,
+                      enabled: enabled && !pulling,
+                      onDateChanged: onDateChanged,
+                      collapseProgress: progress,
+                      dayOffset: offset,
+                      onDayDragStart: onDayDragStart,
+                      onDayDragUpdate: onDayDragUpdate,
+                      onDayDragEnd: onDayDragEnd,
+                      onDayDragCancel: onDayDragCancel,
+                    ),
                   ),
                 ],
               ),
               Positioned(
-                left: actionInset,
-                top: actionTop,
-                width: 88 + (48 - 88) * progress,
-                height: 48,
-                child: _action(
-                  action: DiaryHeaderAction.date,
-                  progress: progress,
-                  onTap: onPickDate,
-                  date: displayDate.calendarDate,
-                ),
-              ),
-              Positioned(
-                right: actionInset,
-                top: actionTop,
-                width: 76 + (48 - 76) * progress,
-                height: 48,
-                child: _action(
-                  action: DiaryHeaderAction.search,
-                  progress: progress,
-                  onTap: onSearch,
+                top: topInset + 2 - 6 * progress,
+                left: 0,
+                right: 0,
+                height: controlsHeight + 8,
+                child: Center(
+                  child: DiaryMonthPull(
+                    key: const ValueKey('diary-date-control'),
+                    date: displayDate.calendarDate,
+                    opacity: labelOpacity,
+                    onTap: enabled && labelOpacity > .5 ? onPickDate : null,
+                  ),
                 ),
               ),
             ],
@@ -135,23 +133,6 @@ class DiaryHeaderDelegate extends SliverPersistentHeaderDelegate {
     );
   }
 
-  Widget _action({
-    required DiaryHeaderAction action,
-    required double progress,
-    required VoidCallback? onTap,
-    DateTime? date,
-  }) => DiaryHeaderControl(
-    key: ValueKey(
-      action == DiaryHeaderAction.date
-          ? 'diary-date-control'
-          : 'diary-search-control',
-    ),
-    collapseProgress: progress,
-    action: action,
-    date: date ?? selectedDate.calendarDate,
-    onTap: enabled ? onTap : null,
-  );
-
   @override
   bool shouldRebuild(DiaryHeaderDelegate oldDelegate) =>
       oldDelegate.topInset != topInset ||
@@ -160,6 +141,7 @@ class DiaryHeaderDelegate extends SliverPersistentHeaderDelegate {
       oldDelegate.lastDate != lastDate ||
       oldDelegate.enabled != enabled ||
       oldDelegate.turn != turn ||
+      oldDelegate.pull != pull ||
       oldDelegate.turnDirection != turnDirection ||
       oldDelegate.turning != turning ||
       oldDelegate.onDayDragStart != onDayDragStart ||
@@ -168,7 +150,6 @@ class DiaryHeaderDelegate extends SliverPersistentHeaderDelegate {
       oldDelegate.onDayDragCancel != onDayDragCancel ||
       oldDelegate.controlsHeight != controlsHeight ||
       oldDelegate.onDateChanged != onDateChanged ||
-      oldDelegate.onSearch != onSearch ||
       oldDelegate.onPickDate != onPickDate;
 }
 
@@ -216,6 +197,84 @@ class _DiaryHeaderGradient extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// The month above the thread, with a small fold beneath it: the cue that the
+/// paper can be pulled down to the calendar, and the accessible way there.
+class DiaryMonthPull extends StatelessWidget {
+  const DiaryMonthPull({
+    super.key,
+    required this.date,
+    required this.onTap,
+    this.opacity = 1,
+  });
+
+  final DateTime date;
+  final VoidCallback? onTap;
+  final double opacity;
+
+  @override
+  Widget build(BuildContext context) {
+    final month = MaterialLocalizations.of(context).formatMonthYear(date);
+    final ink = context.colors.onSurface.withValues(alpha: .78);
+    return IgnorePointer(
+      ignoring: onTap == null,
+      child: Opacity(
+        opacity: opacity,
+        child: Semantics(
+          button: true,
+          enabled: onTap != null,
+          label: 'Choose date, $month',
+          hint: 'Or pull the page down',
+          onTap: onTap,
+          excludeSemantics: true,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onTap,
+              excludeFromSemantics: true,
+              borderRadius: BorderRadius.circular(18),
+              splashColor: context.colors.primary.withValues(alpha: .16),
+              highlightColor: context.colors.primary.withValues(alpha: .08),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 48, minWidth: 96),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: MediaQuery.withClampedTextScaling(
+                    maxScaleFactor: 1.3,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          month,
+                          maxLines: 1,
+                          softWrap: false,
+                          overflow: TextOverflow.fade,
+                          style: TextStyle(
+                            color: ink,
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: 1.1,
+                            height: 1.1,
+                          ),
+                        ),
+                        Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          size: 15,
+                          color: ink.withValues(alpha: .5),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

@@ -18,6 +18,7 @@ import 'package:redkeep/features/diary/data/drift_diary_repository.dart';
 import 'package:redkeep/features/diary/domain/diary_period.dart';
 import 'package:redkeep/features/diary/domain/diary_document.dart';
 import 'package:redkeep/features/diary/presentation/diary_calendar.dart';
+import 'package:redkeep/features/diary/presentation/diary_calendar_page.dart';
 import 'package:redkeep/features/diary/presentation/diary_scene.dart';
 import 'package:redkeep/features/diary/presentation/diary_sheet.dart';
 
@@ -148,9 +149,99 @@ void main() {
       await tester.pumpAndSettle();
       expect(scene(tester).collapse, lessThan(1));
       expect(navbarHidden(tester), isFalse);
+      // Restoring the page from immersive never runs on into the calendar.
+      expect(find.byType(DiaryCalendarPage), findsNothing);
       expect(tester.takeException(), isNull);
     });
   }
+
+  sceneTest(
+    'pulling the resting page down unrolls the calendar; a date or Back returns',
+    (tester) async {
+      await seed();
+      await pumpApp(tester, initialLocation: '/diary', diary: repo);
+      expect(find.byKey(const ValueKey('diary-search-control')), findsNothing);
+      final paper = find.byKey(const ValueKey('diary-active-paper'));
+      final resting = tester.getRect(paper).top;
+
+      // A short pull springs back to the page and keeps the bottom bar.
+      final short = await tester.startGesture(tester.getRect(paper).center);
+      for (var i = 0; i < 4; i++) {
+        await short.moveBy(const Offset(0, 15));
+        await tester.pump();
+      }
+      expect(find.byKey(const ValueKey('diary-pulled-thread')), findsOneWidget);
+      expect(navbarHidden(tester), isFalse);
+      await short.up();
+      await tester.pumpAndSettle();
+      expect(find.byType(DiaryCalendarPage), findsNothing);
+      expect(tester.getRect(paper).top, resting);
+      expect(navbarHidden(tester), isFalse);
+
+      // Mid-pull the page hangs from the stretched thread, under the finger.
+      final gesture = await tester.startGesture(tester.getRect(paper).center);
+      for (var i = 0; i < 12; i++) {
+        await gesture.moveBy(const Offset(0, 20));
+        await tester.pump();
+      }
+      expect(find.byKey(const ValueKey('diary-pulled-thread')), findsOneWidget);
+      expect(tester.getRect(paper).top, greaterThan(resting + 150));
+      expect(find.byType(DiaryCalendarPage).hitTestable(), findsNothing);
+      // Past the point where letting go opens it, the bar has left.
+      expect(navbarHidden(tester), isTrue);
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('diary-pulled-thread')), findsNothing);
+      expect(find.byType(DiaryCalendarPage).hitTestable(), findsOneWidget);
+      expect(navbarHidden(tester), isTrue);
+
+      // Choosing a day lowers the page back on that day.
+      await tester.tap(day(DiaryPeriod(2026, 11, 1)));
+      await tester.pumpAndSettle();
+      expect(find.byType(DiaryCalendarPage), findsNothing);
+      expect(scene(tester).day.date, DiaryPeriod(2026, 11, 1));
+      expect(tester.getRect(paper).top, resting);
+      expect(navbarHidden(tester), isFalse);
+
+      // The month label opens it too, and Back closes it on the same day.
+      await tester.tap(find.byKey(const ValueKey('diary-date-control')));
+      await tester.pumpAndSettle();
+      expect(find.byType(DiaryCalendarPage).hitTestable(), findsOneWidget);
+      expect(navbarHidden(tester), isTrue);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.byType(DiaryCalendarPage), findsNothing);
+      expect(navbarHidden(tester), isFalse);
+      expect(scene(tester).day.date, DiaryPeriod(2026, 11, 1));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  sceneTest('reduced motion opens and closes the calendar without motion', (
+    tester,
+  ) async {
+    final appearance = FakeAppearanceRepository();
+    addTearDown(appearance.close);
+    await pumpApp(
+      tester,
+      initialLocation: '/diary',
+      diary: repo,
+      repository: appearance,
+    );
+    appearance.emit(const AppearancePreferences(reduceMotion: true));
+    await tester.pumpAndSettle();
+    await tester.dragFrom(
+      tester.getRect(find.byKey(const ValueKey('diary-active-paper'))).center,
+      const Offset(0, 300),
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(find.byType(DiaryCalendarPage).hitTestable(), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('diary-calendar-search')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('diary-search-input')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   sceneTest(
     'landing is today; paper and calendar share turns, cancellation and the future boundary',
@@ -458,7 +549,11 @@ void main() {
       nested.innerController.jumpTo(300);
       await tester.pumpAndSettle();
       expect(nested.innerController.offset, greaterThan(0));
-      await tester.tap(find.byKey(const ValueKey('diary-search-control')).last);
+      nested.outerController.jumpTo(0);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('diary-date-control')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('diary-calendar-search')));
       await tester.pumpAndSettle();
       await submit(tester, 'coffee');
       await tester.tap(find.byKey(const ValueKey('diary-search-match-0')));

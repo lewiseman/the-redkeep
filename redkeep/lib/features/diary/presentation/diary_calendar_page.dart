@@ -19,9 +19,19 @@ int _monthIndex(DateTime date) => date.year * 12 + date.month - 1;
 String _dateKey(DateTime date) => date.toIso8601String();
 
 /// A calendar route returns a civil date, or null when dismissed with Back.
+///
+/// The diary reader also embeds it beneath its pulled-down page. Then
+/// [onSelected] and [onClose] replace the route's own pop.
 class DiaryCalendarPage extends ConsumerStatefulWidget {
-  const DiaryCalendarPage({super.key, this.selected});
+  const DiaryCalendarPage({
+    super.key,
+    this.selected,
+    this.onSelected,
+    this.onClose,
+  });
   final DiaryPeriod? selected;
+  final ValueChanged<DiaryPeriod>? onSelected;
+  final VoidCallback? onClose;
   @override
   ConsumerState<DiaryCalendarPage> createState() => _DiaryCalendarPageState();
 }
@@ -67,7 +77,9 @@ class _DiaryCalendarPageState extends ConsumerState<DiaryCalendarPage> {
       return;
     }
     _returning = true;
-    if (GoRouterState.of(context).extra == true) {
+    if (widget.onSelected case final onSelected?) {
+      onSelected(date);
+    } else if (GoRouterState.of(context).extra == true) {
       context.pop(date);
     } else {
       openDiaryDay(context, date);
@@ -326,45 +338,71 @@ class _DiaryCalendarPageState extends ConsumerState<DiaryCalendarPage> {
     );
   }
 
-  /// The year strip is the app bar: the current year sits at the trailing
-  /// edge and earlier years fade away under the back button.
+  /// The year strip is the app bar: the current year sits beside search at
+  /// the trailing edge and earlier years fade away under the back button.
   Widget _header(BuildContext context, double inset) {
     final colors = context.colors;
     final direction = Directionality.of(context);
     return Padding(
       padding: EdgeInsets.fromLTRB(inset, 6, inset, 0),
-      child: Stack(
-        alignment: AlignmentDirectional.centerStart,
+      child: Row(
         children: [
-          ShaderMask(
-            blendMode: BlendMode.dstIn,
-            shaderCallback: (bounds) => LinearGradient(
-              begin: AlignmentDirectional.centerStart,
-              end: AlignmentDirectional.centerEnd,
-              colors: const [Colors.transparent, Colors.white, Colors.white],
-              stops: [0, math.min(.45, 120 / bounds.width), 1],
-            ).createShader(bounds, textDirection: direction),
-            child: _CalendarYearTabs(
-              firstYear: _firstDate.year,
-              lastYear: _lastDate.year,
-              year: _year,
-              onSelected: (year) => year == _year && year == _lastDate.year
-                  ? _today()
-                  : _showYear(year),
-            ),
-          ),
+          Expanded(child: _years(context, colors, direction)),
+          const SizedBox(width: 4),
           DecoratedBox(
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: colors.surface.withValues(alpha: .7),
             ),
-            child: BackButton(
-              onPressed: () =>
-                  context.canPop() ? context.pop() : context.go('/diary'),
+            child: IconButton(
+              key: const ValueKey('diary-calendar-search'),
+              tooltip: 'Search diary',
+              icon: const Icon(Icons.search_rounded),
+              onPressed: () => context.push('/diary/search'),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _years(
+    BuildContext context,
+    ColorScheme colors,
+    TextDirection direction,
+  ) {
+    return Stack(
+      alignment: AlignmentDirectional.centerStart,
+      children: [
+        ShaderMask(
+          blendMode: BlendMode.dstIn,
+          shaderCallback: (bounds) => LinearGradient(
+            begin: AlignmentDirectional.centerStart,
+            end: AlignmentDirectional.centerEnd,
+            colors: const [Colors.transparent, Colors.white, Colors.white],
+            stops: [0, math.min(.45, 120 / bounds.width), 1],
+          ).createShader(bounds, textDirection: direction),
+          child: _CalendarYearTabs(
+            firstYear: _firstDate.year,
+            lastYear: _lastDate.year,
+            year: _year,
+            onSelected: (year) => year == _year && year == _lastDate.year
+                ? _today()
+                : _showYear(year),
+          ),
+        ),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: colors.surface.withValues(alpha: .7),
+          ),
+          child: BackButton(
+            onPressed:
+                widget.onClose ??
+                () => context.canPop() ? context.pop() : context.go('/diary'),
+          ),
+        ),
+      ],
     );
   }
 }

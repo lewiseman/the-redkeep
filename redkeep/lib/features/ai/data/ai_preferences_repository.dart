@@ -19,7 +19,7 @@ class AiPreferencesRepository {
     if (row == null) return const AiPreferences();
     return AiPreferences(
       paused: row.recallPaused,
-      collections: {if (row.recallNotes) 'note', if (row.recallDiary) 'diary'},
+      collections: {if (row.recallNotes) 'note'},
     );
   }
 
@@ -50,7 +50,6 @@ class AiPreferencesRepository {
   Future<void> collection(String kind, bool value) => db.transaction(() async {
     final column = switch (kind) {
       'note' => 'recall_notes',
-      'diary' => 'recall_diary',
       _ => throw ArgumentError.value(kind),
     };
     await _write(const AiPreferencesTableCompanion());

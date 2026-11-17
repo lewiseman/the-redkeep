@@ -34,7 +34,6 @@ part 'app_database.g.dart';
     DiaryEntries,
     DiaryDays,
     DiaryMediaOps,
-    PhotoQuestionCache,
     WatchCatalog,
     WatchTitles,
     WatchLists,
@@ -49,7 +48,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   // Reset changes this generation before disposing editors. Old repositories
   // cannot write after cleanup, even when an async continuation finishes late.
@@ -143,6 +142,27 @@ class AppDatabase extends _$AppDatabase {
         if (!await _hasColumn('diary_entries', 'kind')) {
           await migrator.addColumn(diaryEntries, diaryEntries.kind);
         }
+      }
+      if (from < 10) {
+        // The diary has no AI: no suggestions, photo questions, answers or
+        // search by meaning. Its index entries go, and the next indexing
+        // run clears its vectors and rebuilds the notes index.
+        await customStatement('DROP TABLE IF EXISTS photo_question_cache');
+        for (final event in ['insert', 'update', 'delete']) {
+          await customStatement(
+            'DROP TRIGGER IF EXISTS recall_diary_entries_$event',
+          );
+        }
+        await customStatement("DELETE FROM recall_queue WHERE kind = 'diary'");
+        await customStatement(
+          "DELETE FROM recall_manifests WHERE kind = 'diary'",
+        );
+        await customStatement(
+          'INSERT INTO ai_preferences_table (id, recall_cleanup_required) '
+          'VALUES (1, 1) '
+          'ON CONFLICT(id) DO UPDATE SET recall_cleanup_required = 1',
+        );
+        await _dropColumn('ai_preferences_table', 'recall_diary');
       }
     },
   );

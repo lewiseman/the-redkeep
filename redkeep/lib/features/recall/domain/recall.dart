@@ -105,23 +105,3 @@ abstract interface class RecallVectors {
   Future<void> reset();
   Future<void> close();
 }
-
-/// Weighted reciprocal-rank fusion, preserving the old keyword preference.
-List<T> fuseRecall<T>(
-  List<T> keywords,
-  List<T> semantic,
-  String Function(T) id,
-) {
-  final values = <String, T>{};
-  final scores = <String, double>{};
-  for (final (list, weight) in [(keywords, 1.2), (semantic, 1.0)]) {
-    for (final (i, item) in list.indexed) {
-      final key = id(item);
-      values.putIfAbsent(key, () => item);
-      scores[key] = (scores[key] ?? 0) + weight / (60 + i + 1);
-    }
-  }
-  final keys = values.keys.toList()
-    ..sort((a, b) => scores[b]!.compareTo(scores[a]!));
-  return [for (final key in keys) values[key]!];
-}

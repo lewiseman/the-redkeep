@@ -9,7 +9,6 @@ class RecallSources {
   Future<List<RecallSource>> all(String kind) async {
     final table = switch (kind) {
       'note' => 'notes',
-      'diary' => 'diary_entries',
       _ => throw ArgumentError.value(kind),
     };
     final rows = await db
@@ -21,7 +20,6 @@ class RecallSources {
   Future<RecallSource?> read(String kind, String id) async {
     final table = switch (kind) {
       'note' => 'notes',
-      'diary' => 'diary_entries',
       _ => throw ArgumentError.value(kind),
     };
     final row = await db
@@ -34,15 +32,14 @@ class RecallSources {
   }
 
   RecallSource _source(String kind, QueryRow row) {
-    final title = kind == 'note' ? row.read<String>('title') : '';
+    final title = row.read<String>('title');
     final body = row.read<String>('body');
     final created = DateTime.fromMillisecondsSinceEpoch(
       row.read<int>('created_at'),
       isUtc: true,
     ).toLocal();
-    final date = kind == 'diary'
-        ? row.read<String>('period_key')
-        : '${created.year.toString().padLeft(4, '0')}-${created.month.toString().padLeft(2, '0')}-${created.day.toString().padLeft(2, '0')}';
+    final date =
+        '${created.year.toString().padLeft(4, '0')}-${created.month.toString().padLeft(2, '0')}-${created.day.toString().padLeft(2, '0')}';
     return RecallSource(
       kind: kind,
       id: row.read<String>('id'),

@@ -6,20 +6,11 @@ import '../../../core/presentation/rendering_policy.dart';
 import '../application/recall_coverage.dart';
 
 /// The color each kind of writing burns with in the Library sky.
-Color recallStarColor(String kind) => switch (kind) {
-  'note' => const Color(0xFFF4D58D),
-  _ => const Color(0xFFF2A7B6),
-};
+Color recallStarColor(String kind) => const Color(0xFFF4D58D);
 
-String recallKindLabel(String kind) => switch (kind) {
-  'note' => 'Notes',
-  _ => 'Diary entries',
-};
+String recallKindLabel(String kind) => 'Notes';
 
-IconData recallKindIcon(String kind) => switch (kind) {
-  'note' => Icons.sticky_note_2_outlined,
-  _ => Icons.menu_book_rounded,
-};
+IconData recallKindIcon(String kind) => Icons.sticky_note_2_outlined;
 
 /// Each saved piece of writing is a star in its kind's constellation. Indexed
 /// writing is lit; writing still waiting is dim. A finger is a lantern that
@@ -94,9 +85,9 @@ class _RecallSkyState extends State<RecallSky> with TickerProviderStateMixin {
     super.dispose();
   }
 
+  /// One constellation per kind in [recallKinds].
   static List<Offset> centers(Size size) => [
-    Offset(size.width * .3, size.height * .42),
-    Offset(size.width * .7, size.height * .54),
+    Offset(size.width * .5, size.height * .48),
   ];
 
   void _hold(Offset p) {
@@ -464,10 +455,7 @@ class _SkyPainter extends CustomPainter {
     bool on,
     double presence,
   ) {
-    final name = switch (kind) {
-      'note' => 'NOTES',
-      _ => 'DIARY',
-    };
+    const name = 'NOTES';
     final detail = !on
         ? 'off'
         : c.saved == 0

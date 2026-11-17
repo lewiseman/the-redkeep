@@ -6,10 +6,6 @@ import '../../../app/storage_providers.dart';
 import '../../ai/application/ai_lifecycle.dart';
 import '../../ai/application/ai_preferences.dart';
 import '../../ai/application/ai_cloud.dart';
-import '../../diary/application/diary_providers.dart';
-import '../../diary/domain/diary_document.dart';
-import '../../diary/domain/diary_period.dart';
-import '../domain/recall.dart';
 import 'recall_controller.dart';
 
 final _writingRevisionProvider = StreamProvider.autoDispose<int>((ref) async* {
@@ -17,14 +13,11 @@ final _writingRevisionProvider = StreamProvider.autoDispose<int>((ref) async* {
   var revision = 0;
   yield revision;
   await for (final _ in db.tableUpdates(
-    TableUpdateQuery.onAllTables([db.notes, db.diaryEntries]),
+    TableUpdateQuery.onAllTables([db.notes]),
   )) {
     yield ++revision;
   }
 });
-
-List<RecallSource> currentRecallSources(AsyncValue<RecallSearch> result) =>
-    result.isLoading ? const [] : result.value?.sources ?? const [];
 
 /// One submitted search. Each call embeds the query, so callers pass only
 /// queries the person submitted, never text while it is being typed.
@@ -47,23 +40,4 @@ final recallSearchProvider = FutureProvider.autoDispose
             request.kind,
             active: () => ref.mounted,
           );
-    });
-final diaryHybridSearchProvider = Provider.autoDispose
-    .family<AsyncValue<List<DiaryListing>>, String>((ref, query) {
-      final keywords = ref.watch(diarySearchProvider(query));
-      if (!ref.watch(aiEnabledProvider) || query.trim().isEmpty) {
-        return keywords;
-      }
-      final matches = currentRecallSources(
-        ref.watch(recallSearchProvider((query: query, kind: 'diary'))),
-      );
-      if (!keywords.hasValue || keywords.hasError) return keywords;
-      final semantic = [
-        for (final source in matches)
-          if (DiaryPeriod.tryParse(source.date) case final date?)
-            DiaryListing(id: source.id, date: date),
-      ];
-      return AsyncData(
-        fuseRecall(keywords.value!, semantic, (entry) => entry.id),
-      );
     });

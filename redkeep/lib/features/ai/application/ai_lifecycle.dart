@@ -11,15 +11,15 @@ import '../../diary/data/diary_picker_recovery.dart';
 import '../../diary/application/diary_providers.dart';
 import '../../voice/application/voice_coordination.dart';
 import '../../diary/application/diary_media_providers.dart';
-import '../../diary/application/diary_photo_question_controller.dart';
-import '../../diary/data/diary_photo_question_store.dart';
 
 import 'package:drift/drift.dart' show TableUpdateQuery;
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../../../app/storage_providers.dart';
 import '../../recall/application/recall_controller.dart';
@@ -54,8 +54,6 @@ final aiResetProvider = Provider<Future<void> Function()>(
     clearNoteWebsiteCache();
     await ref.read(noteMediaStoreProvider).clearAll();
     await ref.read(diaryPhotoStoreProvider).clearAll();
-    await ref.read(diaryPhotoQuestionStoreProvider).clearAll();
-    ref.invalidate(diaryPhotoQuestionProvider);
     await (await ref.read(recallVectorsProvider.future)).reset();
     // The existing durable account-reset marker remains until these operations
     // and the primary-database clear have all succeeded. Repeating is safe.
@@ -69,7 +67,6 @@ final aiResumeAfterResetProvider = Provider<void Function()>(
     if (!ref.read(aiEnabledProvider)) return;
     ref.invalidate(noteMediaStoreProvider);
     ref.invalidate(diaryPhotoStoreProvider);
-    ref.invalidate(diaryPhotoQuestionStoreProvider);
     final active = ref.read(aiForegroundProvider);
     ref.read(recallControllerProvider.notifier).foreground(active);
     if (active) {
@@ -100,8 +97,20 @@ class _AiLifecycleHostState extends ConsumerState<AiLifecycleHost>
         unawaited(
           ref.read(diaryPhotoStoreProvider).reconcile().catchError((_) {}),
         );
+        unawaited(_removeDiaryPhotoUploads());
       }
     });
+  }
+
+  /// Diary photo questions are gone. Photos prepared for them may remain.
+  Future<void> _removeDiaryPhotoUploads() async {
+    try {
+      final support = await getApplicationSupportDirectory();
+      final uploads = Directory('${support.path}/diary_photo_uploads');
+      if (await uploads.exists()) await uploads.delete(recursive: true);
+    } catch (_) {
+      /* Retried on the next startup. */
+    }
   }
 
   Future<void> _recoverNotePicker() async {

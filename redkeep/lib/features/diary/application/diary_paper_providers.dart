@@ -11,7 +11,6 @@ class DiaryPaperDay {
     required this.date,
     this.heading = '',
     this.mood,
-    this.themes = const [],
     this.entries = const [],
     this.loading = false,
     this.failed = false,
@@ -19,7 +18,6 @@ class DiaryPaperDay {
   final DiaryPeriod date;
   final String heading;
   final DiaryMood? mood;
-  final List<String> themes;
   final List<DiaryEntry> entries;
   final bool loading, failed;
   DateTime get calendarDate => DateTime(date.year, date.month, date.day);
@@ -38,7 +36,6 @@ final diaryPaperDayProvider = Provider.autoDispose
         date: date,
         heading: day.value?.heading ?? '',
         mood: day.value?.mood,
-        themes: day.value?.themes ?? const [],
         entries: [
           for (final document in documents)
             if (document.value case final opened?)

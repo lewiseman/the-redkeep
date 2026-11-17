@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/storage_providers.dart';
 
 /// The kinds of writing search by meaning can cover, in display order.
-const recallKinds = ['note', 'diary'];
+const recallKinds = ['note'];
 
 /// How much of one kind of writing is in the search index.
 class RecallCoverage {
@@ -24,10 +24,7 @@ final recallCoverageProvider =
     StreamProvider.autoDispose<Map<String, RecallCoverage>>((ref) {
       final db = ref.watch(appDatabaseProvider);
       final parts = [
-        for (final (kind, table) in [
-          ('note', 'notes'),
-          ('diary', 'diary_entries'),
-        ])
+        for (final (kind, table) in [('note', 'notes')])
           '''SELECT '$kind' AS kind,
             (SELECT COUNT(*) FROM $table WHERE deleted_at IS NULL) AS saved,
             (SELECT COUNT(*) FROM recall_queue q JOIN $table s
@@ -37,7 +34,7 @@ final recallCoverageProvider =
       return db
           .customSelect(
             parts.join('\nUNION ALL\n'),
-            readsFrom: {db.notes, db.diaryEntries, db.recallQueue},
+            readsFrom: {db.notes, db.recallQueue},
           )
           .watch()
           .map(

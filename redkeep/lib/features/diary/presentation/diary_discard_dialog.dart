@@ -22,14 +22,14 @@ Future<bool> confirmDiscardWriting(
   keep: 'Keep writing',
 );
 
-/// The same question for a day's title, mood and themes.
+/// The same question for a day's title and mood.
 Future<bool> confirmDiscardDetails(
   BuildContext context, {
   required String kindName,
 }) => _confirm(
   context,
   title: 'Discard these changes?',
-  body: "This $kindName's title, mood and themes will stay as they were.",
+  body: "This $kindName's title and mood will stay as they were.",
   keep: 'Keep editing',
 );
 

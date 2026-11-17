@@ -34,21 +34,6 @@ class $AiPreferencesTableTable extends AiPreferencesTable
     ),
     defaultValue: const Constant(true),
   );
-  static const VerificationMeta _recallDiaryMeta = const VerificationMeta(
-    'recallDiary',
-  );
-  @override
-  late final GeneratedColumn<bool> recallDiary = GeneratedColumn<bool>(
-    'recall_diary',
-    aliasedName,
-    false,
-    type: DriftSqlType.bool,
-    requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("recall_diary" IN (0, 1))',
-    ),
-    defaultValue: const Constant(true),
-  );
   static const VerificationMeta _recallPausedMeta = const VerificationMeta(
     'recallPaused',
   );
@@ -83,7 +68,6 @@ class $AiPreferencesTableTable extends AiPreferencesTable
   List<GeneratedColumn> get $columns => [
     id,
     recallNotes,
-    recallDiary,
     recallPaused,
     recallCleanupRequired,
   ];
@@ -108,15 +92,6 @@ class $AiPreferencesTableTable extends AiPreferencesTable
         recallNotes.isAcceptableOrUnknown(
           data['recall_notes']!,
           _recallNotesMeta,
-        ),
-      );
-    }
-    if (data.containsKey('recall_diary')) {
-      context.handle(
-        _recallDiaryMeta,
-        recallDiary.isAcceptableOrUnknown(
-          data['recall_diary']!,
-          _recallDiaryMeta,
         ),
       );
     }
@@ -155,10 +130,6 @@ class $AiPreferencesTableTable extends AiPreferencesTable
         DriftSqlType.bool,
         data['${effectivePrefix}recall_notes'],
       )!,
-      recallDiary: attachedDatabase.typeMapping.read(
-        DriftSqlType.bool,
-        data['${effectivePrefix}recall_diary'],
-      )!,
       recallPaused: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}recall_paused'],
@@ -179,13 +150,11 @@ class $AiPreferencesTableTable extends AiPreferencesTable
 class AiPreferenceRow extends DataClass implements Insertable<AiPreferenceRow> {
   final int id;
   final bool recallNotes;
-  final bool recallDiary;
   final bool recallPaused;
   final bool recallCleanupRequired;
   const AiPreferenceRow({
     required this.id,
     required this.recallNotes,
-    required this.recallDiary,
     required this.recallPaused,
     required this.recallCleanupRequired,
   });
@@ -194,7 +163,6 @@ class AiPreferenceRow extends DataClass implements Insertable<AiPreferenceRow> {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
     map['recall_notes'] = Variable<bool>(recallNotes);
-    map['recall_diary'] = Variable<bool>(recallDiary);
     map['recall_paused'] = Variable<bool>(recallPaused);
     map['recall_cleanup_required'] = Variable<bool>(recallCleanupRequired);
     return map;
@@ -204,7 +172,6 @@ class AiPreferenceRow extends DataClass implements Insertable<AiPreferenceRow> {
     return AiPreferencesTableCompanion(
       id: Value(id),
       recallNotes: Value(recallNotes),
-      recallDiary: Value(recallDiary),
       recallPaused: Value(recallPaused),
       recallCleanupRequired: Value(recallCleanupRequired),
     );
@@ -218,7 +185,6 @@ class AiPreferenceRow extends DataClass implements Insertable<AiPreferenceRow> {
     return AiPreferenceRow(
       id: serializer.fromJson<int>(json['id']),
       recallNotes: serializer.fromJson<bool>(json['recallNotes']),
-      recallDiary: serializer.fromJson<bool>(json['recallDiary']),
       recallPaused: serializer.fromJson<bool>(json['recallPaused']),
       recallCleanupRequired: serializer.fromJson<bool>(
         json['recallCleanupRequired'],
@@ -231,7 +197,6 @@ class AiPreferenceRow extends DataClass implements Insertable<AiPreferenceRow> {
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'recallNotes': serializer.toJson<bool>(recallNotes),
-      'recallDiary': serializer.toJson<bool>(recallDiary),
       'recallPaused': serializer.toJson<bool>(recallPaused),
       'recallCleanupRequired': serializer.toJson<bool>(recallCleanupRequired),
     };
@@ -240,13 +205,11 @@ class AiPreferenceRow extends DataClass implements Insertable<AiPreferenceRow> {
   AiPreferenceRow copyWith({
     int? id,
     bool? recallNotes,
-    bool? recallDiary,
     bool? recallPaused,
     bool? recallCleanupRequired,
   }) => AiPreferenceRow(
     id: id ?? this.id,
     recallNotes: recallNotes ?? this.recallNotes,
-    recallDiary: recallDiary ?? this.recallDiary,
     recallPaused: recallPaused ?? this.recallPaused,
     recallCleanupRequired: recallCleanupRequired ?? this.recallCleanupRequired,
   );
@@ -256,9 +219,6 @@ class AiPreferenceRow extends DataClass implements Insertable<AiPreferenceRow> {
       recallNotes: data.recallNotes.present
           ? data.recallNotes.value
           : this.recallNotes,
-      recallDiary: data.recallDiary.present
-          ? data.recallDiary.value
-          : this.recallDiary,
       recallPaused: data.recallPaused.present
           ? data.recallPaused.value
           : this.recallPaused,
@@ -273,7 +233,6 @@ class AiPreferenceRow extends DataClass implements Insertable<AiPreferenceRow> {
     return (StringBuffer('AiPreferenceRow(')
           ..write('id: $id, ')
           ..write('recallNotes: $recallNotes, ')
-          ..write('recallDiary: $recallDiary, ')
           ..write('recallPaused: $recallPaused, ')
           ..write('recallCleanupRequired: $recallCleanupRequired')
           ..write(')'))
@@ -281,20 +240,14 @@ class AiPreferenceRow extends DataClass implements Insertable<AiPreferenceRow> {
   }
 
   @override
-  int get hashCode => Object.hash(
-    id,
-    recallNotes,
-    recallDiary,
-    recallPaused,
-    recallCleanupRequired,
-  );
+  int get hashCode =>
+      Object.hash(id, recallNotes, recallPaused, recallCleanupRequired);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is AiPreferenceRow &&
           other.id == this.id &&
           other.recallNotes == this.recallNotes &&
-          other.recallDiary == this.recallDiary &&
           other.recallPaused == this.recallPaused &&
           other.recallCleanupRequired == this.recallCleanupRequired);
 }
@@ -302,34 +255,29 @@ class AiPreferenceRow extends DataClass implements Insertable<AiPreferenceRow> {
 class AiPreferencesTableCompanion extends UpdateCompanion<AiPreferenceRow> {
   final Value<int> id;
   final Value<bool> recallNotes;
-  final Value<bool> recallDiary;
   final Value<bool> recallPaused;
   final Value<bool> recallCleanupRequired;
   const AiPreferencesTableCompanion({
     this.id = const Value.absent(),
     this.recallNotes = const Value.absent(),
-    this.recallDiary = const Value.absent(),
     this.recallPaused = const Value.absent(),
     this.recallCleanupRequired = const Value.absent(),
   });
   AiPreferencesTableCompanion.insert({
     this.id = const Value.absent(),
     this.recallNotes = const Value.absent(),
-    this.recallDiary = const Value.absent(),
     this.recallPaused = const Value.absent(),
     this.recallCleanupRequired = const Value.absent(),
   });
   static Insertable<AiPreferenceRow> custom({
     Expression<int>? id,
     Expression<bool>? recallNotes,
-    Expression<bool>? recallDiary,
     Expression<bool>? recallPaused,
     Expression<bool>? recallCleanupRequired,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (recallNotes != null) 'recall_notes': recallNotes,
-      if (recallDiary != null) 'recall_diary': recallDiary,
       if (recallPaused != null) 'recall_paused': recallPaused,
       if (recallCleanupRequired != null)
         'recall_cleanup_required': recallCleanupRequired,
@@ -339,14 +287,12 @@ class AiPreferencesTableCompanion extends UpdateCompanion<AiPreferenceRow> {
   AiPreferencesTableCompanion copyWith({
     Value<int>? id,
     Value<bool>? recallNotes,
-    Value<bool>? recallDiary,
     Value<bool>? recallPaused,
     Value<bool>? recallCleanupRequired,
   }) {
     return AiPreferencesTableCompanion(
       id: id ?? this.id,
       recallNotes: recallNotes ?? this.recallNotes,
-      recallDiary: recallDiary ?? this.recallDiary,
       recallPaused: recallPaused ?? this.recallPaused,
       recallCleanupRequired:
           recallCleanupRequired ?? this.recallCleanupRequired,
@@ -361,9 +307,6 @@ class AiPreferencesTableCompanion extends UpdateCompanion<AiPreferenceRow> {
     }
     if (recallNotes.present) {
       map['recall_notes'] = Variable<bool>(recallNotes.value);
-    }
-    if (recallDiary.present) {
-      map['recall_diary'] = Variable<bool>(recallDiary.value);
     }
     if (recallPaused.present) {
       map['recall_paused'] = Variable<bool>(recallPaused.value);
@@ -381,7 +324,6 @@ class AiPreferencesTableCompanion extends UpdateCompanion<AiPreferenceRow> {
     return (StringBuffer('AiPreferencesTableCompanion(')
           ..write('id: $id, ')
           ..write('recallNotes: $recallNotes, ')
-          ..write('recallDiary: $recallDiary, ')
           ..write('recallPaused: $recallPaused, ')
           ..write('recallCleanupRequired: $recallCleanupRequired')
           ..write(')'))
@@ -5369,270 +5311,6 @@ class DiaryMediaOpsCompanion extends UpdateCompanion<DiaryMediaOpRow> {
   }
 }
 
-class $PhotoQuestionCacheTable extends PhotoQuestionCache
-    with TableInfo<$PhotoQuestionCacheTable, PhotoQuestionCacheRow> {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $PhotoQuestionCacheTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _keyMeta = const VerificationMeta('key');
-  @override
-  late final GeneratedColumn<String> key = GeneratedColumn<String>(
-    'key',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _valueMeta = const VerificationMeta('value');
-  @override
-  late final GeneratedColumn<String> value = GeneratedColumn<String>(
-    'value',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _createdMeta = const VerificationMeta(
-    'created',
-  );
-  @override
-  late final GeneratedColumn<int> created = GeneratedColumn<int>(
-    'created',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-  );
-  @override
-  List<GeneratedColumn> get $columns => [key, value, created];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'photo_question_cache';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<PhotoQuestionCacheRow> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('key')) {
-      context.handle(
-        _keyMeta,
-        key.isAcceptableOrUnknown(data['key']!, _keyMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_keyMeta);
-    }
-    if (data.containsKey('value')) {
-      context.handle(
-        _valueMeta,
-        value.isAcceptableOrUnknown(data['value']!, _valueMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_valueMeta);
-    }
-    if (data.containsKey('created')) {
-      context.handle(
-        _createdMeta,
-        created.isAcceptableOrUnknown(data['created']!, _createdMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_createdMeta);
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {key};
-  @override
-  PhotoQuestionCacheRow map(Map<String, dynamic> data, {String? tablePrefix}) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return PhotoQuestionCacheRow(
-      key: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}key'],
-      )!,
-      value: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}value'],
-      )!,
-      created: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}created'],
-      )!,
-    );
-  }
-
-  @override
-  $PhotoQuestionCacheTable createAlias(String alias) {
-    return $PhotoQuestionCacheTable(attachedDatabase, alias);
-  }
-}
-
-class PhotoQuestionCacheRow extends DataClass
-    implements Insertable<PhotoQuestionCacheRow> {
-  final String key;
-  final String value;
-  final int created;
-  const PhotoQuestionCacheRow({
-    required this.key,
-    required this.value,
-    required this.created,
-  });
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['key'] = Variable<String>(key);
-    map['value'] = Variable<String>(value);
-    map['created'] = Variable<int>(created);
-    return map;
-  }
-
-  PhotoQuestionCacheCompanion toCompanion(bool nullToAbsent) {
-    return PhotoQuestionCacheCompanion(
-      key: Value(key),
-      value: Value(value),
-      created: Value(created),
-    );
-  }
-
-  factory PhotoQuestionCacheRow.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return PhotoQuestionCacheRow(
-      key: serializer.fromJson<String>(json['key']),
-      value: serializer.fromJson<String>(json['value']),
-      created: serializer.fromJson<int>(json['created']),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'key': serializer.toJson<String>(key),
-      'value': serializer.toJson<String>(value),
-      'created': serializer.toJson<int>(created),
-    };
-  }
-
-  PhotoQuestionCacheRow copyWith({String? key, String? value, int? created}) =>
-      PhotoQuestionCacheRow(
-        key: key ?? this.key,
-        value: value ?? this.value,
-        created: created ?? this.created,
-      );
-  PhotoQuestionCacheRow copyWithCompanion(PhotoQuestionCacheCompanion data) {
-    return PhotoQuestionCacheRow(
-      key: data.key.present ? data.key.value : this.key,
-      value: data.value.present ? data.value.value : this.value,
-      created: data.created.present ? data.created.value : this.created,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('PhotoQuestionCacheRow(')
-          ..write('key: $key, ')
-          ..write('value: $value, ')
-          ..write('created: $created')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode => Object.hash(key, value, created);
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is PhotoQuestionCacheRow &&
-          other.key == this.key &&
-          other.value == this.value &&
-          other.created == this.created);
-}
-
-class PhotoQuestionCacheCompanion
-    extends UpdateCompanion<PhotoQuestionCacheRow> {
-  final Value<String> key;
-  final Value<String> value;
-  final Value<int> created;
-  final Value<int> rowid;
-  const PhotoQuestionCacheCompanion({
-    this.key = const Value.absent(),
-    this.value = const Value.absent(),
-    this.created = const Value.absent(),
-    this.rowid = const Value.absent(),
-  });
-  PhotoQuestionCacheCompanion.insert({
-    required String key,
-    required String value,
-    required int created,
-    this.rowid = const Value.absent(),
-  }) : key = Value(key),
-       value = Value(value),
-       created = Value(created);
-  static Insertable<PhotoQuestionCacheRow> custom({
-    Expression<String>? key,
-    Expression<String>? value,
-    Expression<int>? created,
-    Expression<int>? rowid,
-  }) {
-    return RawValuesInsertable({
-      if (key != null) 'key': key,
-      if (value != null) 'value': value,
-      if (created != null) 'created': created,
-      if (rowid != null) 'rowid': rowid,
-    });
-  }
-
-  PhotoQuestionCacheCompanion copyWith({
-    Value<String>? key,
-    Value<String>? value,
-    Value<int>? created,
-    Value<int>? rowid,
-  }) {
-    return PhotoQuestionCacheCompanion(
-      key: key ?? this.key,
-      value: value ?? this.value,
-      created: created ?? this.created,
-      rowid: rowid ?? this.rowid,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (key.present) {
-      map['key'] = Variable<String>(key.value);
-    }
-    if (value.present) {
-      map['value'] = Variable<String>(value.value);
-    }
-    if (created.present) {
-      map['created'] = Variable<int>(created.value);
-    }
-    if (rowid.present) {
-      map['rowid'] = Variable<int>(rowid.value);
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('PhotoQuestionCacheCompanion(')
-          ..write('key: $key, ')
-          ..write('value: $value, ')
-          ..write('created: $created, ')
-          ..write('rowid: $rowid')
-          ..write(')'))
-        .toString();
-  }
-}
-
 class $WatchCatalogTable extends WatchCatalog
     with TableInfo<$WatchCatalogTable, WatchCatalogRow> {
   @override
@@ -9165,8 +8843,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $DiaryEntriesTable diaryEntries = $DiaryEntriesTable(this);
   late final $DiaryDaysTable diaryDays = $DiaryDaysTable(this);
   late final $DiaryMediaOpsTable diaryMediaOps = $DiaryMediaOpsTable(this);
-  late final $PhotoQuestionCacheTable photoQuestionCache =
-      $PhotoQuestionCacheTable(this);
   late final $WatchCatalogTable watchCatalog = $WatchCatalogTable(this);
   late final $WatchTitlesTable watchTitles = $WatchTitlesTable(this);
   late final $WatchListsTable watchLists = $WatchListsTable(this);
@@ -9202,7 +8878,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     diaryEntries,
     diaryDays,
     diaryMediaOps,
-    photoQuestionCache,
     watchCatalog,
     watchTitles,
     watchLists,
@@ -9220,7 +8895,6 @@ typedef $$AiPreferencesTableTableCreateCompanionBuilder =
     AiPreferencesTableCompanion Function({
       Value<int> id,
       Value<bool> recallNotes,
-      Value<bool> recallDiary,
       Value<bool> recallPaused,
       Value<bool> recallCleanupRequired,
     });
@@ -9228,7 +8902,6 @@ typedef $$AiPreferencesTableTableUpdateCompanionBuilder =
     AiPreferencesTableCompanion Function({
       Value<int> id,
       Value<bool> recallNotes,
-      Value<bool> recallDiary,
       Value<bool> recallPaused,
       Value<bool> recallCleanupRequired,
     });
@@ -9249,11 +8922,6 @@ class $$AiPreferencesTableTableFilterComposer
 
   ColumnFilters<bool> get recallNotes => $composableBuilder(
     column: $table.recallNotes,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<bool> get recallDiary => $composableBuilder(
-    column: $table.recallDiary,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -9287,11 +8955,6 @@ class $$AiPreferencesTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<bool> get recallDiary => $composableBuilder(
-    column: $table.recallDiary,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<bool> get recallPaused => $composableBuilder(
     column: $table.recallPaused,
     builder: (column) => ColumnOrderings(column),
@@ -9317,11 +8980,6 @@ class $$AiPreferencesTableTableAnnotationComposer
 
   GeneratedColumn<bool> get recallNotes => $composableBuilder(
     column: $table.recallNotes,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<bool> get recallDiary => $composableBuilder(
-    column: $table.recallDiary,
     builder: (column) => column,
   );
 
@@ -9378,13 +9036,11 @@ class $$AiPreferencesTableTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 Value<bool> recallNotes = const Value.absent(),
-                Value<bool> recallDiary = const Value.absent(),
                 Value<bool> recallPaused = const Value.absent(),
                 Value<bool> recallCleanupRequired = const Value.absent(),
               }) => AiPreferencesTableCompanion(
                 id: id,
                 recallNotes: recallNotes,
-                recallDiary: recallDiary,
                 recallPaused: recallPaused,
                 recallCleanupRequired: recallCleanupRequired,
               ),
@@ -9392,13 +9048,11 @@ class $$AiPreferencesTableTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 Value<bool> recallNotes = const Value.absent(),
-                Value<bool> recallDiary = const Value.absent(),
                 Value<bool> recallPaused = const Value.absent(),
                 Value<bool> recallCleanupRequired = const Value.absent(),
               }) => AiPreferencesTableCompanion.insert(
                 id: id,
                 recallNotes: recallNotes,
-                recallDiary: recallDiary,
                 recallPaused: recallPaused,
                 recallCleanupRequired: recallCleanupRequired,
               ),
@@ -12695,192 +12349,6 @@ typedef $$DiaryMediaOpsTableProcessedTableManager =
       DiaryMediaOpRow,
       PrefetchHooks Function()
     >;
-typedef $$PhotoQuestionCacheTableCreateCompanionBuilder =
-    PhotoQuestionCacheCompanion Function({
-      required String key,
-      required String value,
-      required int created,
-      Value<int> rowid,
-    });
-typedef $$PhotoQuestionCacheTableUpdateCompanionBuilder =
-    PhotoQuestionCacheCompanion Function({
-      Value<String> key,
-      Value<String> value,
-      Value<int> created,
-      Value<int> rowid,
-    });
-
-class $$PhotoQuestionCacheTableFilterComposer
-    extends Composer<_$AppDatabase, $PhotoQuestionCacheTable> {
-  $$PhotoQuestionCacheTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnFilters<String> get key => $composableBuilder(
-    column: $table.key,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get value => $composableBuilder(
-    column: $table.value,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get created => $composableBuilder(
-    column: $table.created,
-    builder: (column) => ColumnFilters(column),
-  );
-}
-
-class $$PhotoQuestionCacheTableOrderingComposer
-    extends Composer<_$AppDatabase, $PhotoQuestionCacheTable> {
-  $$PhotoQuestionCacheTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<String> get key => $composableBuilder(
-    column: $table.key,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get value => $composableBuilder(
-    column: $table.value,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get created => $composableBuilder(
-    column: $table.created,
-    builder: (column) => ColumnOrderings(column),
-  );
-}
-
-class $$PhotoQuestionCacheTableAnnotationComposer
-    extends Composer<_$AppDatabase, $PhotoQuestionCacheTable> {
-  $$PhotoQuestionCacheTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumn<String> get key =>
-      $composableBuilder(column: $table.key, builder: (column) => column);
-
-  GeneratedColumn<String> get value =>
-      $composableBuilder(column: $table.value, builder: (column) => column);
-
-  GeneratedColumn<int> get created =>
-      $composableBuilder(column: $table.created, builder: (column) => column);
-}
-
-class $$PhotoQuestionCacheTableTableManager
-    extends
-        RootTableManager<
-          _$AppDatabase,
-          $PhotoQuestionCacheTable,
-          PhotoQuestionCacheRow,
-          $$PhotoQuestionCacheTableFilterComposer,
-          $$PhotoQuestionCacheTableOrderingComposer,
-          $$PhotoQuestionCacheTableAnnotationComposer,
-          $$PhotoQuestionCacheTableCreateCompanionBuilder,
-          $$PhotoQuestionCacheTableUpdateCompanionBuilder,
-          (
-            PhotoQuestionCacheRow,
-            BaseReferences<
-              _$AppDatabase,
-              $PhotoQuestionCacheTable,
-              PhotoQuestionCacheRow
-            >,
-          ),
-          PhotoQuestionCacheRow,
-          PrefetchHooks Function()
-        > {
-  $$PhotoQuestionCacheTableTableManager(
-    _$AppDatabase db,
-    $PhotoQuestionCacheTable table,
-  ) : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$PhotoQuestionCacheTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () =>
-              $$PhotoQuestionCacheTableOrderingComposer($db: db, $table: table),
-          createComputedFieldComposer: () =>
-              $$PhotoQuestionCacheTableAnnotationComposer(
-                $db: db,
-                $table: table,
-              ),
-          updateCompanionCallback:
-              ({
-                Value<String> key = const Value.absent(),
-                Value<String> value = const Value.absent(),
-                Value<int> created = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => PhotoQuestionCacheCompanion(
-                key: key,
-                value: value,
-                created: created,
-                rowid: rowid,
-              ),
-          createCompanionCallback:
-              ({
-                required String key,
-                required String value,
-                required int created,
-                Value<int> rowid = const Value.absent(),
-              }) => PhotoQuestionCacheCompanion.insert(
-                key: key,
-                value: value,
-                created: created,
-                rowid: rowid,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable<$PhotoQuestionCacheTable, PhotoQuestionCacheRow>(
-                    table,
-                  ),
-                  BaseReferences<
-                    _$AppDatabase,
-                    $PhotoQuestionCacheTable,
-                    PhotoQuestionCacheRow
-                  >(db, table, e),
-                ),
-              )
-              .toList(),
-          prefetchHooksCallback: null,
-        ),
-      );
-}
-
-typedef $$PhotoQuestionCacheTableProcessedTableManager =
-    ProcessedTableManager<
-      _$AppDatabase,
-      $PhotoQuestionCacheTable,
-      PhotoQuestionCacheRow,
-      $$PhotoQuestionCacheTableFilterComposer,
-      $$PhotoQuestionCacheTableOrderingComposer,
-      $$PhotoQuestionCacheTableAnnotationComposer,
-      $$PhotoQuestionCacheTableCreateCompanionBuilder,
-      $$PhotoQuestionCacheTableUpdateCompanionBuilder,
-      (
-        PhotoQuestionCacheRow,
-        BaseReferences<
-          _$AppDatabase,
-          $PhotoQuestionCacheTable,
-          PhotoQuestionCacheRow
-        >,
-      ),
-      PhotoQuestionCacheRow,
-      PrefetchHooks Function()
-    >;
 typedef $$WatchCatalogTableCreateCompanionBuilder =
     WatchCatalogCompanion Function({
       required String mediaKey,
@@ -14842,8 +14310,6 @@ class $AppDatabaseManager {
       $$DiaryDaysTableTableManager(_db, _db.diaryDays);
   $$DiaryMediaOpsTableTableManager get diaryMediaOps =>
       $$DiaryMediaOpsTableTableManager(_db, _db.diaryMediaOps);
-  $$PhotoQuestionCacheTableTableManager get photoQuestionCache =>
-      $$PhotoQuestionCacheTableTableManager(_db, _db.photoQuestionCache);
   $$WatchCatalogTableTableManager get watchCatalog =>
       $$WatchCatalogTableTableManager(_db, _db.watchCatalog);
   $$WatchTitlesTableTableManager get watchTitles =>

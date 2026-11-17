@@ -5,7 +5,6 @@ class AiPreferencesTable extends Table {
   IntColumn get id => integer().withDefault(const Constant(1))();
 
   BoolColumn get recallNotes => boolean().withDefault(const Constant(true))();
-  BoolColumn get recallDiary => boolean().withDefault(const Constant(true))();
   BoolColumn get recallPaused => boolean().withDefault(const Constant(false))();
   BoolColumn get recallCleanupRequired =>
       boolean().withDefault(const Constant(false))();

@@ -31,7 +31,7 @@ class EmptyDiaryRepository implements DiaryRepository {
   Future<void> renameDay(DiaryDay day, String heading) async =>
       throw StateError('Inject writing repository');
   @override
-  Future<void> saveDay(DiaryDay day, {String? expectedEntries}) async =>
+  Future<void> saveDay(DiaryDay day) async =>
       throw StateError('Inject writing repository');
   @override
   Future<DiaryEntry> save({

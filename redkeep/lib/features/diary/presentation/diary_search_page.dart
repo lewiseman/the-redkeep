@@ -1,7 +1,3 @@
-import 'diary_answer_page.dart';
-import '../../recall/application/recall_search.dart';
-import '../../ai/application/ai_lifecycle.dart';
-
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -105,7 +101,7 @@ class _DiarySearchPageState extends ConsumerState<DiarySearchPage> {
   @override
   Widget build(BuildContext context) {
     if (_submitted.isNotEmpty) {
-      final listings = ref.watch(diaryHybridSearchProvider(_submitted));
+      final listings = ref.watch(diarySearchProvider(_submitted));
       final today = DiaryPeriod.fromComponents(ref.read(diaryClockProvider)());
       final matches = (listings.value ?? <DiaryListing>[])
           .where((entry) => entry.date.hasStarted(today.calendarDate))
@@ -163,28 +159,6 @@ class _DiarySearchPageState extends ConsumerState<DiarySearchPage> {
                       return Column(
                         children: [
                           _header(),
-                          if (_submitted.isNotEmpty &&
-                              ref.watch(aiEnabledProvider))
-                            if (ref
-                                    .watch(
-                                      recallSearchProvider((
-                                        query: _submitted,
-                                        kind: 'diary',
-                                      )),
-                                    )
-                                    .value
-                                    ?.message
-                                case final message?)
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 24,
-                                  vertical: 6,
-                                ),
-                                child: Text(
-                                  message,
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                ),
-                              ),
                           Expanded(
                             child: SingleChildScrollView(
                               key: const ValueKey('diary-search-scroll'),
@@ -292,17 +266,6 @@ class _DiarySearchPageState extends ConsumerState<DiarySearchPage> {
           ),
         ),
         const SizedBox(height: 24),
-        if (_stage == _SearchStage.results || _stage == _SearchStage.empty)
-          TextButton.icon(
-            key: const ValueKey('diary-search-ask'),
-            icon: const Icon(Icons.computer_outlined),
-            label: const Text('Ask your past'),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => DiaryAnswerPage(question: _submitted),
-              ),
-            ),
-          ),
         if (_stage == _SearchStage.error)
           _message(
             title: 'The pages need a moment.',

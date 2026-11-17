@@ -1,10 +1,9 @@
 import 'dart:convert';
 
 import '../../notes/domain/note_document.dart';
-import '../../diary/domain/diary_history_contract.dart' show excerptFor;
 import '../../diary/domain/diary_retrieval.dart';
 
-enum RecallKind { note, diary }
+enum RecallKind { note }
 
 /// S02: grounded answers to a question about saved notes, from excerpts the
 /// phone selects. Each collection is asked separately, so one never leaks into
@@ -27,7 +26,6 @@ final _control = RegExp(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]');
 extension RecallQuestionKind on RecallKind {
   String get questionOperation => switch (this) {
     RecallKind.note => noteQuestionOperation,
-    RecallKind.diary => throw UnsupportedError('Diary questions are S01'),
   };
 
   /// The companion capability key advertising [questionOperation].

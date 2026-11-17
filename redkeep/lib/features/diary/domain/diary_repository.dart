@@ -17,7 +17,7 @@ abstract interface class DiaryRepository {
   });
   Stream<DiaryDay> watchDay(DiaryPeriod date);
   Future<void> renameDay(DiaryDay day, String heading);
-  Future<void> saveDay(DiaryDay day, {String? expectedEntries});
+  Future<void> saveDay(DiaryDay day);
   Stream<OpenDiaryEntry> watchDocument(String id);
   Future<OpenDiaryEntry> openDocument(String id);
 

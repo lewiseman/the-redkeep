@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
@@ -8,7 +6,6 @@ import 'package:redkeep/core/presentation/rendering_policy.dart';
 import 'package:redkeep/core/storage/app_database.dart';
 import 'package:redkeep/features/appearance/domain/appearance_preferences.dart';
 import 'package:redkeep/features/diary/data/drift_diary_repository.dart';
-import 'package:redkeep/features/diary/domain/diary_ai_contract.dart';
 import 'package:redkeep/features/diary/domain/diary_day_details.dart';
 import 'package:redkeep/features/diary/domain/diary_document.dart';
 import 'package:redkeep/features/diary/domain/diary_period.dart';
@@ -72,65 +69,6 @@ void main() {
       expect(custom.display, '🥳');
       expect(DiaryMood.tryParse(custom.name), custom);
       expect(DiaryMood.tryParse('unknown'), isNull);
-    });
-  });
-
-  group('AI mood parsing', () {
-    final date = DiaryPeriod(2026, 11, 4);
-    final source = DiarySuggestionSource.fromEntries(date, [
-      DiaryEntry(
-        id: 'a',
-        date: date,
-        text: const DiaryText(body: 'Finally shipped the app and celebrated.'),
-        revision: 1,
-        createdAt: DateTime.utc(2026, 11, 4),
-        updatedAt: DateTime.utc(2026, 11, 4),
-      ),
-    ]);
-    DiarySuggestions parse(Object? value, {String evidence = 'celebrated'}) =>
-        DiarySuggestions.parse(
-          jsonEncode({
-            'title': '',
-            'mood': {'value': value, 'evidence': evidence},
-            'themes': [],
-          }),
-          source,
-        );
-
-    test('accepts any single emoji, including ZWJ and skin tones', () {
-      for (final emoji in ['🥳', '🧑🏽‍💻', '🙌🏾', '😮‍💨']) {
-        final result = parse(emoji);
-        expect(result.mood.mood?.emoji, emoji);
-        expect(result.mood.evidence, 'celebrated');
-        expect(result.rejectedFields, isEmpty);
-      }
-      expect(parse(' 😊 ').mood.mood, DiaryMood.happy);
-    });
-
-    test('still reads contract 1 mood words', () {
-      expect(parse('excited').mood.mood, DiaryMood.excited);
-      expect(parse('mixed').mood.value, 'mixed');
-      expect(parse('mixed').mood.mood, isNull);
-      expect(parse('unclear', evidence: '').mood.mood, isNull);
-    });
-
-    test('an empty value means no mood and is not a rejection', () {
-      final result = parse('', evidence: '');
-      expect(result.mood.mood, isNull);
-      expect(result.mood.evidence, '');
-      expect(result.rejectedFields, isEmpty);
-      expect(result.dropped, 0);
-    });
-
-    test('garbage or ungrounded moods are dropped, other fields survive', () {
-      for (final garbage in ['🥳🥳', '🥳 yay', 'joyful', 'x' * 40]) {
-        final result = parse(garbage);
-        expect(result.mood.mood, isNull, reason: garbage);
-        expect(result.rejectedFields, {'mood'}, reason: garbage);
-        expect(result.dropped, 1);
-      }
-      expect(parse('🥳', evidence: 'won the lottery').mood.mood, isNull);
-      expect(() => parse(1), throwsFormatException);
     });
   });
 

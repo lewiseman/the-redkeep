@@ -281,7 +281,7 @@ class _RecallLibraryPageState extends ConsumerState<RecallLibraryPage>
         numeral: 'I',
         eyebrow: 'The shelves',
         title: 'What the index covers',
-        subtitle: 'Touch a constellation above to find its shelf.',
+        subtitle: 'Touch the constellation above to find its shelf.',
         child: AnimatedBuilder(
           animation: _pulse,
           builder: (context, _) {
@@ -627,11 +627,7 @@ class _Path extends StatelessWidget {
   const _Path();
 
   static const _steps = [
-    (
-      Icons.edit_outlined,
-      'You write',
-      'Notes and diary entries you choose above.',
-    ),
+    (Icons.edit_outlined, 'You write', 'Notes, while the shelf above is on.'),
     (
       Icons.hourglass_bottom_rounded,
       'A quiet moment',

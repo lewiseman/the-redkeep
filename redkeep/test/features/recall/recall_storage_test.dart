@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sync_wise/sync_wise.dart';
 import 'package:redkeep/core/storage/app_database.dart';
 import 'package:redkeep/features/ai/data/ai_preferences_repository.dart';
+import 'package:redkeep/features/ai/data/recall_schema.dart';
 import 'package:redkeep/features/diary/data/drift_diary_repository.dart';
 import 'package:redkeep/features/diary/domain/diary_period.dart';
 import 'package:redkeep/features/diary/domain/diary_document.dart';
@@ -18,7 +19,7 @@ import 'package:redkeep/features/recall/data/recall_sources.dart';
 
 void main() {
   test(
-    'diary recall uses entry bodies while titles belong to the day',
+    'diary entries are never queued or read for search by meaning',
     () async {
       final db = AppDatabase(NativeDatabase.memory());
       addTearDown(db.close);
@@ -35,12 +36,12 @@ void main() {
         text: const DiaryText(body: 'Coffee by the window 🌿'),
         expectedRevision: 0,
       );
+      expect(await db.select(db.recallQueue).get(), isEmpty);
+      await seedRecallQueue(db);
+      expect(await db.select(db.recallQueue).get(), isEmpty);
       final sources = RecallSources(db);
-      final source = (await sources.all('diary')).single;
-      expect(source.title, isEmpty);
-      expect(source.text, 'Coffee by the window 🌿');
-      expect(source.date, date.key);
-      expect((await sources.read('diary', id))!.text, source.text);
+      expect(() => sources.all('diary'), throwsArgumentError);
+      expect(() => sources.read('diary', id), throwsArgumentError);
     },
   );
   test('UTF-8 chunks cover all long writing without broken Unicode', () {
@@ -95,40 +96,37 @@ void main() {
     await AiPreferencesRepository(db).collection('note', true);
     expect((await db.select(db.recallQueue).getSingle()).sourceId, id);
   });
-  test(
-    'sync imports enqueue derived indexing in the same primary transaction',
-    () async {
-      final db = AppDatabase(NativeDatabase.memory());
-      addTearDown(db.close);
-      final collection = DriftSyncCollection(db, 'diary');
-      final id = 'b' * 32;
-      await collection.mergeRemote(
-        SyncDocument(
-          id: '2026-11-04',
-          payload: {
-            'schema': 3,
-            'id': '2026-11-04',
-            'heading': '',
-            'entries': [
-              {
-                'id': id,
-                'body': 'A remotely saved garden thought',
-                'photos': [],
-                'created_at': 1,
-                'updated_at': 2,
-                'deleted_at': null,
-                'kind': 'thought',
-              },
-            ],
-          },
-          status: SyncStatus.synced,
-        ),
-        now: DateTime.utc(2026, 11, 4),
-      );
-      final queued = await db.select(db.recallQueue).getSingle();
-      expect((queued.kind, queued.sourceId), ('diary', id));
-    },
-  );
+  test('synced diary entries are not queued for indexing', () async {
+    final db = AppDatabase(NativeDatabase.memory());
+    addTearDown(db.close);
+    final collection = DriftSyncCollection(db, 'diary');
+    final id = 'b' * 32;
+    await collection.mergeRemote(
+      SyncDocument(
+        id: '2026-11-04',
+        payload: {
+          'schema': 3,
+          'id': '2026-11-04',
+          'heading': '',
+          'entries': [
+            {
+              'id': id,
+              'body': 'A remotely saved garden thought',
+              'photos': [],
+              'created_at': 1,
+              'updated_at': 2,
+              'deleted_at': null,
+              'kind': 'thought',
+            },
+          ],
+        },
+        status: SyncStatus.synced,
+      ),
+      now: DateTime.utc(2026, 11, 4),
+    );
+    expect(await db.select(db.diaryEntries).get(), hasLength(1));
+    expect(await db.select(db.recallQueue).get(), isEmpty);
+  });
   test('real separate SQLite store applies cosine similarity and isolates profiles', () async {
     final root = await Directory.systemTemp.createTemp('redkeep-vector-test-');
     final extension =

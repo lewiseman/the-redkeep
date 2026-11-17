@@ -12,7 +12,6 @@ import 'package:redkeep/features/diary/application/diary_editor_controller.dart'
 import 'package:redkeep/features/diary/presentation/diary_scene.dart';
 import 'package:redkeep/features/diary/presentation/diary_calendar_page.dart';
 import 'package:redkeep/features/diary/presentation/diary_artwork.dart';
-import 'package:redkeep/features/diary/presentation/diary_day_details_widgets.dart';
 import 'package:redkeep/features/diary/presentation/diary_day_page.dart';
 import 'package:redkeep/features/diary/presentation/diary_edit_page.dart';
 import 'package:redkeep/features/diary/presentation/diary_paper_stamp.dart';
@@ -129,14 +128,6 @@ void main() {
         ),
       )
       .selected;
-
-  Future<void> removeTheme(WidgetTester tester, String theme) async {
-    final remove = find.byKey(ValueKey('diary-day-theme-remove-$theme'));
-    await tester.ensureVisible(remove);
-    await tester.pumpAndSettle();
-    await tester.tap(remove);
-    await tester.pumpAndSettle();
-  }
 
   Future<DiaryDay> storedDay(WidgetTester tester) async =>
       (await tester.runAsync(() => repo.watchDay(date).first))!;
@@ -291,22 +282,19 @@ void main() {
         'A day to remember',
       );
       await pickMood(tester, 'calm');
-      await tester.enterText(
+      expect(
         find.byKey(const ValueKey('diary-day-themes-field')),
-        'Work, Family',
+        findsNothing,
       );
       await tap(tester, 'Save day');
       expectDiaryDay(tester, router, date);
       expect(liveText('A day to remember'), findsOneWidget);
       expect((await storedDay(tester)).heading, 'A day to remember');
       expect((await storedDay(tester)).mood, DiaryMood.calm);
-      expect((await storedDay(tester)).themes, ['Work', 'Family']);
-      expect(liveText('😌 Calm · Work · Family'), findsOneWidget);
+      expect(liveText('😌 Calm'), findsOneWidget);
 
       await tap(tester, 'Name this day');
       expect(moodSelected(tester, 'calm'), isTrue);
-      expect(find.text('Work'), findsOneWidget);
-      expect(find.text('Family'), findsOneWidget);
       expect(
         tester
             .widget<TextField>(
@@ -321,12 +309,9 @@ void main() {
         '',
       );
       await tap(tester, 'Clear');
-      await removeTheme(tester, 'Work');
-      await removeTheme(tester, 'Family');
       await tap(tester, 'Save day');
       expect((await storedDay(tester)).heading, '');
       expect((await storedDay(tester)).mood, isNull);
-      expect((await storedDay(tester)).themes, isEmpty);
       expect(find.byType(DiaryTitlePrompt).hitTestable(), findsOneWidget);
       final unchanged = (await repo.openDocument(id)).entry!;
       expect(unchanged.revision, original.revision);
@@ -335,46 +320,28 @@ void main() {
   );
 
   diaryTest(
-    'mood-only changes are protected on back and invalid themes keep the draft',
+    'mood-only changes are protected on back; saved themes stay hidden and kept',
     (tester) async {
+      await repo.saveDay(DiaryDay(date: date, heading: '', themes: ['Work']));
       final router = await pumpApp(
         tester,
         initialLocation: diaryTitleLocation(date),
         diary: repo,
       );
+      expect(find.text('What was it about?'), findsNothing);
+      expect(find.text('Work'), findsNothing);
       await pickMood(tester, 'happy');
       await tester.pageBack();
       await tester.pumpAndSettle();
       expect(find.text('Discard these changes?'), findsOneWidget);
       await tap(tester, 'Keep editing');
       expect(moodSelected(tester, 'happy'), isTrue);
-      final themes = find.byKey(const ValueKey('diary-day-themes-field'));
-      await tester.enterText(themes, 'One, Two, Three, Four');
-      await tester.pump();
-      await tap(tester, 'Save day');
-      expect(find.text('Choose up to three themes.'), findsOneWidget);
-      expect((await storedDay(tester)).revision, 0);
-      expect(
-        tester.widget<TextField>(themes).controller!.text,
-        'Four',
-        reason: 'A rejected theme stays for the user to fix.',
-      );
-      await removeTheme(tester, 'One');
-      await removeTheme(tester, 'Two');
-      await removeTheme(tester, 'Three');
-      await tester.enterText(themes, 'x' * 41);
-      await tap(tester, 'Save day');
-      expect(
-        find.text('Each theme must be at most 40 characters.'),
-        findsOneWidget,
-      );
-      await tester.enterText(themes, ' Work, work, Family ');
       await tap(tester, 'Save day');
       expectDiaryDay(tester, router, date);
-      expect((await storedDay(tester)).heading, '');
       expect((await storedDay(tester)).mood, DiaryMood.happy);
-      expect((await storedDay(tester)).themes, ['Work', 'Family']);
-      expect(liveText('😊 Happy · Work · Family'), findsOneWidget);
+      expect((await storedDay(tester)).themes, ['Work']);
+      expect(liveText('😊 Happy'), findsOneWidget);
+      expect(find.textContaining('Work'), findsNothing);
     },
   );
 
@@ -820,64 +787,18 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  diaryTest('themes turn into tags as they are finished, up to three', (
+  diaryTest('day details offer no AI suggestions, even with AI on', (
     tester,
   ) async {
-    await pumpApp(
-      tester,
-      initialLocation: diaryTitleLocation(date),
-      diary: repo,
-    );
-    final field = find.byKey(const ValueKey('diary-day-themes-field'));
-    String draft() => tester.widget<TextField>(field).controller!.text;
-    await tester.enterText(field, 'Work,');
-    await tester.pump();
-    expect(find.byType(DiaryThemeTag), findsOneWidget);
-    expect(draft(), isEmpty);
-    await tester.enterText(field, 'work,');
-    await tester.pump();
-    expect(find.byType(DiaryThemeTag), findsOneWidget, reason: 'duplicate');
-    await tester.enterText(field, 'Family');
-    await tester.testTextInput.receiveAction(TextInputAction.done);
-    await tester.pump();
-    expect(find.byType(DiaryThemeTag), findsNWidgets(2));
-    expect(draft(), isEmpty);
-    await tester.enterText(field, 'Rain,');
-    await tester.pump();
-    expect(find.byType(DiaryThemeTag), findsNWidgets(3));
-    expect(field, findsNothing, reason: 'Three is the limit.');
-    await removeTheme(tester, 'Family');
-    expect(find.byType(DiaryThemeTag), findsNWidgets(2));
-    expect(field, findsOneWidget);
-    // A theme still being typed is kept by Save rather than lost.
-    await tester.enterText(field, 'Garden');
-    await tap(tester, 'Save day');
-    expect((await storedDay(tester)).themes, ['Work', 'Rain', 'Garden']);
-    expect(tester.takeException(), isNull);
-  });
-
-  diaryTest('the Grand Maestar only appears when AI is available', (
-    tester,
-  ) async {
-    await pumpApp(
-      tester,
-      initialLocation: diaryTitleLocation(date),
-      diary: repo,
-    );
-    expect(find.byKey(const ValueKey('diary-day-ai')), findsNothing);
-    expect(find.byKey(const ValueKey('diary-day-maestar')), findsNothing);
-    await tester.pumpWidget(const SizedBox());
     await pumpApp(
       tester,
       initialLocation: diaryTitleLocation(date),
       diary: repo,
       aiEnabled: true,
     );
-    final portrait = tester.widget<Image>(
-      find.byKey(const ValueKey('diary-day-maestar')),
-    );
-    final source = (portrait.image as ResizeImage).imageProvider as AssetImage;
-    expect(source.assetName, 'assets/branding/grand_maestar.png');
+    expect(find.byKey(const ValueKey('diary-day-title-field')), findsOneWidget);
+    expect(find.byKey(const ValueKey('diary-day-ai')), findsNothing);
+    expect(find.byKey(const ValueKey('diary-day-maestar')), findsNothing);
     expect(tester.takeException(), isNull);
   });
 

@@ -1,9 +1,7 @@
-/// Shared diary retrieval: civil dates, date scopes, which items count as
-/// sendable text, and word normalization. Used by S01 historical answers and
-/// J02 daily questions so both select diary content the same way.
+/// Keyword retrieval: civil dates, date scopes, which text counts as
+/// sendable, word normalization and excerpts. Used by note questions.
 library;
 
-import 'diary_history_day.dart';
 import 'diary_period.dart';
 
 final _unsendable = RegExp(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]');
@@ -12,14 +10,6 @@ final _unsendable = RegExp(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]');
 /// line breaks.
 bool sendableText(String text) =>
     text.trim().isNotEmpty && !_unsendable.hasMatch(text);
-
-/// A day's visible text entries, newest first. Photo-only items and text the
-/// companion would reject are left out.
-List<DiaryEntry> diaryTextItems(DiaryHistoryDay? day) =>
-    (day?.visibleItems ?? const <DiaryEntry>[])
-        .where((i) => sendableText(i.content))
-        .toList()
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
 DateTime civil(String key) {
   final p = key.split('-').map(int.parse).toList();
@@ -368,3 +358,50 @@ Set<String> diaryTerms(String value) => {
         when w.runes.length >= 2 && !_stopWords.contains(w))
       _stem(w),
 };
+
+/// The longest excerpt, in Unicode scalars, [excerptFor] returns.
+const excerptChars = 280;
+
+/// The bounded excerpt of [content] around the sentence with most [terms].
+(String, bool) excerptFor(String content, Set<String> terms) {
+  final text = content.trim().replaceAll(RegExp(r'\s+'), ' ');
+  if (text.runes.length <= excerptChars) return (text, false);
+  final sentences = text
+      .split(RegExp(r'(?<=[.!?。！？])\s+'))
+      .where((s) => s.isNotEmpty)
+      .toList();
+  var best = 0, bestScore = -1;
+  for (final (i, s) in sentences.indexed) {
+    final score = diaryTerms(s).intersection(terms).length;
+    if (score > bestScore) (best, bestScore) = (i, score);
+  }
+  var start = best, end = best;
+  String join() => sentences.sublist(start, end + 1).join(' ');
+  while (true) {
+    final grew =
+        end + 1 < sentences.length &&
+        [...join().runes].length + sentences[end + 1].runes.length + 1 <=
+            excerptChars;
+    if (grew) {
+      end++;
+      continue;
+    }
+    if (start > 0 &&
+        join().runes.length + sentences[start - 1].runes.length + 1 <=
+            excerptChars) {
+      start--;
+      continue;
+    }
+    break;
+  }
+  var out = join();
+  if (out.runes.length > excerptChars - 2) {
+    final cut = String.fromCharCodes(out.runes.take(excerptChars - 2));
+    final space = cut.lastIndexOf(' ');
+    out = space > 40 ? cut.substring(0, space) : cut;
+  }
+  return (
+    '${start > 0 ? '… ' : ''}$out${end < sentences.length - 1 || out != join() ? ' …' : ''}',
+    true,
+  );
+}

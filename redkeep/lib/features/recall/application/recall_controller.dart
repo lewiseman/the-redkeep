@@ -116,7 +116,7 @@ class RecallController extends Notifier<RecallState> {
     final db = ref.read(appDatabaseProvider);
     _dataGeneration = db.writingGeneration;
     final subscription = db
-        .tableUpdates(TableUpdateQuery.onAllTables([db.notes, db.diaryEntries]))
+        .tableUpdates(TableUpdateQuery.onAllTables([db.notes]))
         .listen(
           (_) => schedule(delay: _flushing ? _timing.flush : _timing.quiet),
         );

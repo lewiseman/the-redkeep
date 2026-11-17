@@ -64,7 +64,7 @@ void main() {
             .onPressed !=
         null;
     expect(enabled('Add photos'), isTrue);
-    expect(enabled('Dictate'), isTrue);
+    expect(find.byTooltip('Dictate'), findsNothing);
     expect(find.byKey(const ValueKey('diary-title')), findsNothing);
     await tester.enterText(find.byKey(const ValueKey('diary-body')), 'Words');
     await tester.pump();
@@ -72,9 +72,6 @@ void main() {
     await tester.enterText(find.byKey(const ValueKey('diary-body')), ' \t\n');
     await tester.pump();
     expect(enabled('Add photos'), isTrue);
-    await tester.enterText(find.byKey(const ValueKey('diary-body')), 'Words');
-    await tester.pump();
-    expect(enabled('Dictate'), isTrue, reason: 'Dictation adds to writing.');
     await tester.pumpWidget(const SizedBox());
     await tester.pumpAndSettle();
     await db.close();

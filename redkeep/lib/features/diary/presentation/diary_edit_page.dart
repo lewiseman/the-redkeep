@@ -1,17 +1,12 @@
 import 'package:flutter/material.dart';
 
-import '../../recall/application/recall_controller.dart';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/navigation_destination.dart';
 import '../../../core/presentation/diary_typography.dart';
-import '../../ai/application/ai_cloud.dart';
-import '../../ai/domain/ai_provider.dart';
 import '../../assets/presentation/local_artwork.dart';
 import '../../sync/application/sync_providers.dart';
-import '../../voice/presentation/voice_capture_page.dart';
 import '../application/diary_editor_controller.dart';
 import '../application/diary_providers.dart';
 import '../domain/diary_document.dart';
@@ -43,18 +38,8 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
   bool _leaving = false;
   bool _openingMedia = false;
 
-  /// Captured up front: indexing is nudged after the page is gone.
-  late final RecallController _recall;
-
-  @override
-  void initState() {
-    super.initState();
-    _recall = ref.read(recallControllerProvider.notifier);
-  }
-
   @override
   void dispose() {
-    _recall.flushSoon();
     _body.dispose();
     _scroll.dispose();
     super.dispose();
@@ -102,21 +87,6 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
                 icon: const Icon(Icons.add_photo_alternate_outlined),
                 onPressed: _canAddMedia(value) ? () => _media('photos') : null,
               ),
-              if (ref
-                  .watch(aiCapabilitiesProvider)
-                  .contains(AiCapability.transcription))
-                IconButton(
-                  key: const ValueKey('diary-dictate'),
-                  tooltip: 'Dictate',
-                  icon: const Icon(Icons.mic_none_rounded),
-                  onPressed:
-                      value == null ||
-                          value.saving ||
-                          value.sourceUnavailable ||
-                          _openingMedia
-                      ? null
-                      : () => _dictate(controller),
-                ),
             ],
             if (!saved && _isToday) _thoughtButton(value, controller),
             _saveButton(value, controller, canEdit),
@@ -402,28 +372,6 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
       if (!mounted || saved != true) return;
       await ref.read(diaryEditorProvider(widget.address).notifier).discard();
       if (mounted) await _leave();
-    } finally {
-      if (mounted) setState(() => _openingMedia = false);
-    }
-  }
-
-  /// Speech becomes plain text at the end of the entry, for review.
-  Future<void> _dictate(DiaryEditorController controller) async {
-    if (_openingMedia) return;
-    setState(() => _openingMedia = true);
-    try {
-      FocusScope.of(context).unfocus();
-      final text = await Navigator.of(context).push<String>(
-        MaterialPageRoute(
-          builder: (_) =>
-              const VoiceCapturePage(title: 'Dictate', target: 'diary'),
-        ),
-      );
-      if (!mounted || text == null || text.trim().isEmpty) return;
-      final body = _body.text.trimRight();
-      _body.text = [if (body.isNotEmpty) body, text.trim()].join('\n\n');
-      _body.selection = TextSelection.collapsed(offset: _body.text.length);
-      _edit(controller);
     } finally {
       if (mounted) setState(() => _openingMedia = false);
     }

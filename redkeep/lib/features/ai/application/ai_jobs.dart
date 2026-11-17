@@ -6,14 +6,6 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/storage_providers.dart';
-import '../../diary/application/diary_ai_sources.dart';
-import '../../diary/application/diary_providers.dart';
-import '../../diary/data/diary_photo_question_store.dart';
-import '../../diary/data/diary_photo_store.dart';
-import '../../diary/data/prepare_diary_image.dart';
-import '../../diary/domain/diary_ai_contract.dart';
-import '../../diary/domain/diary_history_contract.dart';
-import '../../diary/domain/diary_photo_question_contract.dart';
 import '../../notes/application/note_ai_sources.dart';
 import '../../notes/data/note_media_store.dart';
 import '../../notes/domain/note_background_contract.dart';
@@ -136,9 +128,6 @@ class AiJobs extends Notifier<AiJobState> {
       AiOperation.noteImage || AiOperation.noteScan => [
         AiImageInput(await _noteUpload(job), mime: 'image/png'),
       ],
-      AiOperation.photoQuestions => [
-        AiImageInput(await _photoUpload(job), mime: 'image/png'),
-      ],
       _ => const <AiImageInput>[],
     };
     final text = await cloud.chat(
@@ -167,20 +156,6 @@ class AiJobs extends Notifier<AiJobState> {
             'Explain what this image appears to show (put it in "answer").',
           _ => 'Describe this image. Leave "answer" empty.',
         };
-      case AiOperation.photoQuestions:
-        final value = jsonDecode(prompt) as Map;
-        final caption = (value['caption'] as String? ?? '').trim();
-        final avoid = (value['avoid'] as List? ?? const []).cast<String>();
-        return [
-          caption.isEmpty
-              ? 'The person gave no caption.'
-              : "The person's own caption (context from them, not from the photo; use it only for the questions, never in observations): ${jsonEncode(caption)}",
-          if (avoid.isNotEmpty) ...[
-            'The person has already seen these questions. Write different ones that ask about something else:',
-            for (final question in avoid) '- ${jsonEncode(question)}',
-          ],
-          'Write reflection questions for this photo.',
-        ].join('\n');
       default:
         return prompt;
     }
@@ -254,134 +229,20 @@ class AiJobs extends Notifier<AiJobState> {
     return bytes;
   }
 
-  Future<Uint8List> _photoUpload(AiJob job) async {
-    final source = jsonDecode(job.source) as Map;
-    final bytes = await ref
-        .read(diaryPhotoQuestionStoreProvider)
-        .readUpload(source['upload'] as String);
-    if (bytes == null ||
-        await DiaryPhotoStore.digest(bytes) != source['imageSha']) {
-      throw const FormatException(
-        'The photo prepared for this request is missing. Generate questions again.',
-      );
-    }
-    return bytes;
-  }
-
-  Future<bool> _current(AiOperation operation, String source) async {
-    final reader = ref.read(diaryAiSourcesProvider);
-    return switch (operation) {
-      AiOperation.diaryDetails => await reader.current(
-        DiarySuggestionSource.decode(source),
-      ),
-      AiOperation.photoQuestions => true,
-      AiOperation.history => await _historyCurrent(
-        DiaryHistorySelection.decode(source),
-      ),
-      _ => await noteAiSourceCurrent(ref, operation, source),
-    };
-  }
+  Future<bool> _current(AiOperation operation, String source) =>
+      noteAiSourceCurrent(ref, operation, source);
 
   void _validate(AiJob job, String text) {
     if (utf8.encode(text).length > job.operation.outputBytes) {
       throw const FormatException('AI returned an oversized result.');
     }
-    switch (job.operation) {
-      case AiOperation.diaryDetails:
-        DiarySuggestions.parse(text, DiarySuggestionSource.decode(job.source));
-      case AiOperation.photoQuestions:
-        DiaryPhotoQuestions.parse(text);
-      case AiOperation.history:
-        DiaryHistoryAnswer.parse(
-          text,
-          DiaryHistorySelection.decode(job.source),
-        );
-      default:
-        validateNoteAiOutput(job.operation, text, job.source);
-    }
-  }
-
-  Future<void> startDiaryPhotoQuestions({
-    required String date,
-    required String photoSha,
-    required Uint8List photo,
-    String caption = '',
-    int group = -1,
-    List<String> avoid = const [],
-  }) async {
-    if (state.busy) return;
-    final generation = ref.read(appDatabaseProvider).writingGeneration;
-    try {
-      final settings = await ref.read(aiCloudSettingsProvider.future);
-      if (settings == null || !settings.supports(AiCapability.vision)) {
-        throw AiProviderFailure(
-          settings == null
-              ? AiProviderFailureKind.notConfigured
-              : AiProviderFailureKind.unsupported,
-        );
-      }
-      final bytes = await prepareImageBytes(photo);
-      if (!ref.mounted ||
-          generation != ref.read(appDatabaseProvider).writingGeneration ||
-          ref.read(appDatabaseProvider).writingBlocked) {
-        return;
-      }
-      final upload = ref.read(aiIdProvider)();
-      await ref
-          .read(diaryPhotoQuestionStoreProvider)
-          .writeUpload(upload, bytes);
-      final source = DiaryPhotoQuestionSource(
-        date: date,
-        photoSha: photoSha,
-        imageSha: await DiaryPhotoStore.digest(bytes),
-        caption: caption.trim(),
-        group: group,
-        avoid: avoid,
-      );
-      DiaryPhotoQuestionSource.decode(source.encode());
-      final model = settings.model(AiCapability.chat) ?? '';
-      await start(
-        AiOperation.photoQuestions,
-        photoSha,
-        source.request(),
-        jsonEncode({
-          ...jsonDecode(source.encode()) as Map<String, dynamic>,
-          'upload': upload,
-          'model': model,
-          'cache': diaryPhotoCacheKey(photoSha, caption, model),
-        }),
-      );
-    } catch (e) {
-      if (ref.mounted &&
-          generation == ref.read(appDatabaseProvider).writingGeneration) {
-        state = AiJobState(job: state.job, message: aiErrorMessage(e));
-      }
-    }
-  }
-
-  Future<bool> _historyCurrent(DiaryHistorySelection source) async {
-    for (final s in source.sources) {
-      final entry =
-          (await ref.read(diaryRepositoryProvider).openDocument(s.uuid)).entry;
-      if (entry == null ||
-          entry.deletedAt != null ||
-          entry.date.key != s.date) {
-        return false;
-      }
-      // Selection versions include exact text and update time.
-      if (itemVersion(entry) != s.version) return false;
-    }
-    return true;
+    validateNoteAiOutput(job.operation, text, job.source);
   }
 
   /// Sends the same request again. Only failed or cancelled requests retry.
   Future<void> retry() async {
     final job = state.job;
     if (job == null || state.busy || job.phase == 'completed') return;
-    if (job.operation == AiOperation.photoQuestions) {
-      // The prepared upload is still on disk under the same source.
-      state = const AiJobState();
-    }
     await start(job.operation, job.key, job.prompt, job.source);
   }
 
@@ -394,20 +255,10 @@ class AiJobs extends Notifier<AiJobState> {
   }
 
   Future<void> clear() async {
-    final job = state.job;
     _epoch++;
     _abortRequest();
     if (!ref.mounted) return;
     state = const AiJobState();
-    if (job?.operation == AiOperation.photoQuestions) {
-      try {
-        await ref
-            .read(diaryPhotoQuestionStoreProvider)
-            .deleteUpload(jsonDecode(job!.source)['upload'] as String);
-      } catch (_) {
-        /* Expiry cleanup retries. */
-      }
-    }
   }
 
   Future<void> clearIfCurrent(String id) async {

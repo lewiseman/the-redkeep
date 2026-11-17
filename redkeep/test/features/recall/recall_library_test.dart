@@ -54,7 +54,7 @@ void main() {
       coverage = container.read(recallCoverageProvider).value!;
       expect(coverage['note']!.indexed, 1);
       expect(coverage['note']!.fraction, .5);
-      expect(coverage['diary']!.saved, 0);
+      expect(coverage.keys, ['note']);
     },
   );
 
@@ -126,13 +126,14 @@ void main() {
     'the Library turns a kind of writing off and asks before rebuilding',
     (tester) async {
       await pumpApp(tester, initialLocation: '/settings/brain/library');
-      final diary = find.byKey(const ValueKey('recall-diary'));
-      await tester.ensureVisible(diary);
+      expect(find.byKey(const ValueKey('recall-diary')), findsNothing);
+      final notes = find.byKey(const ValueKey('recall-note'));
+      await tester.ensureVisible(notes);
       await tester.pumpAndSettle();
-      expect(tester.widget<Switch>(diary).value, isTrue);
-      await tester.tap(diary);
+      expect(tester.widget<Switch>(notes).value, isTrue);
+      await tester.tap(notes);
       await tester.pumpAndSettle();
-      expect(tester.widget<Switch>(diary).value, isFalse);
+      expect(tester.widget<Switch>(notes).value, isFalse);
       expect(find.text('Not in the index'), findsOneWidget);
 
       final rebuild = find.text('Rebuild search index');

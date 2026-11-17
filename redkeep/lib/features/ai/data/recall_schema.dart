@@ -3,10 +3,7 @@ import '../../../core/storage/app_database.dart';
 /// Runs inside every authoritative write, including sync imports. Drafts never
 /// enter the outbox. Generation distinguishes writes even when revisions agree.
 Future<void> installRecallTriggers(AppDatabase db) async {
-  for (final spec in [
-    ('notes', 'note', 'recall_notes'),
-    ('diary_entries', 'diary', 'recall_diary'),
-  ]) {
+  for (final spec in [('notes', 'note', 'recall_notes')]) {
     for (final event in ['INSERT', 'UPDATE', 'DELETE']) {
       final row = event == 'DELETE' ? 'OLD' : 'NEW';
       await db.customStatement(
@@ -24,7 +21,7 @@ Future<void> installRecallTriggers(AppDatabase db) async {
 }
 
 Future<void> seedRecallQueue(AppDatabase db, {String? kind}) async {
-  for (final spec in [('notes', 'note'), ('diary_entries', 'diary')]) {
+  for (final spec in [('notes', 'note')]) {
     if (kind != null && kind != spec.$2) continue;
     await db.customStatement(
       '''INSERT INTO recall_queue(kind, source_id, generation)

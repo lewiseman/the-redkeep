@@ -3,15 +3,11 @@ import 'dart:convert';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:redkeep/core/storage/app_database.dart';
-import 'package:redkeep/features/diary/application/diary_ai_sources.dart';
 import 'package:redkeep/features/diary/data/drift_diary_repository.dart';
 import 'package:redkeep/features/diary/domain/diary_period.dart';
 import 'package:redkeep/features/diary/domain/diary_day_details.dart';
-import 'package:redkeep/features/diary/domain/diary_history_contract.dart';
-import 'package:redkeep/features/diary/domain/diary_history_day.dart';
+import 'package:redkeep/features/diary/domain/diary_document.dart';
 import 'package:redkeep/features/diary/domain/diary_photo.dart';
-import 'package:redkeep/features/diary/domain/diary_photo_question_contract.dart';
-import 'package:redkeep/features/recall/data/recall_sources.dart';
 import 'package:redkeep/features/sync/data/drift_sync_collection.dart';
 import 'package:redkeep/features/sync/data/drift_sync_store.dart';
 
@@ -115,72 +111,7 @@ void main() {
           .toSet(),
       periods.toSet(),
     );
-    final sources = await RecallSources(db).all('diary');
-    expect(
-      sources.map((s) => s.date).toSet(),
-      periods.map((p) => p.key).toSet(),
-    );
   });
-
-  test('AI questions and details use only the selected page, not its daily entries', () async {
-    await repo.save(
-      id: 'd' * 32,
-      date: DiaryPeriod.fromComponents(today),
-      text: const DiaryText(body: 'Daily words must stay separate'),
-      expectedRevision: 0,
-    );
-    final ai = DiaryAiSources(repo);
-    for (final (i, period) in periods.indexed) {
-      await repo.save(
-        id: '${i + 1}'.padLeft(32, '0'),
-        date: period,
-        text: DiaryText(body: 'My ${period.kind.name} garden'),
-        expectedRevision: 0,
-      );
-      final source = await ai.day(period);
-      expect(source.texts, ['My ${period.kind.name} garden']);
-      expect(jsonDecode(source.request())['period'], period.kind.name);
-      expect(await ai.current(source), isTrue);
-      final photoSource = DiaryPhotoQuestionSource(
-        date: period.key,
-        photoSha: 'a' * 64,
-        imageSha: 'b' * 64,
-      );
-      expect(
-        DiaryPhotoQuestionSource.decode(photoSource.encode()).date,
-        period.key,
-      );
-    }
-  });
-
-  test(
-    'historical date scopes overlap periods and disclose their full range',
-    () async {
-      final period = DiaryPeriod.year(2026);
-      final entry = await repo.save(
-        id: 'a' * 32,
-        date: period,
-        text: const DiaryText(body: 'I planted the garden.'),
-        expectedRevision: 0,
-      );
-      final selection = DiaryHistorySelection.select(
-        question: 'garden in October',
-        today: today,
-        days: [
-          DiaryHistoryDay(period.key, [entry]),
-        ],
-      );
-      expect(selection.sources.single.date, period.key);
-      final sent = (jsonDecode(selection.request())['sources'] as List).single;
-      expect(sent['period'], 'year');
-      expect(sent['from'], '2026-01-01');
-      expect(sent['to'], '2026-12-31');
-      expect(
-        DiaryHistorySelection.decode(selection.encode()).sources.single.period,
-        period,
-      );
-    },
-  );
 
   test('secondary devices may append current periods but cannot edit or create past periods', () async {
     final values = DriftSyncKeyValueStore(db);

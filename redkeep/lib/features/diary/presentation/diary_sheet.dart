@@ -192,10 +192,7 @@ class _DiaryDayContentState extends ConsumerState<DiaryDayContent> {
         interactive && widget.enableEntryEditing && canEdit && !busy;
     final colors = diaryPaperColors(context);
     final typography = DiaryTypography.of(context);
-    final details = [
-      if (day.mood case final mood?) mood.display,
-      ...day.themes,
-    ].join(' · ');
+    final details = day.mood?.display ?? '';
     final canCreate =
         day.date.hasStarted(today) && (canEdit || day.date.isCurrent(today));
     Future<void> write() async {

@@ -15,24 +15,24 @@ import 'package:redkeep/features/onboarding/data/drift_onboarding_repository.dar
 import 'generated/schema.dart';
 
 void main() {
-  test('fresh schema matches the complete version 9 snapshot', () async {
+  test('fresh schema matches the complete version 10 snapshot', () async {
     final database = AppDatabase(NativeDatabase.memory());
     addTearDown(database.close);
 
-    expect(database.schemaVersion, 9);
-    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 9);
+    expect(database.schemaVersion, 10);
+    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 10);
     final version = await database
         .customSelect('PRAGMA user_version')
         .getSingle();
-    expect(version.read<int>('user_version'), 9);
+    expect(version.read<int>('user_version'), 10);
   });
 
-  for (final from in [1, 2, 3, 4, 5, 6, 7, 8]) {
+  for (final from in [1, 2, 3, 4, 5, 6, 7, 8, 9]) {
     test('the upgrade from version $from matches the snapshot', () async {
       final verifier = SchemaVerifier(GeneratedHelper());
       final database = AppDatabase(await verifier.startAt(from));
       addTearDown(database.close);
-      await verifier.migrateAndValidate(database, 9);
+      await verifier.migrateAndValidate(database, 10);
     });
   }
 
@@ -48,7 +48,7 @@ void main() {
     final verifier = SchemaVerifier(GeneratedHelper());
     final upgraded = AppDatabase(await verifier.startAt(7));
     addTearDown(upgraded.close);
-    await verifier.migrateAndValidate(upgraded, 9);
+    await verifier.migrateAndValidate(upgraded, 10);
     final fresh = AppDatabase(NativeDatabase.memory());
     addTearDown(fresh.close);
     await fresh.customSelect('SELECT 1').get();
@@ -67,7 +67,7 @@ void main() {
       final verifier = SchemaVerifier(GeneratedHelper());
       final database = AppDatabase(await verifier.startAt(4));
       addTearDown(database.close);
-      await verifier.migrateAndValidate(database, 9);
+      await verifier.migrateAndValidate(database, 10);
       final triggers =
           (await database
                   .customSelect(
@@ -86,7 +86,7 @@ void main() {
     final verifier = SchemaVerifier(GeneratedHelper());
     final database = AppDatabase(await verifier.startAt(3));
     addTearDown(database.close);
-    await verifier.migrateAndValidate(database, 9);
+    await verifier.migrateAndValidate(database, 10);
     final tables =
         (await database
                 .customSelect(
@@ -135,7 +135,7 @@ void main() {
     final version = await database
         .customSelect('PRAGMA user_version')
         .getSingle();
-    expect(version.read<int>('user_version'), 9);
+    expect(version.read<int>('user_version'), 10);
   });
 
   test('version 9 removes Flow and keeps diary entries as ordinary entries', () async {
@@ -153,7 +153,7 @@ void main() {
       schema.rawDatabase.execute(statement);
     }
     final old = AppDatabase(schema.newConnection());
-    await verifier.migrateAndValidate(old, 9);
+    await verifier.migrateAndValidate(old, 10);
 
     final tables = await old
         .customSelect("SELECT name FROM sqlite_master WHERE name LIKE 'flow_%'")
@@ -174,6 +174,56 @@ void main() {
     await old.close();
   });
 
+  test('version 10 removes the diary from AI search and photo questions', () async {
+    final verifier = SchemaVerifier(GeneratedHelper());
+    final schema = await verifier.schemaAt(9);
+    // Raw SQL before opening: the snapshot has no triggers and keeps version 9
+    // tables and columns the current database no longer has.
+    for (final statement in [
+      'INSERT INTO ai_preferences_table (id, recall_diary) VALUES (1, 1)',
+      "INSERT INTO photo_question_cache VALUES ('k', '{}', 1)",
+      "INSERT INTO recall_queue (kind, source_id) VALUES ('diary', '${'a' * 32}')",
+      "INSERT INTO recall_queue (kind, source_id) VALUES ('note', '${'b' * 32}')",
+      "INSERT INTO recall_manifests (profile, kind, source_id, hash, revision, chunks) VALUES ('p', 'diary', '${'a' * 32}', 'h', 1, '[]')",
+      "INSERT INTO recall_manifests (profile, kind, source_id, hash, revision, chunks) VALUES ('p', 'note', '${'b' * 32}', 'h', 1, '[]')",
+      '''CREATE TRIGGER recall_diary_entries_insert AFTER INSERT ON diary_entries
+        BEGIN
+          INSERT INTO recall_queue(kind, source_id, generation)
+          VALUES ('diary', NEW.id, 1)
+          ON CONFLICT(kind, source_id) DO UPDATE SET generation = generation + 1;
+        END''',
+    ]) {
+      schema.rawDatabase.execute(statement);
+    }
+    final old = AppDatabase(schema.newConnection());
+    addTearDown(old.close);
+    await verifier.migrateAndValidate(old, 10);
+
+    final dropped = await old
+        .customSelect(
+          "SELECT name FROM sqlite_master WHERE name = 'photo_question_cache' "
+          "OR name LIKE 'recall_diary_entries_%'",
+        )
+        .get();
+    expect(dropped, isEmpty);
+    expect((await old.select(old.recallQueue).get()).map((r) => r.kind), [
+      'note',
+    ]);
+    expect((await old.select(old.recallManifests).get()).map((r) => r.kind), [
+      'note',
+    ]);
+    expect(await AiPreferencesRepository(old).cleanupRequired(), isTrue);
+    expect((await AiPreferencesRepository(old).read()).collections, {'note'});
+
+    await old.customStatement(
+      "INSERT INTO diary_entries (id, period_key, body, revision, created_at, updated_at) VALUES ('${'c' * 32}', '2026-11-03', 'Private', 1, 1, 1)",
+    );
+    expect(
+      (await old.select(old.recallQueue).get()).where((r) => r.kind == 'diary'),
+      isEmpty,
+    );
+  });
+
   test('upgrading a real version 1 file keeps preferences, writing and recall triggers', () async {
     final directory = await Directory.systemTemp.createTemp('redkeep-v1-');
     addTearDown(() => directory.delete(recursive: true));
@@ -185,7 +235,7 @@ void main() {
         .insert(
           const AiPreferencesTableCompanion(
             id: Value(1),
-            recallDiary: Value(false),
+            recallPaused: Value(true),
           ),
         );
     await old.customStatement(
@@ -204,15 +254,11 @@ void main() {
     addTearDown(database.close);
     final prefs = AiPreferencesRepository(database);
     final stored = await prefs.read();
-    expect(
-      stored.collections,
-      isNot(contains('diary')),
-      reason: 'unrelated choices survive',
-    );
+    expect(stored.paused, isTrue, reason: 'unrelated choices survive');
     final version = await database
         .customSelect('PRAGMA user_version')
         .getSingle();
-    expect(version.read<int>('user_version'), 9);
+    expect(version.read<int>('user_version'), 10);
     final columns = await database
         .customSelect('PRAGMA table_info(ai_preferences_table)')
         .get();
@@ -347,7 +393,7 @@ void main() {
       final version = await reopened
           .customSelect('PRAGMA user_version')
           .getSingle();
-      expect(version.read<int>('user_version'), 9);
+      expect(version.read<int>('user_version'), 10);
     },
   );
 

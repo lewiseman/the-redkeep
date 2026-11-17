@@ -42,12 +42,3 @@ class DiaryMediaOps extends Table {
   @override
   Set<Column> get primaryKey => {path};
 }
-
-@DataClassName('PhotoQuestionCacheRow')
-class PhotoQuestionCache extends Table {
-  TextColumn get key => text()();
-  TextColumn get value => text()();
-  IntColumn get created => integer()();
-  @override
-  Set<Column> get primaryKey => {key};
-}

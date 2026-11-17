@@ -14,6 +14,9 @@ class DiaryEntries extends Table {
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
   IntColumn get deletedAt => integer().nullable()();
+
+  /// A [DiaryEntryKind] name. Added in schema 9.
+  TextColumn get kind => text().withDefault(const Constant('entry'))();
   @override
   Set<Column> get primaryKey => {id};
 }

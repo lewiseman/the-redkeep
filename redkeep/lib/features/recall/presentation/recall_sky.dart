@@ -8,20 +8,17 @@ import '../application/recall_coverage.dart';
 /// The color each kind of writing burns with in the Library sky.
 Color recallStarColor(String kind) => switch (kind) {
   'note' => const Color(0xFFF4D58D),
-  'diary' => const Color(0xFFF2A7B6),
-  _ => const Color(0xFF9FD3F5),
+  _ => const Color(0xFFF2A7B6),
 };
 
 String recallKindLabel(String kind) => switch (kind) {
   'note' => 'Notes',
-  'diary' => 'Diary entries',
-  _ => 'Flow thoughts',
+  _ => 'Diary entries',
 };
 
 IconData recallKindIcon(String kind) => switch (kind) {
   'note' => Icons.sticky_note_2_outlined,
-  'diary' => Icons.menu_book_rounded,
-  _ => Icons.water_rounded,
+  _ => Icons.menu_book_rounded,
 };
 
 /// Each saved piece of writing is a star in its kind's constellation. Indexed
@@ -98,9 +95,8 @@ class _RecallSkyState extends State<RecallSky> with TickerProviderStateMixin {
   }
 
   static List<Offset> centers(Size size) => [
-    Offset(size.width * .2, size.height * .5),
-    Offset(size.width * .52, size.height * .3),
-    Offset(size.width * .8, size.height * .56),
+    Offset(size.width * .3, size.height * .42),
+    Offset(size.width * .7, size.height * .54),
   ];
 
   void _hold(Offset p) {
@@ -470,8 +466,7 @@ class _SkyPainter extends CustomPainter {
   ) {
     final name = switch (kind) {
       'note' => 'NOTES',
-      'diary' => 'DIARY',
-      _ => 'FLOW',
+      _ => 'DIARY',
     };
     final detail = !on
         ? 'off'

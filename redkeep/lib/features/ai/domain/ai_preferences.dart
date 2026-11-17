@@ -1,6 +1,6 @@
 class AiPreferences {
   const AiPreferences({
-    this.collections = const {'note', 'diary', 'thought'},
+    this.collections = const {'note', 'diary'},
     this.paused = false,
   });
 

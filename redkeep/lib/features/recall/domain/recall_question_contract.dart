@@ -1,19 +1,17 @@
 import 'dart:convert';
 
 import '../../notes/domain/note_document.dart';
-import '../../flow/domain/thought.dart';
 import '../../diary/domain/diary_history_contract.dart' show excerptFor;
 import '../../diary/domain/diary_retrieval.dart';
 
-enum RecallKind { note, thought, diary }
+enum RecallKind { note, diary }
 
-/// S02: grounded answers to a question about saved notes or Flow thoughts,
-/// from excerpts the phone selects. Each collection is asked separately, so
-/// one never leaks into the other. The companion sees only the question,
+/// S02: grounded answers to a question about saved notes, from excerpts the
+/// phone selects. Each collection is asked separately, so one never leaks into
+/// the other. The companion sees only the question,
 /// today's date, the resolved scope and up to [recallQuestionMaxSources]
 /// excerpts.
 const noteQuestionOperation = 'answer-note-question';
-const thoughtQuestionOperation = 'answer-thought-question';
 const recallQuestionContract = 1;
 const recallQuestionInputBytes = 2000;
 const recallQuestionOutputBytes = 2048;
@@ -25,25 +23,21 @@ const recallQuestionAnswerChars = 700;
 final _dateKey = RegExp(r'^\d{4}-\d{2}-\d{2}$');
 final _control = RegExp(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]');
 
-/// What differs between asking about notes and asking about thoughts.
+/// What a question about one kind of writing needs.
 extension RecallQuestionKind on RecallKind {
   String get questionOperation => switch (this) {
     RecallKind.note => noteQuestionOperation,
-    RecallKind.thought => thoughtQuestionOperation,
     RecallKind.diary => throw UnsupportedError('Diary questions are S01'),
   };
 
   /// The companion capability key advertising [questionOperation].
-  String get questionContractKey => switch (this) {
-    RecallKind.note => 'noteQuestionContract',
-    _ => 'thoughtQuestionContract',
-  };
+  String get questionContractKey => 'noteQuestionContract';
 
-  String get one => this == RecallKind.note ? 'note' : 'thought';
-  String get many => this == RecallKind.note ? 'notes' : 'thoughts';
+  String get one => 'note';
+  String get many => 'notes';
 }
 
-/// One searchable note or thought. Thoughts have no title.
+/// One searchable note.
 class RecallItem {
   const RecallItem({
     required this.uuid,
@@ -70,21 +64,6 @@ class RecallItem {
 
   static List<RecallItem> notes(Iterable<NoteDocument> notes) => [
     for (final n in notes) ?RecallItem.note(n),
-  ];
-
-  static RecallItem? thought(Thought thought) => thought.deletedAt != null
-      ? null
-      : RecallItem(
-          uuid: thought.id,
-          title: '',
-          content: thought.body,
-          createdAt: thought.createdAt,
-          updatedAt: thought.updatedAt,
-          revision: thought.revision,
-        );
-
-  static List<RecallItem> thoughts(Iterable<Thought> thoughts) => [
-    for (final thought in thoughts) ?RecallItem.thought(thought),
   ];
 
   /// The update time plus an FNV-1a hash of the title and content, so an edit
@@ -115,7 +94,7 @@ class RecallQuestionSource {
     required this.truncated,
   });
 
-  /// Civil date the note or thought was created.
+  /// Civil date the note was created.
   final String date, uuid;
 
   /// [RecallItem.version] when selected; a different value means edited.
@@ -154,7 +133,7 @@ class RecallQuestionSource {
 
 enum RecallSourceStatus { current, edited, deleted }
 
-/// Whether a cited note or thought still exists unchanged.
+/// Whether a cited note still exists unchanged.
 RecallSourceStatus recallSourceStatus(
   RecallQuestionSource source,
   RecallItem? Function(String uuid) lookup,
@@ -310,7 +289,6 @@ class RecallQuestionSelection {
     ];
   }
 
-  /// Thoughts are sent without a title field.
   String request() => jsonEncode({
     'question': question,
     'today': today,
@@ -345,7 +323,7 @@ class RecallQuestionSelection {
     }
     final v = jsonDecode(raw);
     if (v is! Map ||
-        !['note', 'thought'].contains(v['kind']) ||
+        v['kind'] != 'note' ||
         v['question'] is! String ||
         v['today'] is! String ||
         !_dateKey.hasMatch(v['today'] as String) ||

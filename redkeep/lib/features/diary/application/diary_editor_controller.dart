@@ -79,7 +79,14 @@ class DiaryEditorController extends AsyncNotifier<DiaryEditorState> {
     _publish();
   }
 
-  Future<bool> save() async {
+  /// Saves a new entry as a quick, text-only thought. Saved entries keep
+  /// their kind, so this is only for writing that is not stored yet.
+  Future<bool> saveAsThought() async {
+    if (_baseRevision > 0) return false;
+    return save(kind: DiaryEntryKind.thought);
+  }
+
+  Future<bool> save({DiaryEntryKind kind = DiaryEntryKind.entry}) async {
     if (_saving || !state.hasValue || _text.isEmpty) return false;
     if (!_changed && _baseRevision > 0) return true;
     _saving = true;
@@ -91,6 +98,7 @@ class DiaryEditorController extends AsyncNotifier<DiaryEditorState> {
         date: address.date,
         text: _text,
         expectedRevision: _baseRevision,
+        kind: kind,
       );
       _baseRevision = saved.revision;
       ref.read(diaryNewIdsProvider.notifier).remove(id);

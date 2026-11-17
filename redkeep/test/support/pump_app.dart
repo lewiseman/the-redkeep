@@ -16,8 +16,6 @@ import 'package:redkeep/features/appearance/application/appearance_typography.da
 import 'fake_appearance_fonts.dart';
 
 import 'package:redkeep/features/sync/application/sync_providers.dart';
-import 'package:redkeep/features/flow/application/flow_providers.dart';
-import 'package:redkeep/features/flow/domain/flow_repository.dart';
 import 'package:redkeep/features/diary/application/diary_providers.dart';
 import 'package:redkeep/features/diary/domain/diary_repository.dart';
 
@@ -53,8 +51,6 @@ Future<GoRouter> pumpApp(
   FakeAppearanceRepository? repository,
   FakeOnboardingRepository? onboarding,
   FakeRequiredAssets? assets,
-  FlowRepository? flow,
-  String Function()? flowId,
   NotesRepository? notes,
   NoteMediaStore? noteMedia,
   String Function()? noteId,
@@ -108,8 +104,6 @@ Future<GoRouter> pumpApp(
           diaryReaderDayProvider.overrideWithBuild(
             (ref, notifier) => DiaryReaderDay(diaryDay),
           ),
-        if (flow != null) flowRepositoryProvider.overrideWithValue(flow),
-        if (flowId != null) flowIdProvider.overrideWithValue(flowId),
         if (notes != null) notesRepositoryProvider.overrideWithValue(notes),
         if (noteMedia != null)
           noteMediaStoreProvider.overrideWithValue(noteMedia),

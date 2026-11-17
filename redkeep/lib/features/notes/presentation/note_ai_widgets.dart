@@ -13,13 +13,6 @@ enum NoteAiTool {
     'Ask about your notes',
     Color(0xFF527C9C),
   ),
-  thoughtSearch(
-    'Flow AI search',
-    'Ask a question and get an answer from your thoughts.',
-    'Flow AI search',
-    'Ask about your thoughts',
-    Color(0xFF6A7FA8),
-  ),
   template(
     'Starting template',
     'Choose a template for your note.',
@@ -84,7 +77,7 @@ enum NoteAiTool {
     scan => 'Page added to the end of your note',
     background => 'New background set',
     presentation => 'Website ready',
-    search || thoughtSearch => 'Done',
+    search => 'Done',
   };
 }
 
@@ -234,7 +227,7 @@ class _ToolPainter extends CustomPainter {
         );
         lines(44, 34, 18, 3);
         sparkle(64, 63);
-      case NoteAiTool.search || NoteAiTool.thoughtSearch:
+      case NoteAiTool.search:
         sheet(12, 11, 39, 50);
         sheet(18, 17, 39, 50, tinted: true);
         lines(25, 30, 23, 3);

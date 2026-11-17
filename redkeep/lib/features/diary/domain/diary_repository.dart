@@ -20,11 +20,14 @@ abstract interface class DiaryRepository {
   Future<void> saveDay(DiaryDay day, {String? expectedEntries});
   Stream<OpenDiaryEntry> watchDocument(String id);
   Future<OpenDiaryEntry> openDocument(String id);
+
+  /// [kind] applies when the entry is created; an edit keeps its kind.
   Future<DiaryEntry> save({
     required String id,
     required DiaryPeriod date,
     required DiaryText text,
     required int expectedRevision,
+    DiaryEntryKind kind = DiaryEntryKind.entry,
   });
   Future<DiaryEntry> savePhotoStory({
     required String id,

@@ -9,7 +9,6 @@ import '../../ai/application/ai_cloud.dart';
 import '../../diary/application/diary_providers.dart';
 import '../../diary/domain/diary_document.dart';
 import '../../diary/domain/diary_period.dart';
-import '../../flow/application/flow_providers.dart';
 import '../domain/recall.dart';
 import 'recall_controller.dart';
 
@@ -18,7 +17,7 @@ final _writingRevisionProvider = StreamProvider.autoDispose<int>((ref) async* {
   var revision = 0;
   yield revision;
   await for (final _ in db.tableUpdates(
-    TableUpdateQuery.onAllTables([db.notes, db.diaryEntries, db.flowThoughts]),
+    TableUpdateQuery.onAllTables([db.notes, db.diaryEntries]),
   )) {
     yield ++revision;
   }
@@ -68,25 +67,3 @@ final diaryHybridSearchProvider = Provider.autoDispose
         fuseRecall(keywords.value!, semantic, (entry) => entry.id),
       );
     });
-final flowSearchSourcesProvider =
-    FutureProvider.autoDispose<List<RecallSource>>((ref) async {
-      final listings = await ref.watch(thoughtsProvider.future);
-      final repository = ref.watch(flowRepositoryProvider);
-      final opened = await Future.wait(
-        listings.map((thought) => repository.openDocument(thought.id)),
-      );
-      return [
-        for (final value in opened)
-          if (value.available)
-            RecallSource(
-              kind: 'thought',
-              id: value.thought!.id,
-              title: '',
-              text: value.thought!.body,
-              date: DiaryPeriod.fromComponents(
-                value.thought!.createdAt.toLocal(),
-              ).key,
-              revision: value.thought!.revision,
-            ),
-      ];
-    }, retry: (_, _) => null);

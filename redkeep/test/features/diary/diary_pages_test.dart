@@ -579,6 +579,70 @@ void main() {
     expect(liveText('A new page'), findsOneWidget);
   });
 
+  diaryTest('a new entry for today can be saved as a text-only thought', (
+    tester,
+  ) async {
+    final router = await pumpApp(
+      tester,
+      initialLocation: '/diary',
+      diaryDay: date,
+      diary: repo,
+      diaryId: () => id,
+    );
+    await tap(tester, 'Write an entry');
+    final thought = find.byKey(const ValueKey('diary-save-thought'));
+    expect(thought, findsOneWidget);
+    expect(tester.widget<IconButton>(thought).onPressed, isNull);
+    await tester.enterText(
+      find.byKey(const ValueKey('diary-body')),
+      'A passing thought',
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(thought);
+    await tester.pumpAndSettle();
+    expect(find.byType(DiaryEditPage), findsNothing);
+    expectDiaryDay(tester, router, date);
+    expect(liveText('A passing thought'), findsOneWidget);
+    expect(liveText('THOUGHT'), findsOneWidget);
+    final saved = (await repo.openDocument(id)).entry!;
+    expect(saved.isThought, isTrue);
+    expect(saved.photos, isEmpty);
+
+    // Editing keeps it a thought, with no photo option.
+    router.go(diaryEntryLocation(date, id, edit: true));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('diary-save-thought')), findsNothing);
+    expect(find.byTooltip('Add photos'), findsNothing);
+  });
+
+  diaryTest('the thought button is only for new writing today', (tester) async {
+    final yesterday = date.shift(-1)!;
+    await repo.save(
+      id: id,
+      date: date,
+      text: const DiaryText(body: 'Saved earlier'),
+      expectedRevision: 0,
+    );
+    final router = await pumpApp(
+      tester,
+      initialLocation: '/diary',
+      diaryDay: date,
+      diary: repo,
+      diaryId: () => '3' * 32,
+    );
+    router.go(diaryEntryLocation(date, id, edit: true));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('diary-save-thought')), findsNothing);
+    expect(liveText('THOUGHT'), findsNothing);
+    router.go('/diary');
+    await tester.pumpAndSettle();
+    await tap(tester, 'Previous day');
+    expectDiaryDay(tester, router, yesterday);
+    await tap(tester, 'Write an entry');
+    expect(find.byType(DiaryEditPage), findsOneWidget);
+    expect(find.byKey(const ValueKey('diary-save-thought')), findsNothing);
+  });
+
   diaryTest('back with unsaved writing asks before leaving', (tester) async {
     final router = await pumpApp(
       tester,

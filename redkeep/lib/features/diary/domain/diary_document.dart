@@ -8,6 +8,16 @@ class DiaryText {
   bool get isEmpty => body.trim().isEmpty;
 }
 
+/// What an entry is. A thought is a quick, text-only entry for today.
+enum DiaryEntryKind {
+  entry,
+  thought;
+
+  /// Unknown or missing kinds, such as from older devices, are ordinary entries.
+  static DiaryEntryKind decode(Object? value) =>
+      value == thought.name ? thought : entry;
+}
+
 class DiaryEntry {
   const DiaryEntry({
     required this.id,
@@ -18,6 +28,7 @@ class DiaryEntry {
     required this.updatedAt,
     this.deletedAt,
     this.photos = const [],
+    this.kind = DiaryEntryKind.entry,
   });
   final String id;
   final DiaryPeriod date;
@@ -27,7 +38,9 @@ class DiaryEntry {
   final DateTime updatedAt;
   final DateTime? deletedAt;
   final List<DiaryPhoto> photos;
+  final DiaryEntryKind kind;
   bool get hasMedia => photos.isNotEmpty;
+  bool get isThought => kind == DiaryEntryKind.thought;
 }
 
 class OpenDiaryEntry {

@@ -15,39 +15,40 @@ import 'package:redkeep/features/onboarding/data/drift_onboarding_repository.dar
 import 'generated/schema.dart';
 
 void main() {
-  test('fresh schema matches the complete version 8 snapshot', () async {
+  test('fresh schema matches the complete version 9 snapshot', () async {
     final database = AppDatabase(NativeDatabase.memory());
     addTearDown(database.close);
 
-    expect(database.schemaVersion, 8);
-    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 8);
+    expect(database.schemaVersion, 9);
+    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 9);
     final version = await database
         .customSelect('PRAGMA user_version')
         .getSingle();
-    expect(version.read<int>('user_version'), 8);
+    expect(version.read<int>('user_version'), 9);
   });
 
-  for (final from in [1, 2, 3, 4, 5, 6, 7]) {
+  for (final from in [1, 2, 3, 4, 5, 6, 7, 8]) {
     test('the upgrade from version $from matches the snapshot', () async {
       final verifier = SchemaVerifier(GeneratedHelper());
       final database = AppDatabase(await verifier.startAt(from));
       addTearDown(database.close);
-      await verifier.migrateAndValidate(database, 8);
+      await verifier.migrateAndValidate(database, 9);
     });
   }
 
   test('version 8 syncs watchlist titles, lists and taste, not the catalog or chats', () async {
-    Future<Set<String>> triggers(AppDatabase database) async => (await database
-            .customSelect(
-              "SELECT name FROM sqlite_master WHERE type = 'trigger' AND name LIKE 'sync_watch%'",
-            )
-            .get())
-        .map((r) => r.read<String>('name'))
-        .toSet();
+    Future<Set<String>> triggers(AppDatabase database) async =>
+        (await database
+                .customSelect(
+                  "SELECT name FROM sqlite_master WHERE type = 'trigger' AND name LIKE 'sync_watch%'",
+                )
+                .get())
+            .map((r) => r.read<String>('name'))
+            .toSet();
     final verifier = SchemaVerifier(GeneratedHelper());
     final upgraded = AppDatabase(await verifier.startAt(7));
     addTearDown(upgraded.close);
-    await verifier.migrateAndValidate(upgraded, 8);
+    await verifier.migrateAndValidate(upgraded, 9);
     final fresh = AppDatabase(NativeDatabase.memory());
     addTearDown(fresh.close);
     await fresh.customSelect('SELECT 1').get();
@@ -60,29 +61,32 @@ void main() {
     expect(await triggers(fresh), expected);
   });
 
-  test('versions 5 to 7 add local note websites and chats outside sync', () async {
-    final verifier = SchemaVerifier(GeneratedHelper());
-    final database = AppDatabase(await verifier.startAt(4));
-    addTearDown(database.close);
-    await verifier.migrateAndValidate(database, 7);
-    final triggers =
-        (await database
-                .customSelect(
-                  "SELECT name FROM sqlite_master WHERE type = 'trigger'",
-                )
-                .get())
-            .map((r) => r.read<String>('name'));
-    expect(triggers.where((t) => t.contains('note_websites')), isEmpty);
-    expect(triggers.where((t) => t.contains('note_chat')), isEmpty);
-    expect(await database.select(database.noteWebsites).get(), isEmpty);
-    expect(await database.select(database.noteChatTurns).get(), isEmpty);
-  });
+  test(
+    'versions 5 to 7 add local note websites and chats outside sync',
+    () async {
+      final verifier = SchemaVerifier(GeneratedHelper());
+      final database = AppDatabase(await verifier.startAt(4));
+      addTearDown(database.close);
+      await verifier.migrateAndValidate(database, 9);
+      final triggers =
+          (await database
+                  .customSelect(
+                    "SELECT name FROM sqlite_master WHERE type = 'trigger'",
+                  )
+                  .get())
+              .map((r) => r.read<String>('name'));
+      expect(triggers.where((t) => t.contains('note_websites')), isEmpty);
+      expect(triggers.where((t) => t.contains('note_chat')), isEmpty);
+      expect(await database.select(database.noteWebsites).get(), isEmpty);
+      expect(await database.select(database.noteChatTurns).get(), isEmpty);
+    },
+  );
 
   test('version 4 drops stored tasks, daily questions, voices, conversations and recovery copies', () async {
     final verifier = SchemaVerifier(GeneratedHelper());
     final database = AppDatabase(await verifier.startAt(3));
     addTearDown(database.close);
-    await verifier.migrateAndValidate(database, 4);
+    await verifier.migrateAndValidate(database, 9);
     final tables =
         (await database
                 .customSelect(
@@ -131,7 +135,43 @@ void main() {
     final version = await database
         .customSelect('PRAGMA user_version')
         .getSingle();
-    expect(version.read<int>('user_version'), 8);
+    expect(version.read<int>('user_version'), 9);
+  });
+
+  test('version 9 removes Flow and keeps diary entries as ordinary entries', () async {
+    final verifier = SchemaVerifier(GeneratedHelper());
+    final schema = await verifier.schemaAt(8);
+    // Raw SQL before opening: version 8 tables are not in the current database.
+    for (final statement in [
+      "INSERT INTO flow_thoughts VALUES ('${'a' * 32}', 'A thought', 1, 1, 1, NULL)",
+      "INSERT INTO diary_entries (id, period_key, body, revision, created_at, updated_at) VALUES ('${'b' * 32}', '2026-11-03', 'Kept', 1, 1, 1)",
+      "INSERT INTO sync_operations VALUES ('thought', '${'a' * 32}', '${'a' * 32}')",
+      "INSERT INTO sync_records (type, document_id) VALUES ('thought', '${'a' * 32}')",
+      "INSERT INTO sync_records (type, document_id) VALUES ('diary', '2026-11-03')",
+      "INSERT INTO recall_queue (kind, source_id) VALUES ('thought', '${'a' * 32}')",
+    ]) {
+      schema.rawDatabase.execute(statement);
+    }
+    final old = AppDatabase(schema.newConnection());
+    await verifier.migrateAndValidate(old, 9);
+
+    final tables = await old
+        .customSelect("SELECT name FROM sqlite_master WHERE name LIKE 'flow_%'")
+        .get();
+    expect(tables, isEmpty);
+    expect((await old.select(old.syncRecords).get()).map((r) => r.type), [
+      'diary',
+    ]);
+    expect(await old.select(old.syncOperations).get(), isEmpty);
+    expect(
+      (await old.select(old.recallQueue).get()).where(
+        (r) => r.kind == 'thought',
+      ),
+      isEmpty,
+    );
+    final entry = await old.select(old.diaryEntries).getSingle();
+    expect((entry.body, entry.kind), ('Kept', 'entry'));
+    await old.close();
   });
 
   test('upgrading a real version 1 file keeps preferences, writing and recall triggers', () async {
@@ -145,7 +185,7 @@ void main() {
         .insert(
           const AiPreferencesTableCompanion(
             id: Value(1),
-            recallFlow: Value(false),
+            recallDiary: Value(false),
           ),
         );
     await old.customStatement(
@@ -166,13 +206,13 @@ void main() {
     final stored = await prefs.read();
     expect(
       stored.collections,
-      isNot(contains('thought')),
+      isNot(contains('diary')),
       reason: 'unrelated choices survive',
     );
     final version = await database
         .customSelect('PRAGMA user_version')
         .getSingle();
-    expect(version.read<int>('user_version'), 8);
+    expect(version.read<int>('user_version'), 9);
     final columns = await database
         .customSelect('PRAGMA table_info(ai_preferences_table)')
         .get();
@@ -307,7 +347,7 @@ void main() {
       final version = await reopened
           .customSelect('PRAGMA user_version')
           .getSingle();
-      expect(version.read<int>('user_version'), 8);
+      expect(version.read<int>('user_version'), 9);
     },
   );
 

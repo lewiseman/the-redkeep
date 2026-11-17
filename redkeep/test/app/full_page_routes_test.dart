@@ -6,16 +6,12 @@ import 'package:redkeep/app/bottom_navbar.dart';
 import 'package:redkeep/app/more_page.dart';
 import 'package:redkeep/features/ai/presentation/ai_settings_page.dart';
 import 'package:redkeep/features/appearance/presentation/appearance_page.dart';
-import 'package:redkeep/features/flow/presentation/flow_page.dart';
-import 'package:redkeep/features/flow/presentation/flow_search_page.dart';
-import 'package:redkeep/features/flow/presentation/thought_read_page.dart';
 import 'package:redkeep/features/notes/presentation/notes_list_page.dart';
 
 import '../support/pump_app.dart';
 
 void main() {
   final bar = find.byType(RedkeepBottomNavbar);
-  final thought = 'a' * 32;
 
   for (final (location, page) in <(String, Type)>[
     ('/settings', AppearancePage),
@@ -31,15 +27,13 @@ void main() {
   }
 
   // These start timers of their own, so check the routes without building them.
-  testWidgets('Grand Maestar and thought routes cover the shell', (
+  testWidgets('Grand Maestar routes cover the shell', (
     tester,
   ) async {
     final router = await pumpApp(tester, initialLocation: '/more');
     for (final location in [
       '/settings/brain',
       '/settings/brain/library',
-      '/flow/$thought',
-      '/flow/$thought/edit',
     ]) {
       final route = router.configuration.findMatch(Uri.parse(location)).last;
       expect(route.route.parentNavigatorKey, router.configuration.navigatorKey);
@@ -60,7 +54,7 @@ void main() {
   });
 
   // Each opens pages the way the app does, then expects to step back through
-  // them one at a time. Thoughts and Grand Maestar leave timers running, so the
+  // them one at a time. Grand Maestar leaves timers running, so the
   // tree is torn down and those timers flushed at the end.
   final journeys = <(String, String, List<(String, bool)>, Type)>[
     ('Appearance from More', '/more', [('/settings', true)], MorePage),
@@ -71,19 +65,6 @@ void main() {
       '/more',
       [('/settings/brain', true), ('/settings/brain/library', true)],
       AiSettingsPage,
-    ),
-    ('a thought from Flow', '/flow', [('/flow/$thought', false)], FlowPage),
-    (
-      'a thought from search',
-      '/flow/search',
-      [('/flow/$thought', true)],
-      FlowSearchPage,
-    ),
-    (
-      'a thought editor',
-      '/flow',
-      [('/flow/$thought', false), ('/flow/$thought/edit', false)],
-      ThoughtReadPage,
     ),
     (
       'a page inside the shell',

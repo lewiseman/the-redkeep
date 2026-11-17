@@ -6,7 +6,7 @@ Finder chapterPosition(int chapter) => find.byWidgetPredicate(
   (w) =>
       w is Semantics &&
       w.key == const ValueKey('onboarding-chapter-position') &&
-      w.properties.label == 'Chapter $chapter of 5',
+      w.properties.label == 'Chapter $chapter of 4',
 );
 
 Future<void> navigateChapter(WidgetTester tester, int direction) async {

@@ -357,7 +357,6 @@ class _Entry {
 const _erased = [
   _Entry(Icons.sticky_note_2_outlined, 'Notes'),
   _Entry(Icons.menu_book_outlined, 'Diary entries'),
-  _Entry(Icons.bubble_chart_outlined, 'Thoughts'),
   _Entry(Icons.delete_outline_rounded, 'Trash'),
   _Entry(Icons.cloud_off_outlined, 'Redkeep backups'),
   _Entry(Icons.history_edu_outlined, 'Recovery drafts'),

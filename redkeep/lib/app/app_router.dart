@@ -3,7 +3,6 @@ import '../features/recall/presentation/recall_library_page.dart';
 import '../features/notes/presentation/note_ai_sheet.dart';
 import '../features/notes/presentation/note_ai_widgets.dart';
 import '../features/diary/presentation/diary_photos_page.dart';
-import '../features/flow/presentation/flow_search_page.dart';
 import '../features/ai/application/ai_lifecycle.dart';
 import '../features/sync/application/sync_providers.dart';
 import 'writing_shell.dart';
@@ -16,9 +15,6 @@ import '../features/watchlist/presentation/watch_preferences_page.dart';
 import '../features/watchlist/presentation/watch_search_page.dart';
 import '../features/watchlist/presentation/watch_title_page.dart';
 import '../features/watchlist/presentation/watchlist_page.dart';
-import '../features/flow/presentation/flow_page.dart';
-import '../features/flow/presentation/thought_read_page.dart';
-import '../features/flow/presentation/thought_edit_page.dart';
 import '../features/diary/domain/diary_period.dart';
 import '../features/diary/presentation/diary_calendar_page.dart';
 import '../features/diary/presentation/diary_day_page.dart';
@@ -314,41 +310,6 @@ GoRouter createAppRouter(Ref ref) {
                         )!,
                       ),
                     ),
-                  ),
-                ],
-              ),
-              GoRoute(
-                path: 'flow',
-                pageBuilder: (context, state) => _page(state, const FlowPage()),
-                routes: [
-                  GoRoute(
-                    path: 'search',
-                    pageBuilder: (context, state) =>
-                        _page(state, const FlowSearchPage()),
-                  ),
-                  GoRoute(
-                    path: ':id',
-                    parentNavigatorKey: fullPage,
-                    pageBuilder: (context, state) => _page(
-                      state,
-                      ThoughtReadPage(
-                        key: ValueKey(state.uri.path),
-                        id: state.pathParameters['id']!,
-                      ),
-                    ),
-                    routes: [
-                      GoRoute(
-                        path: 'edit',
-                        parentNavigatorKey: fullPage,
-                        pageBuilder: (context, state) => _page(
-                          state,
-                          ThoughtEditPage(
-                            key: ValueKey(state.uri.path),
-                            id: state.pathParameters['id']!,
-                          ),
-                        ),
-                      ),
-                    ],
                   ),
                 ],
               ),

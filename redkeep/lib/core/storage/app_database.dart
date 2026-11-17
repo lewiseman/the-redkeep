@@ -11,7 +11,6 @@ import '../../features/appearance/data/appearance_table.dart';
 import '../../features/onboarding/data/onboarding_table.dart';
 import '../../features/notes/data/notes_tables.dart';
 import '../../features/diary/data/diary_tables.dart';
-import '../../features/flow/data/flow_tables.dart';
 import '../../features/watchlist/data/watchlist_tables.dart';
 
 import '../../features/sync/data/sync_tables.dart';
@@ -36,8 +35,6 @@ part 'app_database.g.dart';
     DiaryDays,
     DiaryMediaOps,
     PhotoQuestionCache,
-    FlowThoughts,
-    FlowReflections,
     WatchCatalog,
     WatchTitles,
     WatchLists,
@@ -52,7 +49,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   // Reset changes this generation before disposing editors. Old repositories
   // cannot write after cleanup, even when an async continuation finishes late.
@@ -63,7 +60,6 @@ class AppDatabase extends _$AppDatabase {
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (migrator) async {
       await migrator.createAll();
-      await installFlowReflectionCleanup(this);
       await installSyncTriggers(this);
       await installRecallTriggers(this);
     },
@@ -126,12 +122,38 @@ class AppDatabase extends _$AppDatabase {
         await migrator.createTable(watchChatTurns);
         await installSyncTriggers(this, only: watchlistSyncTables);
       }
+      if (from < 9) {
+        // Flow is gone; its tables take their triggers and index with them.
+        // Quick thoughts now live in the diary as entries of kind 'thought'.
+        await customStatement('DROP TABLE IF EXISTS flow_reflections');
+        await customStatement('DROP TABLE IF EXISTS flow_thoughts');
+        await customStatement(
+          "DELETE FROM sync_operations WHERE type = 'thought'",
+        );
+        await customStatement(
+          "DELETE FROM sync_records WHERE type = 'thought'",
+        );
+        await customStatement(
+          "DELETE FROM recall_queue WHERE kind = 'thought'",
+        );
+        await customStatement(
+          "DELETE FROM recall_manifests WHERE kind = 'thought'",
+        );
+        await _dropColumn('ai_preferences_table', 'recall_flow');
+        if (!await _hasColumn('diary_entries', 'kind')) {
+          await migrator.addColumn(diaryEntries, diaryEntries.kind);
+        }
+      }
     },
   );
 
+  Future<bool> _hasColumn(String table, String column) async =>
+      (await customSelect(
+        'PRAGMA table_info($table)',
+      ).get()).any((c) => c.read<String>('name') == column);
+
   Future<void> _dropColumn(String table, String column) async {
-    final columns = await customSelect('PRAGMA table_info($table)').get();
-    if (columns.any((c) => c.read<String>('name') == column)) {
+    if (await _hasColumn(table, column)) {
       await customStatement('ALTER TABLE $table DROP COLUMN $column');
     }
   }

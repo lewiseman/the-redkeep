@@ -5,7 +5,6 @@ import '../../../core/storage/app_database.dart';
 Future<void> installSyncTriggers(AppDatabase db, {Set<String>? only}) async {
   for (final spec in [
     ('notes', 'note', 'id'),
-    ('flow_thoughts', 'thought', 'id'),
     ('diary_entries', 'diary', 'period_key'),
     ('diary_days', 'diary', 'period_key'),
     ('note_tags', 'note', 'note_id'),
@@ -38,11 +37,7 @@ Future<void> installSyncTriggers(AppDatabase db, {Set<String>? only}) async {
 }
 
 /// Tables whose rows are whole documents: removing a row removes it remotely.
-const _wholeDocuments = {
-  'notes',
-  'flow_thoughts',
-  ...watchlistSyncTables,
-};
+const _wholeDocuments = {'notes', ...watchlistSyncTables};
 
 /// Added in schema 8.
 const watchlistSyncTables = {'watch_titles', 'watch_lists', 'watch_profiles'};

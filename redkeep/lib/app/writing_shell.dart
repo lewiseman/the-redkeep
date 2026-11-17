@@ -19,7 +19,7 @@ class WritingShell extends ConsumerStatefulWidget {
   final Widget child;
   final String location;
 
-  static const _paths = ['/diary', '/notes', '/flow', '/more'];
+  static const _paths = ['/diary', '/notes', '/more'];
 
   /// Tab roots where the floating bar can slide away while reading.
   /// The app's home is the diary reader too.
@@ -27,10 +27,8 @@ class WritingShell extends ConsumerStatefulWidget {
 
   static int selectedTabFor(String location) => location.startsWith('/notes')
       ? 1
-      : location.startsWith('/flow')
-      ? 2
       : location == '/more' || location.startsWith('/settings')
-      ? 3
+      ? 2
       : 0;
 
   @override

@@ -630,7 +630,7 @@ class _Path extends StatelessWidget {
     (
       Icons.edit_outlined,
       'You write',
-      'Notes, diary entries and Flow thoughts you choose above.',
+      'Notes and diary entries you choose above.',
     ),
     (
       Icons.hourglass_bottom_rounded,

@@ -12,6 +12,7 @@ import '../application/diary_providers.dart';
 import '../domain/diary_document.dart';
 import 'diary_widgets.dart';
 import 'diary_day_page.dart';
+import 'diary_thought_mark.dart';
 
 class DiaryEntryPage extends ConsumerWidget {
   const DiaryEntryPage({super.key, required this.address});
@@ -50,6 +51,10 @@ class DiaryEntryPage extends ConsumerWidget {
                     ),
                     if (available) ...[
                       const SizedBox(height: 16),
+                      if (entry.isThought)
+                        DiaryThoughtMark(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       if (entry.photos.isNotEmpty)
                         DiaryPhotoStoryStrip(
                           item: entry,

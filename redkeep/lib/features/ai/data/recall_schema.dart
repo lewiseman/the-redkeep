@@ -6,7 +6,6 @@ Future<void> installRecallTriggers(AppDatabase db) async {
   for (final spec in [
     ('notes', 'note', 'recall_notes'),
     ('diary_entries', 'diary', 'recall_diary'),
-    ('flow_thoughts', 'thought', 'recall_flow'),
   ]) {
     for (final event in ['INSERT', 'UPDATE', 'DELETE']) {
       final row = event == 'DELETE' ? 'OLD' : 'NEW';
@@ -25,11 +24,7 @@ Future<void> installRecallTriggers(AppDatabase db) async {
 }
 
 Future<void> seedRecallQueue(AppDatabase db, {String? kind}) async {
-  for (final spec in [
-    ('notes', 'note'),
-    ('diary_entries', 'diary'),
-    ('flow_thoughts', 'thought'),
-  ]) {
+  for (final spec in [('notes', 'note'), ('diary_entries', 'diary')]) {
     if (kind != null && kind != spec.$2) continue;
     await db.customStatement(
       '''INSERT INTO recall_queue(kind, source_id, generation)

@@ -2,7 +2,6 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/diary/domain/diary_period.dart';
-import '../features/flow/domain/thought.dart';
 import '../features/diary/domain/diary_document.dart';
 import '../features/notes/domain/note_document.dart';
 import '../features/watchlist/domain/explore.dart';
@@ -20,7 +19,6 @@ enum AppDestination {
   library('/settings/brain/library'),
   more('/more'),
   watchlist('/watchlist'),
-  flow('/flow'),
   notes('/notes'),
   diary('/diary'),
   unavailable('/unavailable');
@@ -35,7 +33,6 @@ enum AppDestination {
     '/settings/brain/library' => library,
     '/more' => more,
     '/watchlist' => watchlist,
-    '/flow' => flow,
     '/notes' => notes,
     '/diary' => diary,
     _ => unavailable,
@@ -77,7 +74,6 @@ String _destination(String location) {
   if (const {
     '/notes/ai-search',
     '/diary/search',
-    '/flow/search',
     watchSearchLocation,
     watchPreferencesLocation,
   }.contains(location)) {
@@ -103,8 +99,6 @@ String _destination(String location) {
   if (watch != null && WatchKey.fromRoute(watch[1], watch[2]) != null) {
     return location;
   }
-  final flow = RegExp(r'^/flow/([0-9a-f]{32})(/edit)?$').firstMatch(location);
-  if (flow != null && isThoughtId(flow[1]!)) return location;
   final match = RegExp(r'^/notes/([0-9a-f]{32})(?:/website|/scan|/maester)?$')
       .firstMatch(location);
   return match != null && isNoteId(match[1]!)
@@ -156,10 +150,6 @@ String diaryCalendarLocation(DiaryPeriod date) => '/diary/calendar/${date.key}';
 String diaryEntryLocation(DiaryPeriod date, String id, {bool edit = false}) =>
     isDiaryId(id)
     ? '/diary/${date.key}/entries/$id${edit ? '/edit' : ''}'
-    : AppDestination.unavailable.location;
-
-String thoughtLocation(String id, {bool edit = false}) => isThoughtId(id)
-    ? '/flow/$id${edit ? '/edit' : ''}'
     : AppDestination.unavailable.location;
 
 const watchSearchLocation = '/watchlist/search';

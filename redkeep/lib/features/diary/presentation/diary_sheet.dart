@@ -15,6 +15,7 @@ import '../domain/diary_document.dart';
 import 'diary_style.dart';
 import 'diary_paper_material.dart';
 import 'diary_paper_stamp.dart';
+import 'diary_thought_mark.dart';
 import 'diary_writing_prompt.dart';
 import 'diary_widgets.dart';
 
@@ -336,6 +337,10 @@ class _DiaryDayContentState extends ConsumerState<DiaryDayContent> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      if (day.entries[i].isThought)
+                        DiaryThoughtMark(
+                          color: colors.secondary.withValues(alpha: .7),
+                        ),
                       if (day.entries[i].photos.isNotEmpty)
                         DiaryPhotoStoryStrip(
                           item: day.entries[i],
@@ -349,6 +354,9 @@ class _DiaryDayContentState extends ConsumerState<DiaryDayContent> {
                         day.entries[i].text.body,
                         style: typography.body.copyWith(
                           color: colors.foreground,
+                          fontStyle: day.entries[i].isThought
+                              ? FontStyle.italic
+                              : null,
                         ),
                       ),
                     ],

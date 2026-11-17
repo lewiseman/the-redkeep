@@ -6,7 +6,6 @@ import 'package:redkeep/core/storage/app_database.dart';
 import 'package:redkeep/features/diary/data/drift_diary_repository.dart';
 import 'package:redkeep/features/diary/domain/diary_period.dart';
 import 'package:redkeep/features/diary/domain/diary_document.dart';
-import 'package:redkeep/features/flow/data/drift_flow_repository.dart';
 import 'package:redkeep/features/notes/data/drift_notes_repository.dart';
 import 'package:redkeep/features/notes/domain/note_document.dart';
 
@@ -27,7 +26,6 @@ void main() {
     final date = DiaryPeriod(2026, 11, 3);
     final notes = DriftNotesRepository(db, clock: () => now);
     final diary = DriftDiaryRepository(db, clock: () => now);
-    final flow = DriftFlowRepository(db, clock: () => now);
     await notes.saveNote(
       id: id,
       text: const PlainTextDocument(title: 'Existing note', body: writing),
@@ -40,28 +38,22 @@ void main() {
       text: const DiaryText(body: writing),
       expectedRevision: 0,
     );
-    await flow.save(id: id, body: writing, expectedRevision: 0);
     final aiProvider = FakeAiProviderClient();
     try {
       final router = await pumpApp(
         tester,
-        initialLocation: '/flow',
+        initialLocation: '/notes',
         notes: notes,
         diary: diary,
-        flow: flow,
         aiProvider: aiProvider,
       );
       for (final location in [
-        '/flow',
-        thoughtLocation(id),
-        thoughtLocation(id, edit: true),
         '/notes',
         noteLocation(id),
         '/diary',
         diaryEntryLocation(date, id),
         diaryEntryLocation(date, id, edit: true),
         '/more',
-        thoughtLocation(missingId),
         noteLocation(missingId),
         diaryEntryLocation(date, missingId),
       ]) {
@@ -83,10 +75,8 @@ void main() {
       expect(aiProvider.requests, isEmpty);
       expect((await notes.openDocument(id)).note!.text.body, writing);
       expect((await diary.openDocument(id)).entry!.text.body, writing);
-      expect((await flow.openDocument(id)).thought!.body, writing);
       expect((await notes.openDocument(id)).note!.revision, 1);
       expect((await diary.openDocument(id)).entry!.revision, 1);
-      expect((await flow.openDocument(id)).thought!.revision, 1);
     } finally {
       await tester.pumpWidget(const SizedBox());
       await tester.pumpAndSettle();

@@ -33,7 +33,6 @@ void main() {
       const expected = {
         'navigation.diary.active': 120,
         'navigation.notes.inactive': 120,
-        'navigation.flow.inactive': 120,
         'navigation.more.inactive': 120,
         'diary.header': 800,
         'diary.calendar.pin': 48,

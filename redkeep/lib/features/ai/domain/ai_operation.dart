@@ -1,25 +1,8 @@
 import 'ai_provider.dart';
 import 'note_operation_prompts.dart';
 import 'vision_operation_prompts.dart';
-import 'flow_operation_prompts.dart';
 
 enum AiOperation {
-  thoughtReflection(
-    'reflect-thought',
-    true,
-    'reflectionContract',
-    80,
-    512,
-    thoughtReflectionSystem,
-  ),
-  thoughtQuestion(
-    'answer-thought-question',
-    true,
-    'thoughtQuestionContract',
-    256,
-    2048,
-    thoughtQuestionSystem,
-  ),
   diaryDetails(
     'suggest-diary-day',
     true,
@@ -143,11 +126,7 @@ enum AiOperation {
   bool get isNote => name.startsWith('note');
   bool get imageInput =>
       this == photoQuestions || this == noteImage || this == noteScan;
-  String get label => this == thoughtReflection
-      ? 'Flow reflection'
-      : this == thoughtQuestion
-      ? 'Flow question'
-      : isNote
+  String get label => isNote
       ? switch (this) {
           noteRewrite => 'Rewrite note',
           noteExpand => 'Expand note',
@@ -190,7 +169,6 @@ enum AiOperation {
   final int outputTokens, outputBytes;
 
   double get temperature => switch (this) {
-    thoughtReflection => .4,
     noteTemplate => .7,
     noteDraft => .5,
     noteWebsite => .4,

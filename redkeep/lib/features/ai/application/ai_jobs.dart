@@ -14,8 +14,6 @@ import '../../diary/data/prepare_diary_image.dart';
 import '../../diary/domain/diary_ai_contract.dart';
 import '../../diary/domain/diary_history_contract.dart';
 import '../../diary/domain/diary_photo_question_contract.dart';
-import '../../flow/application/flow_providers.dart';
-import '../../flow/domain/thought_reflection_contract.dart';
 import '../../notes/application/note_ai_sources.dart';
 import '../../notes/data/note_media_store.dart';
 import '../../notes/domain/note_background_contract.dart';
@@ -158,8 +156,6 @@ class AiJobs extends Notifier<AiJobState> {
 
   static String _userMessage(AiOperation operation, String prompt) {
     switch (operation) {
-      case AiOperation.thoughtReflection:
-        return jsonEncode({'thought': prompt});
       case AiOperation.noteScan:
         return 'Transcribe this page.';
       case AiOperation.noteImage:
@@ -279,12 +275,6 @@ class AiJobs extends Notifier<AiJobState> {
         DiarySuggestionSource.decode(source),
       ),
       AiOperation.photoQuestions => true,
-      AiOperation.thoughtReflection => await _reflectionCurrent(
-        ThoughtReflectionSource.decode(source),
-      ),
-      AiOperation.thoughtQuestion => await _thoughtQuestionCurrent(
-        RecallQuestionSelection.decode(source),
-      ),
       AiOperation.history => await _historyCurrent(
         DiaryHistorySelection.decode(source),
       ),
@@ -297,16 +287,6 @@ class AiJobs extends Notifier<AiJobState> {
       throw const FormatException('AI returned an oversized result.');
     }
     switch (job.operation) {
-      case AiOperation.thoughtReflection:
-        parseThoughtReflection(
-          text,
-          ThoughtReflectionSource.decode(job.source).body,
-        );
-      case AiOperation.thoughtQuestion:
-        RecallQuestionAnswer.parse(
-          text,
-          RecallQuestionSelection.decode(job.source),
-        );
       case AiOperation.diaryDetails:
         DiarySuggestions.parse(text, DiarySuggestionSource.decode(job.source));
       case AiOperation.photoQuestions:
@@ -379,27 +359,6 @@ class AiJobs extends Notifier<AiJobState> {
     }
   }
 
-  Future<bool> _reflectionCurrent(ThoughtReflectionSource source) async =>
-      source.matches(
-        (await ref.read(flowRepositoryProvider).openDocument(source.id))
-            .thought,
-      );
-
-  Future<bool> _thoughtQuestionCurrent(RecallQuestionSelection source) async {
-    if (source.kind != RecallKind.thought || !source.sendable) return false;
-    for (final selected in source.sources) {
-      final thought =
-          (await ref.read(flowRepositoryProvider).openDocument(selected.uuid))
-              .thought;
-      if (thought == null ||
-          thought.deletedAt != null ||
-          RecallItem.thought(thought)!.version != selected.version) {
-        return false;
-      }
-    }
-    return true;
-  }
-
   Future<bool> _historyCurrent(DiaryHistorySelection source) async {
     for (final s in source.sources) {
       final entry =
@@ -460,7 +419,6 @@ String aiErrorMessage(Object error) => switch (error) {
   AiProviderFailure() => error.message,
   FormatException() => error.message,
   RecallAnswerRejected() => error.message,
-  ThoughtReflectionRejected() => error.message,
   StateError() => error.message,
   _ => 'Could not finish the AI request. Your writing is safe. Try again.',
 };

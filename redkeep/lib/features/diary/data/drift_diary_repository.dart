@@ -206,6 +206,7 @@ class DriftDiaryRepository implements DiaryRepository {
     required DiaryPeriod date,
     required DiaryText text,
     required int expectedRevision,
+    DiaryEntryKind kind = DiaryEntryKind.entry,
   }) async {
     return _db.transaction(() async {
       await checkWritingAccess(
@@ -249,6 +250,7 @@ class DriftDiaryRepository implements DiaryRepository {
                 revision: revision,
                 createdAt: now.millisecondsSinceEpoch,
                 updatedAt: now.millisecondsSinceEpoch,
+                kind: Value(kind.name),
               ),
             );
       } else {
@@ -278,6 +280,7 @@ class DriftDiaryRepository implements DiaryRepository {
         createdAt: old?.createdAt ?? now,
         updatedAt: now,
         photos: old?.photos ?? const [],
+        kind: old?.kind ?? kind,
       );
     });
   }
@@ -317,6 +320,10 @@ class DriftDiaryRepository implements DiaryRepository {
                 old.revision != expectedRevision) ||
         old == null && expectedRevision != 0) {
       throw const DiaryException(DiaryFailure.staleRevision);
+    }
+    // Thoughts are text only.
+    if (old?.isThought == true) {
+      throw const DiaryException(DiaryFailure.unavailable);
     }
     if (photos != null && photos.isEmpty) {
       throw const DiaryException(DiaryFailure.empty);
@@ -426,5 +433,6 @@ class DriftDiaryRepository implements DiaryRepository {
     deletedAt: r.deletedAt == null
         ? null
         : DateTime.fromMillisecondsSinceEpoch(r.deletedAt!, isUtc: true),
+    kind: DiaryEntryKind.decode(r.kind),
   );
 }

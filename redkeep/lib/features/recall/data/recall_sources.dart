@@ -10,7 +10,6 @@ class RecallSources {
     final table = switch (kind) {
       'note' => 'notes',
       'diary' => 'diary_entries',
-      'thought' => 'flow_thoughts',
       _ => throw ArgumentError.value(kind),
     };
     final rows = await db
@@ -23,7 +22,6 @@ class RecallSources {
     final table = switch (kind) {
       'note' => 'notes',
       'diary' => 'diary_entries',
-      'thought' => 'flow_thoughts',
       _ => throw ArgumentError.value(kind),
     };
     final row = await db

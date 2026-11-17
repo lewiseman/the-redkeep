@@ -4,6 +4,7 @@ import 'dart:convert';
 
 import '../../diary/domain/diary_photo.dart';
 
+import '../../diary/domain/diary_document.dart';
 import '../../diary/domain/diary_period.dart';
 import '../../diary/domain/diary_day_details.dart';
 
@@ -13,7 +14,7 @@ import 'package:sync_wise/sync_wise.dart';
 import '../../../core/storage/app_database.dart';
 import '../../watchlist/data/watchlist_sync.dart';
 
-/// Diary wire schema 3; notes and thoughts use schema 1. Revisions and drafts
+/// Diary wire schema 3; notes use schema 1. Revisions and drafts
 /// stay private to the local editor.
 class DriftSyncCollection implements SyncCollection {
   DriftSyncCollection(this.db, this.type);
@@ -27,7 +28,7 @@ class DriftSyncCollection implements SyncCollection {
     'watch' => 'watchlist titles',
     'watchlist' => 'watchlist lists',
     'watchtaste' => 'watchlist taste',
-    _ => 'thoughts',
+    _ => type,
   };
   @override
   bool get requiresRemoteForCreation => type == 'diary';
@@ -80,13 +81,15 @@ class DriftSyncCollection implements SyncCollection {
               'created_at': e.createdAt,
               'updated_at': e.updatedAt,
               'deleted_at': e.deletedAt,
+              // Only thoughts carry a kind, so ordinary entries keep the exact
+              // payload older app versions wrote.
+              if (e.kind == DiaryEntryKind.thought.name) 'kind': e.kind,
             },
           )
           .toList();
     } else {
       final table = switch (type) {
         'note' => 'notes',
-        'thought' => 'flow_thoughts',
         _ => watchlistTables[type]!,
       };
       final rows = await db
@@ -284,10 +287,6 @@ class DriftSyncCollection implements SyncCollection {
         await (db.delete(
           db.notes,
         )..where((r) => r.id.equals(document.id))).go();
-      } else if (type == 'thought') {
-        await (db.delete(
-          db.flowThoughts,
-        )..where((r) => r.id.equals(document.id))).go();
       } else if (watchlistTables.containsKey(type)) {
         await removeWatchlistDocument(db, type, document.id);
       } else {
@@ -313,7 +312,7 @@ class DriftSyncCollection implements SyncCollection {
       }
     } else if (watchlistTables.containsKey(type)) {
       await putWatchlistDocument(db, type, p);
-    } else if (type == 'note') {
+    } else {
       final old = await (db.select(
         db.notes,
       )..where((r) => r.id.equals(document.id))).getSingleOrNull();
@@ -340,22 +339,6 @@ class DriftSyncCollection implements SyncCollection {
             .into(db.noteTags)
             .insert(NoteTagsCompanion.insert(noteId: document.id, tag: tag));
       }
-    } else {
-      final old = await (db.select(
-        db.flowThoughts,
-      )..where((r) => r.id.equals(document.id))).getSingleOrNull();
-      await db
-          .into(db.flowThoughts)
-          .insertOnConflictUpdate(
-            FlowThoughtsCompanion.insert(
-              id: document.id,
-              body: p['body'] as String,
-              revision: (old?.revision ?? 0) + 1,
-              createdAt: p['created_at'] as int,
-              updatedAt: p['updated_at'] as int,
-              deletedAt: Value(p['deleted_at'] as int?),
-            ),
-          );
     }
     await db
         .into(db.syncRecords)
@@ -410,6 +393,7 @@ class DriftSyncCollection implements SyncCollection {
             createdAt: item['created_at'] as int,
             updatedAt: item['updated_at'] as int,
             deletedAt: Value(item['deleted_at'] as int?),
+            kind: Value(DiaryEntryKind.decode(item['kind']).name),
           ),
         );
   }

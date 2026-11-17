@@ -60,7 +60,7 @@ void main() {
                 network: h.network,
                 storage: h.storage,
                 collections: [
-                  for (final type in ['note', 'diary', 'thought'])
+                  for (final type in ['note', 'diary'])
                     DriftSyncCollection(h.db, type),
                 ],
                 canSync: () async => true,

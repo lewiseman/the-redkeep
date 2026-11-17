@@ -104,7 +104,7 @@ void main() {
         await drag.cancel();
         await tester.pumpAndSettle();
         expect(chapterPosition(1), findsOneWidget);
-        for (var chapter = 2; chapter <= 5; chapter++) {
+        for (var chapter = 2; chapter <= 4; chapter++) {
           await navigateChapter(tester, 1);
           expect(chapterPosition(chapter), findsOneWidget);
         }
@@ -117,7 +117,6 @@ void main() {
               .onIncrease,
           isNull,
         );
-        await navigateChapter(tester, -1);
         await tester.drag(
           find.byKey(const ValueKey('onboarding-book')),
           const Offset(180, 0),
@@ -148,13 +147,13 @@ void main() {
       await pumpApp(tester, onboarding: repository);
       await tester.pump(const Duration(seconds: 4));
       expect(chapterPosition(1), findsOneWidget);
-      for (var chapter = 2; chapter <= 5; chapter++) {
+      for (var chapter = 2; chapter <= 4; chapter++) {
         await tester.pump(Duration(seconds: chapter == 2 ? 1 : 5));
         await tester.pumpAndSettle();
         expect(chapterPosition(chapter), findsOneWidget);
       }
       await tester.pump(const Duration(seconds: 20));
-      expect(chapterPosition(5), findsOneWidget);
+      expect(chapterPosition(4), findsOneWidget);
       expect(repository.saves, 0);
       expect(tester.takeException(), isNull);
     },

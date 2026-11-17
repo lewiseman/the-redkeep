@@ -13,7 +13,6 @@ import 'package:redkeep/features/diary/data/drift_diary_repository.dart';
 import 'package:redkeep/features/diary/domain/diary_period.dart';
 import 'package:redkeep/features/diary/domain/diary_document.dart';
 import 'package:redkeep/features/diary/domain/diary_day_details.dart';
-import 'package:redkeep/features/flow/data/drift_flow_repository.dart';
 import 'package:redkeep/features/sync/data/drift_sync_store.dart';
 import 'package:redkeep/features/sync/data/drift_sync_collection.dart';
 import 'package:redkeep/features/sync/data/drift_account_reset_data.dart';
@@ -30,7 +29,6 @@ class Harness {
     backend = MemoryBackend(drive);
     notes = DriftNotesRepository(db, clock: () => now);
     diary = DriftDiaryRepository(db, clock: () => now);
-    flow = DriftFlowRepository(db, clock: () => now);
     provider = NotifierProvider<SyncEngine, SyncEngineState>(
       () => SyncEngine(
         (ref) => SyncEngineConfig(
@@ -40,7 +38,7 @@ class Harness {
           network: network,
           storage: storage,
           collections: [
-            for (final type in ['note', 'diary', 'thought'])
+            for (final type in ['note', 'diary'])
               DriftSyncCollection(db, type),
           ],
         ),
@@ -56,7 +54,6 @@ class Harness {
   late final MemoryBackend backend;
   late final DriftNotesRepository notes;
   late final DriftDiaryRepository diary;
-  late final DriftFlowRepository flow;
   late final NotifierProvider<SyncEngine, SyncEngineState> provider;
   late final ProviderContainer container;
   SyncEngine get engine => container.read(provider.notifier);

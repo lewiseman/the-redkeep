@@ -9,6 +9,7 @@ import '../../../app/navigation_destination.dart';
 import '../../../core/presentation/diary_typography.dart';
 import '../../ai/application/ai_cloud.dart';
 import '../../ai/domain/ai_provider.dart';
+import '../../assets/presentation/local_artwork.dart';
 import '../../sync/application/sync_providers.dart';
 import '../../voice/presentation/voice_capture_page.dart';
 import '../application/diary_editor_controller.dart';
@@ -117,6 +118,7 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
                       : () => _dictate(controller),
                 ),
             ],
+            if (!saved && _isToday) _thoughtButton(value, controller),
             _saveButton(value, controller, canEdit),
             if (saved && !value.sourceUnavailable)
               PopupMenuButton<void>(
@@ -160,6 +162,37 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  bool get _isToday =>
+      widget.address.date.isDay &&
+      widget.address.date.isCurrent(ref.read(diaryClockProvider)());
+
+  /// Saves today's new writing as a quick, text-only thought, marked with the
+  /// old Flow artwork.
+  Widget _thoughtButton(
+    DiaryEditorState? value,
+    DiaryEditorController controller,
+  ) {
+    final blocked =
+        value == null ||
+        value.saving ||
+        value.text.isEmpty ||
+        value.sourceUnavailable ||
+        !value.changed ||
+        _openingMedia;
+    return IconButton(
+      key: const ValueKey('diary-save-thought'),
+      tooltip: 'Save as thought',
+      onPressed: blocked ? null : () => _saveThought(controller),
+      icon: Opacity(
+        opacity: blocked ? .45 : 1,
+        child: const LocalArtwork(
+          assetKey: 'navigation.flow.inactive',
+          dimension: 32,
         ),
       ),
     );
@@ -401,6 +434,10 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
 
   Future<void> _save(DiaryEditorController controller) async {
     if (await controller.save() && mounted) await _leave();
+  }
+
+  Future<void> _saveThought(DiaryEditorController controller) async {
+    if (await controller.saveAsThought() && mounted) await _leave();
   }
 
   Future<void> _saveCopy(DiaryEditorController controller) async {

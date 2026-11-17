@@ -31,8 +31,6 @@ final startupArtworkProvider = FutureProvider<void>((ref) async {
   if (!isDiary &&
       !const {
         '/notes',
-        '/flow',
-        '/flow/search',
         '/more',
       }.contains(destination)) {
     return;

@@ -39,6 +39,7 @@ class EmptyDiaryRepository implements DiaryRepository {
     required DiaryPeriod date,
     required DiaryText text,
     required int expectedRevision,
+    DiaryEntryKind kind = DiaryEntryKind.entry,
   }) async => throw StateError('Inject writing repository');
   @override
   Future<DiaryEntry> savePhotoStory({

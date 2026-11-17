@@ -226,20 +226,18 @@ void main() {
     },
   );
 
-  test('Flow IDs and More survive both gates; malformed and future routes fail safely', () {
+  test('More survives both gates; Flow, malformed and future routes fail safely', () {
     const id = '0123456789abcdef0123456789abcdef';
-    for (final path in [
-      '/more',
-      '/watchlist',
-      '/flow',
-      '/flow/$id',
-      '/flow/$id/edit',
-    ]) {
+    for (final path in ['/more', '/watchlist']) {
       expect(validatedNavigationLocation(path), path);
       final gate = redirect(path, ready: false)!;
       expect(redirect(redirect(gate, complete: false)!), path);
     }
     for (final path in [
+      '/flow',
+      '/flow/search',
+      '/flow/$id',
+      '/flow/$id/edit',
       '/flow/new',
       '/flow/${'A' * 32}',
       '/flow/$id/',
@@ -252,7 +250,6 @@ void main() {
     ]) {
       expect(validatedNavigationLocation(path), '/unavailable');
     }
-    expect(thoughtLocation('bad'), '/unavailable');
   });
 
   test('Watchlist titles are addressed by TMDB identity only', () {

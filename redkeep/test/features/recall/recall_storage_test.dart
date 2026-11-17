@@ -100,25 +100,33 @@ void main() {
     () async {
       final db = AppDatabase(NativeDatabase.memory());
       addTearDown(db.close);
-      final collection = DriftSyncCollection(db, 'thought');
+      final collection = DriftSyncCollection(db, 'diary');
       final id = 'b' * 32;
       await collection.mergeRemote(
         SyncDocument(
-          id: id,
+          id: '2026-11-04',
           payload: {
-            'schema': 1,
-            'id': id,
-            'body': 'A remotely saved garden thought',
-            'created_at': 1,
-            'updated_at': 2,
-            'deleted_at': null,
+            'schema': 3,
+            'id': '2026-11-04',
+            'heading': '',
+            'entries': [
+              {
+                'id': id,
+                'body': 'A remotely saved garden thought',
+                'photos': [],
+                'created_at': 1,
+                'updated_at': 2,
+                'deleted_at': null,
+                'kind': 'thought',
+              },
+            ],
           },
           status: SyncStatus.synced,
         ),
         now: DateTime.utc(2026, 11, 4),
       );
       final queued = await db.select(db.recallQueue).getSingle();
-      expect((queued.kind, queued.sourceId), ('thought', id));
+      expect((queued.kind, queued.sourceId), ('diary', id));
     },
   );
   test('real separate SQLite store applies cosine similarity and isolates profiles', () async {

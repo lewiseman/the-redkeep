@@ -28,14 +28,6 @@ const onboardingFeatures = [
     accent: Color(0xFF8265B0),
   ),
   (
-    name: 'Flow',
-    artwork: 'onboarding.chapter.flow',
-    scene: 'Drifting paper thought cards, flowers and a blue pencil.',
-    title: 'Let your thoughts flow.',
-    detail: 'Capture a passing thought before it slips away.',
-    accent: Color(0xFF587BA0),
-  ),
-  (
     name: 'Appearance',
     artwork: 'onboarding.chapter.appearance',
     scene: 'Paper color swatches and light, dark and system theme cards.',

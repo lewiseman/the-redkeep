@@ -106,25 +106,7 @@ class _VoiceCapturePageState extends ConsumerState<VoiceCapturePage>
     setState(() => _saving = true);
     try {
       final text = _review.text.trim();
-      // Flow's normal repository owns permissions/outbox; a stable UUID also
-      // prevents duplicate creations if the app closes immediately after save.
-      if (widget.target == 'flow') {
-        final repo = ref.read(flowRepositoryProvider);
-        final id = _capture.thoughtId!;
-        final existing = await repo.openDocument(id);
-        if (!existing.available) {
-          await repo.save(id: id, body: text, expectedRevision: 0);
-        } else if (existing.thought!.body != text) {
-          throw StateError(
-            'This recording was already saved with other words.',
-          );
-        }
-      }
-      if (widget.target == 'flow') {
-        await _capture.discard();
-      } else {
-        _capture.text = text;
-      }
+      _capture.text = text;
       if (mounted) Navigator.of(context).pop(text);
     } catch (_) {
       if (mounted) {
@@ -233,10 +215,7 @@ class _VoiceCapturePageState extends ConsumerState<VoiceCapturePage>
     final (primary, onPrimary) = active
         ? ('Stop · review', _capture.stop)
         : reviewable
-        ? (
-            widget.target == 'flow' ? 'Save thought' : 'Use transcript',
-            _saving ? null : _use,
-          )
+        ? ('Use transcript', _saving ? null : _use)
         : waiting
         ? ('Cancel', () => Navigator.of(context).pop())
         : ('Close', () => Navigator.of(context).pop());

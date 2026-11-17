@@ -84,7 +84,6 @@ class VoiceCapture extends ChangeNotifier {
 
   CapturePhase phase = CapturePhase.idle;
   String? message, id, interruption;
-  String? _thoughtId;
   bool canTranscribeAgain = false, disposed = false;
   double level = 0;
   String text = '', prefix = '';
@@ -94,8 +93,6 @@ class VoiceCapture extends ChangeNotifier {
   Completer<void>? _abort;
   int _generation = 0;
 
-  /// A Flow thought keeps one identity across retries and continuations.
-  String? get thoughtId => _thoughtId ?? id;
   bool get recording => phase == CapturePhase.recording;
   void update() {
     if (!disposed) notifyListeners();
@@ -129,7 +126,6 @@ class VoiceCapture extends ChangeNotifier {
       if (disposed || generation != _generation) return;
       await _deleteAudio();
       id = const Uuid().v4().replaceAll('-', '');
-      _thoughtId ??= id;
       final directory = Directory('${(await _directory()).path}/voice');
       await directory.create(recursive: true);
       audio = File('${directory.path}/$id.pcm');
@@ -264,7 +260,6 @@ class VoiceCapture extends ChangeNotifier {
     await _mic.stop().catchError((_) {});
     await _deleteAudio();
     id = null;
-    _thoughtId = null;
     text = '';
     prefix = '';
     bytes = 0;

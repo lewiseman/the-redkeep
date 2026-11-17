@@ -16,11 +16,6 @@ const _destinations = [
     selectedImage: 'navigation.notes.active',
   ),
   (
-    label: 'Flow',
-    image: 'navigation.flow.inactive',
-    selectedImage: 'navigation.flow.active',
-  ),
-  (
     label: 'More',
     image: 'navigation.more.inactive',
     selectedImage: 'navigation.more.active',

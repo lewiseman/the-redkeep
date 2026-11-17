@@ -37,6 +37,7 @@ class ControlledDiaryRepository implements DiaryRepository {
     required DiaryPeriod date,
     required DiaryText text,
     required int expectedRevision,
+    DiaryEntryKind kind = DiaryEntryKind.entry,
   }) async {
     commits++;
     await commitGate?.future;
@@ -46,6 +47,7 @@ class ControlledDiaryRepository implements DiaryRepository {
       date: date,
       text: text,
       expectedRevision: expectedRevision,
+      kind: kind,
     );
   }
 

@@ -51,7 +51,6 @@ String noteAiPhaseTitle(NoteAiTool tool, String phase) => switch (phase) {
   'saving' => 'Saving your note…',
   _ => switch (tool) {
     NoteAiTool.search => 'Searching notes…',
-    NoteAiTool.thoughtSearch => 'Searching thoughts…',
     NoteAiTool.template => 'Building your template…',
     NoteAiTool.writing => 'Improving your note…',
     NoteAiTool.image => 'Reading your image…',

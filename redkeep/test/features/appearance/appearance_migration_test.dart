@@ -138,7 +138,7 @@ void main() {
       await tester.tap(find.text('Done'));
       await tester.pumpAndSettle();
       FocusManager.instance.primaryFocus?.unfocus();
-      for (final path in ['/diary', '/notes', '/flow', '/more', '/settings']) {
+      for (final path in ['/diary', '/notes', '/more', '/settings']) {
         router.go(path);
         await tester.pumpAndSettle();
         // Settings covers the shell, so its bar is offstage there.

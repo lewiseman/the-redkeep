@@ -1,5 +1,6 @@
 import 'package:intl/intl.dart';
 
+import '../../../core/presentation/directional_drag.dart';
 import '../../../core/presentation/rendering_policy.dart';
 import '../domain/diary_period.dart';
 import '../domain/diary_raven.dart';
@@ -38,6 +39,7 @@ class DiaryCalendar extends StatelessWidget {
     this.onDayDragUpdate,
     this.onDayDragEnd,
     this.onDayDragCancel,
+    this.allowDayDrag,
   });
 
   final DiaryPeriod selectedDate;
@@ -87,6 +89,10 @@ class DiaryCalendar extends StatelessWidget {
 
   /// Physical horizontal movement and velocity, normalized to one date tab.
   final ValueChanged<double>? onDayDragUpdate, onDayDragEnd;
+
+  /// Which ways a day drag may go; a refused drag is left to the page's
+  /// enclosing pager.
+  final HorizontalDragGate? allowDayDrag;
 
   static const _weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -155,21 +161,22 @@ class DiaryCalendar extends StatelessWidget {
                   onDecrease: enabled && _available(previous)
                       ? () => _selectDay(-1)
                       : null,
-                  child: GestureDetector(
+                  child: DirectionalHorizontalDrag(
                     behavior: HitTestBehavior.opaque,
-                    onHorizontalDragStart: onDayDragStart == null
+                    allow: allowDayDrag,
+                    onStart: onDayDragStart == null
                         ? null
                         : (_) => onDayDragStart!(),
-                    onHorizontalDragUpdate: onDayDragUpdate == null
+                    onUpdate: onDayDragUpdate == null
                         ? null
                         : (details) =>
                               onDayDragUpdate!(details.delta.dx / dayWidth),
-                    onHorizontalDragEnd: onDayDragEnd == null
+                    onEnd: onDayDragEnd == null
                         ? null
                         : (details) => onDayDragEnd!(
                             (details.primaryVelocity ?? 0) / dayWidth,
                           ),
-                    onHorizontalDragCancel: onDayDragCancel,
+                    onCancel: onDayDragCancel,
                     child: Stack(
                       clipBehavior: _pulled ? Clip.none : Clip.hardEdge,
                       children: [

@@ -1,3 +1,4 @@
+import '../../../core/presentation/directional_drag.dart';
 import 'diary_style.dart';
 import '../domain/diary_period.dart';
 import '../domain/diary_raven.dart';
@@ -24,6 +25,7 @@ class DiaryHeaderDelegate extends SliverPersistentHeaderDelegate {
     this.onDayDragUpdate,
     this.onDayDragEnd,
     this.onDayDragCancel,
+    this.allowDayDrag,
     this.written = const {},
     this.ravenLetter,
   });
@@ -45,6 +47,7 @@ class DiaryHeaderDelegate extends SliverPersistentHeaderDelegate {
   final bool turning;
   final VoidCallback? onDayDragStart, onDayDragCancel;
   final ValueChanged<double>? onDayDragUpdate, onDayDragEnd;
+  final HorizontalDragGate? allowDayDrag;
 
   /// Days with writing, and the letter the cord's raven brings, if any.
   final Set<DiaryPeriod> written;
@@ -100,6 +103,7 @@ class DiaryHeaderDelegate extends SliverPersistentHeaderDelegate {
                       onDayDragUpdate: onDayDragUpdate,
                       onDayDragEnd: onDayDragEnd,
                       onDayDragCancel: onDayDragCancel,
+                      allowDayDrag: allowDayDrag,
                       written: written,
                       raven: true,
                       ravenLetter: ravenLetter,
@@ -158,6 +162,7 @@ class DiaryHeaderDelegate extends SliverPersistentHeaderDelegate {
       oldDelegate.onDayDragUpdate != onDayDragUpdate ||
       oldDelegate.onDayDragEnd != onDayDragEnd ||
       oldDelegate.onDayDragCancel != onDayDragCancel ||
+      oldDelegate.allowDayDrag != allowDayDrag ||
       oldDelegate.controlsHeight != controlsHeight ||
       oldDelegate.onDateChanged != onDateChanged ||
       oldDelegate.onPickDate != onPickDate ||

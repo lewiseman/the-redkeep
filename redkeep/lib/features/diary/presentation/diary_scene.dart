@@ -1,3 +1,4 @@
+import '../../../core/presentation/directional_drag.dart';
 import '../../../core/presentation/rendering_policy.dart';
 
 import 'dart:math' as math;
@@ -38,6 +39,7 @@ class DiaryScene extends StatelessWidget {
     this.onDragUpdate,
     this.onDragEnd,
     this.onDragCancel,
+    this.allowDrag,
   });
 
   final DiaryPaperDay day;
@@ -63,6 +65,10 @@ class DiaryScene extends StatelessWidget {
   final GestureDragUpdateCallback? onDragUpdate;
   final GestureDragEndCallback? onDragEnd;
   final GestureDragCancelCallback? onDragCancel;
+
+  /// Which ways a turn may go; a refused drag is left to the page's
+  /// enclosing pager.
+  final HorizontalDragGate? allowDrag;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
@@ -227,12 +233,13 @@ class DiaryScene extends StatelessWidget {
             const CustomSemanticsAction(label: 'Next diary page'): () =>
                 onDateChanged(nextDay.date),
         },
-        child: GestureDetector(
+        child: DirectionalHorizontalDrag(
           behavior: HitTestBehavior.deferToChild,
-          onHorizontalDragStart: onDragStart,
-          onHorizontalDragUpdate: onDragUpdate,
-          onHorizontalDragEnd: onDragEnd,
-          onHorizontalDragCancel: onDragCancel,
+          allow: allowDrag,
+          onStart: onDragStart,
+          onUpdate: onDragUpdate,
+          onEnd: onDragEnd,
+          onCancel: onDragCancel,
           child: ClipRect(
             child: Stack(
               fit: StackFit.expand,

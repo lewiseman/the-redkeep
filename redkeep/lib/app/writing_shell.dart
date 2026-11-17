@@ -6,9 +6,11 @@ import 'package:go_router/go_router.dart';
 import '../core/presentation/rendering_policy.dart';
 import '../features/diary/application/diary_reader_day.dart';
 import 'bottom_navbar.dart';
+import 'main_tabs.dart';
 
-/// Asks the shell to slide its bottom bar away (or back) for the page that
-/// dispatched it. Pages only report changes, so this stays cheap to send.
+/// Asks for the bottom bar to slide away (or back) while the tab that
+/// dispatched it shows. Pages only report changes, so this stays cheap to
+/// send; [MainTabs] keeps each tab's request.
 class BottomNavbarVisibilityNotification extends Notification {
   const BottomNavbarVisibilityNotification({required this.hidden});
   final bool hidden;
@@ -19,11 +21,11 @@ class WritingShell extends ConsumerStatefulWidget {
   final Widget child;
   final String location;
 
-  static const _paths = ['/diary', '/notes', '/more'];
-
   /// Tab roots where the floating bar can slide away while reading.
   /// The app's home is the diary reader too.
   static const hidingLocations = {'/', '/diary', '/notes'};
+
+  static const _tabRoots = {'/', ...mainTabLocations};
 
   static int selectedTabFor(String location) => location.startsWith('/notes')
       ? 1
@@ -36,31 +38,38 @@ class WritingShell extends ConsumerStatefulWidget {
 }
 
 class _WritingShellState extends ConsumerState<WritingShell> {
-  /// The location whose page hid the bar. Pages pushed above it within the
-  /// same tab keep the request; another tab's pages start with the bar shown.
-  String? _hiddenAt;
+  /// The tab the pager shows, which leads the address while a swipe is
+  /// under way, and whether that tab has sent the bar away.
+  late int _tab = WritingShell.selectedTabFor(widget.location);
+  bool _tabHidden = false;
 
   @override
   void didUpdateWidget(WritingShell oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (WritingShell.selectedTabFor(oldWidget.location) !=
-        WritingShell.selectedTabFor(widget.location)) {
-      _hiddenAt = null;
+    final location = widget.location;
+    if (location != oldWidget.location &&
+        WritingShell._tabRoots.contains(location)) {
+      _tab = WritingShell.selectedTabFor(location);
     }
   }
 
-  bool _visibilityChanged(BottomNavbarVisibilityNotification notification) {
-    final hiddenAt = notification.hidden ? widget.location : null;
-    if (hiddenAt == _hiddenAt) return true;
-    // Scroll metrics can report during layout; rebuild after that frame.
+  bool _tabChanged(MainTabNotification notification) {
+    if (notification.tab == _tab && notification.hidden == _tabHidden) {
+      return true;
+    }
+    // Pages can report during build or layout; rebuild after that frame.
     if (SchedulerBinding.instance.schedulerPhase ==
         SchedulerPhase.persistentCallbacks) {
-      _hiddenAt = hiddenAt;
+      _tab = notification.tab;
+      _tabHidden = notification.hidden;
       SchedulerBinding.instance.addPostFrameCallback((_) {
         if (mounted) setState(() {});
       });
     } else {
-      setState(() => _hiddenAt = hiddenAt);
+      setState(() {
+        _tab = notification.tab;
+        _tabHidden = notification.hidden;
+      });
     }
     return true;
   }
@@ -78,28 +87,32 @@ class _WritingShellState extends ConsumerState<WritingShell> {
         !focusedDiary &&
         !location.startsWith('/notes/') &&
         MediaQuery.viewInsetsOf(context).bottom <= 0;
-    final canHide = WritingShell.hidingLocations.contains(location);
-    final hidden = canHide && _hiddenAt == location;
+    final tabRoot = WritingShell._tabRoots.contains(location);
+    final hidden =
+        WritingShell.hidingLocations.contains(location) && _tabHidden;
     return Scaffold(
       resizeToAvoidBottomInset: false,
       // The bar floats over every tab, so pages keep one body size: hiding or
       // showing it only translates the bar and never relayouts the page.
       extendBody: true,
-      body: NotificationListener<BottomNavbarVisibilityNotification>(
-        onNotification: _visibilityChanged,
+      body: NotificationListener<MainTabNotification>(
+        onNotification: _tabChanged,
         child: widget.child,
       ),
       bottomNavigationBar: showBar
           ? _SlidingNavbar(
               hidden: hidden,
               child: RedkeepBottomNavbar(
-                selectedIndex: WritingShell.selectedTabFor(location),
+                selectedIndex: tabRoot
+                    ? _tab
+                    : WritingShell.selectedTabFor(location),
                 onSelected: (index) {
                   // The diary tab opens today, as the reader's own address.
                   if (index == 0) {
                     ref.read(diaryReaderDayProvider.notifier).showToday();
                   }
-                  context.go(WritingShell._paths[index]);
+                  setState(() => _tab = index);
+                  context.go(mainTabLocations[index]);
                 },
               ),
             )

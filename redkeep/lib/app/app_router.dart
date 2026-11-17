@@ -6,7 +6,6 @@ import '../features/diary/presentation/diary_photos_page.dart';
 import '../features/ai/application/ai_lifecycle.dart';
 import '../features/sync/application/sync_providers.dart';
 import 'writing_shell.dart';
-import 'more_page.dart';
 import '../features/watchlist/domain/explore.dart';
 import '../features/watchlist/domain/watch_title.dart';
 import '../features/watchlist/presentation/explore_view.dart';
@@ -17,7 +16,6 @@ import '../features/watchlist/presentation/watch_title_page.dart';
 import '../features/watchlist/presentation/watchlist_page.dart';
 import '../features/diary/domain/diary_period.dart';
 import '../features/diary/presentation/diary_calendar_page.dart';
-import '../features/diary/presentation/diary_day_page.dart';
 import '../features/diary/presentation/diary_entry_page.dart';
 import '../features/diary/presentation/diary_edit_page.dart';
 import '../features/diary/presentation/diary_title_page.dart';
@@ -34,11 +32,10 @@ import '../features/notes/presentation/note_chat_page.dart';
 import '../features/notes/presentation/note_page.dart';
 import '../features/notes/presentation/note_scan_page.dart';
 import '../features/notes/presentation/website/note_website_page.dart';
-import '../features/notes/presentation/notes_list_page.dart';
 import 'bootstrap/bootstrap_controller.dart';
 import 'bootstrap/startup_handoff.dart';
 import 'bootstrap/startup_page.dart';
-import 'home_page.dart';
+import 'main_tabs.dart';
 import 'navigation_destination.dart';
 import 'navigation_route_information.dart';
 import 'route_not_found_page.dart';
@@ -85,171 +82,166 @@ GoRouter createAppRouter(Ref ref) {
           child: WritingShell(location: state.uri.path, child: child),
         ),
         routes: [
+          // The tab roots share one page, so moving between them keeps it
+          // and the pager slides instead of the navigator pushing.
           GoRoute(
-            path: '/',
-            pageBuilder: (context, state) => _page(state, const HomePage()),
+            path: '/diary',
+            pageBuilder: (context, state) => _tabs(0),
             routes: [
               GoRoute(
-                path: 'diary',
+                path: 'search',
                 pageBuilder: (context, state) =>
-                    _page(state, const DiaryDayPage()),
+                    _page(state, const DiarySearchPage()),
+              ),
+              GoRoute(
+                path: 'calendar/:date',
+                pageBuilder: (context, state) => _page(
+                  state,
+                  DiaryCalendarPage(
+                    key: ValueKey(state.uri.path),
+                    selected: DiaryPeriod.tryParse(
+                      state.pathParameters['date']!,
+                    )!,
+                  ),
+                ),
+              ),
+              GoRoute(
+                path: ':date/title',
+                pageBuilder: (context, state) => _page(
+                  state,
+                  DiaryTitlePage(
+                    key: ValueKey(state.uri.path),
+                    date: DiaryPeriod.tryParse(state.pathParameters['date']!)!,
+                  ),
+                ),
+              ),
+              // Days are reader state at /diary, not routes, so back from
+              // these pages returns to the one reader page.
+              GoRoute(
+                path: ':date/entries/:id/edit',
+                pageBuilder: (context, state) => _page(
+                  state,
+                  DiaryEditPage(
+                    key: ValueKey(state.uri.path),
+                    address: (
+                      date: DiaryPeriod.tryParse(
+                        state.pathParameters['date']!,
+                      )!,
+                      id: state.pathParameters['id']!,
+                    ),
+                  ),
+                ),
+              ),
+              GoRoute(
+                path: ':date/entries/:id',
+                pageBuilder: (context, state) => _page(
+                  state,
+                  DiaryEntryPage(
+                    key: ValueKey(state.uri.path),
+                    address: (
+                      date: DiaryPeriod.tryParse(
+                        state.pathParameters['date']!,
+                      )!,
+                      id: state.pathParameters['id']!,
+                    ),
+                  ),
+                ),
                 routes: [
                   GoRoute(
-                    path: 'search',
-                    pageBuilder: (context, state) =>
-                        _page(state, const DiarySearchPage()),
-                  ),
-                  GoRoute(
-                    path: 'calendar/:date',
+                    path: 'photos',
                     pageBuilder: (context, state) => _page(
                       state,
-                      DiaryCalendarPage(
-                        key: ValueKey(state.uri.path),
-                        selected: DiaryPeriod.tryParse(
-                          state.pathParameters['date']!,
-                        )!,
-                      ),
-                    ),
-                  ),
-                  GoRoute(
-                    path: ':date/title',
-                    pageBuilder: (context, state) => _page(
-                      state,
-                      DiaryTitlePage(
-                        key: ValueKey(state.uri.path),
-                        date: DiaryPeriod.tryParse(
-                          state.pathParameters['date']!,
-                        )!,
-                      ),
-                    ),
-                  ),
-                  // Days are reader state at /diary, not routes, so back from
-                  // these pages returns to the one reader page.
-                  GoRoute(
-                    path: ':date/entries/:id/edit',
-                    pageBuilder: (context, state) => _page(
-                      state,
-                      DiaryEditPage(
-                        key: ValueKey(state.uri.path),
+                      DiaryPhotosPage(
                         address: (
                           date: DiaryPeriod.tryParse(
                             state.pathParameters['date']!,
                           )!,
                           id: state.pathParameters['id']!,
                         ),
-                      ),
-                    ),
-                  ),
-                  GoRoute(
-                    path: ':date/entries/:id',
-                    pageBuilder: (context, state) => _page(
-                      state,
-                      DiaryEntryPage(
-                        key: ValueKey(state.uri.path),
-                        address: (
-                          date: DiaryPeriod.tryParse(
-                            state.pathParameters['date']!,
-                          )!,
-                          id: state.pathParameters['id']!,
-                        ),
-                      ),
-                    ),
-                    routes: [
-                      GoRoute(
-                        path: 'photos',
-                        pageBuilder: (context, state) => _page(
-                          state,
-                          DiaryPhotosPage(
-                            address: (
-                              date: DiaryPeriod.tryParse(
-                                state.pathParameters['date']!,
-                              )!,
-                              id: state.pathParameters['id']!,
-                            ),
-                            edit: state.uri.queryParameters['edit'] == '1',
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              GoRoute(
-                path: 'notes',
-                pageBuilder: (context, state) =>
-                    _page(state, const NotesListPage()),
-                routes: [
-                  GoRoute(
-                    path: 'ai-search',
-                    pageBuilder: (context, state) => _page(
-                      state,
-                      NoteAiToolPage(
-                        tool: NoteAiTool.search,
-                        initialQuery: state.extra is String
-                            ? state.extra as String
-                            : '',
-                      ),
-                    ),
-                  ),
-                  // Editing is a state of this page, not a route of its own.
-                  // It can be opened straight into editing, e.g. from the
-                  // note's website.
-                  GoRoute(
-                    path: ':id',
-                    pageBuilder: (context, state) => _page(
-                      state,
-                      NotePage(
-                        key: ValueKey(state.pathParameters['id']),
-                        id: state.pathParameters['id']!,
-                        startEditing: state.extra == NoteOpen.edit,
-                      ),
-                    ),
-                  ),
-                  // Scanning returns its kept result to the note that opened it.
-                  GoRoute(
-                    path: ':id/scan',
-                    pageBuilder: (context, state) => _page(
-                      state,
-                      NoteScanPage(
-                        key: ValueKey(state.uri.path),
-                        id: state.pathParameters['id']!,
-                      ),
-                    ),
-                  ),
-                  // The Maester's conversation about this note and its
-                  // website. A sibling, so leaving returns to where it was
-                  // opened: the note or its website.
-                  GoRoute(
-                    path: ':id/maester',
-                    pageBuilder: (context, state) => _page(
-                      state,
-                      NoteChatPage(
-                        key: ValueKey(state.uri.path),
-                        id: state.pathParameters['id']!,
-                        draft: state.extra is NoteChatDraftMessage
-                            ? (state.extra as NoteChatDraftMessage).text
-                            : '',
-                      ),
-                    ),
-                  ),
-                  // A sibling, not a child: leaving the website returns to
-                  // where it was opened from, not to the note.
-                  GoRoute(
-                    path: ':id/website',
-                    pageBuilder: (context, state) => _page(
-                      state,
-                      NoteWebsitePage(
-                        key: ValueKey(state.uri.path),
-                        id: state.pathParameters['id']!,
+                        edit: state.uri.queryParameters['edit'] == '1',
                       ),
                     ),
                   ),
                 ],
               ),
+            ],
+          ),
+          GoRoute(
+            path: '/notes',
+            pageBuilder: (context, state) => _tabs(1),
+            routes: [
               GoRoute(
-                path: 'more',
-                pageBuilder: (context, state) => _page(state, const MorePage()),
+                path: 'ai-search',
+                pageBuilder: (context, state) => _page(
+                  state,
+                  NoteAiToolPage(
+                    tool: NoteAiTool.search,
+                    initialQuery: state.extra is String
+                        ? state.extra as String
+                        : '',
+                  ),
+                ),
               ),
+              // Editing is a state of this page, not a route of its own.
+              // It can be opened straight into editing, e.g. from the
+              // note's website.
+              GoRoute(
+                path: ':id',
+                pageBuilder: (context, state) => _page(
+                  state,
+                  NotePage(
+                    key: ValueKey(state.pathParameters['id']),
+                    id: state.pathParameters['id']!,
+                    startEditing: state.extra == NoteOpen.edit,
+                  ),
+                ),
+              ),
+              // Scanning returns its kept result to the note that opened it.
+              GoRoute(
+                path: ':id/scan',
+                pageBuilder: (context, state) => _page(
+                  state,
+                  NoteScanPage(
+                    key: ValueKey(state.uri.path),
+                    id: state.pathParameters['id']!,
+                  ),
+                ),
+              ),
+              // The Maester's conversation about this note and its
+              // website. A sibling, so leaving returns to where it was
+              // opened: the note or its website.
+              GoRoute(
+                path: ':id/maester',
+                pageBuilder: (context, state) => _page(
+                  state,
+                  NoteChatPage(
+                    key: ValueKey(state.uri.path),
+                    id: state.pathParameters['id']!,
+                    draft: state.extra is NoteChatDraftMessage
+                        ? (state.extra as NoteChatDraftMessage).text
+                        : '',
+                  ),
+                ),
+              ),
+              // A sibling, not a child: leaving the website returns to
+              // where it was opened from, not to the note.
+              GoRoute(
+                path: ':id/website',
+                pageBuilder: (context, state) => _page(
+                  state,
+                  NoteWebsitePage(
+                    key: ValueKey(state.uri.path),
+                    id: state.pathParameters['id']!,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          GoRoute(path: '/more', pageBuilder: (context, state) => _tabs(2)),
+          GoRoute(
+            path: '/',
+            pageBuilder: (context, state) => _tabs(0),
+            routes: [
               GoRoute(
                 path: 'watchlist',
                 parentNavigatorKey: fullPage,
@@ -366,6 +358,14 @@ GoRouter createAppRouter(Ref ref) {
   ref.onDispose(refresh.dispose);
   return router;
 }
+
+/// Every tab root resolves to this one page; see [MainTabs].
+const _mainTabsKey = ValueKey('main-tabs');
+
+MaterialPage<void> _tabs(int index) => MaterialPage<void>(
+  key: _mainTabsKey,
+  child: _CoveredPageGuard(child: MainTabs(index: index)),
+);
 
 MaterialPage<void> _page(GoRouterState state, Widget child) =>
     MaterialPage<void>(

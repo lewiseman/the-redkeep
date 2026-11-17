@@ -160,6 +160,9 @@ void main() {
             .primary,
         AppAccent.teal.darkPrimary,
       );
+      // Notes stays alive as a tab under Settings; close its streams first.
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpAndSettle();
     },
   );
 

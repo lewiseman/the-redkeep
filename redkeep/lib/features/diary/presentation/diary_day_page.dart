@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/main_tabs.dart';
 import '../../../app/navigation_destination.dart';
 import '../../../app/writing_shell.dart';
 import '../../../core/presentation/diary_typography.dart';
@@ -144,6 +145,24 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
   bool get _atTop => _outerOffset.abs() < .5 && _innerOffset.abs() < .5;
   bool get _blocked => _timeline.neighbor(_selectedDate, -_direction) == null;
 
+  /// The pager this reader is a tab of, if any.
+  MainTabScope? _tabScope;
+
+  /// On today, with nothing to turn to, a swipe towards the next tab is the
+  /// pager's. Never while the calendar is out or a turn is under way.
+  bool get _tabSwipeAvailable =>
+      (_tabScope?.hasNext ?? false) &&
+      _timeline.neighbor(_selectedDate, 1) == null &&
+      !_calendarShown &&
+      _pullPointer == null &&
+      !_busy;
+
+  /// The reader's own turns refuse that swipe, so the pager can take it.
+  bool _allowsDayDrag(double dx) =>
+      !(_tabSwipeAvailable && _tabScope!.isForward(dx));
+
+  bool _allowsTabSwipe(bool forward) => forward && _tabSwipeAvailable;
+
   /// A fully collapsed header is the immersive reader: the paper fills the
   /// screen, so the shell slides its bottom bar away until the header returns.
   void _outerScrolled() {
@@ -186,6 +205,7 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _tabScope = MainTabScope.maybeOf(context)?..gate = _allowsTabSwipe;
     if (_settling && _reduced) {
       _turn.stop(canceled: false);
       _turn.value = _commitTurn ? 1 : 0;
@@ -522,6 +542,7 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
 
   @override
   void dispose() {
+    if (_tabScope?.gate == _allowsTabSwipe) _tabScope!.gate = null;
     _turn.dispose();
     _fade.dispose();
     _pull.dispose();
@@ -645,6 +666,7 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
                             onDayDragCancel: _dragging
                                 ? () => _settle(commit: false)
                                 : null,
+                            allowDayDrag: _allowsDayDrag,
                             written: written,
                             ravenLetter: ravenLetter,
                           ),
@@ -698,6 +720,7 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
                             onDragCancel: _dragging
                                 ? () => _settle(commit: false)
                                 : null,
+                            allowDrag: _allowsDayDrag,
                           ),
                         ),
                       ),

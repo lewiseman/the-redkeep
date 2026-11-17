@@ -178,6 +178,97 @@ void main() {
     });
   }
 
+  sceneTest('on today a swipe left moves to Notes; other swipes turn days', (
+    tester,
+  ) async {
+    await seed();
+    final router = await pumpApp(
+      tester,
+      initialLocation: '/diary',
+      diary: repo,
+    );
+    String path() => router.routeInformationProvider.value.uri.path;
+    final paper = find.byKey(const ValueKey('diary-active-paper'));
+
+    await tester.flingFrom(
+      tester.getRect(paper).center,
+      const Offset(-300, 0),
+      1500,
+    );
+    await tester.pumpAndSettle();
+    expect(path(), '/notes');
+
+    final middle = tester.getRect(find.byType(Scaffold).first).center;
+    await tester.flingFrom(middle, const Offset(300, 0), 1500);
+    await tester.pumpAndSettle();
+    expect(path(), '/diary');
+    expect(scene(tester).day.date, today);
+
+    // Back a day, the reader turns as before in both directions.
+    await tester.dragFrom(tester.getRect(paper).center, const Offset(300, 0));
+    await tester.pumpAndSettle();
+    expect(path(), '/diary');
+    expect(scene(tester).day.date, today.shift(-1));
+    await tester.dragFrom(tester.getRect(paper).center, const Offset(-300, 0));
+    await tester.pumpAndSettle();
+    expect(path(), '/diary');
+    expect(scene(tester).day.date, today);
+
+    // The header's day strip hands the same swipe over too.
+    await tester.fling(find.byType(DiaryCalendar), const Offset(-300, 0), 1500);
+    await tester.pumpAndSettle();
+    expect(path(), '/notes');
+    expect(tester.takeException(), isNull);
+  });
+
+  sceneTest('the diary calendar keeps its swipes to itself', (tester) async {
+    await seed();
+    final router = await pumpApp(
+      tester,
+      initialLocation: '/diary',
+      diary: repo,
+    );
+    await tester.tap(find.byKey(const ValueKey('diary-date-control')));
+    await tester.pumpAndSettle();
+    expect(find.byType(DiaryCalendarPage).hitTestable(), findsOneWidget);
+    final middle = tester.getRect(find.byType(DiaryCalendarPage)).center;
+    await tester.flingFrom(middle, const Offset(-300, 0), 1500);
+    await tester.pumpAndSettle();
+    expect(router.routeInformationProvider.value.uri.path, '/diary');
+    expect(find.byType(DiaryCalendarPage).hitTestable(), findsOneWidget);
+  });
+
+  sceneTest('each tab keeps its own bottom bar state', (tester) async {
+    await seed(body: List.filled(80, 'A long remembered line.').join('\n'));
+    final router = await pumpApp(
+      tester,
+      initialLocation: '/diary',
+      diary: repo,
+    );
+    final paper = find.byKey(const ValueKey('diary-active-paper'));
+    await tester.dragFrom(tester.getRect(paper).center, const Offset(0, -300));
+    await tester.pumpAndSettle();
+    expect(scene(tester).collapse, 1);
+    expect(navbarHidden(tester), isTrue);
+
+    // The immersive page of today still swipes on to Notes, with its bar.
+    await tester.flingFrom(
+      tester.getRect(paper).center,
+      const Offset(-300, 0),
+      1500,
+    );
+    await tester.pumpAndSettle();
+    expect(router.routeInformationProvider.value.uri.path, '/notes');
+    expect(navbarHidden(tester), isFalse);
+
+    final middle = tester.getRect(find.byType(Scaffold).first).center;
+    await tester.flingFrom(middle, const Offset(300, 0), 1500);
+    await tester.pumpAndSettle();
+    expect(router.routeInformationProvider.value.uri.path, '/diary');
+    expect(scene(tester).collapse, 1);
+    expect(navbarHidden(tester), isTrue);
+  });
+
   sceneTest(
     'pulling the page down unrolls the calendar; lifting its thread, a tab, a date or Back returns',
     (tester) async {

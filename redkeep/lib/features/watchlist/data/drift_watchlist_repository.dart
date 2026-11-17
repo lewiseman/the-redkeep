@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 
 import '../../../core/storage/app_database.dart';
-import '../../sync/data/drift_sync_store.dart';
+import '../../sync/data/writing_session.dart';
 import '../domain/catalog_title.dart';
 import '../domain/watch_title.dart';
 import '../domain/watchlist_repository.dart';
@@ -90,7 +90,7 @@ class DriftWatchlistRepository implements WatchlistRepository {
   ) => _db.transaction(() async {
     final id = title.key.id;
     final row = await _row(id);
-    await checkWritingAccess(_db, _generation, creating: row == null);
+    await checkWritingSession(_db, _generation);
     final now = _now;
     final snapshot = WatchTitlesCompanion(
       title: Value(title.title),
@@ -196,7 +196,7 @@ class DriftWatchlistRepository implements WatchlistRepository {
 
   @override
   Future<void> removeTitle(String id) => _db.transaction(() async {
-    await checkWritingAccess(_db, _generation);
+    await checkWritingSession(_db, _generation);
     final row = await _row(id);
     if (row == null || row.deletedAt != null) return;
     final now = _now;
@@ -244,7 +244,7 @@ class DriftWatchlistRepository implements WatchlistRepository {
     }
     final id = _newId();
     await _db.transaction(() async {
-      await checkWritingAccess(_db, _generation, creating: true);
+      await checkWritingSession(_db, _generation);
       final now = _now;
       await _db
           .into(_db.watchLists)
@@ -265,7 +265,7 @@ class DriftWatchlistRepository implements WatchlistRepository {
 
   @override
   Future<void> renameList(String id, String name) => _db.transaction(() async {
-    await checkWritingAccess(_db, _generation);
+    await checkWritingSession(_db, _generation);
     final trimmed = name.trim();
     if (trimmed.isEmpty) {
       throw const WatchlistException(WatchlistFailure.emptyName);
@@ -282,7 +282,7 @@ class DriftWatchlistRepository implements WatchlistRepository {
 
   @override
   Future<void> deleteList(String id) => _db.transaction(() async {
-    await checkWritingAccess(_db, _generation);
+    await checkWritingSession(_db, _generation);
     final list = await _list(id);
     final now = _now;
     await (_db.update(_db.watchLists)..where((r) => r.id.equals(id))).write(
@@ -298,7 +298,7 @@ class DriftWatchlistRepository implements WatchlistRepository {
   @override
   Future<void> setInList(String listId, CatalogTitle title, bool member) =>
       _db.transaction(() async {
-        await checkWritingAccess(_db, _generation);
+        await checkWritingSession(_db, _generation);
         final list = await _list(listId);
         final items = _ids(list.items);
         final id = title.key.id;
@@ -358,7 +358,7 @@ class DriftWatchlistRepository implements WatchlistRepository {
         final row = await (_db.select(
           _db.watchProfiles,
         )..where((r) => r.id.equals(watchProfileId))).getSingleOrNull();
-        await checkWritingAccess(_db, _generation, creating: row == null);
+        await checkWritingSession(_db, _generation);
         final now = _now;
         final encoded = jsonEncode(state);
         if (row == null) {

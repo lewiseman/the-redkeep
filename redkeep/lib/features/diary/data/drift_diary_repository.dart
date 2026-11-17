@@ -3,7 +3,7 @@ import '../domain/diary_photo.dart';
 
 import 'dart:convert';
 
-import '../../sync/data/drift_sync_store.dart';
+import '../../sync/data/writing_session.dart';
 
 import 'package:drift/drift.dart';
 
@@ -128,7 +128,7 @@ class DriftDiaryRepository implements DiaryRepository {
   @override
   Future<void> saveDay(DiaryDay day) async {
     return _db.transaction(() async {
-      await checkWritingAccess(_db, _generation);
+      await checkWritingSession(_db, _generation);
       if (day.heading.length > 160) {
         throw const DiaryException(DiaryFailure.invalidHeading);
       }
@@ -193,17 +193,7 @@ class DriftDiaryRepository implements DiaryRepository {
     DiaryEntryKind kind = DiaryEntryKind.entry,
   }) async {
     return _db.transaction(() async {
-      await checkWritingAccess(
-        _db,
-        _generation,
-        creating:
-            (await (_db.select(
-              _db.diaryEntries,
-            )..where((r) => r.id.equals(id))).getSingleOrNull()) ==
-            null,
-        diaryDate: date.key,
-        now: _clock(),
-      );
+      await checkWritingSession(_db, _generation);
       _validate(id);
 
       final snapshot = await openDocument(id);
@@ -291,13 +281,7 @@ class DriftDiaryRepository implements DiaryRepository {
   }) => _db.transaction(() async {
     _validate(id);
     final old = (await openDocument(id)).entry;
-    await checkWritingAccess(
-      _db,
-      _generation,
-      creating: old == null,
-      diaryDate: date.key,
-      now: _clock(),
-    );
+    await checkWritingSession(_db, _generation);
     if (old != null &&
             (old.date != date ||
                 old.deletedAt != null ||
@@ -357,7 +341,7 @@ class DriftDiaryRepository implements DiaryRepository {
   @override
   Future<void> deleteEntry(String id, int expectedRevision) async {
     return _db.transaction(() async {
-      await checkWritingAccess(_db, _generation);
+      await checkWritingSession(_db, _generation);
       _validate(id);
       final now = _clock().toUtc().millisecondsSinceEpoch;
       final previous = (await openDocument(id)).entry;

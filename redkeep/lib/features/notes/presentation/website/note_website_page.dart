@@ -6,7 +6,6 @@ import 'package:intl/intl.dart';
 import '../../../../core/presentation/rendering_policy.dart';
 
 import '../../../../app/navigation_destination.dart';
-import '../../../sync/application/sync_providers.dart';
 import '../../application/notes_providers.dart';
 import '../../domain/note_checklist.dart';
 import '../../domain/note_document.dart';
@@ -62,7 +61,7 @@ class NoteWebsitePage extends ConsumerWidget {
     }
   }
 
-  Future<void> _explainOutdated(BuildContext context, bool canEdit) =>
+  Future<void> _explainOutdated(BuildContext context) =>
       showModalBottomSheet<void>(
         context: context,
         showDragHandle: true,
@@ -93,12 +92,10 @@ class NoteWebsitePage extends ConsumerWidget {
                   ),
                   FilledButton.icon(
                     key: const ValueKey('note-website-outdated-regenerate'),
-                    onPressed: canEdit
-                        ? () {
-                            Navigator.pop(sheet);
-                            _regenerate(context);
-                          }
-                        : null,
+                    onPressed: () {
+                      Navigator.pop(sheet);
+                      _regenerate(context);
+                    },
                     icon: const Icon(Icons.auto_awesome_rounded),
                     label: const Text('Build again'),
                   ),
@@ -165,7 +162,6 @@ class NoteWebsitePage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final opened = ref.watch(noteDocumentProvider(id));
     final website = ref.watch(noteWebsiteProvider(id));
-    final canEdit = ref.watch(syncCanEditProvider);
     final note = opened.value?.available == true ? opened.value!.note : null;
     final page = website.value;
     final outdated =
@@ -215,7 +211,7 @@ class NoteWebsitePage extends ConsumerWidget {
                 : outdated
                 ? NoteWebsiteOutdatedPill(
                     key: const ValueKey('status-outdated'),
-                    onPressed: () => _explainOutdated(context, canEdit),
+                    onPressed: () => _explainOutdated(context),
                   )
                 : Text(
                     'Website · ${_built(context, page.madeAt)}',
@@ -244,7 +240,7 @@ class NoteWebsitePage extends ConsumerWidget {
                   key: const ValueKey('note-website-edit'),
                   tooltip: 'Edit text',
                   style: noteBarButtonStyle(context),
-                  onPressed: canEdit ? () => _editText(context) : null,
+                  onPressed: () => _editText(context),
                   icon: const Icon(Icons.edit_outlined),
                 ),
               ),
@@ -265,17 +261,15 @@ class NoteWebsitePage extends ConsumerWidget {
                 },
                 itemBuilder: (_) => [
                   if (!roomy)
-                    PopupMenuItem(
+                    const PopupMenuItem(
                       value: 'edit',
-                      enabled: canEdit,
-                      child: const ListTile(
+                      child: ListTile(
                         leading: Icon(Icons.edit_outlined),
                         title: Text('Edit text'),
                       ),
                     ),
                   PopupMenuItem(
                     value: 'regenerate',
-                    enabled: canEdit,
                     child: ListTile(
                       leading: const Icon(Icons.auto_awesome_rounded),
                       title: const Text('Build again'),
@@ -286,10 +280,9 @@ class NoteWebsitePage extends ConsumerWidget {
                   ),
                   if (page.canUndo)
                     PopupMenuItem(
-                      key: const ValueKey('note-website-undo'),
+                      key: ValueKey('note-website-undo'),
                       value: 'undo',
-                      enabled: canEdit,
-                      child: const ListTile(
+                      child: ListTile(
                         leading: Icon(Icons.undo_rounded),
                         title: Text('Undo last change'),
                       ),
@@ -304,15 +297,14 @@ class NoteWebsitePage extends ConsumerWidget {
                   const PopupMenuDivider(),
                   PopupMenuItem(
                     value: 'remove',
-                    enabled: canEdit,
                     child: ListTile(
                       leading: Icon(
                         Icons.delete_outline_rounded,
-                        color: canEdit ? scheme.error : null,
+                        color: scheme.error,
                       ),
                       title: Text(
                         'Remove website',
-                        style: canEdit ? TextStyle(color: scheme.error) : null,
+                        style: TextStyle(color: scheme.error),
                       ),
                     ),
                   ),

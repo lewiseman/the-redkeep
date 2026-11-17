@@ -8,8 +8,6 @@ import 'package:redkeep/features/diary/data/drift_diary_repository.dart';
 import 'package:redkeep/features/diary/domain/diary_document.dart';
 import 'package:redkeep/features/diary/domain/diary_period.dart';
 import 'package:redkeep/features/diary/domain/diary_photo.dart';
-import 'package:redkeep/features/sync/data/drift_sync_collection.dart';
-import 'package:sync_wise/sync_wise.dart';
 
 const id = '11111111111111111111111111111111';
 const other = '22222222222222222222222222222222';
@@ -68,52 +66,6 @@ void main() {
         (await repo.openDocument(other)).entry!.kind,
         DiaryEntryKind.entry,
       );
-    },
-  );
-
-  test(
-    'sync carries a thought\'s kind; entries without one stay ordinary',
-    () async {
-      await repo.save(
-        id: id,
-        date: date,
-        text: const DiaryText(body: 'Quick'),
-        expectedRevision: 0,
-        kind: DiaryEntryKind.thought,
-      );
-      await repo.save(
-        id: other,
-        date: date,
-        text: const DiaryText(body: 'Plain'),
-        expectedRevision: 0,
-      );
-      final local = (await DriftSyncCollection(db, 'diary').read(date.key))!;
-      final entries = (local.payload['entries'] as List)
-          .cast<Map<String, dynamic>>();
-      expect(entries.firstWhere((e) => e['id'] == id)['kind'], 'thought');
-      expect(
-        entries.firstWhere((e) => e['id'] == other).containsKey('kind'),
-        isFalse,
-      );
-
-      final remote = AppDatabase(NativeDatabase.memory());
-      addTearDown(remote.close);
-      await DriftSyncCollection(remote, 'diary').mergeRemote(
-        SyncDocument(
-          id: date.key,
-          payload: local.payload,
-          status: SyncStatus.synced,
-        ),
-        now: DateTime.utc(2026, 11, 2),
-      );
-      final copies = DriftDiaryRepository(
-        remote,
-        clock: () => DateTime.utc(2026, 11, 2),
-      );
-      expect((await copies.openDocument(id)).entry!.isThought, isTrue);
-      expect((await copies.openDocument(other)).entry!.isThought, isFalse);
-      expect(DiaryEntryKind.decode(null), DiaryEntryKind.entry);
-      expect(DiaryEntryKind.decode('something-new'), DiaryEntryKind.entry);
     },
   );
 

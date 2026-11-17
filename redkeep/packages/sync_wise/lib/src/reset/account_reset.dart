@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../engine/sync_backend.dart';
-import '../engine/sync_engine.dart';
+import '../backup/backup_engine.dart';
+import '../backup/backup_remote.dart';
 import '../network/network_service.dart';
 import 'account_reset_storage.dart';
 
@@ -28,8 +28,8 @@ class AccountResetState {
 
 class AccountResetConfig {
   final AccountResetStorage storage;
-  final SyncEngine engine;
-  final SyncBackend backend;
+  final BackupLifecycle engine;
+  final BackupBackend backend;
   final SyncNetwork network;
   final AccountResetLocalData localData;
   const AccountResetConfig({
@@ -44,7 +44,7 @@ class AccountResetConfig {
 class _ResetRun {
   final AccountResetConfig config;
   bool disposed = false;
-  SyncSession? session;
+  BackupSession? session;
   Future<void>? active;
   _ResetRun(this.config);
 }
@@ -121,19 +121,19 @@ class AccountResetController extends Notifier<AccountResetState> {
     var suspended = false;
     try {
       // Claim the idle engine before publishing reset state. This also closes
-      // the race with sync starting while the confirmation dialog is open.
+      // the race with a backup starting while the confirmation is open.
       await config.engine.suspendForReset(requireIdle: !durable);
       suspended = true;
       if (!_alive(run)) return;
       state = AccountResetState(
         running: true,
         pending: durable,
-        activity: 'Pausing sync…',
+        activity: 'Pausing backups…',
       );
       var intent = await config.storage.read();
       if (!_alive(run)) return;
       if (intent != null && intent.backendId != config.backend.id) {
-        throw StateError('Reconnect the sync provider used for this reset.');
+        throw StateError('Reconnect the provider used for this reset.');
       }
       if (intent == null && expectedAccountId == null) {
         throw StateError('Confirm the account reset first.');
@@ -157,7 +157,7 @@ class AccountResetController extends Notifier<AccountResetState> {
             'Connect the same account you confirmed for this reset.',
           );
         }
-        run.session = await config.backend.openSession();
+        run.session = await config.backend.open();
         if (!_alive(run)) return;
         if (run.session == null) {
           throw StateError('Connect your account before resetting data.');
@@ -167,9 +167,9 @@ class AccountResetController extends Notifier<AccountResetState> {
         durable = true;
         if (!_alive(run)) return;
         _progress(run, 'Deleting cloud backups…');
-        await run.session!.client.permanentlyDeleteAllData(
+        await run.session!.remote.deleteAll(
           onProgress: (done, total) =>
-              _progress(run, 'Deleting cloud data ($done of $total)…'),
+              _progress(run, 'Deleting cloud backups ($done of $total)…'),
         );
         if (!_alive(run)) return;
         await config.storage.write(

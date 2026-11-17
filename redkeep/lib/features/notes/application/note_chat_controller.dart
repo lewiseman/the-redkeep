@@ -8,7 +8,6 @@ import '../../ai/application/ai_jobs.dart';
 import '../../ai/domain/ai_job.dart';
 import '../../ai/domain/ai_operation.dart';
 import '../../ai/domain/ai_provider.dart';
-import '../../sync/application/sync_providers.dart';
 import '../data/drift_note_chats.dart';
 import '../domain/note_chat.dart';
 import '../domain/note_chat_contract.dart';
@@ -83,7 +82,6 @@ class NoteChatController extends Notifier<NoteChatState> {
       title: text.title,
       body: text.body,
       saved: note != null,
-      canEdit: ref.read(syncCanEditProvider),
       website: website == null
           ? null
           : NoteChatWebsite(

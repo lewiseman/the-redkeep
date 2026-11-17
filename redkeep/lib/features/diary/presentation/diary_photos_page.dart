@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../sync/application/sync_providers.dart';
 import '../application/diary_providers.dart';
 import '../domain/diary_document.dart';
 import 'add_diary_photos_page.dart';
@@ -40,7 +39,6 @@ class DiaryPhotosPage extends ConsumerWidget {
             date: address.date,
             story: entry,
             newItemUuid: address.id,
-            readOnly: !creating && !ref.watch(syncCanEditProvider),
             startEditing: edit,
           );
         },

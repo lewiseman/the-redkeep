@@ -8,7 +8,6 @@ import 'note_tag_chips.dart';
 import 'note_tag_picker.dart';
 import '../domain/note_colors.dart';
 import 'website/note_website_card.dart';
-import '../../sync/application/sync_providers.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -93,8 +92,7 @@ class _NoteReadViewState extends ConsumerState<NoteReadView> {
       }
     });
     final opened = ref.watch(noteDocumentProvider(widget.id));
-    final canEdit = ref.watch(syncCanEditProvider);
-    final busy = ref.watch(notesActionsProvider) || !canEdit;
+    final busy = ref.watch(notesActionsProvider);
     final current = opened.value;
     final note = current?.note;
     final paperShown = current?.available == true;
@@ -242,7 +240,6 @@ class _NoteReadViewState extends ConsumerState<NoteReadView> {
                             note.details.background,
                           ).background,
                           isPreviewMode: true,
-                          readOnly: !canEdit,
                           onExpansionChanged: (value) =>
                               _expansion.value = value,
                           onEdit: _edit,
@@ -315,7 +312,7 @@ class _NoteReadViewState extends ConsumerState<NoteReadView> {
         .read(noteReadingChecklistProvider(widget.id).notifier)
         .saving;
     if (saving != null) await saving;
-    if (mounted && ref.read(syncCanEditProvider)) widget.onEdit();
+    if (mounted) widget.onEdit();
   }
 
   /// The Maester's chat opens on its own page. Kept changes land in the

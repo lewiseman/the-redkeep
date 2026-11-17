@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/presentation/diary_typography.dart';
-import '../../sync/application/sync_providers.dart';
 import '../application/diary_providers.dart';
 import '../domain/diary_day_details.dart';
 import '../domain/diary_document.dart';
@@ -52,7 +51,7 @@ class _DiaryTitlePageState extends ConsumerState<DiaryTitlePage> {
   }
 
   Future<void> _save() async {
-    if (_base == null || _saving || !ref.read(syncCanEditProvider)) return;
+    if (_base == null || _saving) return;
     setState(() => _saving = true);
     try {
       await ref
@@ -98,7 +97,6 @@ class _DiaryTitlePageState extends ConsumerState<DiaryTitlePage> {
   @override
   Widget build(BuildContext context) {
     final day = ref.watch(diaryDayProvider(widget.date));
-    final canEdit = ref.watch(syncCanEditProvider);
     final busy = ref.watch(diaryActionsProvider);
     final colors = Theme.of(context).colorScheme;
     return PopScope(
@@ -120,7 +118,7 @@ class _DiaryTitlePageState extends ConsumerState<DiaryTitlePage> {
           actions: [
             DiaryPaperSaveButton(
               label: _saving ? 'Saving…' : 'Save $_kind',
-              onPressed: canEdit && !busy && !_saving && _changed
+              onPressed: !busy && !_saving && _changed
                   ? _save
                   : null,
             ),
@@ -161,7 +159,7 @@ class _DiaryTitlePageState extends ConsumerState<DiaryTitlePage> {
                       _title.text = value.heading;
                       _mood = value.mood;
                     }
-                    return _form(context, canEdit);
+                    return _form(context);
                   },
                 ),
               ),
@@ -172,10 +170,10 @@ class _DiaryTitlePageState extends ConsumerState<DiaryTitlePage> {
     );
   }
 
-  Widget _form(BuildContext context, bool canEdit) {
+  Widget _form(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final typography = DiaryTypography.of(context);
-    final editable = canEdit && !_saving;
+    final editable = !_saving;
     return SingleChildScrollView(
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       padding: const EdgeInsets.fromLTRB(28, 28, 28, 32),

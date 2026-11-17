@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../sync/application/sync_providers.dart';
 import '../domain/note_document.dart';
 import 'notes_providers.dart';
 
@@ -68,7 +67,6 @@ class NoteReadingChecklist extends Notifier<NoteReadingChecklistState> {
   }
 
   void toggle(String body, int marker, bool checked) {
-    if (!ref.read(syncCanEditProvider)) return;
     final opened = ref.read(noteDocumentProvider(id)).value;
     if (opened?.available != true) return;
     final session = _session ?? _ChecklistSession(opened!.note!);
@@ -104,9 +102,6 @@ class NoteReadingChecklist extends Notifier<NoteReadingChecklistState> {
         final revision = note.revision + 1;
         session.writes[revision] = body;
         try {
-          if (!ref.read(syncCanEditProvider)) {
-            throw const NoteException(NoteFailure.unavailable);
-          }
           session.saved = await ref
               .read(notesRepositoryProvider)
               .saveNote(

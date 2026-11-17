@@ -32,7 +32,7 @@ class ResetAccountProgressScreen extends ConsumerWidget {
                   const Icon(Icons.error_outline_rounded, size: 40),
                   const SizedBox(height: 16),
                   const Text(
-                    'The reset has not finished. Some data may already be permanently deleted. Sync is paused until you finish the reset.',
+                    'The reset has not finished. Some data may already be permanently deleted. Backups are paused until you finish the reset.',
                   ),
                   if (reset.error != null) ...[
                     const SizedBox(height: 12),

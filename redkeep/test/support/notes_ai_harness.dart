@@ -88,14 +88,12 @@ class NotesAiHarness {
   late ProviderContainer scope;
   ProviderContainer createScope({
     AiCloudSettings? settings = testAiSettings,
-    bool canEdit = true,
   }) => ProviderContainer(
     overrides: [
       appDatabaseProvider.overrideWithValue(db),
       notesRepositoryProvider.overrideWithValue(repository),
       noteMediaStoreProvider.overrideWithValue(media),
       syncEnabledProvider.overrideWithValue(false),
-      syncCanEditProvider.overrideWithValue(canEdit),
       protectedAiProvidersProvider.overrideWithValue(
         MemoryAiProviders(saved: settings),
       ),

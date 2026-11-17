@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/presentation/rendering_policy.dart';
 import '../../ai/application/ai_jobs.dart';
 import '../../ai/domain/ai_operation.dart';
-import '../../sync/application/sync_providers.dart';
 import '../application/note_ai_controller.dart';
 import '../application/note_ai_sources.dart';
 import '../data/note_media_store.dart';
@@ -141,8 +140,7 @@ class _NoteArtworkSectionState extends ConsumerState<NoteArtworkSection> {
     final theme = Theme.of(context);
     final state = ref.watch(_jobs);
     final painting = state.busy;
-    final canPaint =
-        AiOperation.noteBackground.available && ref.watch(syncCanEditProvider);
+    final canPaint = AiOperation.noteBackground.available;
     final error = _error ?? state.message;
     final dark = _tone == 'dark';
     return Column(

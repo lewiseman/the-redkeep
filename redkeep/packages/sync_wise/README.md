@@ -1,33 +1,155 @@
-# Sync Wise — Redkeep host
+# sync_wise
 
-Migrated from the user-selected Journal package for GS01. The directory structure,
-engine, provider boundary, Google Drive backend, account binding, device identity
-and reset lifecycle are retained. The original LICENSE placeholder is unchanged.
+WhatsApp-style backups for Flutter apps. Your app's SQLite database (and,
+optionally, folders of files such as photos) is backed up as **one verified
+snapshot** to the user's Google Drive, on a schedule or on demand, and
+restored on a new phone.
 
-The host owns models and persistence. `SyncCollection` persistence and
-`SyncKeyValueStore` operations support asynchronous adapters; `SyncStateStore`
-methods must be awaited. Await `SyncEngine.ready` before relying on cached roles.
-Memory implementations remain available for tests. Production Drift adapters and
-transactional outbox triggers live in Redkeep's `features/sync/data/`.
+- **Fast:** one compressed file instead of one request per record.
+- **Resumable:** every step is journaled. A dropped connection, a killed app or
+  a reboot continues from the same staged snapshot and the same Drive upload
+  session; downloads resume with HTTP ranges.
+- **Verified:** a backup only counts once Drive's MD5 matches the local file.
+  Older backups are removed only after that, so a good backup always exists.
+  Restores check SHA-256, `PRAGMA integrity_check` and the schema version
+  before swapping files.
+- **Crash-safe restore:** the database swap is journaled and finished (or rolled
+  back) on the next launch, before the app opens its database.
+- **Private:** Drive's hidden `appDataFolder`, readable only by your app. Every
+  object carries your `appId`; objects of other apps are never read or deleted.
+- **Background:** Android WorkManager runs it overnight on Wi-Fi (or any
+  network, if the user allows mobile data) with enough battery. A cross-isolate
+  lock keeps the app and the background job from running together.
 
-The first device claims primary. Primary startup/manual sync performs a full
-round trip; later automatic runs upload pending changes. Secondary devices are
-add-only, with guarded Diary-day appends. Manual reclaim transfers the registry
-and restores full sync. Requests serialize, debounce for 300ms, use a one-minute
-automatic cooldown and bounded retry/backoff. Uploads use detached snapshots and
-conditional writes; exact acknowledgement must not clear newer local changes.
+## Setup
 
-The Google adapter exclusively uses `redkeepNamespace=redkeep-v1`. It verifies
-ownership before content reads, updates and reset deletion. Journal cloud data
-is not enumerated or imported. Redkeep wire payloads are schema 1; the package's
-registry/conditional-write protocol remains version 2.
+```yaml
+dependencies:
+  sync_wise:
+    path: packages/sync_wise
+```
 
-`DeviceIdentityService.load()` is scoped by the host FutureProvider rather than a
-global singleton. Keep identity across account reset. `AccountResetController`
-pauses the engine, durably records intent, removes owned cloud data, invokes
-idempotent host cleanup, signs out and clears binding. The host must block access
-and expire old writing sessions while reset is pending. `resumeAfterReset` is
-awaitable. Do not directly invoke Notifier build/dispose methods.
+Google sign-in needs an OAuth client for your Android package. Pass the web
+client id with `--dart-define=GOOGLE_SERVER_CLIENT_ID=...`, or give
+`GoogleAuthService(serverClientId: ...)`. Only the `drive.appdata` scope is
+requested.
 
-Run `flutter pub get --enforce-lockfile`, `flutter analyze` and `flutter test`
-here.
+## Build an engine
+
+Build it the same way in the app and in the background isolate:
+
+```dart
+Future<BackupEngine> createEngine() async {
+  final config = BackupConfig(
+    appId: 'myapp', // never change it: it names your backups
+    stateDirectory: await BackupConfig.defaultStateDirectory('myapp'),
+  );
+  return BackupEngine(
+    config: config,
+    source: SqliteBackupSource(
+      databasePath: '<app support>/myapp.sqlite',
+      schemaVersion: 7, // backups from newer versions are refused
+    ),
+    backend: GoogleDriveBackend.fromConfig(config),
+    network: NetworkService(),
+    notifier: LocalNotificationsBackupNotifier(icon: 'ic_notification'),
+    deviceName: 'Android device',
+    // Scheduled runs never replace a cloud backup with an empty database.
+    isEmpty: () async => await countRows() == 0,
+  );
+}
+```
+
+`SqliteBackupSource` copies the database with `VACUUM INTO` over its own
+read-only connection, so it works while your app (Drift, sqflite, …) keeps the
+database open, and from a background isolate.
+
+## Back up
+
+```dart
+final engine = await createEngine();
+await engine.load();                  // last result, unfinished job
+engine.states.listen(render);         // activity, bytes, last backup, error
+final state = await engine.backUpNow(); // never throws; see state.error
+engine.cancel();                      // pause after this chunk; resumes later
+```
+
+`BackupState.error.kind` tells the UI what to say: `offline` (including "Waiting
+for Wi-Fi"), `auth`, `storageFull`, `corrupt`, `incompatible`, `cancelled`,
+`busy` or `empty`.
+
+## Schedule (Android)
+
+```dart
+@pragma('vm:entry-point')
+void backupDispatcher() {
+  Workmanager().executeTask(
+    (task, _) => runScheduledBackup(createEngine),
+  );
+}
+
+// At startup:
+await Workmanager().initialize(backupDispatcher);
+// When settings or sign-in change:
+await BackupScheduler(stateFile: File('<state>/schedule.json'))
+    .apply(await engine.readSettings(), signedIn: auth.isSignedIn);
+```
+
+`BackupSettings` holds the interval (daily, weekly, monthly, or only manual)
+and whether mobile data may be used. Keep a foreground fallback too: call
+`engine.isDue()` when the app goes to the background and back up then.
+
+## Restore
+
+```dart
+// Before opening the database, on every launch:
+await RestoreRecovery.finish(
+  stateDirectory: config.stateDirectory,
+  databasePath: databasePath,
+);
+
+final backup = await engine.latestBackup();
+if (backup != null) {
+  await engine.restore(
+    backup,
+    closeDatabase: () => db.close(),
+    reopenDatabase: () async => reopen(),
+  );
+}
+```
+
+The replaced database is kept as `<database>.before-restore` until the next
+successful backup.
+
+## Files (optional)
+
+```dart
+BackupEngine(
+  // ...
+  fileSets: [
+    BackupFileSet(
+      name: 'photos',
+      root: supportDirectory,
+      include: ['photos'],
+      filter: (path) => !path.endsWith('.partial'),
+    ),
+  ],
+);
+```
+
+Files are stored once per SHA-256, so unchanged and renamed files upload
+nothing. A small manifest is uploaded with each snapshot, and a restore
+downloads only the files that are missing or different.
+
+## Account reset
+
+`AccountResetController` (Riverpod) pauses backups, deletes every object the
+app stored (`GoogleDriveBackend.legacyNamespaces` covers older formats), clears
+local data through your `AccountResetLocalData`, and signs out. It is durable:
+an interrupted reset continues on the next launch.
+
+## Encryption
+
+Stored bytes go through a `BackupCipher`. The default `PlainBackupCipher`
+relies on Drive's app-private folder. Plug in your own cipher for
+password-protected backups; restores refuse a backup made with another cipher.

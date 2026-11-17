@@ -19,15 +19,6 @@ import 'package:redkeep/features/diary/domain/diary_document.dart';
 import 'package:redkeep/features/diary/domain/diary_photo.dart';
 import 'package:redkeep/features/diary/presentation/diary_sheet.dart';
 import 'package:redkeep/features/diary/presentation/diary_writing_prompt.dart';
-import 'package:redkeep/features/sync/application/sync_providers.dart';
-
-final _canEdit = NotifierProvider<_EditAccess, bool>(_EditAccess.new);
-
-class _EditAccess extends Notifier<bool> {
-  @override
-  bool build() => true;
-  void change(bool value) => state = value;
-}
 
 class _PhotoStore extends DiaryPhotoStore {
   final photo = Completer<File?>();
@@ -77,7 +68,6 @@ void main() {
             overrides: [
               appDatabaseProvider.overrideWithValue(db),
               diaryPhotoStoreProvider.overrideWithValue(photos),
-              syncCanEditProvider.overrideWith((ref) => ref.watch(_canEdit)),
               aiEnabledProvider.overrideWithValue(false),
               diaryClockProvider.overrideWithValue(() => DateTime(2026, 11, 2)),
             ],
@@ -115,12 +105,6 @@ void main() {
       expect(find.text('Original writing'), findsNothing);
       expect(find.text('Updated writing'), findsOneWidget);
       expect(find.byType(DiaryTitlePrompt), findsOneWidget);
-      final container = ProviderScope.containerOf(
-        tester.element(find.byType(DiarySheet)),
-      );
-      container.read(_canEdit.notifier).change(false);
-      await tester.pump();
-      expect(find.byType(DiaryTitlePrompt), findsNothing);
       final lightInk = tester
           .widget<Text>(find.text('Updated writing'))
           .style!
@@ -169,7 +153,7 @@ void main() {
     },
   );
 
-  testWidgets('cached live content follows action state and edit permission', (
+  testWidgets('cached live content follows action state', (
     tester,
   ) async {
     final db = AppDatabase(NativeDatabase.memory());
@@ -178,7 +162,6 @@ void main() {
       ProviderScope(
         overrides: [
           appDatabaseProvider.overrideWithValue(db),
-          syncCanEditProvider.overrideWith((ref) => ref.watch(_canEdit)),
           aiEnabledProvider.overrideWithValue(false),
           diaryClockProvider.overrideWithValue(() => DateTime(2026, 11, 2)),
         ],
@@ -204,9 +187,6 @@ void main() {
     await action;
     await tester.pump();
     expect(title().onTap, isNotNull);
-    container.read(_canEdit.notifier).change(false);
-    await tester.pump();
-    expect(find.byType(DiaryTitlePrompt), findsNothing);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });

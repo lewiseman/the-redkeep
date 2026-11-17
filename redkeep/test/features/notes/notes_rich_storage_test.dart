@@ -17,9 +17,7 @@ import 'package:redkeep/features/notes/data/drift_notes_repository.dart';
 import 'package:redkeep/features/notes/domain/note_website.dart';
 import 'package:redkeep/features/notes/domain/website/website_contract.dart';
 import 'package:redkeep/features/notes/domain/note_document.dart';
-import 'package:redkeep/features/sync/data/drift_sync_collection.dart';
 import 'package:redkeep/features/sync/data/drift_account_reset_data.dart';
-import 'package:sync_wise/sync_wise.dart';
 
 import '../../support/notes_ai_harness.dart';
 
@@ -47,9 +45,6 @@ void main() {
     await keep();
     final watched = await websites.watch(notesTestId).first;
     expect(watched!.brief, 'A guide');
-    // Not part of the note, its details or what syncs.
-    final wire = (await DriftSyncCollection(h.db, 'note').read(notesTestId))!;
-    expect(jsonEncode(wire.payload), isNot(contains('Garden site')));
     expect(
       (await h.repository.openDocument(notesTestId)).note!.revision,
       note.revision,
@@ -253,51 +248,6 @@ void main() {
     expect(
       (await h.repository.openDocument(note.id)).note!.text.body,
       'Manual change after proposal',
-    );
-  });
-
-  test('note details round-trip through sync without media bytes', () async {
-    final path = await h.media.write(h.remote.generated);
-    final saved = await h.save(
-      details: NoteDetails(
-        attachments: [NoteAttachment(path: path, type: 'image/png')],
-        background: const {'type': 'sage'},
-      ),
-    );
-    await h.repository.applyProposal(
-      saved.id,
-      saved.revision,
-      text: const PlainTextDocument(title: 'Garden', body: 'Accepted'),
-      details: saved.details,
-    );
-    final local = DriftSyncCollection(h.db, 'note');
-    final wire = (await local.read(notesTestId))!;
-    expect(wire.payload.toString(), isNot(contains('a-task')));
-    expect(wire.payload.containsKey('recovery'), isFalse);
-    final peer = AppDatabase(NativeDatabase.memory());
-    addTearDown(peer.close);
-    final collection = DriftSyncCollection(peer, 'note');
-    await collection.mergeRemote(
-      collection.decode(wire.payload),
-      now: DateTime.now(),
-    );
-    final repository = DriftNotesRepository(peer, clock: DateTime.now);
-    final imported = (await repository.openDocument(notesTestId)).note!;
-    expect(imported.details.attachments.single.path, path);
-    final legacy = Map<String, dynamic>.from(wire.payload)..remove('details');
-    legacy['body'] = 'Edited by an older peer';
-    await collection.mergeRemote(
-      SyncDocument(id: notesTestId, payload: legacy),
-      now: DateTime.now(),
-    );
-    expect(
-      (await repository.openDocument(notesTestId))
-          .note!
-          .details
-          .attachments
-          .single
-          .path,
-      path,
     );
   });
 

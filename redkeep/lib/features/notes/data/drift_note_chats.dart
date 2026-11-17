@@ -1,7 +1,7 @@
 import 'package:drift/drift.dart';
 
 import '../../../core/storage/app_database.dart';
-import '../../sync/data/drift_sync_store.dart';
+import '../../sync/data/writing_session.dart';
 import '../domain/note_chat.dart';
 import '../domain/note_document.dart';
 
@@ -31,7 +31,7 @@ class DriftNoteChats {
       throw const NoteException(NoteFailure.unavailable);
     }
     await _db.transaction(() async {
-      await checkWritingAccess(_db, _generation);
+      await checkWritingSession(_db, _generation);
       await _db
           .into(_db.noteChatTurns)
           .insert(
@@ -67,7 +67,7 @@ class DriftNoteChats {
     String callId,
     NoteChatAction Function(NoteChatAction action) change,
   ) => _db.transaction(() async {
-    await checkWritingAccess(_db, _generation);
+    await checkWritingSession(_db, _generation);
     final row = await (_db.select(
       _db.noteChatTurns,
     )..where((r) => r.id.equals(turnId))).getSingleOrNull();
@@ -84,7 +84,7 @@ class DriftNoteChats {
   });
 
   Future<void> clear(String noteId) => _db.transaction(() async {
-    await checkWritingAccess(_db, _generation);
+    await checkWritingSession(_db, _generation);
     await (_db.delete(
       _db.noteChatTurns,
     )..where((r) => r.noteId.equals(noteId))).go();

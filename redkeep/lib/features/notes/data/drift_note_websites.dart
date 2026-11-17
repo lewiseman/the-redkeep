@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 
 import '../../../core/storage/app_database.dart';
-import '../../sync/data/drift_sync_store.dart';
+import '../../sync/data/writing_session.dart';
 import '../domain/note_document.dart';
 import '../domain/note_website.dart';
 
@@ -42,7 +42,7 @@ class DriftNoteWebsites {
       throw const NoteException(NoteFailure.unavailable);
     }
     await _db.transaction(() async {
-      await checkWritingAccess(_db, _generation);
+      await checkWritingSession(_db, _generation);
       final note = await (_db.select(
         _db.notes,
       )..where((r) => r.id.equals(website.noteId))).getSingleOrNull();
@@ -115,7 +115,7 @@ class DriftNoteWebsites {
   ) async {
     if (!isNoteId(id)) return false;
     return _db.transaction(() async {
-      await checkWritingAccess(_db, _generation);
+      await checkWritingSession(_db, _generation);
       final row = await _row(id);
       final companion = row == null ? null : change(row);
       if (companion == null) return false;
@@ -129,7 +129,7 @@ class DriftNoteWebsites {
   Future<void> delete(String id) async {
     if (!isNoteId(id)) return;
     await _db.transaction(() async {
-      await checkWritingAccess(_db, _generation);
+      await checkWritingSession(_db, _generation);
       await (_db.delete(
         _db.noteWebsites,
       )..where((r) => r.noteId.equals(id))).go();

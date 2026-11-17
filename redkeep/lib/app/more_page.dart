@@ -43,7 +43,7 @@ class _MorePageState extends ConsumerState<MorePage> {
   Widget build(BuildContext context) {
     final maestar = ref.watch(maestarStatusProvider);
     final enabled = ref.watch(syncEnabledProvider);
-    final ready = enabled && ref.watch(syncConfigurationProvider).hasValue;
+    final ready = enabled && ref.watch(backupEngineProvider).hasValue;
     final signedIn = ready && ref.watch(syncAccountProvider) != null;
     return Scaffold(
       body: MoreSurface(

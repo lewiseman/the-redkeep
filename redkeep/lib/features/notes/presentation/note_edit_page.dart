@@ -31,7 +31,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/navigation_destination.dart';
-import '../../sync/application/sync_providers.dart';
 import '../application/note_editor_controller.dart';
 import '../application/notes_providers.dart';
 import '../domain/note_document.dart';
@@ -137,7 +136,7 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
           FocusScope.of(context).unfocus();
           leave();
         }
-      } else if (mounted && ref.read(syncCanEditProvider)) {
+      } else if (mounted) {
         if (controller.clearedDraft case final draft?) {
           await _deleteClearedDraft(controller, draft);
         }
@@ -198,10 +197,6 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
     final editor = ref.watch(noteEditorProvider(widget.id));
     final value = editor.value;
     final controller = ref.read(noteEditorProvider(widget.id).notifier);
-    final readOnly =
-        value != null &&
-        value.baseRevision > 0 &&
-        !ref.watch(syncCanEditProvider);
     // Until the editor has loaded, the saved note keeps the scene and paper
     // exactly as reading showed them.
     final saved = ref.watch(noteDocumentProvider(widget.id)).value?.note;
@@ -248,15 +243,13 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
                   key: const ValueKey('note-more-actions'),
                   child: NoteActionsMenu(
                     isPinned: saved?.pinned ?? false,
-                    onTogglePin: value == null || readOnly || saved == null
+                    onTogglePin: value == null || saved == null
                         ? null
                         : _togglePin,
-                    onBackground: value == null || readOnly
-                        ? null
-                        : _background,
-                    onTags: value == null || readOnly ? null : _tags,
-                    onScan: value == null || readOnly ? null : _scan,
-                    onDelete: value == null || readOnly || saved == null
+                    onBackground: value == null ? null : _background,
+                    onTags: value == null ? null : _tags,
+                    onScan: value == null ? null : _scan,
+                    onDelete: value == null || saved == null
                         ? null
                         : _delete,
                   ),
@@ -336,12 +329,11 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
                             _loadBody(state.text.body);
                             _loaded = true;
                           }
-                          _rich?.readOnly = readOnly;
+                          _rich?.readOnly = false;
                           return NotePaper(
                             key: widget.paperKey,
                             color: paperColor,
                             isPreviewMode: false,
-                            readOnly: readOnly,
                             bottomPadding: toolsExtent,
                             onEdit: () {},
                             children: [
@@ -352,20 +344,15 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
                                   children: [
                                     NoteAttachmentStrip(
                                       attachments: state.details.attachments,
-                                      onRemove: readOnly
-                                          ? null
-                                          : (index) => controller.editDetails(
-                                              state.details.copy(
-                                                attachments: [
-                                                  ...state.details.attachments,
-                                                ]..removeAt(index),
-                                              ),
+                                      onRemove: (index) =>
+                                          controller.editDetails(
+                                            state.details.copy(
+                                              attachments: [
+                                                ...state.details.attachments,
+                                              ]..removeAt(index),
                                             ),
+                                          ),
                                     ),
-                                    if (readOnly)
-                                      const Text(
-                                        'This device is add-only. Reclaim primary in Sync & devices to edit.',
-                                      ),
                                     Builder(
                                       builder: (context) {
                                         final placeholderStyle = _titleStyle
@@ -378,7 +365,6 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
                                           key: const ValueKey('note-title'),
                                           controller: _title,
                                           focusNode: _titleFocus,
-                                          enabled: !readOnly,
                                           style: _titleStyle,
                                           decoration: InputDecoration(
                                             labelText: 'Title',
@@ -503,12 +489,12 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
                         child: NoteFormatBar(
                           keyboardOpen: keyboardOpen,
                           controller: _richFocus.hasFocus ? _rich : null,
-                          onAttach: readOnly ? null : _attach,
-                          onDictate: readOnly || _dictating ? null : _dictate,
+                          onAttach: _attach,
+                          onDictate: _dictating ? null : _dictate,
                           showDictate: ref
                               .watch(aiCapabilitiesProvider)
                               .contains(AiCapability.transcription),
-                          onFormat: _rich == null || readOnly
+                          onFormat: _rich == null
                               ? null
                               : _richFocus.requestFocus,
                           onHideKeyboard: () =>
@@ -516,7 +502,6 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
                           suggestingTitle: _suggestingTitle,
                           onSuggestTitle:
                               _titleFocus.hasFocus &&
-                                  !readOnly &&
                                   ref
                                       .watch(aiCapabilitiesProvider)
                                       .contains(AiCapability.chat)

@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/presentation/rendering_policy.dart';
 import '../../ai/application/ai_jobs.dart';
-import '../../sync/application/sync_providers.dart';
 import '../application/note_ai_controller.dart';
 import '../application/note_editor_controller.dart';
 import '../application/notes_providers.dart';
@@ -106,7 +105,6 @@ class _NoteAiDeskState extends ConsumerState<NoteAiDesk> {
     final draft = state?.baseRevision == 0 || saved == null;
     final available =
         opened.hasValue && (draft ? state != null : opened.value!.available);
-    final canEdit = ref.watch(syncCanEditProvider);
     final details = state?.details ?? saved?.details ?? const NoteDetails();
     final title = state?.text.title ?? saved?.text.title ?? '';
     final only = widget.only;
@@ -114,7 +112,7 @@ class _NoteAiDeskState extends ConsumerState<NoteAiDesk> {
         ? [
             NoteAiTool.template,
             // A new note can start as a website too.
-            if (canEdit) NoteAiTool.presentation,
+            NoteAiTool.presentation,
           ]
         : [
             NoteAiTool.writing,

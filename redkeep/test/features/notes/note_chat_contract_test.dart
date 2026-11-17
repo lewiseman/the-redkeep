@@ -12,13 +12,11 @@ void main() {
   );
   NoteChatContext context({
     String text = body,
-    bool canEdit = true,
     NoteChatWebsite? site,
   }) => NoteChatContext(
     title: 'Garden',
     body: text,
     saved: true,
-    canEdit: canEdit,
     website: site,
   );
   AiToolCall call(String name, Map<String, Object?> arguments) =>
@@ -33,11 +31,6 @@ void main() {
       containsAll(['update_website', 'build_website']),
     );
     expect(tools(context(text: '  ')), {'draft_note', 'offer_choices'});
-    // An add-only device cannot change websites.
-    expect(tools(context(canEdit: false, site: website)), {
-      'edit_note',
-      'offer_choices',
-    });
   });
 
   test('edits name a known kind and, optionally, one exact passage', () {

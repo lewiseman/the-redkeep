@@ -1,21 +1,22 @@
-import '../../../core/presentation/rendering_policy.dart';
-
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
-
-import '../application/sync_providers.dart';
-import 'reset_account_page.dart';
-import 'sync_material.dart';
-
 import 'package:sync_wise/sync_wise.dart';
 
-/// The account sheet: your data's flight to the cloud, which
-/// device may edit existing entries, and the account's permanent actions.
-class SyncAccountSheet extends ConsumerStatefulWidget {
-  const SyncAccountSheet({super.key, this.scrollController});
+import '../../../core/notifications/app_notifications.dart';
+import '../../../core/presentation/rendering_policy.dart';
+import '../application/sync_providers.dart';
+import 'backup_status.dart';
+import 'reset_account_page.dart';
+import 'restore_offer.dart';
+import 'sync_material.dart';
+
+/// The backup sheet: your journal's flight to Google Drive, when it backs up,
+/// and the account's permanent actions.
+class BackupSheet extends ConsumerStatefulWidget {
+  const BackupSheet({super.key, this.scrollController});
 
   /// Drives the enclosing draggable sheet: scrolling past the top pulls the
   /// sheet down, and releasing low enough closes it.
@@ -47,14 +48,13 @@ class SyncAccountSheet extends ConsumerStatefulWidget {
         snapAnimationDuration: reducedMotion
             ? const Duration(milliseconds: 1)
             : null,
-        builder: (_, controller) =>
-            SyncAccountSheet(scrollController: controller),
+        builder: (_, controller) => BackupSheet(scrollController: controller),
       ),
     );
   }
 
   @override
-  ConsumerState<SyncAccountSheet> createState() => _SyncAccountSheetState();
+  ConsumerState<BackupSheet> createState() => _BackupSheetState();
 }
 
 class _Notice {
@@ -63,10 +63,10 @@ class _Notice {
   final bool error;
 }
 
-class _SyncAccountSheetState extends ConsumerState<SyncAccountSheet> {
+class _BackupSheetState extends ConsumerState<BackupSheet> {
   bool _working = false;
-  bool _confirming = false;
   bool _loggingOut = false;
+  bool _choosing = false;
   _Notice? _notice;
 
   // Messages stay inside the sheet: a snackbar would land behind it.
@@ -74,17 +74,21 @@ class _SyncAccountSheetState extends ConsumerState<SyncAccountSheet> {
     if (mounted) setState(() => _notice = _Notice(text, error: error));
   }
 
-  Future<void> _sync() async {
-    if (_working || ref.read(syncEngineProvider).isSyncing) return;
+  Future<void> _backUp() async {
+    if (_working || ref.read(backupStateProvider).busy) return;
+    unawaited(requestNotificationPermission());
     setState(() {
       _working = true;
       _notice = null;
     });
     try {
-      await ref.read(syncEngineProvider.notifier).syncNow(manual: true);
-      if (!mounted) return;
-      final error = ref.read(syncEngineProvider).lastError;
-      if (error != null) _say(error, error: true);
+      final result = await ref.read(backupActionsProvider).backUpNow();
+      final error = result.error;
+      if (error == null) {
+        _say('Backed up to ${ref.read(syncBackendProvider).displayName}.');
+      } else if (error.kind != BackupErrorKind.cancelled) {
+        _say(error.message, error: true);
+      }
     } catch (error) {
       _say(error.toString(), error: true);
     } finally {
@@ -93,7 +97,7 @@ class _SyncAccountSheetState extends ConsumerState<SyncAccountSheet> {
   }
 
   Future<void> _logout() async {
-    if (_working || ref.read(syncEngineProvider).isSyncing) return;
+    if (_working || ref.read(backupStateProvider).busy) return;
     setState(() {
       _working = true;
       _loggingOut = true;
@@ -103,7 +107,6 @@ class _SyncAccountSheetState extends ConsumerState<SyncAccountSheet> {
       await ref.read(syncAuthProvider).signOut();
       if (!mounted) return;
       ref.invalidate(authStateProvider);
-      ref.invalidate(syncEngineProvider);
       Navigator.of(context).pop();
     } catch (error) {
       _say(error.toString(), error: true);
@@ -117,61 +120,49 @@ class _SyncAccountSheetState extends ConsumerState<SyncAccountSheet> {
     }
   }
 
-  Future<void> _reclaim() async {
-    if (_working || _confirming || ref.read(syncEngineProvider).isSyncing) {
-      return;
-    }
-    final expected = ref.read(syncEngineProvider).primary;
-    _confirming = true;
-    final confirmed = await showDialog<bool>(
+  Future<void> _chooseInterval(BackupSettings settings) async {
+    if (_choosing) return;
+    _choosing = true;
+    final palette = MorePalette.of(context);
+    final picked = await showDialog<BackupInterval>(
       context: context,
       animationStyle: RenderingPolicyScope.of(context).reducedMotion
           ? AnimationStyle.noAnimation
           : null,
-      builder: (context) => AlertDialog(
+      builder: (dialog) => AlertDialog(
         scrollable: true,
-        title: const Text('Reclaim primary role?'),
-        content: const Text(
-          'This device will become primary and restore your synced data. '
-          'The previous primary will become add-only the next time it syncs.',
+        backgroundColor: palette.paper,
+        title: const Text('Back up to Google Drive'),
+        contentPadding: const EdgeInsets.fromLTRB(8, 16, 8, 8),
+        content: RadioGroup<BackupInterval>(
+          groupValue: settings.interval,
+          onChanged: (value) => Navigator.pop(dialog, value),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final interval in BackupInterval.values)
+                RadioListTile<BackupInterval>(
+                  key: ValueKey('backup-interval-${interval.name}'),
+                  value: interval,
+                  activeColor: palette.accent,
+                  title: Text(backupIntervalLabel(interval)),
+                ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(dialog),
             child: const Text('Cancel'),
-          ),
-          FilledButton(
-            key: const ValueKey('confirm-reclaim-primary'),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Reclaim'),
           ),
         ],
       ),
     );
-    _confirming = false;
-    if (confirmed != true || !mounted) return;
-    setState(() {
-      _working = true;
-      _notice = null;
-    });
-    try {
-      await ref
-          .read(syncEngineProvider.notifier)
-          .reclaimPrimary(expectedPrimary: expected);
-      if (!mounted) return;
-      final result = ref.read(syncEngineProvider);
-      if (result.role == SyncDeviceRole.primary) {
-        _say(
-          result.status == EngineSyncState.idle
-              ? 'This device is now primary. Your synced data is restored.'
-              : 'This device is now primary. Use Sync now to finish restoring your data.',
-        );
-      }
-    } catch (error) {
-      _say(error.toString(), error: true);
-    } finally {
-      if (mounted) setState(() => _working = false);
-    }
+    _choosing = false;
+    if (picked == null || picked == settings.interval || !mounted) return;
+    await ref
+        .read(backupSettingsProvider.notifier)
+        .save(settings.copyWith(interval: picked));
   }
 
   void _openReset(SyncAccount account) {
@@ -186,13 +177,28 @@ class _SyncAccountSheetState extends ConsumerState<SyncAccountSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final sync = ref.watch(syncEngineProvider);
+    final state = ref.watch(backupStateProvider);
     final account = ref.watch(syncAccountProvider);
-    final backend = ref.watch(syncBackendProvider);
-    final deviceName = ref.watch(syncConfigurationProvider).value?.deviceName;
+    final cloud = ref.watch(syncBackendProvider).displayName;
+    final settings =
+        ref.watch(backupSettingsProvider).value ?? const BackupSettings();
+    final offer = ref.watch(restoreOfferProvider);
+    final deviceName = ref.watch(deviceIdentityProvider).value?.deviceName;
     final palette = MorePalette.of(context);
-    final active = _working || sync.isSyncing;
-    final busy = active || account == null;
+    final status = describeBackup(
+      state,
+      signedIn: account != null,
+      cloudName: cloud,
+    );
+    final running = _working || state.busy;
+    final busy = running || account == null;
+    final buttonStyle = FilledButton.styleFrom(
+      backgroundColor: palette.accent,
+      minimumSize: const Size.fromHeight(52),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+    );
+    const buttonText = TextStyle(fontSize: 15, fontWeight: FontWeight.w600);
 
     return DefaultTextStyle.merge(
       style: TextStyle(color: palette.ink),
@@ -211,62 +217,148 @@ class _SyncAccountSheetState extends ConsumerState<SyncAccountSheet> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _Flight(
-                    sync: sync,
-                    active: active,
+                    status: status,
                     loggingOut: _loggingOut,
-                    backend: backend,
+                    cloudName: cloud,
                     deviceName: deviceName,
                   ),
                   _NoticeSlot(notice: _notice),
+                  if (offer != null && !running) RestoreOfferPanel(offer: offer),
                   const SizedBox(height: 14),
-                  FilledButton(
-                    key: const ValueKey('account-sync-now'),
-                    onPressed: busy ? null : _sync,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: palette.accent,
-                      minimumSize: const Size.fromHeight(52),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
+                  if (running && state.activity == BackupActivity.uploading)
+                    OutlinedButton.icon(
+                      key: const ValueKey('backup-pause'),
+                      onPressed: () => ref.read(backupActionsProvider).pause(),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(52),
+                        foregroundColor: palette.accent,
+                        side: BorderSide(color: palette.accent),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6),
+                        ),
                       ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(6),
+                      icon: const Icon(Icons.pause_rounded),
+                      label: const Text('Pause', style: buttonText),
+                    )
+                  else
+                    FilledButton(
+                      key: const ValueKey('backup-now'),
+                      onPressed: busy ? null : _backUp,
+                      style: buttonStyle,
+                      child: Text(
+                        running
+                            ? status.label
+                            : state.resumable
+                            ? 'Continue backup'
+                            : status.error
+                            ? 'Try again'
+                            : 'Back up now',
+                        textAlign: TextAlign.center,
+                        style: buttonText,
                       ),
                     ),
-                    child: Text(
-                      active
-                          ? 'Syncing…'
-                          : sync.lastError != null ||
-                                sync.status == EngineSyncState.error
-                          ? 'Try again'
-                          : 'Sync now',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
                   const SizedBox(height: 32),
-                  const _Eyebrow('Devices'),
+                  const _Eyebrow('Schedule'),
                   const SizedBox(height: 10),
-                  _Devices(
-                    sync: sync,
-                    deviceName: deviceName,
-                    busy: busy,
-                    onReclaim: _reclaim,
+                  _Panel(
+                    children: [
+                      _ActionRow(
+                        key: const ValueKey('backup-interval'),
+                        enabled: account != null,
+                        icon: Icons.schedule_rounded,
+                        title: 'Back up to $cloud',
+                        subtitle: backupIntervalLabel(settings.interval),
+                        trailing: Icons.chevron_right_rounded,
+                        onTap: () => _chooseInterval(settings),
+                      ),
+                      Divider(height: 1, indent: 56, color: palette.rule),
+                      SwitchListTile(
+                        key: const ValueKey('backup-cellular'),
+                        contentPadding: const EdgeInsetsDirectional.only(
+                          start: 16,
+                          end: 12,
+                        ),
+                        secondary: Icon(
+                          Icons.signal_cellular_alt_rounded,
+                          color: palette.muted,
+                        ),
+                        activeThumbColor: palette.accent,
+                        title: const Text(
+                          'Use mobile data',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        subtitle: Text(
+                          'Scheduled backups wait for Wi-Fi unless this is on.',
+                          style: TextStyle(
+                            color: palette.muted,
+                            fontSize: 12.5,
+                            height: 1.4,
+                          ),
+                        ),
+                        value: settings.allowCellular,
+                        onChanged: account == null ||
+                                settings.interval == BackupInterval.manual
+                            ? null
+                            : (value) => ref
+                                  .read(backupSettingsProvider.notifier)
+                                  .save(settings.copyWith(allowCellular: value)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Backups run overnight while your phone has battery. '
+                    '$cloud keeps the two newest in a hidden folder only '
+                    'Redkeep can open.',
+                    style: TextStyle(
+                      color: palette.muted,
+                      fontSize: 12.5,
+                      height: 1.45,
+                    ),
                   ),
                   const SizedBox(height: 32),
                   const _Eyebrow('Account'),
                   const SizedBox(height: 10),
                   _Panel(
                     children: [
+                      if (account != null) ...[
+                        ListTile(
+                          contentPadding: const EdgeInsetsDirectional.only(
+                            start: 16,
+                            end: 12,
+                          ),
+                          leading: Icon(
+                            Icons.account_circle_outlined,
+                            color: palette.muted,
+                          ),
+                          title: Text(
+                            account.email,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          subtitle: Text(
+                            'Google account',
+                            style: TextStyle(
+                              color: palette.muted,
+                              fontSize: 12.5,
+                            ),
+                          ),
+                        ),
+                        Divider(height: 1, indent: 56, color: palette.rule),
+                      ],
                       _ActionRow(
                         key: const ValueKey('account-log-out'),
                         enabled: !busy,
                         icon: Icons.logout_rounded,
                         title: 'Log out',
-                        subtitle: 'Your data stays on this device.',
+                        subtitle: 'Your journal stays on this device.',
                         onTap: _logout,
                       ),
                       Divider(height: 1, indent: 56, color: palette.rule),
@@ -276,9 +368,9 @@ class _SyncAccountSheetState extends ConsumerState<SyncAccountSheet> {
                         danger: true,
                         icon: Icons.delete_forever_outlined,
                         title: 'Reset account data',
-                        subtitle: sync.isSyncing
-                            ? 'Wait for sync to finish before resetting account data.'
-                            : 'Permanently delete your data and backups.',
+                        subtitle: running
+                            ? 'Wait for the backup to finish before resetting account data.'
+                            : 'Permanently delete your journal and backups.',
                         trailing: Icons.chevron_right_rounded,
                         onTap: () {
                           if (account != null) _openReset(account);
@@ -318,38 +410,23 @@ class _Eyebrow extends StatelessWidget {
 
 enum _Route { synced, waiting, travelling, offline, broken }
 
-/// Your data's flight between this device and the cloud. A single courier
-/// crosses the arc while syncing; at rest a seal at its crest gives the state.
+/// Your journal's flight between this device and the cloud. A courier
+/// crosses the arc while backing up (or back, while restoring); at rest a
+/// seal at its crest gives the state.
 class _Flight extends StatefulWidget {
   const _Flight({
-    required this.sync,
-    required this.active,
+    required this.status,
     required this.loggingOut,
-    required this.backend,
+    required this.cloudName,
     required this.deviceName,
   });
 
-  final SyncEngineState sync;
-  final bool active;
+  final BackupStatusView status;
   final bool loggingOut;
-  final SyncBackend backend;
+  final String cloudName;
   final String? deviceName;
 
   static const arcHeight = 132.0;
-
-  static String lastSynced(DateTime? time, DateTime now) {
-    if (time == null) return 'Not synced yet';
-    final local = time.toLocal();
-    final age = now.difference(local);
-    if (age.inSeconds < 60) return 'Synced just now';
-    if (age.inMinutes < 60) return 'Synced ${age.inMinutes} min ago';
-    final clock = DateFormat.jm().format(local);
-    if (age.inHours < 24 && local.day == now.day) return 'Synced at $clock';
-    if (age.inDays < 7) {
-      return 'Synced ${DateFormat.EEEE().format(local)} at $clock';
-    }
-    return 'Synced ${DateFormat.yMMMd().format(local)}';
-  }
 
   @override
   State<_Flight> createState() => _FlightState();
@@ -377,10 +454,10 @@ class _FlightState extends State<_Flight> with SingleTickerProviderStateMixin {
     _drive();
   }
 
-  // Out and back: sync sends this device's changes and brings others home.
+  // One way: to the cloud while backing up, home while restoring.
   void _drive() {
-    if (widget.active && _animate) {
-      if (!_courier.isAnimating) _courier.repeat(reverse: true);
+    if (widget.status.active && _animate) {
+      if (!_courier.isAnimating) _courier.repeat();
     } else if (_courier.isAnimating || _courier.value != 0) {
       _courier
         ..stop()
@@ -395,17 +472,12 @@ class _FlightState extends State<_Flight> with SingleTickerProviderStateMixin {
   }
 
   _Route get _route {
-    final sync = widget.sync;
-    if (widget.active) return _Route.travelling;
-    if (sync.lastError != null || sync.status == EngineSyncState.error) {
-      return _Route.broken;
-    }
-    return switch (sync.status) {
-      EngineSyncState.offline ||
-      EngineSyncState.unauthenticated => _Route.offline,
-      EngineSyncState.pending => _Route.waiting,
-      _ => _Route.synced,
-    };
+    final status = widget.status;
+    if (status.active) return _Route.travelling;
+    if (status.error) return _Route.broken;
+    if (status.waiting) return _Route.offline;
+    if (status.never) return _Route.waiting;
+    return _Route.synced;
   }
 
   @override
@@ -415,18 +487,13 @@ class _FlightState extends State<_Flight> with SingleTickerProviderStateMixin {
     final simpler = RenderingPolicyScope.of(context).simplerEffects;
     final route = _route;
     final tone = route == _Route.broken ? colors.error : palette.accent;
-    final sync = widget.sync;
-    final headline = widget.loggingOut ? 'Logging out' : sync.statusLabel;
+    final status = widget.status;
+    final headline = widget.loggingOut ? 'Logging out' : status.label;
     final detail = widget.loggingOut
-        ? 'Your data stays on this device.'
-        : widget.active
-        ? (sync.activity ??
-              'Exchanging entries with ${widget.backend.displayName}.')
-        : sync.descriptionFor(widget.backend);
-    final stamp =
-        widget.active || (sync.lastSyncTime == null && route != _Route.synced)
-        ? null
-        : _Flight.lastSynced(sync.lastSyncTime, DateTime.now());
+        ? 'Your journal stays on this device.'
+        : status.detail;
+    final stamp = status.active || route == _Route.synced ? null : status.stamp;
+    final reduced = !_animate;
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -444,9 +511,7 @@ class _FlightState extends State<_Flight> with SingleTickerProviderStateMixin {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Semantics(
-              label:
-                  'Syncing between this device and '
-                  '${widget.backend.displayName}',
+              label: 'Backups from this device to ${widget.cloudName}',
               excludeSemantics: true,
               child: SizedBox(
                 height: _Flight.arcHeight,
@@ -477,8 +542,8 @@ class _FlightState extends State<_Flight> with SingleTickerProviderStateMixin {
                     const SizedBox(width: 16),
                     Expanded(
                       child: _StationLabel(
-                        title: widget.backend.displayName,
-                        caption: 'Cloud copy',
+                        title: widget.cloudName,
+                        caption: 'Backup',
                         align: TextAlign.end,
                       ),
                     ),
@@ -517,6 +582,20 @@ class _FlightState extends State<_Flight> with SingleTickerProviderStateMixin {
                       height: 1.45,
                     ),
                   ),
+                  if (status.active && !widget.loggingOut) ...[
+                    const SizedBox(height: 14),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(99),
+                      child: LinearProgressIndicator(
+                        key: const ValueKey('backup-progress'),
+                        minHeight: 5,
+                        // Reduced motion: a still bar instead of a sweep.
+                        value: status.fraction ?? (reduced ? .5 : null),
+                        color: tone,
+                        backgroundColor: palette.rule,
+                      ),
+                    ),
+                  ],
                   if (stamp != null) ...[
                     const SizedBox(height: 12),
                     _Stamp(text: stamp),
@@ -543,7 +622,7 @@ class _FlightState extends State<_Flight> with SingleTickerProviderStateMixin {
     final (IconData sealIcon, bool sealFilled) = switch (route) {
       _Route.synced => (Icons.check_rounded, true),
       _Route.waiting => (Icons.more_horiz_rounded, false),
-      _Route.travelling => (Icons.sync_rounded, false),
+      _Route.travelling => (Icons.arrow_upward_rounded, false),
       _Route.offline => (Icons.cloud_off_rounded, false),
       _Route.broken => (Icons.priority_high_rounded, true),
     };
@@ -558,6 +637,7 @@ class _FlightState extends State<_Flight> with SingleTickerProviderStateMixin {
                 geometry: geometry,
                 route: route,
                 courier: moving ? _courier : null,
+                inbound: widget.status.inbound,
                 tone: tone,
                 rule: palette.rule,
                 glow: !simpler,
@@ -739,6 +819,7 @@ class _ArcPainter extends CustomPainter {
     required this.tone,
     required this.rule,
     required this.glow,
+    this.inbound = false,
   }) : super(repaint: courier);
 
   final _ArcGeometry geometry;
@@ -747,6 +828,7 @@ class _ArcPainter extends CustomPainter {
   final Color tone;
   final Color rule;
   final bool glow;
+  final bool inbound;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -796,8 +878,8 @@ class _ArcPainter extends CustomPainter {
         }
         dashed(from, to, tone.withValues(alpha: .28), dash: 2);
         final t = Curves.easeInOutSine.transform(courier.value);
-        final at = from + (to - from) * t;
-        final heading = courier.status == AnimationStatus.reverse ? -1 : 1;
+        final at = from + (to - from) * (inbound ? 1 - t : t);
+        final heading = inbound ? -1 : 1;
         // A fading wake behind the courier shows its direction.
         const wake = 14;
         for (var i = wake; i > 0; i--) {
@@ -829,6 +911,7 @@ class _ArcPainter extends CustomPainter {
       tone != oldDelegate.tone ||
       rule != oldDelegate.rule ||
       glow != oldDelegate.glow ||
+      inbound != oldDelegate.inbound ||
       geometry.size != oldDelegate.geometry.size;
 }
 
@@ -877,218 +960,6 @@ class _NoticeSlot extends StatelessWidget {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-/// This device and, when another device is primary, that device too.
-class _Devices extends StatelessWidget {
-  const _Devices({
-    required this.sync,
-    required this.deviceName,
-    required this.busy,
-    required this.onReclaim,
-  });
-
-  final SyncEngineState sync;
-  final String? deviceName;
-  final bool busy;
-  final VoidCallback onReclaim;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = MorePalette.of(context);
-    final role = sync.role;
-    final remote = role == SyncDeviceRole.primary ? null : sync.primary;
-    final explanation = role == SyncDeviceRole.primary
-        ? 'You can edit your existing notes and diary entries here.'
-        : remote == null
-        ? 'The primary device has not been checked yet. Sync to find it.'
-        : 'New entries made here are synced to your data. Reinstalled the '
-              'app or replaced your device? Reclaim the primary role to '
-              'restore your data and edit existing entries.';
-    return _Panel(
-      children: [
-        _DeviceRow(
-          icon: Icons.smartphone_rounded,
-          name: deviceName ?? 'This device',
-          caption: 'This device',
-          role: switch (role) {
-            SyncDeviceRole.primary => _RoleBadge.primary,
-            SyncDeviceRole.secondary => _RoleBadge.addOnly,
-            _ => _RoleBadge.unknown,
-          },
-        ),
-        if (remote != null)
-          _DeviceRow(
-            icon: Icons.devices_other_rounded,
-            name: remote.deviceName,
-            caption: 'Another device',
-            role: _RoleBadge.primary,
-          ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                explanation,
-                key: const ValueKey('primary-device-status'),
-                style: TextStyle(
-                  color: palette.muted,
-                  fontSize: 13,
-                  height: 1.45,
-                ),
-              ),
-              if (role != SyncDeviceRole.primary) ...[
-                const SizedBox(height: 14),
-                OutlinedButton.icon(
-                  key: const ValueKey('reclaim-primary-role'),
-                  onPressed: busy ? null : onReclaim,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: palette.accent,
-                    minimumSize: const Size.fromHeight(48),
-                    side: BorderSide(
-                      color: palette.accent.withValues(alpha: .5),
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                  ),
-                  icon: const Icon(Icons.workspace_premium_outlined),
-                  label: const Text('Reclaim primary role'),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-enum _RoleBadge { primary, addOnly, unknown }
-
-class _DeviceRow extends StatelessWidget {
-  const _DeviceRow({
-    required this.icon,
-    required this.name,
-    required this.caption,
-    required this.role,
-  });
-
-  final IconData icon;
-  final String name;
-  final String caption;
-  final _RoleBadge role;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = MorePalette.of(context);
-    final colors = Theme.of(context).colorScheme;
-    final primary = role == _RoleBadge.primary;
-    final label = switch (role) {
-      _RoleBadge.primary => 'Primary',
-      _RoleBadge.addOnly => 'Add-only',
-      _RoleBadge.unknown => 'Not checked',
-    };
-    return Semantics(
-      label: '$name, $caption, $label',
-      excludeSemantics: true,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: palette.cloth,
-                shape: BoxShape.circle,
-                border: Border.all(color: palette.rule),
-              ),
-              child: Icon(icon, size: 20, color: palette.accent),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: palette.ink,
-                      fontSize: 15,
-                      height: 1.3,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 4,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      Text(
-                        caption,
-                        style: TextStyle(
-                          color: palette.muted,
-                          fontSize: 12.5,
-                          height: 1.3,
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: primary ? palette.accent : null,
-                          borderRadius: BorderRadius.circular(99),
-                          border: primary
-                              ? null
-                              : Border.all(color: palette.rule),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (primary) ...[
-                              Icon(
-                                Icons.workspace_premium_rounded,
-                                size: 12,
-                                color: colors.onPrimary,
-                              ),
-                              const SizedBox(width: 4),
-                            ],
-                            Flexible(
-                              child: Text(
-                                label,
-                                style: TextStyle(
-                                  color: primary
-                                      ? colors.onPrimary
-                                      : palette.muted,
-                                  fontSize: 11,
-                                  height: 1.3,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: .3,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
         ),
       ),
     );

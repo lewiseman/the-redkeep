@@ -8,7 +8,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/navigation_destination.dart';
 import '../../../core/presentation/diary_typography.dart';
-import '../../sync/application/sync_providers.dart';
 import '../application/diary_paper_providers.dart';
 import '../application/diary_providers.dart';
 import '../domain/diary_document.dart';
@@ -159,20 +158,18 @@ class _DiaryDayContentState extends ConsumerState<DiaryDayContent> {
   @override
   Widget build(BuildContext context) {
     final photoStore = ref.watch(diaryPhotoStoreProvider);
-    final canEdit = ref.watch(syncCanEditProvider);
     final busy = ref.watch(diaryActionsProvider);
     final today = TimeHelper.dateOnly(ref.watch(diaryClockProvider)());
     final key = (
       widget.day,
       widget.interactive,
       widget.enableEntryEditing,
-      canEdit,
       busy,
       today,
       photoStore,
     );
     if (_content == null || _contentKey != key) {
-      _content = _buildContent(context, canEdit, busy, today);
+      _content = _buildContent(context, busy, today);
       _contentKey = key;
     }
     // Sizing can change as the header collapses without rebuilding paragraphs,
@@ -195,19 +192,17 @@ class _DiaryDayContentState extends ConsumerState<DiaryDayContent> {
 
   Widget _buildContent(
     BuildContext context,
-    bool canEdit,
     bool busy,
     DateTime today,
   ) {
     final day = widget.day;
     final interactive = widget.interactive;
     final canEditEntries =
-        interactive && widget.enableEntryEditing && canEdit && !busy;
+        interactive && widget.enableEntryEditing && !busy;
     final colors = diaryPaperColors(context);
     final typography = DiaryTypography.of(context);
     final details = day.mood?.display ?? '';
-    final canCreate =
-        day.date.hasStarted(today) && (canEdit || day.date.isCurrent(today));
+    final canCreate = day.date.hasStarted(today);
     Future<void> write() async {
       if (_openingEditor) return;
       _openingEditor = true;
@@ -272,11 +267,11 @@ class _DiaryDayContentState extends ConsumerState<DiaryDayContent> {
               ),
               const SizedBox(height: 16),
             ],
-            if (day.heading.isNotEmpty || canEdit) ...[
+            ...[
               DiaryTitlePrompt(
                 title: day.heading,
                 periodName: day.date.kind.name,
-                onTap: interactive && canEdit && !busy
+                onTap: interactive && !busy
                     ? () async {
                         if (_openingEditor) return;
                         _openingEditor = true;

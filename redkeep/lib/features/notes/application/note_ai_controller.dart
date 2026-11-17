@@ -12,7 +12,6 @@ import '../../ai/application/ai_jobs.dart';
 import '../../ai/domain/ai_job.dart';
 import '../../ai/domain/ai_operation.dart';
 import '../../diary/data/prepare_diary_image.dart';
-import '../../sync/application/sync_providers.dart';
 import '../data/note_media_store.dart';
 import '../domain/note_background_contract.dart';
 import '../domain/note_document.dart';
@@ -87,19 +86,6 @@ class NoteAiController {
       }
     } else if (!opened.available) {
       throw const FormatException('This note is unavailable.');
-    }
-    if (!unsaved &&
-        !ref.read(syncCanEditProvider) &&
-        {
-          AiOperation.noteMetadata,
-          AiOperation.noteScan,
-          AiOperation.noteBackground,
-          AiOperation.noteWebsite,
-          AiOperation.noteWebsiteRemix,
-        }.contains(operation)) {
-      throw const FormatException(
-        'This device is add-only. Reclaim primary in Sync & devices to change this note.',
-      );
     }
     final note = opened.note;
     final text = note?.text ?? const PlainTextDocument();

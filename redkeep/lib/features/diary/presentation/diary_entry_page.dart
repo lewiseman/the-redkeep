@@ -1,7 +1,6 @@
 import 'photos/diary_photo_story_strip.dart';
 import '../application/diary_media_providers.dart';
 import '../../../core/presentation/diary_typography.dart';
-import '../../sync/application/sync_providers.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -69,9 +68,7 @@ class DiaryEntryPage extends ConsumerWidget {
                         ),
                       const SizedBox(height: 16),
                       OutlinedButton(
-                        onPressed: !ref.watch(syncCanEditProvider)
-                            ? null
-                            : entry.photos.isEmpty
+                        onPressed: entry.photos.isEmpty
                             ? () => context.push(
                                 diaryEntryLocation(
                                   address.date,
@@ -85,9 +82,7 @@ class DiaryEntryPage extends ConsumerWidget {
                         child: const Text('Edit entry'),
                       ),
                       OutlinedButton(
-                        onPressed:
-                            !ref.watch(syncCanEditProvider) ||
-                                ref.watch(diaryActionsProvider)
+                        onPressed: ref.watch(diaryActionsProvider)
                             ? null
                             : () async {
                                 final deleted = await deleteDiaryEntry(

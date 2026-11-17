@@ -23,7 +23,6 @@ import 'package:redkeep/features/diary/domain/diary_photo.dart';
 import 'package:redkeep/features/diary/presentation/diary_scene.dart';
 import 'package:redkeep/features/diary/presentation/diary_edit_page.dart';
 import 'package:redkeep/features/diary/presentation/diary_sheet.dart';
-import 'package:redkeep/features/sync/application/sync_providers.dart';
 
 import '../../support/fake_appearance_repository.dart';
 import '../../support/pump_app.dart';
@@ -259,7 +258,6 @@ void main() {
               overrides: [
                 appDatabaseProvider.overrideWithValue(db),
                 diaryPhotoStoreProvider.overrideWithValue(_MissingPhotos()),
-                syncCanEditProvider.overrideWithValue(true),
                 aiEnabledProvider.overrideWithValue(false),
                 diaryClockProvider.overrideWithValue(
                   () => DateTime(2026, 11, 2),
@@ -293,7 +291,7 @@ void main() {
   }
 
   testWidgets(
-    'entry editing follows live state, immersion, permissions and pending actions',
+    'entry editing follows live state, immersion and pending actions',
     (tester) async {
       final db = AppDatabase(NativeDatabase.memory());
       final entry = DiaryEntry(
@@ -308,12 +306,10 @@ void main() {
       Future<void> mount({
         bool interactive = true,
         bool immersed = true,
-        bool canEdit = true,
       }) => tester.pumpWidget(
         ProviderScope(
           overrides: [
             appDatabaseProvider.overrideWithValue(db),
-            syncCanEditProvider.overrideWithValue(canEdit),
             aiEnabledProvider.overrideWithValue(false),
             diaryClockProvider.overrideWithValue(() => DateTime(2026, 11, 2)),
           ],
@@ -340,8 +336,6 @@ void main() {
         await mount(immersed: false);
         expect(gesture().onLongPress, isNull);
         await mount(interactive: false);
-        expect(gesture().onLongPress, isNull);
-        await mount(canEdit: false);
         expect(gesture().onLongPress, isNull);
         await mount();
         expect(gesture().onLongPress, isNotNull);

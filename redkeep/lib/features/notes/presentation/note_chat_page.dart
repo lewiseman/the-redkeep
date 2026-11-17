@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import '../../../app/navigation_destination.dart';
 import '../../../core/presentation/rendering_policy.dart';
 import '../../ai/application/ai_jobs.dart';
-import '../../sync/application/sync_providers.dart';
 import '../application/note_chat_controller.dart';
 import '../application/notes_providers.dart';
 import '../domain/note_chat.dart';
@@ -267,7 +266,6 @@ class _NoteChatPageState extends ConsumerState<NoteChatPage> {
     required NoteDocument? note,
     required bool hasWebsite,
   }) {
-    final canEdit = ref.watch(syncCanEditProvider);
     final empty = note == null || note.text.body.trim().isEmpty;
     final latest = turns.isEmpty ? null : turns.last;
     final children = <Widget>[
@@ -275,7 +273,6 @@ class _NoteChatPageState extends ConsumerState<NoteChatPage> {
         _Welcome(
           empty: empty,
           hasWebsite: hasWebsite,
-          canEdit: canEdit,
           onPick: chat.sending ? null : (text) => _send(text),
         ),
       if (turns.length >= noteChatKeptTurns)
@@ -331,10 +328,9 @@ class _Welcome extends StatelessWidget {
   const _Welcome({
     required this.empty,
     required this.hasWebsite,
-    required this.canEdit,
     required this.onPick,
   });
-  final bool empty, hasWebsite, canEdit;
+  final bool empty, hasWebsite;
   final ValueChanged<String>? onPick;
 
   @override
@@ -347,10 +343,10 @@ class _Welcome extends StatelessWidget {
         ('Tidy and organise this note', Icons.format_list_bulleted_rounded),
         ('Fix grammar and clarity', Icons.spellcheck_rounded),
         ('Make it warmer and friendlier', Icons.sentiment_satisfied_rounded),
-        if (canEdit && !hasWebsite)
+        if (!hasWebsite)
           ('Turn this note into a website', Icons.web_rounded),
       ],
-      if (canEdit && hasWebsite) ...[
+      if (hasWebsite) ...[
         ('Give the website a darker look', Icons.dark_mode_outlined),
         ('Add a quiz to the website', Icons.quiz_outlined),
       ],

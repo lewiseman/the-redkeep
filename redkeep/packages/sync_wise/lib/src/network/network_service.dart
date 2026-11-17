@@ -4,6 +4,9 @@ enum NetworkType { none, mobile, wifiOrEthernet }
 
 abstract interface class SyncNetwork {
   Future<bool> isOnline();
+
+  /// Wi-Fi or ethernet: networks that do not use the user's data plan.
+  Future<bool> isUnmeteredConnection();
 }
 
 class NetworkService implements SyncNetwork {
@@ -27,6 +30,7 @@ class NetworkService implements SyncNetwork {
     return type != NetworkType.none;
   }
 
+  @override
   Future<bool> isUnmeteredConnection() async {
     final type = await getCurrentNetworkType();
     return type == NetworkType.wifiOrEthernet;

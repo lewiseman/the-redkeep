@@ -5,7 +5,6 @@ import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:markdown/markdown.dart' as md;
 
-import '../../sync/application/sync_providers.dart';
 import '../application/note_reading_checklist.dart';
 import '../application/notes_providers.dart';
 import '../domain/note_link_launcher.dart';
@@ -186,24 +185,21 @@ class _ReadingCheckbox extends ConsumerWidget {
           noteReadingChecklistProvider(noteId).select((s) => s.checks[marker]),
         ) ??
         initiallyChecked;
-    final canEdit = ref.watch(syncCanEditProvider);
     final icon = _checkboxIcon(checked, size, color);
     return Semantics(
       checked: checked,
-      enabled: canEdit,
+      enabled: true,
       label: 'Checklist item',
-      child: canEdit
-          ? InkWell(
-              splashFactory: NoSplash.splashFactory,
-              onTap: () {
-                final checklist = noteReadingChecklistProvider(noteId);
-                final current =
-                    ref.read(checklist).checks[marker] ?? initiallyChecked;
-                ref.read(checklist.notifier).toggle(body, marker, !current);
-              },
-              child: icon,
-            )
-          : icon,
+      child: InkWell(
+        splashFactory: NoSplash.splashFactory,
+        onTap: () {
+          final checklist = noteReadingChecklistProvider(noteId);
+          final current =
+              ref.read(checklist).checks[marker] ?? initiallyChecked;
+          ref.read(checklist.notifier).toggle(body, marker, !current);
+        },
+        child: icon,
+      ),
     );
   }
 }

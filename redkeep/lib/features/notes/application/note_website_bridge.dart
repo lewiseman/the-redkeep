@@ -4,7 +4,6 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../sync/application/sync_providers.dart';
 import '../data/drift_note_websites.dart';
 import '../domain/note_checklist.dart';
 import '../domain/note_document.dart';
@@ -104,7 +103,7 @@ class NoteWebsiteBridge {
     _saveTimer?.cancel();
     final state = _pendingState;
     _pendingState = null;
-    if (state == null || !scope.read(syncCanEditProvider)) return;
+    if (state == null) return;
     try {
       await scope.read(noteWebsitesProvider).saveState(noteId, state);
     } catch (_) {
@@ -113,7 +112,6 @@ class NoteWebsiteBridge {
   }
 
   Future<bool> _check(String text, bool done) async {
-    if (!scope.read(syncCanEditProvider)) return false;
     final repo = scope.read(notesRepositoryProvider);
     final opened = await repo.openDocument(noteId);
     final note = opened.note;

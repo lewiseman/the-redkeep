@@ -119,7 +119,7 @@ void main() {
       await storage.write(const ResetIntent('owner', backendId: 'different'));
       final reset = await controller();
       await reset.reset();
-      expect(_state(reset).error, contains('Reconnect the sync provider'));
+      expect(_state(reset).error, contains('Reconnect the provider'));
       expect(_state(reset).blocksDataAccess, isTrue);
       expect(localData.calls, 0);
       expect(backend.store.deletions, 0);
@@ -203,7 +203,7 @@ final _states = Expando<AccountResetState Function()>();
 AccountResetState _state(AccountResetController controller) =>
     _states[controller]!();
 
-class _Engine extends Fake implements SyncEngine {
+class _Engine extends Fake implements BackupLifecycle {
   final List<String> events;
   Future<void>? drain;
   _Engine(this.events);
@@ -241,6 +241,8 @@ class _Network implements SyncNetwork {
   var online = true;
   @override
   Future<bool> isOnline() async => online;
+  @override
+  Future<bool> isUnmeteredConnection() async => online;
 }
 
 class _Auth extends Fake implements SyncAuth {
@@ -253,7 +255,7 @@ class _Auth extends Fake implements SyncAuth {
   Future<void> signOut() async => events.add('signOut');
 }
 
-class _Backend extends Fake implements SyncBackend {
+class _Backend extends Fake implements BackupBackend {
   final List<String> events;
   @override
   late final SyncAuth auth = _Auth(events);
@@ -267,31 +269,29 @@ class _Backend extends Fake implements SyncBackend {
   @override
   String get displayName => 'Native Cloud';
   @override
-  Future<SyncSession?> openSession() async {
+  Future<BackupSession?> open() async {
     events.add('open');
     await beforeOpen?.call();
     return _Session(store, () => closed++);
   }
 }
 
-class _Session implements SyncSession {
+class _Session implements BackupSession {
   @override
-  final SyncClient client;
+  final BackupRemote remote;
   final void Function() _close;
-  _Session(this.client, this._close);
+  _Session(this.remote, this._close);
   @override
   void close() => _close();
 }
 
-class _Store extends Fake implements SyncClient {
+class _Store extends Fake implements BackupRemote {
   final List<String> events;
   var deletions = 0;
   var failDelete = false;
   _Store(this.events);
   @override
-  Future<void> permanentlyDeleteAllData({
-    void Function(int, int)? onProgress,
-  }) async {
+  Future<void> deleteAll({void Function(int, int)? onProgress}) async {
     events.add('remote');
     deletions++;
     if (failDelete) throw StateError('Remote deletion interrupted');

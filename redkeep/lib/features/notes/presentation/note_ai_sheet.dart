@@ -15,7 +15,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../ai/application/ai_jobs.dart';
 import '../../ai/domain/ai_job.dart';
 import '../../ai/domain/ai_operation.dart';
-import '../../sync/application/sync_providers.dart';
 import '../application/note_ai_controller.dart';
 import '../application/note_ai_sources.dart';
 import '../application/note_editor_controller.dart';
@@ -789,10 +788,7 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
                   ref.watch(noteEditorProvider(job.key)).value?.editVersion !=
                       source['editVersion']
             : !note.available || note.note!.revision != source['revision']);
-    final canApply =
-        note != null &&
-        !stale &&
-        (source['unsaved'] == true || ref.watch(syncCanEditProvider));
+    final canApply = note != null && !stale;
     final result = <Widget>[
       if (stale)
         const Padding(

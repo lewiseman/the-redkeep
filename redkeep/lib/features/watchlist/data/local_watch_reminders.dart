@@ -3,6 +3,7 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
+import '../../../core/notifications/app_notifications.dart';
 import '../domain/reminders.dart';
 
 /// Android notifications for matches and watch nights. Inexact, so no
@@ -22,6 +23,7 @@ class LocalWatchReminders implements WatchReminders {
       'watchlist',
       'Watchlist',
       channelDescription: 'Matches about to end and watch nights.',
+      icon: appNotificationIcon,
       importance: Importance.defaultImportance,
       priority: Priority.defaultPriority,
     ),
@@ -35,11 +37,7 @@ class LocalWatchReminders implements WatchReminders {
     } on Object {
       tz.setLocalLocation(tz.UTC);
     }
-    await _plugin.initialize(
-      settings: const InitializationSettings(
-        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-      ),
-    );
+    await _plugin.initialize(settings: appNotificationSettings);
   }();
 
   AndroidFlutterLocalNotificationsPlugin? get _android => _plugin

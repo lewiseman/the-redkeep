@@ -138,7 +138,6 @@ void main() {
       throwsA(isA<Exception>()),
     );
     expect((await repo.openDocument(id)).entry, isNull);
-    expect(await db.select(db.syncOperations).get(), isEmpty);
     await db.customStatement('DROP TRIGGER fail_insert');
     await repo.save(
       id: id,

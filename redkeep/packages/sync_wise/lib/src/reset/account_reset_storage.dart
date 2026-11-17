@@ -17,7 +17,7 @@ class ResetIntent {
   });
 }
 
-/// The intent survives process death and blocks ordinary sync until reset ends.
+/// The intent survives process death and blocks backups until reset ends.
 class AccountResetStorage {
   final Future<Directory> Function() directory;
   AccountResetStorage({Future<Directory> Function()? directory})
@@ -37,7 +37,7 @@ class AccountResetStorage {
         (value['backend_id'] != null && value['backend_id'] is! String) ||
         value['remote_deleted'] is! bool) {
       throw const FormatException(
-        'The saved reset request cannot be read. Sync remains paused.',
+        'The saved reset request cannot be read. Backups remain paused.',
       );
     }
     return ResetIntent(

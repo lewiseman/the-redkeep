@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -11,7 +10,6 @@ import 'package:redkeep/features/diary/data/diary_photo_stories.dart';
 import 'package:redkeep/features/diary/domain/diary_document.dart';
 import 'package:redkeep/features/diary/domain/diary_photo.dart';
 import 'package:redkeep/features/diary/domain/diary_period.dart';
-import 'package:redkeep/features/sync/data/drift_sync_collection.dart';
 
 const id = '11111111111111111111111111111111';
 final date = DiaryPeriod(2026, 11, 4);
@@ -164,33 +162,4 @@ void main() {
       );
     },
   );
-  test('period diary sync preserves metadata without media bytes and rejects obsolete schemas', () async {
-    final entry = await photoStory();
-    final collection = DriftSyncCollection(db, 'diary');
-    final document = (await collection.read(date.key))!;
-    expect(document.payload['schema'], 3);
-    final payload = document.payload;
-    expect(jsonEncode(payload), isNot(contains('base64')));
-    final other = AppDatabase(NativeDatabase.memory());
-    try {
-      await DriftSyncCollection(
-        other,
-        'diary',
-      ).mergeRemote(collection.decode(payload), now: DateTime.now());
-      final copy = await DriftDiaryRepository(
-        other,
-        clock: DateTime.now,
-      ).openDocument(id);
-      expect(copy.entry!.photos.single.toJson(), entry.photos.single.toJson());
-      expect(copy.entry!.text.body, entry.text.body);
-    } finally {
-      await other.close();
-    }
-    for (final unsupported in [1, 2, 4]) {
-      expect(
-        () => collection.decode({...payload, 'schema': unsupported}),
-        throwsFormatException,
-      );
-    }
-  });
 }

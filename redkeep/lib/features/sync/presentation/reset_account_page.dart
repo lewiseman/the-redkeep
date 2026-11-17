@@ -42,7 +42,7 @@ class _ResetAccountPageState extends ConsumerState<ResetAccountPage> {
     if (_submitting ||
         _confirmation.text.trim() != _word ||
         ref.read(syncAccountProvider)?.id != widget.account.id ||
-        ref.read(syncEngineProvider).isSyncing ||
+        ref.read(backupStateProvider).busy ||
         ref.read(accountResetProvider).blocksDataAccess) {
       return;
     }
@@ -62,9 +62,7 @@ class _ResetAccountPageState extends ConsumerState<ResetAccountPage> {
     final account = ref.watch(syncAccountProvider);
     final backend = ref.watch(syncBackendProvider);
     final reset = ref.watch(accountResetProvider);
-    final syncing = ref.watch(
-      syncEngineProvider.select((state) => state.isSyncing),
-    );
+    final syncing = ref.watch(backupStateProvider.select((s) => s.busy));
     final policy = RenderingPolicyScope.of(context);
     final animate = policy.animate && !MediaQuery.disableAnimationsOf(context);
     final palette = MorePalette.of(context);
@@ -78,7 +76,7 @@ class _ResetAccountPageState extends ConsumerState<ResetAccountPage> {
     final blocker = !sameAccount
         ? 'Reconnect ${widget.account.email} before resetting its data.'
         : syncing
-        ? 'Wait for sync to finish before resetting account data.'
+        ? 'Wait for the backup to finish before resetting account data.'
         : null;
 
     return Scaffold(
@@ -155,8 +153,6 @@ class _ResetAccountPageState extends ConsumerState<ResetAccountPage> {
                     ),
                     const SizedBox(height: 24),
                     _Ledger(armed: armed, animate: animate),
-                    const SizedBox(height: 14),
-                    const _OtherDevicesNote(),
                     const SizedBox(height: 28),
                     _Docket(
                       controller: _confirmation,
@@ -587,50 +583,6 @@ class _Stamp extends StatelessWidget {
       child: visible
           ? KeyedSubtree(key: const ValueKey('stamp'), child: stamp)
           : const SizedBox.shrink(),
-    );
-  }
-}
-
-class _OtherDevicesNote extends StatelessWidget {
-  const _OtherDevicesNote();
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = MorePalette.of(context);
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(top: 1),
-          child: Icon(
-            Icons.devices_other_rounded,
-            size: 20,
-            color: palette.accent,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text.rich(
-            TextSpan(
-              children: [
-                TextSpan(
-                  text: 'Close Redkeep on your other devices first. ',
-                  style: TextStyle(
-                    color: palette.ink,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const TextSpan(
-                  text:
-                      'Their copies are not erased and could upload again '
-                      'unless you clear them before reconnecting.',
-                ),
-              ],
-            ),
-            style: TextStyle(color: palette.muted, fontSize: 13, height: 1.5),
-          ),
-        ),
-      ],
     );
   }
 }

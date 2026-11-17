@@ -4,12 +4,15 @@ import 'dart:ui' show lerpDouble;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'dart:async';
+
+import '../../../core/notifications/app_notifications.dart';
 import '../application/sync_providers.dart';
-import 'sync_account_sheet.dart';
+import 'backup_sheet.dart';
+import 'backup_status.dart';
+import 'restore_offer.dart';
 import 'sync_material.dart';
 import '../../onboarding/application/onboarding_controller.dart';
-
-import 'package:sync_wise/sync_wise.dart';
 
 /// An ownership bookplate which folds down to a pinned account strip.
 class SyncAccountCard extends ConsumerWidget {
@@ -26,12 +29,18 @@ class SyncAccountCard extends ConsumerWidget {
     try {
       final account = await ref.read(syncAuthProvider).signIn();
       if (account == null || !context.mounted) return;
-      await ref.read(syncEngineProvider.notifier).syncNow(manual: true);
-      if (!context.mounted) return;
-      final error = ref.read(syncEngineProvider).lastError;
+      unawaited(requestNotificationPermission());
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error ?? 'Connected as ${account.email}.')),
+        SnackBar(content: Text('Connected as ${account.email}.')),
       );
+      // An empty phone may restore; otherwise back up straight away.
+      final offer = await ref.read(restoreOfferProvider.notifier).check();
+      if (!context.mounted) return;
+      if (offer != null) {
+        await RestoreOfferSheet.show(context, offer);
+      } else {
+        await ref.read(backupActionsProvider).backUpNow();
+      }
     } catch (error) {
       if (context.mounted) {
         ScaffoldMessenger.of(context)
@@ -80,17 +89,18 @@ class SyncAccountCard extends ConsumerWidget {
     final name = ref.watch(onboardingControllerProvider).name?.trim();
     final title = name == null || name.isEmpty ? 'Your journal' : name;
     final syncAccount = ref.watch(syncAccountProvider);
-    final engineState = ref.watch(syncEngineProvider);
-    final syncBackend = ref.watch(syncBackendProvider);
+    final backupState = ref.watch(backupStateProvider);
     final isSignedIn = syncAccount != null;
-    final syncState = isSignedIn
-        ? engineState
-        : const SyncEngineState(status: EngineSyncState.unauthenticated);
+    final status = describeBackup(
+      backupState,
+      signedIn: isSignedIn,
+      cloudName: ref.watch(syncBackendProvider).displayName,
+    );
     final palette = MorePalette.of(context);
     final t = collapseProgress.clamp(0.0, 1.0);
     final compact = t >= .6;
     final fade = (1 - t * 3).clamp(0.0, 1.0);
-    final statusColor = syncState.status == EngineSyncState.error
+    final statusColor = status.error
         ? Theme.of(context).colorScheme.error
         : palette.accent;
     final identityHeight = _identityHeight(context);
@@ -223,7 +233,7 @@ class SyncAccountCard extends ConsumerWidget {
                                     alignment: textAlignment,
                                     child: Text(
                                       compact
-                                          ? syncState.status.statusLabel
+                                          ? status.label
                                           : syncAccount!.email,
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
@@ -275,7 +285,7 @@ class SyncAccountCard extends ConsumerWidget {
                         InkWell(
                           key: const ValueKey('sync-card-status'),
                           onTap: isSignedIn
-                              ? () => SyncAccountSheet.show(context)
+                              ? () => BackupSheet.show(context)
                               : null,
                           child: Ink(
                             padding: const EdgeInsets.symmetric(vertical: 12),
@@ -286,23 +296,24 @@ class SyncAccountCard extends ConsumerWidget {
                             ),
                             child: Row(
                               children: [
-                                if (syncState.isSyncing)
+                                if (status.active)
                                   SizedBox.square(
                                     dimension: 20,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 1.5,
                                       color: statusColor,
                                       value:
-                                          MediaQuery.disableAnimationsOf(
-                                            context,
-                                          )
-                                          ? .7
-                                          : null,
+                                          status.fraction ??
+                                          (MediaQuery.disableAnimationsOf(
+                                                context,
+                                              )
+                                              ? .7
+                                              : null),
                                     ),
                                   )
                                 else
                                   Icon(
-                                    syncState.status.icon,
+                                    status.icon,
                                     color: statusColor,
                                     size: 20,
                                   ),
@@ -315,7 +326,7 @@ class SyncAccountCard extends ConsumerWidget {
                                       Semantics(
                                         liveRegion: true,
                                         child: Text(
-                                          syncState.statusLabel,
+                                          status.label,
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                           style: TextStyle(
@@ -328,11 +339,9 @@ class SyncAccountCard extends ConsumerWidget {
                                       ),
                                       const SizedBox(height: 5),
                                       Tooltip(
-                                        message: syncState.descriptionFor(
-                                          syncBackend,
-                                        ),
+                                        message: status.detail,
                                         child: Text(
-                                          syncState.descriptionFor(syncBackend),
+                                          status.detail,
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                           style: TextStyle(
@@ -361,7 +370,7 @@ class SyncAccountCard extends ConsumerWidget {
                           const SizedBox(height: 14),
                           FilledButton(
                             key: const ValueKey('sync-card-action'),
-                            onPressed: engineState.isSyncing
+                            onPressed: backupState.busy
                                 ? null
                                 : () => _connect(context, ref),
                             style: FilledButton.styleFrom(

@@ -21,9 +21,10 @@ class AuthenticatedHttpClient extends http.BaseClient {
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     final headers = await _getHeaders().timeout(const Duration(seconds: 30));
     request.headers.addAll(headers);
+    // Generous: a resumable upload chunk is sent before headers return.
     final response = await _inner
         .send(request)
-        .timeout(const Duration(seconds: 45));
+        .timeout(const Duration(minutes: 2));
     return http.StreamedResponse(
       response.stream.timeout(const Duration(seconds: 45)),
       response.statusCode,
@@ -45,18 +46,27 @@ class AuthenticatedHttpClient extends http.BaseClient {
 
 class GoogleAuthService implements SyncAuth {
   /// Injected via --dart-define=GOOGLE_SERVER_CLIENT_ID=...
-  static const String serverClientId = String.fromEnvironment(
+  static const String environmentServerClientId = String.fromEnvironment(
     'GOOGLE_SERVER_CLIENT_ID',
   );
 
   /// Injected via --dart-define=GOOGLE_CLIENT_ID=... (optional)
-  static const String clientId = String.fromEnvironment('GOOGLE_CLIENT_ID');
+  static const String environmentClientId = String.fromEnvironment(
+    'GOOGLE_CLIENT_ID',
+  );
 
-  static const List<String> scopes = [
+  static const defaultBackendId = 'google_drive';
+
+  /// The Drive scope used by backups: the app-private folder only.
+  static const List<String> defaultScopes = [
     'email',
     drive.DriveApi.driveAppdataScope,
   ];
 
+  final String serverClientId;
+  final String clientId;
+  final List<String> scopes;
+  final String backendId;
   final GoogleSignIn _googleSignIn;
   final SyncAccountBinding _binding;
   final http.Client Function() _clientFactory;
@@ -68,6 +78,10 @@ class GoogleAuthService implements SyncAuth {
     Future<Directory> Function()? directory,
     SyncAccountBinding? accountBinding,
     http.Client Function()? clientFactory,
+    this.serverClientId = environmentServerClientId,
+    this.clientId = environmentClientId,
+    this.scopes = defaultScopes,
+    this.backendId = defaultBackendId,
   }) : _binding = accountBinding ?? SyncAccountBinding(directory: directory),
        _clientFactory = clientFactory ?? http.Client.new,
        _googleSignIn =
@@ -121,12 +135,12 @@ class GoogleAuthService implements SyncAuth {
     try {
       if (Platform.isIOS && clientId.isEmpty) {
         throw StateError(
-          'Google sync needs an iOS OAuth client and URL scheme configured for Redkeep.',
+          'Google backup needs an iOS OAuth client and URL scheme configured.',
         );
       }
       if (serverClientId.isEmpty) {
         throw StateError(
-          'Google sync is not configured. Set GOOGLE_SERVER_CLIENT_ID in env.json and rebuild.',
+          'Google backup is not configured. Set GOOGLE_SERVER_CLIENT_ID and rebuild.',
         );
       }
       _currentUser = await _googleSignIn.signIn();
@@ -155,19 +169,22 @@ class GoogleAuthService implements SyncAuth {
     _currentUser = null;
   }
 
-  /// Returns an authenticated HTTP Client for Drive API calls.
-  Future<http.Client?> getAuthenticatedClient() async {
+  /// An authenticated HTTP client for Google APIs, or null when signed out.
+  /// Verifies the local data belongs to this account first.
+  Future<http.Client?> authenticatedClient() async {
     if (_currentUser == null) {
       await trySilentSignIn();
     }
     if (_currentUser == null) return null;
 
     final user = _currentUser!;
-    await _binding.verify(backendId: 'google_drive', accountId: user.id);
+    await _binding.verify(backendId: backendId, accountId: user.id);
     return RetryClient(
       AuthenticatedHttpClient(() {
         if (_currentUser?.id != user.id) {
-          throw StateError('Google account changed during sync. Please retry.');
+          throw StateError(
+            'Google account changed during backup. Please retry.',
+          );
         }
         return user.authHeaders;
       }, inner: _clientFactory()),

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:sync_wise/sync_wise.dart' show BackupConfig, RestoreRecovery;
 
 import '../../features/ai/data/ai_tables.dart';
 
@@ -12,8 +13,7 @@ import '../../features/notes/data/notes_tables.dart';
 import '../../features/diary/data/diary_tables.dart';
 import '../../features/watchlist/data/watchlist_tables.dart';
 
-import '../../features/sync/data/sync_tables.dart';
-import '../../features/sync/data/sync_schema.dart';
+import '../../features/sync/data/backup_identity.dart';
 
 part 'app_database.g.dart';
 
@@ -36,28 +36,26 @@ part 'app_database.g.dart';
     WatchLists,
     WatchProfiles,
     WatchChatTurns,
-    SyncOperations,
-    SyncValues,
-    SyncRecords,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
-  @override
-  int get schemaVersion => 12;
+  /// Also recorded with each backup; newer backups are refused on restore.
+  static const currentSchemaVersion = 13;
 
-  // Reset changes this generation before disposing editors. Old repositories
-  // cannot write after cleanup, even when an async continuation finishes late.
+  @override
+  int get schemaVersion => currentSchemaVersion;
+
+  // Reset and restore change this generation before disposing editors. Old
+  // repositories cannot write afterwards, even when an async continuation
+  // finishes late.
   int writingGeneration = 0;
   bool writingBlocked = false;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-    onCreate: (migrator) async {
-      await migrator.createAll();
-      await installSyncTriggers(this);
-    },
+    onCreate: (migrator) => migrator.createAll(),
     onUpgrade: (migrator, from, to) async {
       if (from < 2) {
         // Phone AI is gone. Old Phone and Auto choices fall back to the
@@ -115,19 +113,20 @@ class AppDatabase extends _$AppDatabase {
         await migrator.createTable(watchLists);
         await migrator.createTable(watchProfiles);
         await migrator.createTable(watchChatTurns);
-        await installSyncTriggers(this, only: watchlistSyncTables);
       }
       if (from < 9) {
         // Flow is gone; its tables take their triggers and index with them.
         // Quick thoughts now live in the diary as entries of kind 'thought'.
         await customStatement('DROP TABLE IF EXISTS flow_reflections');
         await customStatement('DROP TABLE IF EXISTS flow_thoughts');
-        await customStatement(
-          "DELETE FROM sync_operations WHERE type = 'thought'",
-        );
-        await customStatement(
-          "DELETE FROM sync_records WHERE type = 'thought'",
-        );
+        for (final table in ['sync_operations', 'sync_records']) {
+          // Dropped again in version 13; absent when created after it.
+          if (await _hasTable(table)) {
+            await customStatement(
+              "DELETE FROM $table WHERE type = 'thought'",
+            );
+          }
+        }
         if (!await _hasColumn('diary_entries', 'kind')) {
           await migrator.addColumn(diaryEntries, diaryEntries.kind);
         }
@@ -157,8 +156,36 @@ class AppDatabase extends _$AppDatabase {
         await customStatement('DROP TABLE IF EXISTS recall_manifests');
         await customStatement('DROP TABLE IF EXISTS ai_preferences_table');
       }
+      if (from < 13) {
+        // Per-document sync is replaced by whole-database backups: no outbox,
+        // sync state or device roles. Writing itself is untouched.
+        for (final table in _formerlySyncedTables) {
+          for (final event in ['insert', 'update', 'delete']) {
+            await customStatement('DROP TRIGGER IF EXISTS sync_${table}_$event');
+          }
+        }
+        for (final table in ['sync_operations', 'sync_values', 'sync_records']) {
+          await customStatement('DROP TABLE IF EXISTS $table');
+        }
+      }
     },
   );
+
+  static const _formerlySyncedTables = [
+    'notes',
+    'diary_entries',
+    'diary_days',
+    'note_tags',
+    'watch_titles',
+    'watch_lists',
+    'watch_profiles',
+  ];
+
+  Future<bool> _hasTable(String table) async =>
+      (await customSelect(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+        variables: [Variable(table)],
+      ).get()).isNotEmpty;
 
   Future<bool> _hasColumn(String table, String column) async =>
       (await customSelect(
@@ -172,13 +199,22 @@ class AppDatabase extends _$AppDatabase {
   }
 }
 
+/// The live database file, also read by backups from background isolates.
+Future<File> appDatabaseFile() async {
+  final directory = await getApplicationSupportDirectory();
+  await directory.create(recursive: true);
+  return File.fromUri(directory.uri.resolve('redkeep.sqlite'));
+}
+
 /// Lazy path lookup; SQLite work runs on Drift's managed background isolate.
+/// A restore interrupted by a crash is finished before the file is opened.
 AppDatabase openAppDatabase() => AppDatabase(
   LazyDatabase(() async {
-    final directory = await getApplicationSupportDirectory();
-    await directory.create(recursive: true);
-    return NativeDatabase.createInBackground(
-      File.fromUri(directory.uri.resolve('redkeep.sqlite')),
+    final file = await appDatabaseFile();
+    await RestoreRecovery.finish(
+      stateDirectory: await BackupConfig.defaultStateDirectory(backupAppId),
+      databasePath: file.path,
     );
+    return NativeDatabase.createInBackground(file);
   }),
 );

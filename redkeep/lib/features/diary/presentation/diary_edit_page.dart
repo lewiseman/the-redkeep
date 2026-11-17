@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import '../../../app/navigation_destination.dart';
 import '../../../core/presentation/diary_typography.dart';
 import '../../assets/presentation/local_artwork.dart';
-import '../../sync/application/sync_providers.dart';
 import '../application/diary_editor_controller.dart';
 import '../application/diary_providers.dart';
 import '../domain/diary_document.dart';
@@ -51,7 +50,6 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
     final editor = ref.watch(diaryEditorProvider(widget.address));
     final value = editor.value;
     final controller = ref.read(diaryEditorProvider(widget.address).notifier);
-    final canEdit = ref.watch(syncCanEditProvider);
     final colors = Theme.of(context).colorScheme;
     final saved = value != null && value.baseRevision > 0;
     return PopScope(
@@ -89,16 +87,13 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
               ),
             ],
             if (!saved && _isToday) _thoughtButton(value, controller),
-            _saveButton(value, controller, canEdit),
+            _saveButton(value, controller),
             if (saved && !value.sourceUnavailable)
               PopupMenuButton<void>(
                 tooltip: 'Entry options',
                 icon: const Icon(Icons.more_vert_rounded),
                 popUpAnimationStyle: AnimationStyle.noAnimation,
-                enabled:
-                    canEdit &&
-                    !value.saving &&
-                    !ref.watch(diaryActionsProvider),
+                enabled: !value.saving && !ref.watch(diaryActionsProvider),
                 itemBuilder: (context) => [
                   PopupMenuItem<void>(
                     onTap: () => _delete(value, controller),
@@ -127,7 +122,7 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
                 child: editor.when(
                   loading: () => const SizedBox.shrink(),
                   error: (_, _) => _unavailable(context),
-                  data: (state) => _editor(context, state, controller, canEdit),
+                  data: (state) => _editor(context, state, controller),
                 ),
               ),
             ),
@@ -172,14 +167,12 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
   Widget _saveButton(
     DiaryEditorState? value,
     DiaryEditorController controller,
-    bool canEdit,
   ) {
     final copy = value?.sourceUnavailable == true;
     final blocked =
         value == null ||
         value.saving ||
         value.text.isEmpty ||
-        (value.baseRevision > 0 && !canEdit) ||
         (!copy && !value.changed);
     return DiaryPaperSaveButton(
       label: value?.saving == true
@@ -205,7 +198,6 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
     BuildContext context,
     DiaryEditorState state,
     DiaryEditorController controller,
-    bool canEdit,
   ) {
     if (!_loaded) {
       _body.text = state.text.body;
@@ -275,7 +267,6 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
                     // Read-only rather than disabled while saving, so the
                     // keyboard stays up if the save fails.
                     readOnly: state.saving,
-                    enabled: state.baseRevision == 0 || canEdit,
                     expands: true,
                     minLines: null,
                     maxLines: null,
@@ -356,9 +347,7 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
         value.baseRevision == 0 &&
         !value.saving &&
         value.text.isEmpty &&
-        widget.address.date.hasStarted(ref.read(diaryClockProvider)()) &&
-        (ref.read(syncCanEditProvider) ||
-            widget.address.date.isCurrent(ref.read(diaryClockProvider)()));
+        widget.address.date.hasStarted(ref.read(diaryClockProvider)());
   }
 
   Future<void> _media(String kind) async {

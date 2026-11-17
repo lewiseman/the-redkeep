@@ -15,7 +15,6 @@ import 'package:redkeep/features/notes/domain/note_document.dart';
 import 'package:redkeep/features/notes/domain/note_help_contract.dart';
 import 'package:redkeep/features/notes/domain/note_website.dart';
 import 'package:redkeep/features/notes/domain/website/website_contract.dart';
-import 'package:redkeep/features/sync/data/drift_sync_store.dart';
 
 import '../../support/fake_ai_provider.dart';
 import '../../support/notes_ai_harness.dart';
@@ -403,26 +402,6 @@ void main() {
       );
     },
   );
-
-  test('role change rejects acceptance at the repository boundary', () async {
-    await actions().start(
-      AiOperation.noteRewrite,
-      notesTestId,
-      scope: notesJobScope,
-    );
-    final old = job();
-    final values = DriftSyncKeyValueStore(h.db);
-    await values.write('deviceId', 'this-device');
-    await values.write('role', '{"device_id":"other-device"}');
-    await expectLater(
-      actions().apply(old, scope: notesJobScope),
-      throwsStateError,
-    );
-    expect(
-      (await h.repository.openDocument(notesTestId)).note!.text.body,
-      notesTestBody,
-    );
-  });
 
   test('background images are generated, verified and kept locally', () async {
     await actions().start(

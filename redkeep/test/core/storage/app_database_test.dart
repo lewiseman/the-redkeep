@@ -13,50 +13,50 @@ import 'package:redkeep/features/onboarding/data/drift_onboarding_repository.dar
 import 'generated/schema.dart';
 
 void main() {
-  test('fresh schema matches the complete version 12 snapshot', () async {
+  test('fresh schema matches the complete version 13 snapshot', () async {
     final database = AppDatabase(NativeDatabase.memory());
     addTearDown(database.close);
 
-    expect(database.schemaVersion, 12);
-    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 12);
+    expect(database.schemaVersion, 13);
+    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 13);
     final version = await database
         .customSelect('PRAGMA user_version')
         .getSingle();
-    expect(version.read<int>('user_version'), 12);
+    expect(version.read<int>('user_version'), 13);
   });
 
-  for (final from in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]) {
+  for (final from in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]) {
     test('the upgrade from version $from matches the snapshot', () async {
       final verifier = SchemaVerifier(GeneratedHelper());
       final database = AppDatabase(await verifier.startAt(from));
       addTearDown(database.close);
-      await verifier.migrateAndValidate(database, 12);
+      await verifier.migrateAndValidate(database, 13);
     });
   }
 
-  test('version 8 syncs watchlist titles, lists and taste, not the catalog or chats', () async {
-    Future<Set<String>> triggers(AppDatabase database) async =>
-        (await database
-                .customSelect(
-                  "SELECT name FROM sqlite_master WHERE type = 'trigger' AND name LIKE 'sync_watch%'",
-                )
-                .get())
-            .map((r) => r.read<String>('name'))
-            .toSet();
+  test('version 13 drops the sync outbox, sync state and triggers but keeps writing', () async {
     final verifier = SchemaVerifier(GeneratedHelper());
-    final upgraded = AppDatabase(await verifier.startAt(7));
-    addTearDown(upgraded.close);
-    await verifier.migrateAndValidate(upgraded, 12);
-    final fresh = AppDatabase(NativeDatabase.memory());
-    addTearDown(fresh.close);
-    await fresh.customSelect('SELECT 1').get();
-    final expected = {
-      for (final table in ['watch_titles', 'watch_lists', 'watch_profiles'])
-        for (final event in ['insert', 'update', 'delete'])
-          'sync_${table}_$event',
-    };
-    expect(await triggers(upgraded), expected);
-    expect(await triggers(fresh), expected);
+    final schema = await verifier.schemaAt(12);
+    for (final statement in [
+      "INSERT INTO notes (id, title, body, details, revision, created_at, updated_at) VALUES ('${'a' * 32}', 'Kept', 'Words', '{}', 1, 1, 1)",
+      "INSERT INTO sync_records (type, document_id) VALUES ('note', '${'a' * 32}')",
+      "INSERT INTO sync_values VALUES ('role', '{}')",
+    ]) {
+      schema.rawDatabase.execute(statement);
+    }
+    final old = AppDatabase(schema.newConnection());
+    addTearDown(old.close);
+    await verifier.migrateAndValidate(old, 13);
+    final leftovers = await old
+        .customSelect("SELECT name FROM sqlite_master WHERE name LIKE 'sync_%'")
+        .get();
+    expect(leftovers, isEmpty);
+    final note = await old.select(old.notes).getSingle();
+    expect((note.title, note.body), ('Kept', 'Words'));
+    // Writing still works without the old triggers.
+    await old.customStatement(
+      "UPDATE notes SET body = 'Later' WHERE id = '${'a' * 32}'",
+    );
   });
 
   test(
@@ -65,7 +65,7 @@ void main() {
       final verifier = SchemaVerifier(GeneratedHelper());
       final database = AppDatabase(await verifier.startAt(4));
       addTearDown(database.close);
-      await verifier.migrateAndValidate(database, 12);
+      await verifier.migrateAndValidate(database, 13);
       final triggers =
           (await database
                   .customSelect(
@@ -84,7 +84,7 @@ void main() {
     final verifier = SchemaVerifier(GeneratedHelper());
     final database = AppDatabase(await verifier.startAt(3));
     addTearDown(database.close);
-    await verifier.migrateAndValidate(database, 12);
+    await verifier.migrateAndValidate(database, 13);
     final tables =
         (await database
                 .customSelect(
@@ -126,7 +126,7 @@ void main() {
     final version = await database
         .customSelect('PRAGMA user_version')
         .getSingle();
-    expect(version.read<int>('user_version'), 12);
+    expect(version.read<int>('user_version'), 13);
   });
 
   test('version 9 removes Flow and keeps diary entries as ordinary entries', () async {
@@ -144,16 +144,12 @@ void main() {
       schema.rawDatabase.execute(statement);
     }
     final old = AppDatabase(schema.newConnection());
-    await verifier.migrateAndValidate(old, 12);
+    await verifier.migrateAndValidate(old, 13);
 
     final tables = await old
         .customSelect("SELECT name FROM sqlite_master WHERE name LIKE 'flow_%'")
         .get();
     expect(tables, isEmpty);
-    expect((await old.select(old.syncRecords).get()).map((r) => r.type), [
-      'diary',
-    ]);
-    expect(await old.select(old.syncOperations).get(), isEmpty);
     final entry = await old.select(old.diaryEntries).getSingle();
     expect((entry.body, entry.kind), ('Kept', 'entry'));
     await old.close();
@@ -182,7 +178,7 @@ void main() {
     }
     final old = AppDatabase(schema.newConnection());
     addTearDown(old.close);
-    await verifier.migrateAndValidate(old, 12);
+    await verifier.migrateAndValidate(old, 13);
 
     final dropped = await old
         .customSelect(
@@ -219,7 +215,7 @@ void main() {
     }
     final old = AppDatabase(schema.newConnection());
     addTearDown(old.close);
-    await verifier.migrateAndValidate(old, 12);
+    await verifier.migrateAndValidate(old, 13);
 
     final left = await old
         .customSelect(
@@ -296,7 +292,7 @@ void main() {
     final version = await database
         .customSelect('PRAGMA user_version')
         .getSingle();
-    expect(version.read<int>('user_version'), 12);
+    expect(version.read<int>('user_version'), 13);
     final retired = await database
         .customSelect(
           "SELECT name FROM sqlite_master WHERE name = 'brain_assignments' "
@@ -344,7 +340,7 @@ void main() {
   );
 
   test(
-    'a saved database reopens writing with working outbox triggers',
+    'a saved database reopens writing intact',
     () async {
       final directory = await Directory.systemTemp.createTemp(
         'redkeep-schema-',
@@ -364,8 +360,6 @@ void main() {
         await DriftAppearanceRepository(database).save(preferences);
         await DriftOnboardingRepository(database).complete('  Léa 王  ');
         final repository = DriftNotesRepository(database, clock: () => now);
-        expect(await database.select(database.syncRecords).get(), isEmpty);
-        expect(await database.select(database.syncOperations).get(), isEmpty);
 
         final saved = await repository.saveNote(
           id: id,
@@ -392,14 +386,6 @@ void main() {
       final restored = await repository.openDocument(id);
       expect(restored.note!.text.body, 'Exact words 👩🏽‍💻');
       expect(restored.note!.revision, 1);
-      expect(
-        (await reopened.select(reopened.syncRecords).getSingle()).state,
-        'pending',
-      );
-      expect(
-        (await reopened.select(reopened.syncOperations).getSingle()).id,
-        id,
-      );
 
       await repository.saveNote(
         id: id,
@@ -414,7 +400,7 @@ void main() {
       final version = await reopened
           .customSelect('PRAGMA user_version')
           .getSingle();
-      expect(version.read<int>('user_version'), 12);
+      expect(version.read<int>('user_version'), 13);
     },
   );
 

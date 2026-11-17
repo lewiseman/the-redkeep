@@ -1,4 +1,4 @@
-import '../../sync/data/drift_sync_store.dart';
+import '../../sync/data/writing_session.dart';
 
 import 'package:drift/drift.dart';
 
@@ -182,11 +182,7 @@ class DriftNotesRepository implements NotesRepository {
   }) async {
     return _db.transaction(() async {
       _validate(id);
-      await checkWritingAccess(
-        _db,
-        _generation,
-        creating: expectedRevision == 0,
-      );
+      await checkWritingSession(_db, _generation);
       NoteDetails.decode(details.encode());
       if (text.isEmpty && !details.hasWriting) {
         throw const NoteException(NoteFailure.empty);
@@ -251,7 +247,7 @@ class DriftNotesRepository implements NotesRepository {
   @override
   Future<void> deleteNote(String id, int expectedRevision) async {
     return _db.transaction(() async {
-      await checkWritingAccess(_db, _generation);
+      await checkWritingSession(_db, _generation);
       _validate(id);
       final now = _clock().toUtc().millisecondsSinceEpoch;
       final count =
@@ -280,7 +276,7 @@ class DriftNotesRepository implements NotesRepository {
     required List<String> tags,
   }) async {
     return _db.transaction(() async {
-      await checkWritingAccess(_db, _generation);
+      await checkWritingSession(_db, _generation);
       _validate(id);
       final normalized =
           tags
@@ -323,7 +319,7 @@ class DriftNotesRepository implements NotesRepository {
   @override
   Future<void> restoreNote(String id, int expectedRevision) async {
     return _db.transaction(() async {
-      await checkWritingAccess(_db, _generation);
+      await checkWritingSession(_db, _generation);
       _validate(id);
       final count =
           await (_db.update(_db.notes)..where(
@@ -346,7 +342,7 @@ class DriftNotesRepository implements NotesRepository {
   @override
   Future<void> permanentlyDelete(String id, int expectedRevision) async {
     return _db.transaction(() async {
-      await checkWritingAccess(_db, _generation);
+      await checkWritingSession(_db, _generation);
       _validate(id);
 
       final snapshot = await openDocument(id);
@@ -382,7 +378,7 @@ class DriftNotesRepository implements NotesRepository {
     required PlainTextDocument text,
     required NoteDetails details,
   }) => _db.transaction(() async {
-    await checkWritingAccess(_db, _generation);
+    await checkWritingSession(_db, _generation);
     _validate(id);
     NoteDetails.decode(details.encode());
     final opened = await openDocument(id);

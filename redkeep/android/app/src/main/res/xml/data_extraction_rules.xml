@@ -3,6 +3,8 @@
   <cloud-backup>
     <exclude domain="file" path="voice_sessions/" />
     <exclude domain="file" path="diary_photo_uploads/" />
+    <!-- Drive backup progress and staging: device-specific, never restored. -->
+    <exclude domain="file" path="sync_wise/" />
     <exclude domain="sharedpref" path="redkeep_companion.xml" />
     <exclude domain="sharedpref" path="FlutterSecureStorageConfiguration:redkeep_companion.xml" />
     <exclude domain="sharedpref" path="FlutterSecureKeyStorage:redkeep_companion.xml" />
@@ -10,6 +12,8 @@
   <device-transfer>
     <exclude domain="file" path="voice_sessions/" />
     <exclude domain="file" path="diary_photo_uploads/" />
+    <!-- Drive backup progress and staging: device-specific, never restored. -->
+    <exclude domain="file" path="sync_wise/" />
     <exclude domain="sharedpref" path="redkeep_companion.xml" />
     <exclude domain="sharedpref" path="FlutterSecureStorageConfiguration:redkeep_companion.xml" />
     <exclude domain="sharedpref" path="FlutterSecureKeyStorage:redkeep_companion.xml" />

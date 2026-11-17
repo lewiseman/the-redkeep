@@ -1,4 +1,3 @@
-import 'dart:convert';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,9 +6,6 @@ import 'package:redkeep/features/diary/data/drift_diary_repository.dart';
 import 'package:redkeep/features/diary/domain/diary_period.dart';
 import 'package:redkeep/features/diary/domain/diary_day_details.dart';
 import 'package:redkeep/features/diary/domain/diary_document.dart';
-import 'package:redkeep/features/diary/domain/diary_photo.dart';
-import 'package:redkeep/features/sync/data/drift_sync_collection.dart';
-import 'package:redkeep/features/sync/data/drift_sync_store.dart';
 
 void main() {
   late AppDatabase db;
@@ -56,93 +52,4 @@ void main() {
     },
   );
 
-  test('text, photos, conversations and page details sync with distinct period ownership', () async {
-    final other = AppDatabase(NativeDatabase.memory());
-    addTearDown(other.close);
-    final imported = DriftDiaryRepository(other, clock: () => today);
-    for (final (i, period) in periods.indexed) {
-      final id = '${i + 1}'.padLeft(32, '0');
-      await repo.saveDay(
-        DiaryDay(date: period, heading: 'My ${period.kind.name}'),
-      );
-      await repo.save(
-        id: id,
-        date: period,
-        text: DiaryText(body: 'Exact ${period.kind.name} 🌿'),
-        expectedRevision: 0,
-      );
-      await repo.savePhotoStory(
-        id: '${i + 4}'.padLeft(32, '0'),
-        date: period,
-        photos: [
-          DiaryPhoto(
-            id: 'photo_test',
-            path: 'diary_photos/test.png',
-            sha256: 'a' * 64,
-            caption: 'Garden',
-          ),
-        ],
-        expectedRevision: 0,
-      );
-      final document = (await DriftSyncCollection(
-        db,
-        'diary',
-      ).read(period.key))!;
-      expect(document.payload['schema'], 3);
-      await DriftSyncCollection(
-        other,
-        'diary',
-      ).mergeRemote(document, now: today);
-      expect((await imported.watchEntries(date: period).first).length, 2);
-      expect((await imported.openDocument(id)).entry!.date, period);
-      expect(
-        (await imported.watchDay(period).first).heading,
-        'My ${period.kind.name}',
-      );
-      expect(await imported.watchSavedPeriods().first, contains(period));
-    }
-    expect(
-      await imported.watchEntries(date: DiaryPeriod(2026, 11, 2)).first,
-      isEmpty,
-    );
-    expect(
-      (await repo.watchEntries(search: 'Exact').first)
-          .map((e) => e.date)
-          .toSet(),
-      periods.toSet(),
-    );
-  });
-
-  test('secondary devices may append current periods but cannot edit or create past periods', () async {
-    final values = DriftSyncKeyValueStore(db);
-    await values.write('deviceId', 'secondary');
-    await values.write('role', jsonEncode({'device_id': 'primary'}));
-    for (final (i, period) in periods.indexed) {
-      final id = '${i + 1}'.padLeft(32, '0');
-      await repo.save(
-        id: id,
-        date: period,
-        text: const DiaryText(body: 'New writing'),
-        expectedRevision: 0,
-      );
-      await expectLater(
-        repo.save(
-          id: id,
-          date: period,
-          text: const DiaryText(body: 'Edit'),
-          expectedRevision: 1,
-        ),
-        throwsStateError,
-      );
-    }
-    await expectLater(
-      repo.save(
-        id: 'f' * 32,
-        date: DiaryPeriod.month(2026, 10),
-        text: const DiaryText(body: 'Past'),
-        expectedRevision: 0,
-      ),
-      throwsStateError,
-    );
-  });
 }

@@ -117,6 +117,17 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// Collections live in a sheet opened from the search dock.
+  Future<void> showCollection(WidgetTester tester, String key) async {
+    await tester.tap(find.byKey(const ValueKey('notes-collections')));
+    await tester.pumpAndSettle();
+    final tile = find.byKey(ValueKey(key));
+    await tester.ensureVisible(tile);
+    await tester.pumpAndSettle();
+    await tester.tap(tile);
+    await tester.pumpAndSettle();
+  }
+
   Future<void> seed({
     String noteId = id,
     String title = 'Synthetic note',
@@ -328,6 +339,59 @@ void main() {
   });
 
   noteTest(
+    'the search dock filters once typing pauses; the header names the collection',
+    (tester) async {
+      await seed();
+      await repo.organize(id, 1, pinned: false, tags: ['💡#ideas']);
+      const other = '22222222222222222222222222222222';
+      await seed(noteId: other, title: 'Other saved note');
+      await pumpApp(tester, initialLocation: '/notes', notes: repo);
+      expect(find.text('Notes'), findsWidgets);
+      expect(find.text('2 notes'), findsOneWidget);
+      expect(find.byKey(const ValueKey('notes-ask')), findsNothing);
+
+      await tester.enterText(
+        find.byKey(const ValueKey('notes-search')),
+        'other',
+      );
+      await tester.pump();
+      expect(tester.container().read(notesFilterProvider).search, isEmpty);
+      expect(find.byKey(const ValueKey('notes-ask')), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pumpAndSettle();
+      expect(tester.container().read(notesFilterProvider).search, 'other');
+      expect(find.byType(NoteCard), findsOneWidget);
+      expect(find.text('1 match for “other”'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Clear search'));
+      await tester.pumpAndSettle();
+      expect(find.byType(NoteCard), findsNWidgets(2));
+      expect(find.byKey(const ValueKey('notes-ask')), findsNothing);
+
+      // The sheet opens above the shell's floating bar, not under it.
+      await tester.tap(find.byKey(const ValueKey('notes-collections')));
+      await tester.pumpAndSettle();
+      expect(find.byType(RedkeepBottomNavbar).hitTestable(), findsNothing);
+      expect(
+        find.byKey(const ValueKey('notes-trash')).hitTestable(),
+        findsOneWidget,
+      );
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pumpAndSettle();
+      expect(find.byType(RedkeepBottomNavbar).hitTestable(), findsOneWidget);
+
+      await showCollection(tester, 'notes-tag-💡#ideas');
+      expect(tester.container().read(notesFilterProvider).tag, '💡#ideas');
+      expect(find.byType(NoteCard), findsOneWidget);
+      expect(find.text('1 note'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('notes-show-all')));
+      await tester.pumpAndSettle();
+      expect(tester.container().read(notesFilterProvider), const NotesQuery());
+      expect(find.byType(NoteCard), findsNWidgets(2));
+    },
+  );
+
+  noteTest(
     'there is no Drafts collection; a user tag named drafts is ordinary',
     (tester) async {
       await seed();
@@ -343,8 +407,7 @@ void main() {
       expect(find.byType(NoteCard), findsNWidgets(2));
       expect(find.byKey(const ValueKey('notes-drafts')), findsNothing);
       expect(find.text('Draft'), findsNothing);
-      await tester.tap(find.byKey(const ValueKey('notes-tag-drafts')));
-      await tester.pumpAndSettle();
+      await showCollection(tester, 'notes-tag-drafts');
       expect(tester.container().read(notesFilterProvider).tag, 'drafts');
       expect(find.byType(NoteCard), findsOneWidget);
       await tap(tester, 'Synthetic note');
@@ -972,11 +1035,9 @@ void main() {
         find.byKey(const ValueKey('notes-search')),
         'synthetic',
       );
-      await tester.tap(find.byKey(const ValueKey('notes-pinned')));
-      await tester.pumpAndSettle();
+      await showCollection(tester, 'notes-pinned');
       expect(tester.container().read(notesFilterProvider).pinnedOnly, isTrue);
-      await tester.tap(find.byKey(const ValueKey('notes-tag-🏷️#travel')));
-      await tester.pumpAndSettle();
+      await showCollection(tester, 'notes-tag-🏷️#travel');
       expect(tester.container().read(notesFilterProvider).tag, '🏷️#travel');
       expect(tester.container().read(notesFilterProvider).pinnedOnly, isFalse);
       await tester.scrollUntilVisible(

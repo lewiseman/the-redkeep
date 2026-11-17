@@ -1,6 +1,7 @@
-import 'note_tag_strip.dart';
-import '../domain/note_tag.dart';
+import 'dart:async';
+import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
@@ -9,10 +10,12 @@ import 'package:go_router/go_router.dart';
 import '../../../app/navigation_destination.dart';
 import '../../../app/writing_shell.dart';
 import '../../../core/presentation/rendering_policy.dart';
-import 'notes_collection_widgets.dart';
 import '../application/notes_providers.dart';
 import '../domain/notes_query.dart';
 import 'note_card.dart';
+import 'notes_collection_sheet.dart';
+import 'notes_collection_widgets.dart';
+import 'notes_search_dock.dart';
 
 class NotesListPage extends ConsumerStatefulWidget {
   const NotesListPage({super.key});
@@ -22,11 +25,17 @@ class NotesListPage extends ConsumerStatefulWidget {
 
 class _NotesListPageState extends ConsumerState<NotesListPage> {
   final _search = TextEditingController();
+  final _searchFocus = FocusNode(debugLabel: 'notes-search');
   final _scroll = ScrollController();
   String? _error;
   final _navbarHidden = ValueNotifier(false);
   static const _navbarTravel = 24.0;
   double _scrollTravel = 0;
+
+  /// Typing only rebuilds the dock; the query (and the collection behind it)
+  /// follows once typing pauses.
+  static const _searchDelay = Duration(milliseconds: 160);
+  Timer? _searchDebounce;
 
   void _setNavbarHidden(bool hidden) {
     if (hidden == _navbarHidden.value) return;
@@ -78,8 +87,10 @@ class _NotesListPageState extends ConsumerState<NotesListPage> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _navbarHidden.dispose();
     _scroll.dispose();
+    _searchFocus.dispose();
     _search.dispose();
     super.dispose();
   }
@@ -104,370 +115,311 @@ class _NotesListPageState extends ConsumerState<NotesListPage> {
         );
   }
 
-  /// Special collections share the tag strip; selecting any chip replaces
-  /// the current collection rather than stacking filters.
+  void _searchChanged(String value) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(_searchDelay, () => _filter(search: value));
+  }
+
+  /// Applies typing still waiting on the debounce, so other filter changes
+  /// never undo it.
+  void _flushSearch() {
+    if (_searchDebounce?.isActive ?? false) {
+      _searchDebounce!.cancel();
+      _filter(search: _search.text);
+    }
+  }
+
+  void _clearSearch() {
+    _searchDebounce?.cancel();
+    _search.clear();
+    _filter(search: '');
+  }
+
+  void _ask(String query) {
+    _flushSearch();
+    _searchFocus.unfocus();
+    if (ref.read(notesFilterProvider).trash || query.trim().isEmpty) return;
+    context.push('/notes/ai-search', extra: query.trim());
+  }
+
+  /// Collections replace each other rather than stacking filters.
   void _collection(String value) {
-    final special =
-        value == NoteTagStrip.all ||
-        value == NoteTagStrip.pinned ||
-        value == NoteTagStrip.trash;
+    _flushSearch();
     _filter(
-      tag: special ? null : value,
-      clearTag: special,
-      pinned: value == NoteTagStrip.pinned,
-      trash: value == NoteTagStrip.trash,
+      tag: NoteCollection.isBuiltIn(value) ? null : value,
+      clearTag: NoteCollection.isBuiltIn(value),
+      pinned: value == NoteCollection.pinned,
+      trash: value == NoteCollection.trash,
     );
+    if (_scroll.hasClients) _scroll.jumpTo(0);
+  }
+
+  Future<void> _openCollections() async {
+    _searchFocus.unfocus();
+    final value = await showNoteCollectionSheet(context);
+    if (mounted && value != null) _collection(value);
+  }
+
+  void _showAll() {
+    _searchDebounce?.cancel();
+    _search.clear();
+    ref.read(notesFilterProvider.notifier).set(const NotesQuery());
   }
 
   @override
   Widget build(BuildContext context) {
     final entries = ref.watch(notesCollectionProvider);
     final filter = ref.watch(notesFilterProvider);
-    final tags = ref.watch(noteTagsProvider);
     final busy = ref.watch(notesActionsProvider);
-    final policy = RenderingPolicyScope.of(context);
+    // Keep the tag list warm for the collections sheet without rebuilding
+    // the page when it changes.
+    ref.listen(noteTagsProvider, (_, _) {});
     final colors = Theme.of(context).colorScheme;
     final screenPadding = MediaQuery.paddingOf(context);
+    final collection = NoteCollection.option(NoteCollection.of(filter));
+    final filtered =
+        filter.trash ||
+        filter.search.isNotEmpty ||
+        filter.tag != null ||
+        filter.pinnedOnly;
     return Scaffold(
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 900),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final scale = MediaQuery.textScalerOf(context).scale(14) / 14;
-              final columns = constraints.maxWidth < 300 || scale > 1.4
-                  ? (constraints.maxWidth >= 650 ? 2 : 1)
-                  : (constraints.maxWidth >= 700 ? 3 : 2);
-              return NotificationListener<ScrollMetricsNotification>(
-                onNotification: _metricsChanged,
-                child: NotificationListener<ScrollUpdateNotification>(
-                  onNotification: _scrolled,
-                  child: CustomScrollView(
-                    key: const PageStorageKey('notes-collection'),
-                    controller: _scroll,
-                    keyboardDismissBehavior:
-                        ScrollViewKeyboardDismissBehavior.onDrag,
-                    slivers: [
-                      SliverFloatingHeader(
-                        snapMode: FloatingHeaderSnapMode.overlay,
-                        animationStyle: AnimationStyle(
-                          duration: policy.duration,
-                          reverseDuration: policy.duration,
-                          curve: Curves.easeOutCubic,
-                          reverseCurve: Curves.easeOutCubic,
-                        ),
-                        child: AnimatedBuilder(
-                          animation: _scroll,
-                          builder: (context, child) {
-                            final raised = _scroll.hasClients
-                                ? (_scroll.offset / 72).clamp(0.0, 1.0)
-                                : 0.0;
-                            final horizontal = 30.0 - 12.0 * raised;
-                            return DecoratedBox(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: [
-                                    colors.surface.withValues(alpha: raised),
-                                    colors.surface.withValues(
-                                      alpha: .85 * raised,
-                                    ),
-                                    colors.surface.withValues(alpha: 0),
-                                  ],
-                                  stops: const [0, .5, 1],
-                                ),
+      // The dock follows the keyboard on its own; the collection keeps its
+      // size instead of relaying out on every frame of the keyboard.
+      resizeToAvoidBottomInset: false,
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 900),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final scale =
+                        MediaQuery.textScalerOf(context).scale(14) / 14;
+                    final columns = constraints.maxWidth < 300 || scale > 1.4
+                        ? (constraints.maxWidth >= 650 ? 2 : 1)
+                        : (constraints.maxWidth >= 700 ? 3 : 2);
+                    return NotificationListener<ScrollMetricsNotification>(
+                      onNotification: _metricsChanged,
+                      child: NotificationListener<ScrollUpdateNotification>(
+                        onNotification: _scrolled,
+                        child: CustomScrollView(
+                          key: const PageStorageKey('notes-collection'),
+                          controller: _scroll,
+                          keyboardDismissBehavior:
+                              ScrollViewKeyboardDismissBehavior.onDrag,
+                          slivers: [
+                            SliverToBoxAdapter(
+                              child: _CollectionHeader(
+                                collection: collection,
+                                count: entries.value?.length,
+                                search: filter.search.trim(),
+                                top: screenPadding.top,
+                                onTap: _openCollections,
+                                onShowAll:
+                                    collection.value == NoteCollection.all
+                                    ? null
+                                    : () => _collection(NoteCollection.all),
                               ),
-                              child: Padding(
-                                padding: EdgeInsets.fromLTRB(
-                                  horizontal,
-                                  screenPadding.top + 12,
-                                  horizontal,
-                                  6,
-                                ),
-                                child: Material(
-                                  elevation: policy.simplerEffects
-                                      ? 0
-                                      : 8 * raised,
-                                  color: Color.lerp(
-                                    colors.surfaceContainerLow,
-                                    colors.surfaceContainerHigh,
-                                    raised,
+                            ),
+                            if (_error != null)
+                              SliverToBoxAdapter(
+                                child: Semantics(
+                                  liveRegion: true,
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(20),
+                                    child: Text(_error!),
                                   ),
-                                  shadowColor: colors.shadow.withValues(
-                                    alpha: .2,
-                                  ),
-                                  borderRadius: BorderRadius.circular(999),
-                                  child: child,
                                 ),
                               ),
-                            );
-                          },
-                          child: TextField(
-                            key: const ValueKey('notes-search'),
-                            controller: _search,
-                            style: Theme.of(context).textTheme.bodyMedium
-                                ?.copyWith(fontSize: 14),
-                            maxLength: 256,
-                            textInputAction: TextInputAction.search,
-                            onSubmitted: (value) {
-                              FocusScope.of(context).unfocus();
-                              if (filter.trash || value.trim().isEmpty) return;
-                              context.push(
-                                '/notes/ai-search',
-                                extra: value.trim(),
-                              );
-                            },
-                            onChanged: (value) => _filter(search: value),
-                            decoration: InputDecoration(
-                              hintText: filter.trash
-                                  ? 'Search Trash…'
-                                  : 'Search notes…',
-                              counterText: '',
-                              hintStyle: TextStyle(
-                                color: colors.onSurfaceVariant,
-                                fontSize: 14,
-                              ),
-                              prefixIcon: Icon(
-                                Icons.search_rounded,
-                                color: colors.primary,
-                                size: 22,
-                              ),
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 12,
-                              ),
-                              suffixIcon: filter.search.isEmpty
-                                  ? null
-                                  : IconButton(
-                                      tooltip: 'Clear search',
-                                      onPressed: () {
-                                        _search.clear();
-                                        _filter(search: '');
-                                      },
-                                      icon: Icon(
-                                        Icons.close_rounded,
-                                        color: colors.onSurfaceVariant,
-                                        size: 18,
+                            ...entries.when(
+                              loading: () => [
+                                const SliverToBoxAdapter(
+                                  child: Padding(
+                                    padding: EdgeInsets.all(72),
+                                    child: Center(
+                                      child: CircularProgressIndicator(
+                                        semanticsLabel: 'Loading notes',
                                       ),
                                     ),
-                              filled: false,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(999),
-                                borderSide: BorderSide(
-                                  color: colors.outlineVariant,
+                                  ),
                                 ),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(999),
-                                borderSide: BorderSide(
-                                  color: colors.outlineVariant,
+                              ],
+                              error: (_, _) => [
+                                SliverToBoxAdapter(
+                                  child: _message(
+                                    'Notes could not be loaded.',
+                                    action: 'Retry loading',
+                                    onTap: () =>
+                                        ref.invalidate(notesCollectionProvider),
+                                  ),
                                 ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(999),
-                                borderSide: BorderSide(color: colors.primary),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      SliverToBoxAdapter(
-                        child: NoteTagStrip(
-                          tags: [
-                            (
-                              emoji: '🗂️',
-                              name: 'All',
-                              value: NoteTagStrip.all,
-                            ),
-                            (
-                              emoji: '📌',
-                              name: 'Pinned',
-                              value: NoteTagStrip.pinned,
-                            ),
-                            (
-                              emoji: '🗑️',
-                              name: 'Trash',
-                              value: NoteTagStrip.trash,
-                            ),
-                            for (final raw in {
-                              ...?tags.value,
-                              if (filter.tag != null) filter.tag!,
-                            })
-                              (
-                                emoji: NoteTag.tryParse(raw)?.emoji ?? '',
-                                name: NoteTag.tryParse(raw)?.name ?? raw,
-                                value: raw,
-                              ),
-                          ],
-                          selectedTag: filter.trash
-                              ? NoteTagStrip.trash
-                              : filter.tag ??
-                                    (filter.pinnedOnly
-                                        ? NoteTagStrip.pinned
-                                        : NoteTagStrip.all),
-                          onSelected: _collection,
-                        ),
-                      ),
-                      if (tags.hasError)
-                        SliverToBoxAdapter(
-                          child: TextButton(
-                            onPressed: () => ref.invalidate(noteTagsProvider),
-                            child: const Text('Retry tags'),
-                          ),
-                        ),
-                      if (_error != null)
-                        SliverToBoxAdapter(
-                          child: Semantics(
-                            liveRegion: true,
-                            child: Padding(
-                              padding: const EdgeInsets.all(20),
-                              child: Text(_error!),
-                            ),
-                          ),
-                        ),
-                      ...entries.when(
-                        loading: () => [
-                          const SliverToBoxAdapter(
-                            child: Padding(
-                              padding: EdgeInsets.all(72),
-                              child: Center(
-                                child: CircularProgressIndicator(
-                                  semanticsLabel: 'Loading notes',
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                        error: (_, _) => [
-                          SliverToBoxAdapter(
-                            child: _message(
-                              'Notes could not be loaded.',
-                              action: 'Retry loading',
-                              onTap: () =>
-                                  ref.invalidate(notesCollectionProvider),
-                            ),
-                          ),
-                        ],
-                        data: (items) => [
-                          if (items.isEmpty &&
-                              !filter.trash &&
-                              filter.search.isEmpty &&
-                              filter.tag == null &&
-                              !filter.pinnedOnly)
-                            SliverPadding(
-                              padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-                              sliver: SliverMasonryGrid.count(
-                                crossAxisCount: columns,
-                                mainAxisSpacing: 10,
-                                crossAxisSpacing: 10,
-                                childCount: 1,
-                                itemBuilder: (_, _) =>
-                                    NoteFirstCard(onTap: _create),
-                              ),
-                            )
-                          else if (items.isEmpty)
-                            SliverToBoxAdapter(
-                              child: _message(
-                                filter.trash
-                                    ? 'Trash is empty.'
-                                    : filter.search.isNotEmpty ||
-                                          filter.tag != null ||
-                                          filter.pinnedOnly
-                                    ? 'No notes match these filters.'
-                                    : 'A little room for your thoughts',
-                                action:
-                                    filter.trash ||
-                                        filter.search.isNotEmpty ||
-                                        filter.tag != null ||
-                                        filter.pinnedOnly
-                                    ? 'Show all notes'
-                                    : 'Create note',
-                                onTap: () {
-                                  if (!filter.trash &&
-                                      filter.search.isEmpty &&
-                                      filter.tag == null &&
-                                      !filter.pinnedOnly) {
-                                    _create();
-                                  } else {
-                                    _search.clear();
-                                    ref
-                                        .read(notesFilterProvider.notifier)
-                                        .set(const NotesQuery());
-                                  }
-                                },
-                              ),
-                            )
-                          else
-                            SliverPadding(
-                              padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-                              sliver: SliverMasonryGrid.count(
-                                crossAxisCount: columns,
-                                mainAxisSpacing: 10,
-                                crossAxisSpacing: 10,
-                                childCount: items.length,
-                                itemBuilder: (context, index) {
-                                  final entry = items[index];
-                                  // Unkeyed on purpose: keyed cards are moved
-                                  // with stale masonry layout when notes reorder,
-                                  // leaving gaps in a column.
-                                  return NoteCard(
-                                    entry: entry,
-                                    index: index,
-                                    // A note with a website opens on it.
-                                    onTap: () => context.go(
-                                      entry.hasWebsite &&
-                                              !ref
-                                                  .read(notesFilterProvider)
-                                                  .trash
-                                          ? noteWebsiteLocation(entry.id)
-                                          : noteLocation(entry.id),
+                              ],
+                              data: (items) => [
+                                if (items.isEmpty && !filtered)
+                                  SliverPadding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      12,
+                                      6,
+                                      12,
+                                      0,
                                     ),
-                                  );
-                                },
+                                    sliver: SliverMasonryGrid.count(
+                                      crossAxisCount: columns,
+                                      mainAxisSpacing: 10,
+                                      crossAxisSpacing: 10,
+                                      childCount: 1,
+                                      itemBuilder: (_, _) =>
+                                          NoteFirstCard(onTap: _create),
+                                    ),
+                                  )
+                                else if (items.isEmpty)
+                                  SliverToBoxAdapter(
+                                    child: _message(
+                                      filter.trash && filter.search.isEmpty
+                                          ? 'Trash is empty.'
+                                          : 'No notes match these filters.',
+                                      action: 'Show all notes',
+                                      onTap: _showAll,
+                                    ),
+                                  )
+                                else
+                                  SliverPadding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      12,
+                                      6,
+                                      12,
+                                      0,
+                                    ),
+                                    sliver: SliverMasonryGrid.count(
+                                      crossAxisCount: columns,
+                                      mainAxisSpacing: 10,
+                                      crossAxisSpacing: 10,
+                                      childCount: items.length,
+                                      itemBuilder: (context, index) {
+                                        final entry = items[index];
+                                        // Unkeyed on purpose: keyed cards are
+                                        // moved with stale masonry layout when
+                                        // notes reorder, leaving gaps in a
+                                        // column.
+                                        return NoteCard(
+                                          entry: entry,
+                                          index: index,
+                                          // A note with a website opens on it.
+                                          onTap: () => context.go(
+                                            entry.hasWebsite &&
+                                                    !ref
+                                                        .read(
+                                                          notesFilterProvider,
+                                                        )
+                                                        .trash
+                                                ? noteWebsiteLocation(entry.id)
+                                                : noteLocation(entry.id),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            // The dock and the floating bar overlay the list;
+                            // keep room above them.
+                            SliverToBoxAdapter(
+                              child: SizedBox(
+                                height:
+                                    NotesSearchDock.height +
+                                    28 +
+                                    _DockSlot._navbarGap +
+                                    screenPadding.bottom,
                               ),
                             ),
-                        ],
+                          ],
+                        ),
                       ),
-                      // The floating bar overlays the list; keep room above it.
-                      SliverToBoxAdapter(
-                        child: SizedBox(height: 112 + screenPadding.bottom),
-                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+          // Plain gradients, not blurs: cards fade under the status bar and
+          // the controls without an offscreen pass while scrolling.
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: screenPadding.top + 10,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      colors.surface,
+                      colors.surface.withValues(alpha: .9),
+                      colors.surface.withValues(alpha: 0),
                     ],
+                    stops: const [0, .6, 1],
                   ),
                 ),
-              );
-            },
+              ),
+            ),
           ),
-        ),
-      ),
-      // This Scaffold places the button at the screen's bottom, under the
-      // shell's floating bar. Lift it above the bar, and follow the bar down.
-      floatingActionButton: ValueListenableBuilder<bool>(
-        valueListenable: _navbarHidden,
-        child: NoteAddButton(
-          key: const ValueKey('notes-add-button'),
-          onPressed: busy ? null : _create,
-        ),
-        builder: (context, hidden, child) => TweenAnimationBuilder<double>(
-          tween: Tween<double>(
-            end: hidden
-                ? 0
-                : (screenPadding.bottom -
-                          MediaQuery.viewPaddingOf(context).bottom)
-                      .clamp(0.0, double.infinity),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height:
+                screenPadding.bottom +
+                NotesSearchDock.height +
+                28 +
+                _DockSlot._navbarGap,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      colors.surface.withValues(alpha: 0),
+                      colors.surface.withValues(alpha: .82),
+                      colors.surface.withValues(alpha: .96),
+                    ],
+                    stops: const [0, .45, 1],
+                  ),
+                ),
+              ),
+            ),
           ),
-          duration: policy.animate
-              ? const Duration(milliseconds: 260)
-              : Duration.zero,
-          curve: Curves.easeOutCubic,
-          child: child,
-          // Padding, not a transform: the FAB slot hit-tests its laid-out box.
-          builder: (context, lift, child) => Padding(
-            padding: EdgeInsets.only(bottom: lift),
-            child: child,
+          _DockSlot(
+            navbarHidden: _navbarHidden,
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 640),
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 14, right: 8),
+                  child: RepaintBoundary(
+                    child: NotesSearchDock(
+                      controller: _search,
+                      focusNode: _searchFocus,
+                      collection: collection,
+                      onCollections: _openCollections,
+                      onChanged: _searchChanged,
+                      onSubmitted: _ask,
+                      onClear: _clearSearch,
+                      onAsk: filter.trash ? null : _ask,
+                      addButton: NoteAddButton(
+                        key: const ValueKey('notes-add-button'),
+                        onPressed: busy ? null : _create,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -509,5 +461,165 @@ class _NotesListPageState extends ConsumerState<NotesListPage> {
         setState(() => _error = 'The editor could not be opened. Try again.');
       }
     }
+  }
+}
+
+/// Names what the page is showing and how much of it, so the controls can
+/// live at the bottom without the page losing its context.
+class _CollectionHeader extends StatelessWidget {
+  const _CollectionHeader({
+    required this.collection,
+    required this.count,
+    required this.search,
+    required this.top,
+    required this.onTap,
+    required this.onShowAll,
+  });
+
+  final NoteCollectionOption collection;
+  final int? count;
+  final String search;
+  final double top;
+  final VoidCallback onTap;
+  final VoidCallback? onShowAll;
+
+  String get _summary {
+    final count = this.count;
+    if (count == null) return ' ';
+    if (search.isNotEmpty) {
+      return '$count ${count == 1 ? 'match' : 'matches'} for “$search”';
+    }
+    final notes = count == 1 ? 'note' : 'notes';
+    return switch (collection.value) {
+      NoteCollection.trash => '$count $notes · restore or delete for good',
+      NoteCollection.pinned => '$count pinned $notes',
+      _ => '$count $notes',
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final all = collection.value == NoteCollection.all;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(12, top + 14, 8, 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Semantics(
+              button: true,
+              header: true,
+              label: all ? 'Notes' : collection.name,
+              hint: 'Change collection',
+              excludeSemantics: true,
+              child: InkWell(
+                key: const ValueKey('notes-header'),
+                onTap: onTap,
+                borderRadius: BorderRadius.circular(16),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          if (!all) ...[
+                            Text(
+                              collection.emoji,
+                              style: const TextStyle(fontSize: 24),
+                            ),
+                            const SizedBox(width: 10),
+                          ],
+                          Flexible(
+                            child: Text(
+                              all ? 'Notes' : collection.name,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: -.4,
+                                height: 1.15,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _summary,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colors.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (onShowAll != null)
+            IconButton(
+              key: const ValueKey('notes-show-all'),
+              tooltip: 'Show all notes',
+              onPressed: onShowAll,
+              icon: Icon(Icons.close_rounded, color: colors.onSurfaceVariant),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Holds the dock just above the floating bar, follows the bar down when it
+/// slides away, and rides on top of the keyboard while searching.
+class _DockSlot extends StatelessWidget {
+  const _DockSlot({required this.navbarHidden, required this.child});
+
+  /// Extra breathing room between the dock and the bar while the bar shows.
+  static const _navbarGap = 10.0;
+
+  final ValueListenable<bool> navbarHidden;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final policy = RenderingPolicyScope.of(context);
+    final keyboard = MediaQuery.viewInsetsOf(context).bottom;
+    // The shell's bar consumes the bottom safe area above this page; read the
+    // window's own inset so the dock clears the gesture handle once the bar
+    // has slid away.
+    final view = View.of(context);
+    final system = math.max(
+      MediaQuery.viewPaddingOf(context).bottom,
+      view.viewPadding.bottom / view.devicePixelRatio,
+    );
+    final navbar = (MediaQuery.paddingOf(context).bottom - system).clamp(
+      0.0,
+      double.infinity,
+    );
+    return ValueListenableBuilder<bool>(
+      valueListenable: navbarHidden,
+      child: child,
+      builder: (context, hidden, child) => TweenAnimationBuilder<double>(
+        tween: Tween<double>(
+          end: hidden || keyboard > 0 ? 0 : navbar + _navbarGap,
+        ),
+        // The keyboard moves the dock itself; only the bar's slide animates.
+        duration: policy.animate && keyboard <= 0
+            ? Duration(milliseconds: hidden ? 220 : 260)
+            : Duration.zero,
+        curve: Curves.easeOutCubic,
+        child: child,
+        builder: (context, lift, child) => Positioned(
+          left: 0,
+          right: 0,
+          bottom: math.max(keyboard, system) + 2 + lift,
+          child: child!,
+        ),
+      ),
+    );
   }
 }

@@ -5311,6 +5311,226 @@ class DiaryMediaOpsCompanion extends UpdateCompanion<DiaryMediaOpRow> {
   }
 }
 
+class $DiarySearchHistoryTable extends DiarySearchHistory
+    with TableInfo<$DiarySearchHistoryTable, DiarySearchHistoryRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DiarySearchHistoryTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _queryMeta = const VerificationMeta('query');
+  @override
+  late final GeneratedColumn<String> query = GeneratedColumn<String>(
+    'query',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sequenceMeta = const VerificationMeta(
+    'sequence',
+  );
+  @override
+  late final GeneratedColumn<int> sequence = GeneratedColumn<int>(
+    'sequence',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [query, sequence];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'diary_search_history';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DiarySearchHistoryRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('query')) {
+      context.handle(
+        _queryMeta,
+        query.isAcceptableOrUnknown(data['query']!, _queryMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_queryMeta);
+    }
+    if (data.containsKey('sequence')) {
+      context.handle(
+        _sequenceMeta,
+        sequence.isAcceptableOrUnknown(data['sequence']!, _sequenceMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sequenceMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {query};
+  @override
+  DiarySearchHistoryRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DiarySearchHistoryRow(
+      query: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}query'],
+      )!,
+      sequence: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sequence'],
+      )!,
+    );
+  }
+
+  @override
+  $DiarySearchHistoryTable createAlias(String alias) {
+    return $DiarySearchHistoryTable(attachedDatabase, alias);
+  }
+}
+
+class DiarySearchHistoryRow extends DataClass
+    implements Insertable<DiarySearchHistoryRow> {
+  final String query;
+
+  /// Higher is more recent.
+  final int sequence;
+  const DiarySearchHistoryRow({required this.query, required this.sequence});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['query'] = Variable<String>(query);
+    map['sequence'] = Variable<int>(sequence);
+    return map;
+  }
+
+  DiarySearchHistoryCompanion toCompanion(bool nullToAbsent) {
+    return DiarySearchHistoryCompanion(
+      query: Value(query),
+      sequence: Value(sequence),
+    );
+  }
+
+  factory DiarySearchHistoryRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DiarySearchHistoryRow(
+      query: serializer.fromJson<String>(json['query']),
+      sequence: serializer.fromJson<int>(json['sequence']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'query': serializer.toJson<String>(query),
+      'sequence': serializer.toJson<int>(sequence),
+    };
+  }
+
+  DiarySearchHistoryRow copyWith({String? query, int? sequence}) =>
+      DiarySearchHistoryRow(
+        query: query ?? this.query,
+        sequence: sequence ?? this.sequence,
+      );
+  DiarySearchHistoryRow copyWithCompanion(DiarySearchHistoryCompanion data) {
+    return DiarySearchHistoryRow(
+      query: data.query.present ? data.query.value : this.query,
+      sequence: data.sequence.present ? data.sequence.value : this.sequence,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DiarySearchHistoryRow(')
+          ..write('query: $query, ')
+          ..write('sequence: $sequence')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(query, sequence);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DiarySearchHistoryRow &&
+          other.query == this.query &&
+          other.sequence == this.sequence);
+}
+
+class DiarySearchHistoryCompanion
+    extends UpdateCompanion<DiarySearchHistoryRow> {
+  final Value<String> query;
+  final Value<int> sequence;
+  final Value<int> rowid;
+  const DiarySearchHistoryCompanion({
+    this.query = const Value.absent(),
+    this.sequence = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DiarySearchHistoryCompanion.insert({
+    required String query,
+    required int sequence,
+    this.rowid = const Value.absent(),
+  }) : query = Value(query),
+       sequence = Value(sequence);
+  static Insertable<DiarySearchHistoryRow> custom({
+    Expression<String>? query,
+    Expression<int>? sequence,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (query != null) 'query': query,
+      if (sequence != null) 'sequence': sequence,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DiarySearchHistoryCompanion copyWith({
+    Value<String>? query,
+    Value<int>? sequence,
+    Value<int>? rowid,
+  }) {
+    return DiarySearchHistoryCompanion(
+      query: query ?? this.query,
+      sequence: sequence ?? this.sequence,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (query.present) {
+      map['query'] = Variable<String>(query.value);
+    }
+    if (sequence.present) {
+      map['sequence'] = Variable<int>(sequence.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DiarySearchHistoryCompanion(')
+          ..write('query: $query, ')
+          ..write('sequence: $sequence, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $WatchCatalogTable extends WatchCatalog
     with TableInfo<$WatchCatalogTable, WatchCatalogRow> {
   @override
@@ -8843,6 +9063,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $DiaryEntriesTable diaryEntries = $DiaryEntriesTable(this);
   late final $DiaryDaysTable diaryDays = $DiaryDaysTable(this);
   late final $DiaryMediaOpsTable diaryMediaOps = $DiaryMediaOpsTable(this);
+  late final $DiarySearchHistoryTable diarySearchHistory =
+      $DiarySearchHistoryTable(this);
   late final $WatchCatalogTable watchCatalog = $WatchCatalogTable(this);
   late final $WatchTitlesTable watchTitles = $WatchTitlesTable(this);
   late final $WatchListsTable watchLists = $WatchListsTable(this);
@@ -8878,6 +9100,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     diaryEntries,
     diaryDays,
     diaryMediaOps,
+    diarySearchHistory,
     watchCatalog,
     watchTitles,
     watchLists,
@@ -12349,6 +12572,173 @@ typedef $$DiaryMediaOpsTableProcessedTableManager =
       DiaryMediaOpRow,
       PrefetchHooks Function()
     >;
+typedef $$DiarySearchHistoryTableCreateCompanionBuilder =
+    DiarySearchHistoryCompanion Function({
+      required String query,
+      required int sequence,
+      Value<int> rowid,
+    });
+typedef $$DiarySearchHistoryTableUpdateCompanionBuilder =
+    DiarySearchHistoryCompanion Function({
+      Value<String> query,
+      Value<int> sequence,
+      Value<int> rowid,
+    });
+
+class $$DiarySearchHistoryTableFilterComposer
+    extends Composer<_$AppDatabase, $DiarySearchHistoryTable> {
+  $$DiarySearchHistoryTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get query => $composableBuilder(
+    column: $table.query,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sequence => $composableBuilder(
+    column: $table.sequence,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$DiarySearchHistoryTableOrderingComposer
+    extends Composer<_$AppDatabase, $DiarySearchHistoryTable> {
+  $$DiarySearchHistoryTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get query => $composableBuilder(
+    column: $table.query,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sequence => $composableBuilder(
+    column: $table.sequence,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DiarySearchHistoryTableAnnotationComposer
+    extends Composer<_$AppDatabase, $DiarySearchHistoryTable> {
+  $$DiarySearchHistoryTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get query =>
+      $composableBuilder(column: $table.query, builder: (column) => column);
+
+  GeneratedColumn<int> get sequence =>
+      $composableBuilder(column: $table.sequence, builder: (column) => column);
+}
+
+class $$DiarySearchHistoryTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $DiarySearchHistoryTable,
+          DiarySearchHistoryRow,
+          $$DiarySearchHistoryTableFilterComposer,
+          $$DiarySearchHistoryTableOrderingComposer,
+          $$DiarySearchHistoryTableAnnotationComposer,
+          $$DiarySearchHistoryTableCreateCompanionBuilder,
+          $$DiarySearchHistoryTableUpdateCompanionBuilder,
+          (
+            DiarySearchHistoryRow,
+            BaseReferences<
+              _$AppDatabase,
+              $DiarySearchHistoryTable,
+              DiarySearchHistoryRow
+            >,
+          ),
+          DiarySearchHistoryRow,
+          PrefetchHooks Function()
+        > {
+  $$DiarySearchHistoryTableTableManager(
+    _$AppDatabase db,
+    $DiarySearchHistoryTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DiarySearchHistoryTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DiarySearchHistoryTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DiarySearchHistoryTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> query = const Value.absent(),
+                Value<int> sequence = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DiarySearchHistoryCompanion(
+                query: query,
+                sequence: sequence,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String query,
+                required int sequence,
+                Value<int> rowid = const Value.absent(),
+              }) => DiarySearchHistoryCompanion.insert(
+                query: query,
+                sequence: sequence,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$DiarySearchHistoryTable, DiarySearchHistoryRow>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $DiarySearchHistoryTable,
+                    DiarySearchHistoryRow
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$DiarySearchHistoryTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $DiarySearchHistoryTable,
+      DiarySearchHistoryRow,
+      $$DiarySearchHistoryTableFilterComposer,
+      $$DiarySearchHistoryTableOrderingComposer,
+      $$DiarySearchHistoryTableAnnotationComposer,
+      $$DiarySearchHistoryTableCreateCompanionBuilder,
+      $$DiarySearchHistoryTableUpdateCompanionBuilder,
+      (
+        DiarySearchHistoryRow,
+        BaseReferences<
+          _$AppDatabase,
+          $DiarySearchHistoryTable,
+          DiarySearchHistoryRow
+        >,
+      ),
+      DiarySearchHistoryRow,
+      PrefetchHooks Function()
+    >;
 typedef $$WatchCatalogTableCreateCompanionBuilder =
     WatchCatalogCompanion Function({
       required String mediaKey,
@@ -14310,6 +14700,8 @@ class $AppDatabaseManager {
       $$DiaryDaysTableTableManager(_db, _db.diaryDays);
   $$DiaryMediaOpsTableTableManager get diaryMediaOps =>
       $$DiaryMediaOpsTableTableManager(_db, _db.diaryMediaOps);
+  $$DiarySearchHistoryTableTableManager get diarySearchHistory =>
+      $$DiarySearchHistoryTableTableManager(_db, _db.diarySearchHistory);
   $$WatchCatalogTableTableManager get watchCatalog =>
       $$WatchCatalogTableTableManager(_db, _db.watchCatalog);
   $$WatchTitlesTableTableManager get watchTitles =>

@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/storage_providers.dart';
+import '../data/diary_search_history_store.dart';
 import '../data/drift_diary_repository.dart';
 import '../domain/diary_day_details.dart';
 import '../domain/diary_period.dart';
@@ -22,6 +23,15 @@ final diaryRepositoryProvider = Provider<DiaryRepository>(
     ref.watch(appDatabaseProvider),
     clock: ref.watch(diaryClockProvider),
   ),
+);
+final diarySearchHistoryProvider = Provider<DiarySearchHistoryStore>(
+  (ref) => DiarySearchHistoryStore(ref.watch(appDatabaseProvider)),
+);
+
+/// The latest diary searches, newest first.
+final diaryRecentSearchesProvider = StreamProvider.autoDispose<List<String>>(
+  (ref) => ref.watch(diarySearchHistoryProvider).watch(),
+  retry: (_, _) => null,
 );
 final diaryCalendarMoodsProvider =
     StreamProvider.autoDispose<Map<DiaryPeriod, DiaryMood>>(

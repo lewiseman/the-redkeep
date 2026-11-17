@@ -15,24 +15,24 @@ import 'package:redkeep/features/onboarding/data/drift_onboarding_repository.dar
 import 'generated/schema.dart';
 
 void main() {
-  test('fresh schema matches the complete version 10 snapshot', () async {
+  test('fresh schema matches the complete version 11 snapshot', () async {
     final database = AppDatabase(NativeDatabase.memory());
     addTearDown(database.close);
 
-    expect(database.schemaVersion, 10);
-    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 10);
+    expect(database.schemaVersion, 11);
+    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 11);
     final version = await database
         .customSelect('PRAGMA user_version')
         .getSingle();
-    expect(version.read<int>('user_version'), 10);
+    expect(version.read<int>('user_version'), 11);
   });
 
-  for (final from in [1, 2, 3, 4, 5, 6, 7, 8, 9]) {
+  for (final from in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) {
     test('the upgrade from version $from matches the snapshot', () async {
       final verifier = SchemaVerifier(GeneratedHelper());
       final database = AppDatabase(await verifier.startAt(from));
       addTearDown(database.close);
-      await verifier.migrateAndValidate(database, 10);
+      await verifier.migrateAndValidate(database, 11);
     });
   }
 
@@ -48,7 +48,7 @@ void main() {
     final verifier = SchemaVerifier(GeneratedHelper());
     final upgraded = AppDatabase(await verifier.startAt(7));
     addTearDown(upgraded.close);
-    await verifier.migrateAndValidate(upgraded, 10);
+    await verifier.migrateAndValidate(upgraded, 11);
     final fresh = AppDatabase(NativeDatabase.memory());
     addTearDown(fresh.close);
     await fresh.customSelect('SELECT 1').get();
@@ -67,7 +67,7 @@ void main() {
       final verifier = SchemaVerifier(GeneratedHelper());
       final database = AppDatabase(await verifier.startAt(4));
       addTearDown(database.close);
-      await verifier.migrateAndValidate(database, 10);
+      await verifier.migrateAndValidate(database, 11);
       final triggers =
           (await database
                   .customSelect(
@@ -86,7 +86,7 @@ void main() {
     final verifier = SchemaVerifier(GeneratedHelper());
     final database = AppDatabase(await verifier.startAt(3));
     addTearDown(database.close);
-    await verifier.migrateAndValidate(database, 10);
+    await verifier.migrateAndValidate(database, 11);
     final tables =
         (await database
                 .customSelect(
@@ -135,7 +135,7 @@ void main() {
     final version = await database
         .customSelect('PRAGMA user_version')
         .getSingle();
-    expect(version.read<int>('user_version'), 10);
+    expect(version.read<int>('user_version'), 11);
   });
 
   test('version 9 removes Flow and keeps diary entries as ordinary entries', () async {
@@ -153,7 +153,7 @@ void main() {
       schema.rawDatabase.execute(statement);
     }
     final old = AppDatabase(schema.newConnection());
-    await verifier.migrateAndValidate(old, 10);
+    await verifier.migrateAndValidate(old, 11);
 
     final tables = await old
         .customSelect("SELECT name FROM sqlite_master WHERE name LIKE 'flow_%'")
@@ -197,7 +197,7 @@ void main() {
     }
     final old = AppDatabase(schema.newConnection());
     addTearDown(old.close);
-    await verifier.migrateAndValidate(old, 10);
+    await verifier.migrateAndValidate(old, 11);
 
     final dropped = await old
         .customSelect(
@@ -258,7 +258,7 @@ void main() {
     final version = await database
         .customSelect('PRAGMA user_version')
         .getSingle();
-    expect(version.read<int>('user_version'), 10);
+    expect(version.read<int>('user_version'), 11);
     final columns = await database
         .customSelect('PRAGMA table_info(ai_preferences_table)')
         .get();
@@ -393,7 +393,7 @@ void main() {
       final version = await reopened
           .customSelect('PRAGMA user_version')
           .getSingle();
-      expect(version.read<int>('user_version'), 10);
+      expect(version.read<int>('user_version'), 11);
     },
   );
 

@@ -1,28 +1,11 @@
-import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../application/diary_providers.dart';
 import 'diary_style.dart';
 import 'diary_search_paper.dart';
 import 'diary_search_scene.dart';
 
-const diarySearchPrompts = [
-  'calm',
-  'walk',
-  'conversation',
-  'coffee',
-  'space',
-  'rain',
-];
-
-const _otherPrompts = [
-  'route',
-  'music',
-  'message',
-  'note',
-  'intentions',
-  'friends',
-];
-
-class DiarySearchOpening extends StatelessWidget {
+class DiarySearchOpening extends ConsumerWidget {
   const DiarySearchOpening({
     super.key,
     required this.onSearch,
@@ -35,7 +18,9 @@ class DiarySearchOpening extends StatelessWidget {
   final bool compact;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final recent =
+        ref.watch(diaryRecentSearchesProvider).value ?? const <String>[];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -48,115 +33,55 @@ class DiarySearchOpening extends StatelessWidget {
             ),
           ),
         ),
-        DiarySearchPrompts(onSearch: onSearch, reduced: reduced),
+        if (recent.isNotEmpty)
+          DiaryRecentSearches(
+            searches: recent,
+            onSearch: onSearch,
+            reduced: reduced,
+          ),
         const SizedBox(height: 18),
       ],
     );
   }
 }
 
-class DiarySearchPrompts extends StatefulWidget {
-  const DiarySearchPrompts({
+/// The latest searches as paper cards, newest first. Tapping one runs it.
+class DiaryRecentSearches extends StatelessWidget {
+  const DiaryRecentSearches({
     super.key,
+    required this.searches,
     required this.onSearch,
     required this.reduced,
   });
 
+  final List<String> searches;
   final ValueChanged<String> onSearch;
   final bool reduced;
 
   @override
-  State<DiarySearchPrompts> createState() => _DiarySearchPromptsState();
-}
-
-class _DiarySearchPromptsState extends State<DiarySearchPrompts> {
-  bool _other = false;
-
-  void _moreIdeas() {
-    HapticFeedback.selectionClick();
-    setState(() => _other = !_other);
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final prompts = _other ? _otherPrompts : diarySearchPrompts;
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                'Try a keyword',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: context.colors.onSurfaceVariant,
-                ),
-              ),
-            ),
-            Flexible(
-              flex: MediaQuery.textScalerOf(context).scale(13) > 20 ? 1 : 0,
-              child: TextButton.icon(
-                key: const ValueKey('diary-search-more-ideas'),
-                onPressed: _moreIdeas,
-                icon: const Icon(Icons.refresh_rounded, size: 15),
-                label: const Text('More ideas'),
-                style: TextButton.styleFrom(
-                  textStyle: Theme.of(context).textTheme.labelSmall
-                      ?.copyWith(fontSize: 11),
-                  minimumSize: const Size(44, 44),
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                ),
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: reduced ? Duration.zero : const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, child) => Opacity(opacity: value, child: child),
+      child: Column(
+        children: [
+          for (final (i, query) in searches.indexed) ...[
+            if (i > 0) const SizedBox(height: 12),
+            Transform.rotate(
+              angle: reduced ? 0 : const [-.018, .012, -.01][i % 3],
+              child: _QuestionCard(
+                key: ValueKey('diary-search-recent-$i'),
+                query: query,
+                index: i,
+                icon: Icons.history_rounded,
+                onTap: () => onSearch(query),
               ),
             ),
           ],
-        ),
-        const SizedBox(height: 7),
-        TweenAnimationBuilder<double>(
-          key: ValueKey(_other),
-          tween: Tween(begin: 0, end: 1),
-          duration: widget.reduced
-              ? Duration.zero
-              : const Duration(milliseconds: 220),
-          curve: Curves.easeOutCubic,
-          builder: (context, value, child) =>
-              Opacity(opacity: value, child: child),
-          child: Column(
-            children: [
-              for (var i = 0; i < prompts.length; i++) ...[
-                if (i > 0) const SizedBox(height: 12),
-                Transform.rotate(
-                  angle: widget.reduced
-                      ? 0
-                      : [-.018, .012, -.01, .014, -.012, .008][i],
-                  child: _QuestionCard(
-                    key: ValueKey('diary-search-prompt-$i'),
-                    query: prompts[i],
-                    index: i,
-                    icon: (_other
-                        ? const [
-                            Icons.directions_walk_outlined,
-                            Icons.headphones_outlined,
-                            Icons.message_outlined,
-                            Icons.edit_note_outlined,
-                            Icons.checklist_rounded,
-                            Icons.forum_outlined,
-                          ]
-                        : const [
-                            Icons.wb_sunny_outlined,
-                            Icons.route_outlined,
-                            Icons.chat_bubble_outline_rounded,
-                            Icons.coffee_outlined,
-                            Icons.spa_outlined,
-                            Icons.water_drop_outlined,
-                          ])[i],
-                    onTap: () => widget.onSearch(prompts[i]),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -184,7 +109,7 @@ class _QuestionCard extends StatelessWidget {
       DiaryPaperPreset.sky,
       DiaryPaperPreset.rose,
       DiaryPaperPreset.paper,
-    ][index].resolveColors(context.colors);
+    ][index % 6].resolveColors(context.colors);
     return DiarySearchPaper(
       color: paper.background,
       variant: index,
@@ -199,6 +124,9 @@ class _QuestionCard extends StatelessWidget {
             Expanded(
               child: Text(
                 query,
+                semanticsLabel: 'Recent search: $query',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 15,
                   height: 1.4,

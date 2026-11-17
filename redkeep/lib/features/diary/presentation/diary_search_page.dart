@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -63,6 +65,10 @@ class _DiarySearchPageState extends ConsumerState<DiarySearchPage> {
       }
     }
     ref.invalidate(diarySearchProvider(query));
+    // History is a convenience: a failed write never blocks the search.
+    unawaited(
+      ref.read(diarySearchHistoryProvider).record(query).catchError((_) {}),
+    );
     setState(() {
       _request++;
       _submitted = query;
@@ -288,9 +294,6 @@ class _DiarySearchPageState extends ConsumerState<DiarySearchPage> {
             title: 'No moments found yet.',
             message: 'Every keyword must match the saved text. Try a person, a feeling, or a few different words.',
           ),
-          const SizedBox(height: 12),
-          const SizedBox(height: 16),
-          DiarySearchPrompts(onSearch: _search, reduced: _reduced),
         ],
         if (_stage == _SearchStage.results) ...[
           Text(

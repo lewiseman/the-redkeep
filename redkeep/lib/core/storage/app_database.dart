@@ -34,6 +34,7 @@ part 'app_database.g.dart';
     DiaryEntries,
     DiaryDays,
     DiaryMediaOps,
+    DiarySearchHistory,
     WatchCatalog,
     WatchTitles,
     WatchLists,
@@ -48,7 +49,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   // Reset changes this generation before disposing editors. Old repositories
   // cannot write after cleanup, even when an async continuation finishes late.
@@ -163,6 +164,10 @@ class AppDatabase extends _$AppDatabase {
           'ON CONFLICT(id) DO UPDATE SET recall_cleanup_required = 1',
         );
         await _dropColumn('ai_preferences_table', 'recall_diary');
+      }
+      if (from < 11) {
+        // The diary search page shows the latest searches, kept locally.
+        await migrator.createTable(diarySearchHistory);
       }
     },
   );

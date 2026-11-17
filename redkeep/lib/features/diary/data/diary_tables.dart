@@ -42,3 +42,14 @@ class DiaryMediaOps extends Table {
   @override
   Set<Column> get primaryKey => {path};
 }
+
+/// The latest diary searches, kept on this device only and never synced.
+@DataClassName('DiarySearchHistoryRow')
+class DiarySearchHistory extends Table {
+  TextColumn get query => text()();
+
+  /// Higher is more recent.
+  IntColumn get sequence => integer()();
+  @override
+  Set<Column> get primaryKey => {query};
+}

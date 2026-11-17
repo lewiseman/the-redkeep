@@ -821,19 +821,39 @@ void main() {
   });
 
   sceneTest(
-    'keyword suggestions refresh and submit without starting AI features',
+    'the opening shows the last three searches, newest first, and reruns them',
     (tester) async {
       await seed();
       await pumpApp(tester, initialLocation: '/diary/search', diary: repo);
-      final ideas = find.byKey(const ValueKey('diary-search-more-ideas'));
-      expect(ideas.hitTestable(), findsOneWidget);
-      expect(tester.getSize(ideas).width, greaterThanOrEqualTo(44));
-      await tester.tap(ideas);
-      await tester.pumpAndSettle();
-      expect(find.text('route'), findsOneWidget);
-      await tester.tap(ideas);
-      await tester.pumpAndSettle();
-      final coffee = find.text('coffee');
+      expect(find.text('Try a keyword'), findsNothing);
+      expect(
+        find.byKey(const ValueKey('diary-search-more-ideas')),
+        findsNothing,
+      );
+      expect(find.byKey(const ValueKey('diary-search-recent-0')), findsNothing);
+
+      Future<void> clear() async {
+        await tester.tap(find.byTooltip('Clear search'));
+        await tester.pumpAndSettle();
+      }
+
+      for (final query in ['walk', 'coffee', 'rain', 'tea']) {
+        await submit(tester, query);
+        await clear();
+      }
+      String card(int i) => tester
+          .widget<Text>(
+            find.descendant(
+              of: find.byKey(ValueKey('diary-search-recent-$i')),
+              matching: find.byType(Text),
+            ),
+          )
+          .data!;
+      expect([card(0), card(1), card(2)], ['tea', 'rain', 'coffee']);
+      expect(find.byKey(const ValueKey('diary-search-recent-3')), findsNothing);
+      expect(find.byIcon(Icons.history_rounded), findsNWidgets(3));
+
+      final coffee = find.byKey(const ValueKey('diary-search-recent-2'));
       await tester.ensureVisible(coffee);
       await tester.pumpAndSettle();
       await tester.tap(coffee);
@@ -842,7 +862,8 @@ void main() {
         find.byKey(const ValueKey('diary-search-match-0')),
         findsOneWidget,
       );
-      expect(find.textContaining('paired computer'), findsNothing);
+      await clear();
+      expect([card(0), card(1), card(2)], ['coffee', 'tea', 'rain']);
       expect(tester.takeException(), isNull);
     },
   );

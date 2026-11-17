@@ -7,8 +7,8 @@ the public `lewiseman/the-redkeep` repository. The permanent download URL is:
 
 Every release contains `redkeep-arm64-v8a.apk`, `redkeep-arm64-v8a.apk.sha256`,
 and `release.json`. Keep the APK filename for future releases so website links
-continue to work. Supported phones run **Android 11+ (API 30) on ARM64**;
-the current on-device AI runtime does not support ARM32 or x86_64.
+continue to work. Supported phones run **Android 11+ (API 30) on ARM64**.
+The Gradle configuration builds ARM64 only; ARM32 and x86_64 are not shipped.
 
 ## Local prerequisites
 
@@ -19,7 +19,8 @@ the current on-device AI runtime does not support ARM32 or x86_64.
   is unset; otherwise configure `JAVA_HOME` and `PATH`.
 - The ignored `env.json` with the production HTTPS `ASSET_BASE_URL` and configured
   `GOOGLE_SERVER_CLIENT_ID`. Artwork continues through the existing catalog,
-  download, verification, and local storage flow; model weights download separately.
+  download, verification, and local storage flow. AI features use cloud providers
+  with each person's own API key, entered in the app; no keys or models ship in the APK.
 - The existing ignored `android/key.properties` with `storeFile`, `storePassword`,
   `keyAlias`, and `keyPassword`. Relative keystore paths resolve from `android/app/`.
   Keep a private backup of the keystore and passwords, and use the same signing
@@ -98,8 +99,9 @@ shasum -a 256 -c redkeep-arm64-v8a.apk.sha256
 ```
 
 The first launch downloads and verifies the required artwork. Automated checks
-verify packaging and release behavior; installation, OAuth, Drive sync, and device
-AI still need a release-device smoke test.
+verify packaging and release behavior; installation, OAuth, Drive sync, and cloud
+AI (an AI action and Recall search with a provider key) still need a
+release-device smoke test.
 
 References: [Flutter Android distribution](https://docs.flutter.dev/deployment/android),
 [GitHub Releases API](https://docs.github.com/en/rest/releases/releases),

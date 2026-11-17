@@ -40,7 +40,6 @@ const customAiProviderPreset = AiProviderPreset(
   capabilities: {
     AiCapability.chat,
     AiCapability.vision,
-    AiCapability.embeddings,
     AiCapability.transcription,
     AiCapability.image,
   },
@@ -57,13 +56,11 @@ const aiProviderCatalog = <AiProviderPreset>[
     capabilities: {
       AiCapability.chat,
       AiCapability.vision,
-      AiCapability.embeddings,
       AiCapability.transcription,
       AiCapability.image,
     },
     defaultModels: {
       AiCapability.chat: 'gpt-5-mini',
-      AiCapability.embeddings: 'text-embedding-3-small',
       AiCapability.transcription: 'gpt-4o-mini-transcribe',
       AiCapability.image: 'gpt-image-1',
     },
@@ -73,8 +70,6 @@ const aiProviderCatalog = <AiProviderPreset>[
       'gpt-5': AiPrice(input: 1.25, output: 10),
       'gpt-4.1-mini': AiPrice(input: .4, output: 1.6),
       'gpt-4o-mini': AiPrice(input: .15, output: .6),
-      'text-embedding-3-small': AiPrice(input: .02),
-      'text-embedding-3-large': AiPrice(input: .13),
       'gpt-4o-mini-transcribe': AiPrice(unit: .003),
       'gpt-4o-transcribe': AiPrice(unit: .006),
       'whisper-1': AiPrice(unit: .006),
@@ -95,11 +90,7 @@ const aiProviderCatalog = <AiProviderPreset>[
     name: 'Google Gemini',
     baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
     keyUrl: 'https://aistudio.google.com/apikey',
-    capabilities: {
-      AiCapability.chat,
-      AiCapability.vision,
-      AiCapability.embeddings,
-    },
+    capabilities: {AiCapability.chat, AiCapability.vision},
   ),
   AiProviderPreset(
     id: 'openrouter',
@@ -120,11 +111,7 @@ const aiProviderCatalog = <AiProviderPreset>[
     name: 'Mistral',
     baseUrl: 'https://api.mistral.ai/v1',
     keyUrl: 'https://console.mistral.ai/api-keys',
-    capabilities: {
-      AiCapability.chat,
-      AiCapability.vision,
-      AiCapability.embeddings,
-    },
+    capabilities: {AiCapability.chat, AiCapability.vision},
   ),
   AiProviderPreset(
     id: 'deepseek',

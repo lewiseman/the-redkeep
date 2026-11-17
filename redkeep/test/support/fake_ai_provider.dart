@@ -13,7 +13,6 @@ const testAiSettings = AiCloudSettings(
   token: 'secret-token',
   models: {
     AiCapability.chat: 'test-model',
-    AiCapability.embeddings: 'test-embed',
     AiCapability.transcription: 'test-transcribe',
     AiCapability.image: 'test-image',
   },
@@ -46,7 +45,6 @@ class FakeAiProviderClient implements AiCloudClient {
   /// Answers for the next conversation turns, in order.
   final turns = <AiConverseReply>[];
   final conversations = <AiConverseRequest>[];
-  final embedded = <List<String>>[];
   final transcribed = <Uint8List>[];
   final images = <String>[];
   final imageSizes = <String>[];
@@ -89,20 +87,6 @@ class FakeAiProviderClient implements AiCloudClient {
       turns.isEmpty ? AiConverseReply(text: reply) : turns.removeAt(0),
       usage,
     );
-  }
-
-  @override
-  Future<AiResult<List<List<double>>>> embed(
-    AiCloudSettings settings,
-    String model,
-    List<String> inputs, {
-    Future<void>? abort,
-  }) async {
-    embedded.add(inputs);
-    await _wait(abort);
-    return AiResult([
-      for (final _ in inputs) [1.0, 0, 0, 0],
-    ], AiUsage(inputTokens: inputs.length));
   }
 
   @override

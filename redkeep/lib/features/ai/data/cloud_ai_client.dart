@@ -286,8 +286,8 @@ class AiTransport {
 
 int _int(Object? value) => value is num ? value.toInt() : 0;
 
-/// OpenAI API conventions: chat completions, embeddings, audio
-/// transcriptions, image generations and the model list.
+/// OpenAI API conventions: chat completions, audio transcriptions, image
+/// generations and the model list.
 class OpenAiCloudClient implements AiCloudClient {
   OpenAiCloudClient(this.transport);
   final AiTransport transport;
@@ -598,53 +598,6 @@ class OpenAiCloudClient implements AiCloudClient {
   }
 
   @override
-  Future<AiResult<List<List<double>>>> embed(
-    AiCloudSettings settings,
-    String model,
-    List<String> inputs, {
-    Future<void>? abort,
-  }) async {
-    final json = await transport.json(
-      settings,
-      'POST',
-      '/embeddings',
-      body: {'model': model, 'input': inputs, 'encoding_format': 'float'},
-      abort: abort,
-    );
-    final data = json['data'];
-    if (data is! List || data.length != inputs.length) {
-      throw const AiProviderFailure(AiProviderFailureKind.invalidResponse);
-    }
-    final vectors = List<List<double>?>.filled(inputs.length, null);
-    for (final (i, item) in data.indexed) {
-      final index = item is Map && item['index'] is int
-          ? item['index'] as int
-          : i;
-      final embedding = item is Map ? item['embedding'] : null;
-      if (index < 0 ||
-          index >= inputs.length ||
-          embedding is! List ||
-          embedding.isEmpty ||
-          embedding.any((v) => v is! num)) {
-        throw const AiProviderFailure(AiProviderFailureKind.invalidResponse);
-      }
-      vectors[index] = [for (final v in embedding) (v as num).toDouble()];
-    }
-    if (vectors.any((v) => v == null)) {
-      throw const AiProviderFailure(AiProviderFailureKind.invalidResponse);
-    }
-    final usage = json['usage'];
-    return AiResult(
-      [for (final v in vectors) v!],
-      AiUsage(
-        inputTokens: usage is Map
-            ? _int(usage['prompt_tokens'] ?? usage['total_tokens'])
-            : 0,
-      ),
-    );
-  }
-
-  @override
   Future<AiResult<String>> transcribe(
     AiCloudSettings settings,
     String model,
@@ -724,7 +677,7 @@ class OpenAiCloudClient implements AiCloudClient {
   }
 }
 
-/// Anthropic's Messages API. It has no embeddings, speech or image APIs.
+/// Anthropic's Messages API. It has no speech or image APIs.
 class AnthropicCloudAdapter extends OpenAiCloudClient {
   AnthropicCloudAdapter(super.transport);
 
@@ -918,14 +871,6 @@ class AnthropicCloudAdapter extends OpenAiCloudClient {
   }
 
   @override
-  Future<AiResult<List<List<double>>>> embed(
-    AiCloudSettings settings,
-    String model,
-    List<String> inputs, {
-    Future<void>? abort,
-  }) async => throw _unsupported;
-
-  @override
   Future<AiResult<String>> transcribe(
     AiCloudSettings settings,
     String model,
@@ -962,14 +907,6 @@ class CloudAiClient implements AiCloudClient {
     AiChatRequest request, {
     Future<void>? abort,
   }) => _for(settings).chat(settings, request, abort: abort);
-
-  @override
-  Future<AiResult<List<List<double>>>> embed(
-    AiCloudSettings settings,
-    String model,
-    List<String> inputs, {
-    Future<void>? abort,
-  }) => _for(settings).embed(settings, model, inputs, abort: abort);
 
   @override
   Future<AiResult<AiConverseReply>> converse(

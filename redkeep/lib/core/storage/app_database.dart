@@ -5,7 +5,6 @@ import 'package:drift/native.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../features/ai/data/ai_tables.dart';
-import '../../features/ai/data/recall_schema.dart';
 
 import '../../features/appearance/data/appearance_table.dart';
 import '../../features/onboarding/data/onboarding_table.dart';
@@ -20,10 +19,7 @@ part 'app_database.g.dart';
 
 @DriftDatabase(
   tables: [
-    AiPreferencesTable,
     AiUsageMonths,
-    RecallQueue,
-    RecallManifests,
     AppearanceSettings,
     OnboardingCompletion,
     Notes,
@@ -49,7 +45,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   // Reset changes this generation before disposing editors. Old repositories
   // cannot write after cleanup, even when an async continuation finishes late.
@@ -61,7 +57,6 @@ class AppDatabase extends _$AppDatabase {
     onCreate: (migrator) async {
       await migrator.createAll();
       await installSyncTriggers(this);
-      await installRecallTriggers(this);
     },
     onUpgrade: (migrator, from, to) async {
       if (from < 2) {
@@ -133,41 +128,34 @@ class AppDatabase extends _$AppDatabase {
         await customStatement(
           "DELETE FROM sync_records WHERE type = 'thought'",
         );
-        await customStatement(
-          "DELETE FROM recall_queue WHERE kind = 'thought'",
-        );
-        await customStatement(
-          "DELETE FROM recall_manifests WHERE kind = 'thought'",
-        );
-        await _dropColumn('ai_preferences_table', 'recall_flow');
         if (!await _hasColumn('diary_entries', 'kind')) {
           await migrator.addColumn(diaryEntries, diaryEntries.kind);
         }
       }
       if (from < 10) {
         // The diary has no AI: no suggestions, photo questions, answers or
-        // search by meaning. Its index entries go, and the next indexing
-        // run clears its vectors and rebuilds the notes index.
+        // search by meaning. The search index itself goes in version 12.
         await customStatement('DROP TABLE IF EXISTS photo_question_cache');
         for (final event in ['insert', 'update', 'delete']) {
           await customStatement(
             'DROP TRIGGER IF EXISTS recall_diary_entries_$event',
           );
         }
-        await customStatement("DELETE FROM recall_queue WHERE kind = 'diary'");
-        await customStatement(
-          "DELETE FROM recall_manifests WHERE kind = 'diary'",
-        );
-        await customStatement(
-          'INSERT INTO ai_preferences_table (id, recall_cleanup_required) '
-          'VALUES (1, 1) '
-          'ON CONFLICT(id) DO UPDATE SET recall_cleanup_required = 1',
-        );
-        await _dropColumn('ai_preferences_table', 'recall_diary');
       }
       if (from < 11) {
         // The diary search page shows the latest searches, kept locally.
         await migrator.createTable(diarySearchHistory);
+      }
+      if (from < 12) {
+        // Notes have no AI search: no index, triggers or search preferences.
+        // Notes are found by ordinary keyword search. Earlier versions also
+        // indexed Flow thoughts and the diary; their entries go with it.
+        for (final event in ['insert', 'update', 'delete']) {
+          await customStatement('DROP TRIGGER IF EXISTS recall_notes_$event');
+        }
+        await customStatement('DROP TABLE IF EXISTS recall_queue');
+        await customStatement('DROP TABLE IF EXISTS recall_manifests');
+        await customStatement('DROP TABLE IF EXISTS ai_preferences_table');
       }
     },
   );

@@ -14,10 +14,8 @@ import 'package:redkeep/features/notes/application/notes_providers.dart';
 import 'package:redkeep/features/notes/data/drift_notes_repository.dart';
 import 'package:redkeep/features/notes/data/note_media_store.dart';
 import 'package:redkeep/features/notes/domain/note_document.dart';
-import 'package:redkeep/features/recall/application/recall_controller.dart';
 import 'package:redkeep/features/sync/application/sync_providers.dart';
 
-import 'fake_ai.dart';
 import 'fake_ai_provider.dart';
 
 const notesTestId = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
@@ -102,8 +100,6 @@ class NotesAiHarness {
         MemoryAiProviders(saved: settings),
       ),
       aiCloudClientProvider.overrideWithValue(aiProvider),
-      recallVectorsProvider.overrideWith((ref) async => MemoryVectors()),
-      recallEmbedderProvider.overrideWithValue(FakeEmbedder()),
     ],
   );
   Future<NoteDocument> save({

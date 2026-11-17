@@ -3,10 +3,9 @@ import 'package:redkeep/features/voice/application/voice_coordination.dart';
 import 'package:redkeep/features/voice/application/voice_capture.dart';
 import 'package:drift/native.dart';
 import 'package:redkeep/core/storage/app_database.dart';
-import 'package:redkeep/features/recall/application/recall_controller.dart';
 
-import 'fake_ai.dart';
 import 'fake_watch_reminders.dart';
+
 import 'package:redkeep/features/watchlist/application/discover_controller.dart';
 import 'package:redkeep/features/watchlist/presentation/watch_widgets.dart';
 
@@ -61,7 +60,6 @@ Future<GoRouter> pumpApp(
   bool aiEnabled = false,
   AppDatabase? database,
   AiCloudSettings? aiSettings = testAiSettings,
-  FakeEmbedder? embedder,
   VoiceCapture Function(String)? voiceCapture,
   FakeWatchReminders? watchReminders,
 }) async {
@@ -80,8 +78,6 @@ Future<GoRouter> pumpApp(
         watchRemindersProvider.overrideWithValue(
           watchReminders ?? FakeWatchReminders(),
         ),
-        recallVectorsProvider.overrideWith((ref) async => MemoryVectors()),
-        recallEmbedderProvider.overrideWithValue(embedder ?? FakeEmbedder()),
         syncEnabledProvider.overrideWithValue(false),
         aiEnabledProvider.overrideWithValue(aiEnabled),
         appearanceFontLoaderProvider.overrideWithValue(fontLoader),

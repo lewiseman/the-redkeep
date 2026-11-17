@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -84,7 +86,7 @@ void main() {
     );
     final cloud = container.read(aiCloudProvider);
     await expectLater(
-      cloud.embed(['text']),
+      cloud.transcribe(Uint8List(4), seconds: 1),
       throwsA(
         isA<AiProviderFailure>().having(
           (f) => f.kind,
@@ -93,11 +95,10 @@ void main() {
         ),
       ),
     );
-    expect(await cloud.embeddingProfile(), isNull);
-    expect(fake.embedded, isEmpty);
+    expect(fake.transcribed, isEmpty);
     expect(
       container.read(aiCapabilitiesProvider),
-      isNot(contains(AiCapability.embeddings)),
+      isNot(contains(AiCapability.transcription)),
     );
   });
 

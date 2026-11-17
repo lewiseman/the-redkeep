@@ -43,14 +43,6 @@ enum AiOperation {
     16384,
     noteDraftSystem,
   ),
-  noteQuestion(
-    'answer-note-question',
-    true,
-    'noteQuestionContract',
-    256,
-    2048,
-    noteQuestionSystem,
-  ),
   noteImage(
     'ask-note-image',
     true,
@@ -112,7 +104,6 @@ enum AiOperation {
     noteTags => 'Tag ideas',
     noteTemplate => 'Starting template',
     noteDraft => 'Draft a note',
-    noteQuestion => 'AI note search',
     noteImage => 'Ask about an image',
     noteScan => 'Scan a page',
     noteBackground => 'Generate a background',

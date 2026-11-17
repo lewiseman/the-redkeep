@@ -16,7 +16,6 @@ enum AppDestination {
   home('/'),
   settings('/settings'),
   brain('/settings/brain'),
-  library('/settings/brain/library'),
   more('/more'),
   watchlist('/watchlist'),
   notes('/notes'),
@@ -30,7 +29,6 @@ enum AppDestination {
     '/' => home,
     '/settings' => settings,
     '/settings/brain' => brain,
-    '/settings/brain/library' => library,
     '/more' => more,
     '/watchlist' => watchlist,
     '/notes' => notes,
@@ -72,7 +70,6 @@ String _destination(String location) {
     return location;
   }
   if (const {
-    '/notes/ai-search',
     '/diary/search',
     watchSearchLocation,
     watchPreferencesLocation,
@@ -93,9 +90,8 @@ String _destination(String location) {
   }
   final mood = RegExp(r'^/watchlist/mood/([a-z]+)$').firstMatch(location);
   if (mood != null && Mood.byId(mood[1]) != null) return location;
-  final watch = RegExp(
-    r'^/watchlist/([a-z]+)/([0-9]+)(?:/chat)?$',
-  ).firstMatch(location);
+  final watch = RegExp(r'^/watchlist/([a-z]+)/([0-9]+)(?:/chat)?$')
+      .firstMatch(location);
   if (watch != null && WatchKey.fromRoute(watch[1], watch[2]) != null) {
     return location;
   }

@@ -1,11 +1,9 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/presentation/diary_typography.dart';
 import '../../../core/presentation/rendering_policy.dart';
-import '../../recall/application/recall_coverage.dart';
 import '../../sync/presentation/sync_material.dart';
 import '../domain/ai_provider_catalog.dart';
 import 'maestar_study.dart';
@@ -95,7 +93,7 @@ class MaestarSection extends StatelessWidget {
   }
 }
 
-/// A warm paper card used across Grand Maestar and the Library.
+/// A warm paper card used across Grand Maestar.
 class MaestarCard extends StatelessWidget {
   const MaestarCard({
     super.key,
@@ -535,158 +533,6 @@ class _PursePainter extends CustomPainter {
       old.fill != fill ||
       old.track != track ||
       old.limited != limited;
-}
-
-/// The way into the Library, where search by meaning is kept.
-class LibraryDoorCard extends ConsumerWidget {
-  const LibraryDoorCard({super.key, required this.onOpen, required this.ready});
-  final VoidCallback onOpen;
-
-  /// Whether the provider has an embedding model.
-  final bool ready;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final palette = MorePalette.of(context);
-    final coverage = ref.watch(recallCoverageProvider).value ?? const {};
-    final saved = coverage.values.fold(0, (a, c) => a + c.saved);
-    final indexed = coverage.values.fold(0, (a, c) => a + c.indexed);
-    final serif = DiaryTypography.of(context).body.fontFamily;
-    return Semantics(
-      button: true,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          key: const ValueKey('maestar-library-door'),
-          borderRadius: BorderRadius.circular(22),
-          onTap: onOpen,
-          child: Ink(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(22),
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFF141A3C), Color(0xFF2B2858)],
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF141A3C).withValues(alpha: .25),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: ExcludeSemantics(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(22),
-                      child: CustomPaint(
-                        painter: _DoorStarsPainter(
-                          lit: saved == 0 ? (ready ? 1 : 0) : indexed / saved,
-                          accent: palette.accent,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 16, 20),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'THE LIBRARY',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: .6),
-                                fontSize: 11,
-                                letterSpacing: 2,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              'Search by meaning',
-                              style: TextStyle(
-                                fontFamily: serif,
-                                color: Colors.white,
-                                fontSize: 21,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              !ready
-                                  ? 'Needs an embedding model. Keyword search still works.'
-                                  : saved == 0
-                                  ? 'Nothing written yet. The index fills as you write.'
-                                  : '$indexed of $saved pieces of writing indexed',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: .75),
-                                fontSize: 13,
-                                height: 1.4,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Icon(
-                        Icons.arrow_forward_rounded,
-                        color: Colors.white.withValues(alpha: .85),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _DoorStarsPainter extends CustomPainter {
-  const _DoorStarsPainter({required this.lit, required this.accent});
-  final double lit;
-  final Color accent;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rng = math.Random(31);
-    const count = 38;
-    final points = <Offset>[];
-    for (var i = 0; i < count; i++) {
-      final p = Offset(
-        size.width * (.45 + rng.nextDouble() * .55),
-        size.height * rng.nextDouble(),
-      );
-      points.add(p);
-      final on = i < (count * lit).round();
-      canvas.drawCircle(
-        p,
-        on ? 1.4 + rng.nextDouble() : .9,
-        Paint()
-          ..color = (on ? Color.lerp(Colors.white, accent, .25)! : Colors.white)
-              .withValues(alpha: on ? .9 : .18),
-      );
-    }
-    final thread = Paint()
-      ..strokeWidth = .7
-      ..color = Colors.white.withValues(alpha: .14);
-    final shown = (count * lit).round();
-    for (var i = 1; i < math.min(shown, 12); i++) {
-      canvas.drawLine(points[i - 1], points[i], thread);
-    }
-  }
-
-  @override
-  bool shouldRepaint(_DoorStarsPainter old) =>
-      old.lit != lit || old.accent != accent;
 }
 
 class ModelPicker extends StatefulWidget {

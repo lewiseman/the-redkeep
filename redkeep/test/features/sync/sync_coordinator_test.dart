@@ -1,9 +1,7 @@
 import 'dart:io';
 
-import 'package:redkeep/features/recall/application/recall_controller.dart';
 import 'package:redkeep/features/ai/application/ai_cloud.dart';
 
-import '../../support/fake_ai.dart';
 import '../../support/fake_ai_provider.dart';
 
 import 'package:drift/native.dart';
@@ -37,11 +35,9 @@ void main() {
     final h = Harness(AppDatabase(NativeDatabase.memory()), MemoryDrive());
     final resetStorage = AccountResetStorage(directory: () async => directory);
     await h.saveNote('a' * 32, 'erase');
-    final vectors = MemoryVectors();
     final provider = MemoryAiProviders(saved: testAiSettings);
     final container = ProviderContainer(
       overrides: [
-        recallVectorsProvider.overrideWith((ref) async => vectors),
         protectedAiProvidersProvider.overrideWithValue(provider),
         appDatabaseProvider.overrideWithValue(h.db),
         syncBackendProvider.overrideWithValue(h.backend),
@@ -88,15 +84,9 @@ void main() {
       await container.read(accountResetProvider.notifier).ready;
       expect(container.read(accountResetProvider).blocksDataAccess, true);
       h.drive.failDelete = false;
-      vectors.failReset = true;
-      await container.read(accountResetProvider.notifier).reset();
-      expect(container.read(accountResetProvider).completed, false);
-      expect(await resetStorage.canSync(), false);
-      vectors.failReset = false;
       await container.read(accountResetProvider.notifier).reset();
       expect(container.read(accountResetProvider).completed, true);
       expect(provider.value, isNull);
-      expect(vectors.resets, greaterThanOrEqualTo(2));
       expect(h.backend.auth.isSignedIn, false);
       expect(h.db.writingBlocked, false);
       expect(await resetStorage.canSync(), true);

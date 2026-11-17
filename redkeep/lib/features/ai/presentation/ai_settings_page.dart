@@ -3,7 +3,6 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/presentation/diary_typography.dart';
@@ -21,8 +20,7 @@ import 'maestar_study.dart';
 const _portrait = AssetImage('assets/branding/grand_maestar.png');
 
 /// Grand Maestar: the one cloud AI provider, its models and the monthly
-/// spending limit. Search by meaning lives in the Library, one page deeper.
-/// Everything stays on this phone.
+/// spending limit. Everything stays on this phone.
 class AiSettingsPage extends ConsumerWidget {
   const AiSettingsPage({super.key});
 
@@ -109,7 +107,6 @@ class _AiSettingsFormState extends ConsumerState<_AiSettingsForm>
   /// Vision uses the chat model, so it has no field of its own.
   static const _modelCapabilities = [
     AiCapability.chat,
-    AiCapability.embeddings,
     AiCapability.transcription,
     AiCapability.image,
   ];
@@ -327,7 +324,6 @@ class _AiSettingsFormState extends ConsumerState<_AiSettingsForm>
     return switch (capability) {
       AiCapability.transcription => '${usd(price.unit)} per minute',
       AiCapability.image => '${usd(price.unit)} per image',
-      AiCapability.embeddings => '${usd(price.input)} per M tokens',
       _ => '${usd(price.input)} in · ${usd(price.output)} out per M tokens',
     };
   }
@@ -477,9 +473,6 @@ class _AiSettingsFormState extends ConsumerState<_AiSettingsForm>
     final savedLimit = saved?.monthlyLimitUsd ?? 0;
     final liveLimit = double.tryParse(_limit.text.trim()) ?? 0;
     final status = ref.watch(maestarStatusProvider);
-    final embeddings = ref
-        .watch(aiCapabilitiesProvider)
-        .contains(AiCapability.embeddings);
     final palette = MorePalette.of(context);
     final policy = RenderingPolicyScope.of(context);
     final media = MediaQuery.of(context);
@@ -548,7 +541,7 @@ class _AiSettingsFormState extends ConsumerState<_AiSettingsForm>
       if (keyRejected)
         const MaestarNotice(
           icon: Icons.key_off_outlined,
-          text: 'Your provider rejected the key. Check it below, then save. Search indexing is paused until then.',
+          text: 'Your provider rejected the key. Check it below, then save.',
         ),
       if (saved != null && savedLimit > 0 && spent >= savedLimit)
         const MaestarNotice(
@@ -639,16 +632,6 @@ class _AiSettingsFormState extends ConsumerState<_AiSettingsForm>
               onOther: _otherLimit,
             ),
           ],
-        ),
-      ),
-
-      MaestarSection(
-        numeral: 'V',
-        eyebrow: 'The library',
-        title: 'Search by meaning',
-        child: LibraryDoorCard(
-          ready: embeddings,
-          onOpen: () => context.push('/settings/brain/library'),
         ),
       ),
 
@@ -939,7 +922,7 @@ class _PriceDialogState extends State<_PriceDialog> {
                 : 'USD per million input tokens',
           ),
         ),
-        if (!_perUnit && widget.capability != AiCapability.embeddings)
+        if (!_perUnit)
           TextField(
             controller: _second,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),

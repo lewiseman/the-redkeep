@@ -1,7 +1,4 @@
 import '../features/ai/presentation/ai_settings_page.dart';
-import '../features/recall/presentation/recall_library_page.dart';
-import '../features/notes/presentation/note_ai_sheet.dart';
-import '../features/notes/presentation/note_ai_widgets.dart';
 import '../features/diary/presentation/diary_photos_page.dart';
 import '../features/ai/application/ai_lifecycle.dart';
 import '../features/sync/application/sync_providers.dart';
@@ -170,18 +167,6 @@ GoRouter createAppRouter(Ref ref) {
             path: '/notes',
             pageBuilder: (context, state) => _tabs(1),
             routes: [
-              GoRoute(
-                path: 'ai-search',
-                pageBuilder: (context, state) => _page(
-                  state,
-                  NoteAiToolPage(
-                    tool: NoteAiTool.search,
-                    initialQuery: state.extra is String
-                        ? state.extra as String
-                        : '',
-                  ),
-                ),
-              ),
               // Editing is a state of this page, not a route of its own.
               // It can be opened straight into editing, e.g. from the
               // note's website.
@@ -316,14 +301,6 @@ GoRouter createAppRouter(Ref ref) {
                     parentNavigatorKey: fullPage,
                     pageBuilder: (context, state) =>
                         _page(state, const AiSettingsPage()),
-                    routes: [
-                      GoRoute(
-                        path: 'library',
-                        parentNavigatorKey: fullPage,
-                        pageBuilder: (context, state) =>
-                            _page(state, const RecallLibraryPage()),
-                      ),
-                    ],
                   ),
                 ],
               ),

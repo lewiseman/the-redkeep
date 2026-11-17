@@ -332,7 +332,7 @@ void main() {
   });
 
   testWidgets(
-    'typing filters by keyword; the keyboard search action opens AI note search without sending',
+    'the keyboard search action keeps keyword search and sends nothing',
     (tester) async {
       try {
         final router = await pumpApp(
@@ -341,23 +341,15 @@ void main() {
           database: h.db,
           initialLocation: '/notes',
         );
-        expect(find.text('Keyword and meaning results'), findsNothing);
         await tester.enterText(
           find.byKey(const ValueKey('notes-search')),
           'tomatoes',
         );
-        await tester.pumpAndSettle();
-        expect(router.routerDelegate.currentConfiguration.uri.path, '/notes');
         await tester.testTextInput.receiveAction(TextInputAction.search);
         await tester.pumpAndSettle();
-        expect(
-          find.byKey(const ValueKey('notes-ai-search-field')),
-          findsOneWidget,
-        );
-        final field = tester.widget<TextField>(
-          find.byKey(const ValueKey('notes-ai-search-field')),
-        );
-        expect(field.controller!.text, 'tomatoes');
+        expect(router.routerDelegate.currentConfiguration.uri.path, '/notes');
+        expect(tester.container().read(notesFilterProvider).search, 'tomatoes');
+        expect(find.byKey(const ValueKey('notes-add-button')), findsOneWidget);
         expect(h.remote.submissions, isEmpty);
         expect(tester.takeException(), isNull);
       } finally {

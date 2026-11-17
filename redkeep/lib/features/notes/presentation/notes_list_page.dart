@@ -135,11 +135,9 @@ class _NotesListPageState extends ConsumerState<NotesListPage> {
     _filter(search: '');
   }
 
-  void _ask(String query) {
+  void _submitSearch(String _) {
     _flushSearch();
     _searchFocus.unfocus();
-    if (ref.read(notesFilterProvider).trash || query.trim().isEmpty) return;
-    context.push('/notes/ai-search', extra: query.trim());
   }
 
   /// Collections replace each other rather than stacking filters.
@@ -406,9 +404,8 @@ class _NotesListPageState extends ConsumerState<NotesListPage> {
                       collection: collection,
                       onCollections: _openCollections,
                       onChanged: _searchChanged,
-                      onSubmitted: _ask,
+                      onSubmitted: _submitSearch,
                       onClear: _clearSearch,
-                      onAsk: filter.trash ? null : _ask,
                       addButton: NoteAddButton(
                         key: const ValueKey('notes-add-button'),
                         onPressed: busy ? null : _create,

@@ -9,7 +9,6 @@ import '../../../app/storage_providers.dart';
 import '../../notes/application/note_ai_sources.dart';
 import '../../notes/data/note_media_store.dart';
 import '../../notes/domain/note_background_contract.dart';
-import '../../recall/domain/recall_question_contract.dart';
 import '../../sync/application/sync_providers.dart'
     show writingSessionEpochProvider;
 import '../domain/ai_job.dart';
@@ -269,7 +268,6 @@ class AiJobs extends Notifier<AiJobState> {
 String aiErrorMessage(Object error) => switch (error) {
   AiProviderFailure() => error.message,
   FormatException() => error.message,
-  RecallAnswerRejected() => error.message,
   StateError() => error.message,
   _ => 'Could not finish the AI request. Your writing is safe. Try again.',
 };

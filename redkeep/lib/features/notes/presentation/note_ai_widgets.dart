@@ -6,13 +6,6 @@ export 'note_ai_palette.dart';
 
 /// One visual language from the note toolbox through to the reviewed result.
 enum NoteAiTool {
-  search(
-    'AI note search',
-    'Ask a question and get an answer from your notes.',
-    'AI note search',
-    'Ask about your notes',
-    Color(0xFF527C9C),
-  ),
   template(
     'Starting template',
     'Choose a template for your note.',
@@ -77,7 +70,6 @@ enum NoteAiTool {
     scan => 'Page added to the end of your note',
     background => 'New background set',
     presentation => 'Website ready',
-    search => 'Done',
   };
 }
 
@@ -227,14 +219,6 @@ class _ToolPainter extends CustomPainter {
         );
         lines(44, 34, 18, 3);
         sparkle(64, 63);
-      case NoteAiTool.search:
-        sheet(12, 11, 39, 50);
-        sheet(18, 17, 39, 50, tinted: true);
-        lines(25, 30, 23, 3);
-        canvas.drawCircle(const Offset(58, 51), 12, Paint()..color = paper);
-        canvas.drawCircle(const Offset(58, 51), 12, stroke);
-        line(67, 60, 75, 68);
-        sparkle(66, 13);
       case NoteAiTool.template:
         sheet(14, 12, 49, 57);
         line(23, 25, 49, 25);
@@ -351,7 +335,7 @@ class NoteAiToolCard extends StatelessWidget {
   }
 }
 
-/// A full-page tool (AI note search) or, when [embedded], the body of one
+/// A full-page tool (such as scanning) or, when [embedded], the body of one
 /// tool inside the note's AI desk, which supplies the scrolling and header.
 class NoteAiScaffold extends StatelessWidget {
   const NoteAiScaffold({

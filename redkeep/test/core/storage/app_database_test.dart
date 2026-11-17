@@ -1,11 +1,9 @@
 import 'dart:io';
 
-import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:drift_dev/api/migrations_native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:redkeep/core/storage/app_database.dart';
-import 'package:redkeep/features/ai/data/ai_preferences_repository.dart';
 import 'package:redkeep/features/appearance/data/drift_appearance_repository.dart';
 import 'package:redkeep/features/appearance/domain/appearance_preferences.dart';
 import 'package:redkeep/features/notes/data/drift_notes_repository.dart';
@@ -15,24 +13,24 @@ import 'package:redkeep/features/onboarding/data/drift_onboarding_repository.dar
 import 'generated/schema.dart';
 
 void main() {
-  test('fresh schema matches the complete version 11 snapshot', () async {
+  test('fresh schema matches the complete version 12 snapshot', () async {
     final database = AppDatabase(NativeDatabase.memory());
     addTearDown(database.close);
 
-    expect(database.schemaVersion, 11);
-    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 11);
+    expect(database.schemaVersion, 12);
+    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 12);
     final version = await database
         .customSelect('PRAGMA user_version')
         .getSingle();
-    expect(version.read<int>('user_version'), 11);
+    expect(version.read<int>('user_version'), 12);
   });
 
-  for (final from in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) {
+  for (final from in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]) {
     test('the upgrade from version $from matches the snapshot', () async {
       final verifier = SchemaVerifier(GeneratedHelper());
       final database = AppDatabase(await verifier.startAt(from));
       addTearDown(database.close);
-      await verifier.migrateAndValidate(database, 11);
+      await verifier.migrateAndValidate(database, 12);
     });
   }
 
@@ -48,7 +46,7 @@ void main() {
     final verifier = SchemaVerifier(GeneratedHelper());
     final upgraded = AppDatabase(await verifier.startAt(7));
     addTearDown(upgraded.close);
-    await verifier.migrateAndValidate(upgraded, 11);
+    await verifier.migrateAndValidate(upgraded, 12);
     final fresh = AppDatabase(NativeDatabase.memory());
     addTearDown(fresh.close);
     await fresh.customSelect('SELECT 1').get();
@@ -67,7 +65,7 @@ void main() {
       final verifier = SchemaVerifier(GeneratedHelper());
       final database = AppDatabase(await verifier.startAt(4));
       addTearDown(database.close);
-      await verifier.migrateAndValidate(database, 11);
+      await verifier.migrateAndValidate(database, 12);
       final triggers =
           (await database
                   .customSelect(
@@ -86,7 +84,7 @@ void main() {
     final verifier = SchemaVerifier(GeneratedHelper());
     final database = AppDatabase(await verifier.startAt(3));
     addTearDown(database.close);
-    await verifier.migrateAndValidate(database, 11);
+    await verifier.migrateAndValidate(database, 12);
     final tables =
         (await database
                 .customSelect(
@@ -99,13 +97,6 @@ void main() {
     expect(tables, isNot(contains('ai_job_receipts')));
     expect(tables, isNot(contains('daily_questions')));
     expect(tables, isNot(contains('note_ai_recoveries')));
-    final prefs =
-        (await database
-                .customSelect('PRAGMA table_info(ai_preferences_table)')
-                .get())
-            .map((c) => c.read<String>('name'))
-            .toSet();
-    expect(prefs, isNot(anyOf(contains('routes'), contains('reply_voice'))));
     final diary =
         (await database.customSelect('PRAGMA table_info(diary_entries)').get())
             .map((c) => c.read<String>('name'))
@@ -135,7 +126,7 @@ void main() {
     final version = await database
         .customSelect('PRAGMA user_version')
         .getSingle();
-    expect(version.read<int>('user_version'), 11);
+    expect(version.read<int>('user_version'), 12);
   });
 
   test('version 9 removes Flow and keeps diary entries as ordinary entries', () async {
@@ -153,7 +144,7 @@ void main() {
       schema.rawDatabase.execute(statement);
     }
     final old = AppDatabase(schema.newConnection());
-    await verifier.migrateAndValidate(old, 11);
+    await verifier.migrateAndValidate(old, 12);
 
     final tables = await old
         .customSelect("SELECT name FROM sqlite_master WHERE name LIKE 'flow_%'")
@@ -163,12 +154,6 @@ void main() {
       'diary',
     ]);
     expect(await old.select(old.syncOperations).get(), isEmpty);
-    expect(
-      (await old.select(old.recallQueue).get()).where(
-        (r) => r.kind == 'thought',
-      ),
-      isEmpty,
-    );
     final entry = await old.select(old.diaryEntries).getSingle();
     expect((entry.body, entry.kind), ('Kept', 'entry'));
     await old.close();
@@ -197,7 +182,7 @@ void main() {
     }
     final old = AppDatabase(schema.newConnection());
     addTearDown(old.close);
-    await verifier.migrateAndValidate(old, 11);
+    await verifier.migrateAndValidate(old, 12);
 
     final dropped = await old
         .customSelect(
@@ -206,38 +191,94 @@ void main() {
         )
         .get();
     expect(dropped, isEmpty);
-    expect((await old.select(old.recallQueue).get()).map((r) => r.kind), [
-      'note',
-    ]);
-    expect((await old.select(old.recallManifests).get()).map((r) => r.kind), [
-      'note',
-    ]);
-    expect(await AiPreferencesRepository(old).cleanupRequired(), isTrue);
-    expect((await AiPreferencesRepository(old).read()).collections, {'note'});
 
     await old.customStatement(
       "INSERT INTO diary_entries (id, period_key, body, revision, created_at, updated_at) VALUES ('${'c' * 32}', '2026-11-03', 'Private', 1, 1, 1)",
     );
+    expect(await old.select(old.diaryEntries).get(), hasLength(1));
+  });
+
+  test('version 12 removes AI note search and its stored index', () async {
+    final verifier = SchemaVerifier(GeneratedHelper());
+    final schema = await verifier.schemaAt(11);
+    // Raw SQL before opening: the snapshot has no triggers and keeps the
+    // version 11 index tables the current database no longer has.
+    for (final statement in [
+      'INSERT INTO ai_preferences_table (id, recall_paused) VALUES (1, 1)',
+      "INSERT INTO recall_queue (kind, source_id) VALUES ('note', '${'b' * 32}')",
+      "INSERT INTO recall_manifests (profile, kind, source_id, hash, revision, chunks) VALUES ('p', 'note', '${'b' * 32}', 'h', 1, '[]')",
+      for (final event in ['INSERT', 'UPDATE', 'DELETE'])
+        '''CREATE TRIGGER recall_notes_${event.toLowerCase()} AFTER $event ON notes
+        BEGIN
+          INSERT INTO recall_queue(kind, source_id, generation)
+          VALUES ('note', ${event == 'DELETE' ? 'OLD' : 'NEW'}.id, 1)
+          ON CONFLICT(kind, source_id) DO UPDATE SET generation = generation + 1;
+        END''',
+    ]) {
+      schema.rawDatabase.execute(statement);
+    }
+    final old = AppDatabase(schema.newConnection());
+    addTearDown(old.close);
+    await verifier.migrateAndValidate(old, 12);
+
+    final left = await old
+        .customSelect(
+          "SELECT name FROM sqlite_master WHERE name LIKE 'recall_%' "
+          "OR name = 'ai_preferences_table'",
+        )
+        .get();
+    expect(left, isEmpty);
+
+    final repository = DriftNotesRepository(
+      old,
+      clock: () => DateTime.utc(2026, 11, 17),
+    );
+    await repository.saveNote(
+      id: 'a' * 32,
+      text: const PlainTextDocument(title: 'Kept', body: 'Still writable'),
+      expectedRevision: 0,
+      details: const NoteDetails(),
+    );
     expect(
-      (await old.select(old.recallQueue).get()).where((r) => r.kind == 'diary'),
-      isEmpty,
+      (await repository.openDocument('a' * 32)).note!.text.body,
+      'Still writable',
     );
   });
 
-  test('upgrading a real version 1 file keeps preferences, writing and recall triggers', () async {
+  test('upgrading a real version 1 file keeps writing and removes AI preferences', () async {
     final directory = await Directory.systemTemp.createTemp('redkeep-v1-');
     addTearDown(() => directory.delete(recursive: true));
     final file = File('${directory.path}/app.sqlite');
-    // The snapshot has no triggers, so rebuild version 1 from a live database.
+    // The snapshot has no triggers, so rebuild version 1 from a live database
+    // plus the version 1 AI preferences and search index triggers.
     final old = AppDatabase(NativeDatabase(file));
-    await old
-        .into(old.aiPreferencesTable)
-        .insert(
-          const AiPreferencesTableCompanion(
-            id: Value(1),
-            recallPaused: Value(true),
-          ),
-        );
+    await old.customStatement(
+      'CREATE TABLE ai_preferences_table (id INTEGER NOT NULL DEFAULT 1 '
+      'PRIMARY KEY, recall_notes INTEGER NOT NULL DEFAULT 1, '
+      'recall_paused INTEGER NOT NULL DEFAULT 0, '
+      'recall_cleanup_required INTEGER NOT NULL DEFAULT 0)',
+    );
+    await old.customStatement(
+      'INSERT INTO ai_preferences_table (id, recall_paused) VALUES (1, 1)',
+    );
+    await old.customStatement(
+      'CREATE TABLE recall_queue (kind TEXT NOT NULL, source_id TEXT NOT NULL, '
+      'generation INTEGER NOT NULL DEFAULT 1, PRIMARY KEY (kind, source_id))',
+    );
+    await old.customStatement(
+      'CREATE TABLE recall_manifests (profile TEXT NOT NULL, kind TEXT NOT NULL, '
+      'source_id TEXT NOT NULL, hash TEXT NOT NULL, revision INTEGER NOT NULL, '
+      'chunks TEXT NOT NULL, complete INTEGER NOT NULL DEFAULT 0, '
+      'PRIMARY KEY (profile, kind, source_id))',
+    );
+    await old.customStatement(
+      '''CREATE TRIGGER recall_notes_insert AFTER INSERT ON notes
+        BEGIN
+          INSERT INTO recall_queue(kind, source_id, generation)
+          VALUES ('note', NEW.id, 1)
+          ON CONFLICT(kind, source_id) DO UPDATE SET generation = generation + 1;
+        END''',
+    );
     await old.customStatement(
       "ALTER TABLE ai_preferences_table ADD COLUMN mode TEXT NOT NULL DEFAULT 'device'",
     );
@@ -252,27 +293,17 @@ void main() {
 
     final database = AppDatabase(NativeDatabase(file));
     addTearDown(database.close);
-    final prefs = AiPreferencesRepository(database);
-    final stored = await prefs.read();
-    expect(stored.paused, isTrue, reason: 'unrelated choices survive');
     final version = await database
         .customSelect('PRAGMA user_version')
         .getSingle();
-    expect(version.read<int>('user_version'), 11);
-    final columns = await database
-        .customSelect('PRAGMA table_info(ai_preferences_table)')
-        .get();
-    final names = columns.map((c) => c.read<String>('name')).toSet();
-    expect(names, contains('recall_notes'));
-    expect(names, isNot(contains('routes')));
-    expect(names, isNot(contains('mode')));
-    expect(names, isNot(contains('overrides')));
-    final brain = await database
+    expect(version.read<int>('user_version'), 12);
+    final retired = await database
         .customSelect(
-          "SELECT name FROM sqlite_master WHERE name = 'brain_assignments'",
+          "SELECT name FROM sqlite_master WHERE name = 'brain_assignments' "
+          "OR name = 'ai_preferences_table' OR name LIKE 'recall_%'",
         )
         .get();
-    expect(brain, isEmpty);
+    expect(retired, isEmpty);
 
     final repository = DriftNotesRepository(
       database,
@@ -288,7 +319,6 @@ void main() {
       (await repository.openDocument('a' * 32)).note!.text.body,
       'Still writable',
     );
-    expect(await database.select(database.recallQueue).get(), hasLength(1));
   });
 
   test(
@@ -336,7 +366,6 @@ void main() {
         final repository = DriftNotesRepository(database, clock: () => now);
         expect(await database.select(database.syncRecords).get(), isEmpty);
         expect(await database.select(database.syncOperations).get(), isEmpty);
-        expect(await database.select(database.recallQueue).get(), isEmpty);
 
         final saved = await repository.saveNote(
           id: id,
@@ -371,10 +400,6 @@ void main() {
         (await reopened.select(reopened.syncOperations).getSingle()).id,
         id,
       );
-      expect(
-        (await reopened.select(reopened.recallQueue).getSingle()).generation,
-        1,
-      );
 
       await repository.saveNote(
         id: id,
@@ -386,14 +411,10 @@ void main() {
         (await repository.openDocument(id)).note!.text.body,
         'Later words',
       );
-      expect(
-        (await reopened.select(reopened.recallQueue).getSingle()).generation,
-        2,
-      );
       final version = await reopened
           .customSelect('PRAGMA user_version')
           .getSingle();
-      expect(version.read<int>('user_version'), 11);
+      expect(version.read<int>('user_version'), 12);
     },
   );
 

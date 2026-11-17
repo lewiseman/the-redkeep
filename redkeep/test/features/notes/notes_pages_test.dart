@@ -348,7 +348,6 @@ void main() {
       await pumpApp(tester, initialLocation: '/notes', notes: repo);
       expect(find.text('Notes'), findsWidgets);
       expect(find.text('2 notes'), findsOneWidget);
-      expect(find.byKey(const ValueKey('notes-ask')), findsNothing);
 
       await tester.enterText(
         find.byKey(const ValueKey('notes-search')),
@@ -356,7 +355,6 @@ void main() {
       );
       await tester.pump();
       expect(tester.container().read(notesFilterProvider).search, isEmpty);
-      expect(find.byKey(const ValueKey('notes-ask')), findsOneWidget);
       await tester.pump(const Duration(milliseconds: 200));
       await tester.pumpAndSettle();
       expect(tester.container().read(notesFilterProvider).search, 'other');
@@ -366,7 +364,6 @@ void main() {
       await tester.tap(find.byTooltip('Clear search'));
       await tester.pumpAndSettle();
       expect(find.byType(NoteCard), findsNWidgets(2));
-      expect(find.byKey(const ValueKey('notes-ask')), findsNothing);
 
       // The sheet opens above the shell's floating bar, not under it.
       await tester.tap(find.byKey(const ValueKey('notes-collections')));

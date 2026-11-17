@@ -4,8 +4,7 @@ import 'notes_collection_sheet.dart';
 
 /// The notes page's controls, kept in the thumb's reach just above the
 /// navigation bar: which collection is showing, the search field scoped to
-/// it, and a trailing action that creates a note, or asks the notes once
-/// there is a question typed.
+/// it, and a trailing action that creates a note.
 ///
 /// Only this widget rebuilds while typing; the collection behind it updates
 /// from the debounced filter.
@@ -19,7 +18,6 @@ class NotesSearchDock extends StatelessWidget {
     required this.onChanged,
     required this.onSubmitted,
     required this.onClear,
-    required this.onAsk,
     required this.addButton,
   });
 
@@ -32,10 +30,6 @@ class NotesSearchDock extends StatelessWidget {
   final ValueChanged<String> onChanged;
   final ValueChanged<String> onSubmitted;
   final VoidCallback onClear;
-
-  /// Opens "Ask your notes" with the typed text; null where asking is not
-  /// offered (Trash).
-  final ValueChanged<String>? onAsk;
   final Widget addButton;
 
   @override
@@ -48,8 +42,6 @@ class NotesSearchDock extends StatelessWidget {
     return ListenableBuilder(
       listenable: Listenable.merge([controller, focusNode]),
       builder: (context, _) {
-        final text = controller.text.trim();
-        final asking = onAsk != null && text.isNotEmpty;
         // While typing, the field gets the room; the scope keeps its emoji.
         final compactScope = narrow || focusNode.hasFocus;
         return Row(
@@ -145,11 +137,7 @@ class NotesSearchDock extends StatelessWidget {
             const SizedBox(width: 4),
             SizedBox.square(
               dimension: height,
-              child: Center(
-                child: asking
-                    ? _AskButton(onPressed: () => onAsk!(text))
-                    : addButton,
-              ),
+              child: Center(child: addButton),
             ),
           ],
         );
@@ -245,27 +233,6 @@ class _ScopeButton extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _AskButton extends StatelessWidget {
-  const _AskButton({required this.onPressed});
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return IconButton.filled(
-      key: const ValueKey('notes-ask'),
-      tooltip: 'Ask your notes',
-      onPressed: onPressed,
-      style: IconButton.styleFrom(
-        fixedSize: const Size.square(56),
-        backgroundColor: colors.primary,
-        foregroundColor: colors.onPrimary,
-      ),
-      icon: const Icon(Icons.auto_awesome_rounded, size: 24),
     );
   }
 }

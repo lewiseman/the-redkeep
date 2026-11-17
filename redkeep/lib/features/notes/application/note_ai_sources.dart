@@ -8,7 +8,6 @@ import '../../ai/domain/ai_operation.dart';
 import '../domain/note_background_contract.dart';
 import '../domain/note_help_contract.dart';
 import '../domain/note_image_contract.dart';
-import '../domain/note_question_contract.dart';
 import '../domain/note_scan_contract.dart';
 import '../domain/transform_contract.dart';
 import 'note_editor_controller.dart';
@@ -24,19 +23,6 @@ Future<bool> noteAiSourceCurrent(
 ) async {
   final source = noteTaskSource(raw);
   final repo = ref.read(notesRepositoryProvider);
-  if (operation == AiOperation.noteQuestion) {
-    final selection = RecallQuestionSelection.decode(
-      source['payload'] as String,
-    );
-    for (final s in selection.sources) {
-      final opened = await repo.openDocument(s.uuid);
-      if (!opened.available ||
-          RecallItem.note(opened.note!)!.version != s.version) {
-        return false;
-      }
-    }
-    return true;
-  }
   final opened = await repo.openDocument(source['noteId'] as String);
   if (source['unsaved'] == true) {
     final editor = ref.exists(noteEditorProvider(source['noteId'] as String))
@@ -83,11 +69,6 @@ void validateNoteAiOutput(
       if (!richCompatible(draft.body)) {
         throw const FormatException(richIncompatibleMessage);
       }
-    case AiOperation.noteQuestion:
-      RecallQuestionAnswer.parse(
-        text,
-        RecallQuestionSelection.decode(source['payload'] as String),
-      );
     case AiOperation.noteImage:
       NoteImageAnswer.parse(text);
     case AiOperation.noteScan:

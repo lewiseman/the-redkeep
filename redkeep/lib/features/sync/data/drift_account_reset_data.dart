@@ -28,8 +28,6 @@ class DriftAccountResetData implements AccountResetLocalData {
       await db.delete(db.syncRecords).go();
       await db.delete(db.syncValues).go();
       await db.delete(db.aiUsageMonths).go();
-      await db.delete(db.recallQueue).go();
-      await db.delete(db.recallManifests).go();
       // The provider and its key are wiped by aiResetProvider.
     });
   }

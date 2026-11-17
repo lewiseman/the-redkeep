@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:redkeep/app/bottom_navbar.dart';
 import 'package:redkeep/app/more_page.dart';
-import 'package:redkeep/features/ai/presentation/ai_settings_page.dart';
 import 'package:redkeep/features/appearance/presentation/appearance_page.dart';
 import 'package:redkeep/features/notes/presentation/notes_list_page.dart';
 
@@ -27,14 +26,9 @@ void main() {
   }
 
   // These start timers of their own, so check the routes without building them.
-  testWidgets('Grand Maestar routes cover the shell', (
-    tester,
-  ) async {
+  testWidgets('Grand Maestar routes cover the shell', (tester) async {
     final router = await pumpApp(tester, initialLocation: '/more');
-    for (final location in [
-      '/settings/brain',
-      '/settings/brain/library',
-    ]) {
+    for (final location in ['/settings/brain']) {
       final route = router.configuration.findMatch(Uri.parse(location)).last;
       expect(route.route.parentNavigatorKey, router.configuration.navigatorKey);
     }
@@ -60,12 +54,6 @@ void main() {
     ('Appearance from More', '/more', [('/settings', true)], MorePage),
     ('Grand Maestar from More', '/more', [('/settings/brain', true)], MorePage),
     ('Watchlist from More', '/more', [('/watchlist', true)], MorePage),
-    (
-      'the Library from Grand Maestar',
-      '/more',
-      [('/settings/brain', true), ('/settings/brain/library', true)],
-      AiSettingsPage,
-    ),
     (
       'a page inside the shell',
       '/notes',

@@ -12,14 +12,12 @@ import '../../ai/application/ai_jobs.dart';
 import '../../ai/domain/ai_job.dart';
 import '../../ai/domain/ai_operation.dart';
 import '../../diary/data/prepare_diary_image.dart';
-import '../../recall/application/recall_controller.dart';
 import '../../sync/application/sync_providers.dart';
 import '../data/note_media_store.dart';
 import '../domain/note_background_contract.dart';
 import '../domain/note_document.dart';
 import '../domain/note_help_contract.dart';
 import '../domain/note_image_contract.dart';
-import '../domain/note_question_contract.dart';
 import '../domain/note_scan_contract.dart';
 import '../domain/transform_contract.dart';
 import '../domain/website/website_contract.dart';
@@ -48,35 +46,6 @@ class NoteAiController {
             when note.deletedAt == null)
           note,
     ];
-  }
-
-  Future<void> search(String question, {required String scope}) async {
-    final items = await notes();
-    final result = await ref
-        .read(recallControllerProvider.notifier)
-        .search(question, 'note');
-    final selection = RecallQuestionSelection.select(
-      kind: RecallKind.note,
-      question: question,
-      today: ref.read(aiClockProvider)(),
-      items: RecallItem.notes(items),
-      ranked: result.sources.isEmpty
-          ? null
-          : result.sources.map((s) => s.id).toList(),
-    );
-    if (!selection.sendable) {
-      throw const FormatException(
-        'No notes match this question, so nothing was sent. Add a topic or a time.',
-      );
-    }
-    await ref
-        .read(aiJobsProvider(scope).notifier)
-        .start(
-          AiOperation.noteQuestion,
-          'note-search',
-          selection.request(),
-          jsonEncode({'payload': selection.encode()}),
-        );
   }
 
   Future<void> start(

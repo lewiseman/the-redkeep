@@ -131,15 +131,6 @@ class AiCloud {
     return (settings: settings, model: model);
   }
 
-  /// The search index identity. Changing provider or model rebuilds it.
-  Future<String?> embeddingProfile() async {
-    final settings = await ref.read(aiCloudSettingsProvider.future);
-    if (settings == null || !settings.supports(AiCapability.embeddings)) {
-      return null;
-    }
-    return '${settings.presetId}:${settings.model(AiCapability.embeddings)}';
-  }
-
   Future<T> _run<T>(
     AiCloudSettings settings,
     String model,
@@ -251,23 +242,6 @@ class AiCloud {
       () => ref
           .read(aiCloudClientProvider)
           .converse(ready.settings, request, abort: abort),
-    );
-  }
-
-  Future<List<List<double>>> embed(
-    List<String> inputs, {
-    Future<void>? abort,
-  }) async {
-    final ready = await _ready(AiCapability.embeddings);
-    return _run(
-      ready.settings,
-      ready.model,
-      (price) => AiUsage(
-        inputTokens: inputs.fold(0, (sum, text) => sum + _tokens(text)),
-      ).cost(price),
-      () => ref
-          .read(aiCloudClientProvider)
-          .embed(ready.settings, ready.model, inputs, abort: abort),
     );
   }
 

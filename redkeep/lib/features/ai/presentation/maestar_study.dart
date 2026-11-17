@@ -10,7 +10,6 @@ import '../domain/ai_provider.dart';
 const maestarLinks = [
   AiCapability.chat,
   AiCapability.vision,
-  AiCapability.embeddings,
   AiCapability.transcription,
   AiCapability.image,
 ];
@@ -19,7 +18,6 @@ const maestarLinks = [
 Color maestarMetal(AiCapability capability) => switch (capability) {
   AiCapability.chat => const Color(0xFFD4A84B), // gold
   AiCapability.vision => const Color(0xFFB9C0C8), // silver
-  AiCapability.embeddings => const Color(0xFF7F8A96), // iron
   AiCapability.transcription => const Color(0xFFC46A3C), // copper
   AiCapability.image => const Color(0xFFA97B3F), // bronze
 };
@@ -27,7 +25,6 @@ Color maestarMetal(AiCapability capability) => switch (capability) {
 String maestarMetalName(AiCapability capability) => switch (capability) {
   AiCapability.chat => 'gold',
   AiCapability.vision => 'silver',
-  AiCapability.embeddings => 'iron',
   AiCapability.transcription => 'copper',
   AiCapability.image => 'bronze',
 };
@@ -35,7 +32,6 @@ String maestarMetalName(AiCapability capability) => switch (capability) {
 IconData maestarIcon(AiCapability capability) => switch (capability) {
   AiCapability.chat => Icons.edit_note_rounded,
   AiCapability.vision => Icons.image_search_rounded,
-  AiCapability.embeddings => Icons.auto_awesome_rounded,
   AiCapability.transcription => Icons.graphic_eq_rounded,
   AiCapability.image => Icons.palette_outlined,
 };

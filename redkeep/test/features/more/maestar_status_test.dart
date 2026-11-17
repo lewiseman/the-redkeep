@@ -56,7 +56,7 @@ void main() {
     expect(
       await status(
         settings: testAiSettings.copyWith(
-          models: {AiCapability.embeddings: 'e'},
+          models: {AiCapability.transcription: 't'},
         ),
       ),
       (label: 'OpenAI · Choose a model', ready: false),

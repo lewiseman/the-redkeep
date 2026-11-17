@@ -140,34 +140,6 @@ void main() {
     },
   );
 
-  test('embeddings batch every input in one request, in order', () async {
-    final ai = client(
-      (_, _) => json({
-        'data': [
-          {
-            'index': 1,
-            'embedding': [0.0, 1.0],
-          },
-          {
-            'index': 0,
-            'embedding': [1.0, 0.0],
-          },
-        ],
-        'usage': {'prompt_tokens': 4},
-      }),
-    );
-    final result = await ai.embed(testAiSettings, 'test-embed', ['a', 'b']);
-    expect(result.value, [
-      [1.0, 0.0],
-      [0.0, 1.0],
-    ]);
-    expect(sent, hasLength(1));
-    expect((jsonDecode((sent.single as http.Request).body) as Map)['input'], [
-      'a',
-      'b',
-    ]);
-  });
-
   test('transcription uploads one file and returns plain text', () async {
     late http.MultipartRequest upload;
     final transport = AiTransport(
@@ -232,29 +204,25 @@ void main() {
     },
   );
 
-  test(
-    'Anthropic has no embeddings, speech or images, and sends nothing',
-    () async {
-      final ai = client((_, _) => json({}));
-      for (final call in <Future<Object?> Function()>[
-        () => ai.embed(_anthropic, 'm', ['a']),
-        () => ai.transcribe(_anthropic, 'm', Uint8List(4)),
-        () => ai.generateImage(_anthropic, 'm', 'p'),
-      ]) {
-        await expectLater(
-          call(),
-          throwsA(
-            isA<AiProviderFailure>().having(
-              (f) => f.kind,
-              'kind',
-              AiProviderFailureKind.unsupported,
-            ),
+  test('Anthropic has no speech or images, and sends nothing', () async {
+    final ai = client((_, _) => json({}));
+    for (final call in <Future<Object?> Function()>[
+      () => ai.transcribe(_anthropic, 'm', Uint8List(4)),
+      () => ai.generateImage(_anthropic, 'm', 'p'),
+    ]) {
+      await expectLater(
+        call(),
+        throwsA(
+          isA<AiProviderFailure>().having(
+            (f) => f.kind,
+            'kind',
+            AiProviderFailureKind.unsupported,
           ),
-        );
-      }
-      expect(sent, isEmpty);
-    },
-  );
+        ),
+      );
+    }
+    expect(sent, isEmpty);
+  });
 
   test('rate limits back off, honouring Retry-After, then succeed', () async {
     final ai = client(

@@ -44,9 +44,7 @@ void main() {
       '${operation.wireName} rejects a malformed result without changing writing',
       () async {
         h.remote.output = '<script>untrusted output</script>';
-        if (operation == AiOperation.noteQuestion) {
-          await actions().search('tomatoes', scope: notesJobScope);
-        } else if (operation == AiOperation.noteTemplate ||
+        if (operation == AiOperation.noteTemplate ||
             operation == AiOperation.noteDraft) {
           final id = 'c' * 32;
           h.scope.read(noteNewIdsProvider.notifier).add(id);
@@ -152,15 +150,16 @@ void main() {
       );
       final reviewed = job();
       await h.scope.read(aiJobsProvider(notesJobScope).notifier).clear();
-      h.remote.output = '{"status":"answered","answer":"Water the tomatoes.","citations":["s0"]}';
-      await actions().search(
-        'What did I plan for tomatoes?',
+      h.remote.output = noteMetadataOutput;
+      await actions().start(
+        AiOperation.noteMetadata,
+        notesTestId,
         scope: notesJobScope,
       );
       final newer = job();
       await actions().apply(reviewed, scope: notesJobScope);
       expect(job().id, newer.id);
-      expect(job().operation, AiOperation.noteQuestion);
+      expect(job().operation, AiOperation.noteMetadata);
       expect(
         (await h.repository.openDocument(notesTestId)).note!.text.body,
         reviewed.text,
@@ -304,20 +303,6 @@ void main() {
     expect(opened.note!.text.title, 'Trip plan');
     expect(opened.note!.text.body, contains('- [ ] Pack'));
   });
-
-  test(
-    'AI note search uses bounded matched excerpts and validated source links',
-    () async {
-      h.remote.output = '{"status":"answered","answer":"Water the tomatoes every morning.","citations":["s0"]}';
-      await actions().search(
-        'What did I plan for tomatoes?',
-        scope: notesJobScope,
-      );
-      expect(job().operation, AiOperation.noteQuestion);
-      expect(h.remote.submissions.single['prompt'], contains('tomatoes'));
-      expect((await h.repository.openDocument(notesTestId)).note!.revision, 1);
-    },
-  );
 
   test(
     'scan uploads the selected image only and appends reviewed corrections',

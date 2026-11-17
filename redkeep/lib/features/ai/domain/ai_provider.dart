@@ -10,7 +10,6 @@ enum AiProviderFormat { openAiCompatible, anthropic }
 enum AiCapability {
   chat('Writing'),
   vision('Images in'),
-  embeddings('Search index'),
   transcription('Speech to text'),
   image('Image generation');
 
@@ -256,12 +255,6 @@ abstract interface class AiCloudClient {
   Future<AiResult<String>> chat(
     AiCloudSettings settings,
     AiChatRequest request, {
-    Future<void>? abort,
-  });
-  Future<AiResult<List<List<double>>>> embed(
-    AiCloudSettings settings,
-    String model,
-    List<String> inputs, {
     Future<void>? abort,
   });
 

@@ -6,7 +6,7 @@ void main() {
   test(
     'Grand Maestar is addressable through gates; old AI sub-pages are not',
     () {
-      for (final path in ['/settings/brain', '/settings/brain/library']) {
+      for (final path in ['/settings/brain']) {
         expect(validatedNavigationLocation(path), path);
         final gated = navigationRedirect(
           Uri.parse(path),
@@ -28,6 +28,8 @@ void main() {
         );
       }
       for (final path in [
+        '/settings/brain/library',
+        '/notes/ai-search',
         '/settings/brain/history',
         '/settings/brain/providers',
         '/settings/brain/tasks',
@@ -163,7 +165,7 @@ void main() {
 
   test('note IDs survive both gates; there is no editing address, and reject malformed input', () {
     const id = '0123456789abcdef0123456789abcdef';
-    for (final path in ['/notes', '/notes/ai-search', '/notes/$id']) {
+    for (final path in ['/notes', '/notes/$id']) {
       expect(validatedNavigationLocation(path), path);
       final startup = redirect(path, ready: false)!;
       final welcome = redirect(startup, complete: false)!;
@@ -226,31 +228,34 @@ void main() {
     },
   );
 
-  test('More survives both gates; Flow, malformed and future routes fail safely', () {
-    const id = '0123456789abcdef0123456789abcdef';
-    for (final path in ['/more', '/watchlist']) {
-      expect(validatedNavigationLocation(path), path);
-      final gate = redirect(path, ready: false)!;
-      expect(redirect(redirect(gate, complete: false)!), path);
-    }
-    for (final path in [
-      '/flow',
-      '/flow/search',
-      '/flow/$id',
-      '/flow/$id/edit',
-      '/flow/new',
-      '/flow/${'A' * 32}',
-      '/flow/$id/',
-      '/flow/$id/edit/extra',
-      '/flow/$id?text=private',
-      '/flow/$id#private',
-      '/brain',
-      '/more/brain',
-      '/flow/%FF',
-    ]) {
-      expect(validatedNavigationLocation(path), '/unavailable');
-    }
-  });
+  test(
+    'More survives both gates; Flow, malformed and future routes fail safely',
+    () {
+      const id = '0123456789abcdef0123456789abcdef';
+      for (final path in ['/more', '/watchlist']) {
+        expect(validatedNavigationLocation(path), path);
+        final gate = redirect(path, ready: false)!;
+        expect(redirect(redirect(gate, complete: false)!), path);
+      }
+      for (final path in [
+        '/flow',
+        '/flow/search',
+        '/flow/$id',
+        '/flow/$id/edit',
+        '/flow/new',
+        '/flow/${'A' * 32}',
+        '/flow/$id/',
+        '/flow/$id/edit/extra',
+        '/flow/$id?text=private',
+        '/flow/$id#private',
+        '/brain',
+        '/more/brain',
+        '/flow/%FF',
+      ]) {
+        expect(validatedNavigationLocation(path), '/unavailable');
+      }
+    },
+  );
 
   test('Watchlist titles are addressed by TMDB identity only', () {
     for (final path in [

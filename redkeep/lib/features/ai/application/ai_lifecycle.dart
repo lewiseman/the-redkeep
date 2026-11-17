@@ -22,9 +22,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../../app/storage_providers.dart';
-import '../../recall/application/recall_controller.dart';
 import 'ai_cloud.dart';
-import 'ai_preferences.dart';
 
 /// A consumed boundary for offline shell tests. Production starts only inside
 /// the writing shell, after startup and onboarding have completed.
@@ -47,18 +45,12 @@ final aiResetProvider = Provider<Future<void> Function()>(
   (ref) => () async {
     if (!ref.read(aiEnabledProvider)) return;
     await ref.read(voiceActiveProvider.notifier).stopAll();
-    await ref.read(recallControllerProvider.notifier).stopForReset();
     await ref.read(aiProviderStoreProvider).clear();
     ref.invalidate(aiCloudSettingsProvider);
     await DiaryPickerRecovery().reset();
     clearNoteWebsiteCache();
     await ref.read(noteMediaStoreProvider).clearAll();
     await ref.read(diaryPhotoStoreProvider).clearAll();
-    await (await ref.read(recallVectorsProvider.future)).reset();
-    // The existing durable account-reset marker remains until these operations
-    // and the primary-database clear have all succeeded. Repeating is safe.
-    final db = ref.read(appDatabaseProvider);
-    await db.delete(db.recallManifests).go();
   },
 );
 
@@ -67,9 +59,7 @@ final aiResumeAfterResetProvider = Provider<void Function()>(
     if (!ref.read(aiEnabledProvider)) return;
     ref.invalidate(noteMediaStoreProvider);
     ref.invalidate(diaryPhotoStoreProvider);
-    final active = ref.read(aiForegroundProvider);
-    ref.read(recallControllerProvider.notifier).foreground(active);
-    if (active) {
+    if (ref.read(aiForegroundProvider)) {
       unawaited(
         ref.read(noteMediaStoreProvider).reconcile().catchError((_) {}),
       );
@@ -97,19 +87,24 @@ class _AiLifecycleHostState extends ConsumerState<AiLifecycleHost>
         unawaited(
           ref.read(diaryPhotoStoreProvider).reconcile().catchError((_) {}),
         );
-        unawaited(_removeDiaryPhotoUploads());
+        unawaited(_removeRetiredAiFiles());
       }
     });
   }
 
-  /// Diary photo questions are gone. Photos prepared for them may remain.
-  Future<void> _removeDiaryPhotoUploads() async {
-    try {
-      final support = await getApplicationSupportDirectory();
-      final uploads = Directory('${support.path}/diary_photo_uploads');
-      if (await uploads.exists()) await uploads.delete(recursive: true);
-    } catch (_) {
-      /* Retried on the next startup. */
+  /// Diary photo questions and the notes search index are gone. Photos
+  /// prepared for those questions and the index's vectors may remain.
+  Future<void> _removeRetiredAiFiles() async {
+    for (final (root, name) in [
+      (getApplicationSupportDirectory, 'diary_photo_uploads'),
+      (getApplicationCacheDirectory, 'redkeep-recall-v1'),
+    ]) {
+      try {
+        final retired = Directory('${(await root()).path}/$name');
+        if (await retired.exists()) await retired.delete(recursive: true);
+      } catch (_) {
+        /* Retried on the next startup. */
+      }
     }
   }
 
@@ -158,10 +153,8 @@ class _AiLifecycleHostState extends ConsumerState<AiLifecycleHost>
     }
   }
 
-  void _foreground(bool active) {
-    ref.read(aiForegroundProvider.notifier).set(active);
-    ref.read(recallControllerProvider.notifier).foreground(active);
-  }
+  void _foreground(bool active) =>
+      ref.read(aiForegroundProvider.notifier).set(active);
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -182,8 +175,6 @@ class _AiLifecycleHostState extends ConsumerState<AiLifecycleHost>
   @override
   Widget build(BuildContext context) {
     if (!ref.watch(aiEnabledProvider)) return widget.child;
-    ref.watch(aiPreferencesProvider);
-    ref.watch(recallControllerProvider);
     ref.watch(diaryPhotoStoreProvider);
     ref.listen(diaryMediaChangesProvider, (_, _) {
       scheduleMicrotask(() {

@@ -11,9 +11,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
-import '../../../app/navigation_destination.dart';
 import '../../ai/application/ai_jobs.dart';
 import '../../ai/domain/ai_job.dart';
 import '../../ai/domain/ai_operation.dart';
@@ -26,7 +24,6 @@ import '../data/note_media_store.dart';
 import '../domain/note_document.dart';
 import '../domain/note_help_contract.dart';
 import '../domain/note_image_contract.dart';
-import '../domain/note_question_contract.dart';
 import '../domain/note_rich_markdown.dart';
 import '../domain/note_scan_contract.dart';
 import '../domain/note_website.dart';
@@ -40,7 +37,6 @@ import 'website/note_website_view.dart';
 
 NoteAiTool noteToolForJob(AiJob job) => switch (job.operation) {
   AiOperation.noteTemplate => NoteAiTool.template,
-  AiOperation.noteQuestion => NoteAiTool.search,
   AiOperation.noteImage => NoteAiTool.image,
   AiOperation.noteScan => NoteAiTool.scan,
   AiOperation.noteBackground => NoteAiTool.background,
@@ -53,7 +49,6 @@ class NoteAiToolPage extends ConsumerStatefulWidget {
     super.key,
     required this.tool,
     this.id,
-    this.initialQuery = '',
     this.embedded = false,
     this.onLanded,
   });
@@ -64,16 +59,12 @@ class NoteAiToolPage extends ConsumerStatefulWidget {
   /// [NoteAiLanding] to [onLanded] so the desk closes onto the note.
   final bool embedded;
   final ValueChanged<NoteAiLanding>? onLanded;
-
-  /// Prefills the question, e.g. from the notes search bar. Nothing is sent
-  /// until the person asks.
-  final String initialQuery;
   @override
   ConsumerState<NoteAiToolPage> createState() => _NoteAiToolPageState();
 }
 
 class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
-  late final _input = TextEditingController(text: widget.initialQuery);
+  final _input = TextEditingController();
 
   /// The note's current website, when this is the website tool.
   NoteWebsite? get _website {
@@ -165,15 +156,11 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
   bool _matches(AiJob job) =>
       job.operation.isNote &&
       noteToolForJob(job) == widget.tool &&
-      (widget.tool == NoteAiTool.search ||
-          widget.id == job.key ||
-          widget.id == null);
+      (widget.id == job.key || widget.id == null);
   Future<void> _generate() => _run(() async {
     FocusScope.of(context).unfocus();
     final actions = ref.read(noteAiControllerProvider);
-    if (widget.tool == NoteAiTool.search) {
-      await actions.search(_input.text, scope: _scope);
-    } else if (widget.tool == NoteAiTool.presentation && _creating) {
+    if (widget.tool == NoteAiTool.presentation && _creating) {
       // A new, empty note: the Maester writes it first, then builds its
       // website from that text. Both stay editable.
       await actions.start(
@@ -455,20 +442,6 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
         )
       else if (hasFolio)
         _folio(status: 'Your note', child: _page()),
-      if (widget.tool == NoteAiTool.search)
-        TextField(
-          key: const ValueKey('notes-ai-search-field'),
-          controller: _input,
-          maxLength: 300,
-          minLines: 1,
-          maxLines: 4,
-          textInputAction: TextInputAction.search,
-          onSubmitted: (_) => _generate(),
-          decoration: const InputDecoration(
-            labelText: 'Ask about your notes',
-            hintText: 'For example: what did I plan for the garden?',
-          ),
-        ),
       if (widget.tool == NoteAiTool.template) ...[
         _label('Start from'),
         NoteAiChoices(
@@ -651,7 +624,6 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
         onPressed: missingInput || instructionTooLong ? null : _generate,
         icon: const Icon(Icons.auto_awesome_rounded),
         label: Text(switch (widget.tool) {
-          NoteAiTool.search => 'Ask your notes',
           NoteAiTool.scan => 'Read the page',
           NoteAiTool.background => 'Paint it',
           NoteAiTool.presentation =>
@@ -765,8 +737,7 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
       if (complete)
         ..._result(job, onDiscard: () => _discard(controller))
       else ...[
-        if (job.operation != AiOperation.noteScan &&
-            job.operation != AiOperation.noteQuestion)
+        if (job.operation != AiOperation.noteScan)
           _folio(status: 'Unchanged', child: _page()),
         if (job.phase == 'cancelled')
           const Text('Stopped. Your note is unchanged.')
@@ -810,50 +781,6 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
       ];
     }
     final source = noteTaskSource(job.source);
-    if (job.operation == AiOperation.noteQuestion) {
-      final selection = RecallQuestionSelection.decode(
-        source['payload'] as String,
-      );
-      final answer = RecallQuestionAnswer.parse(job.text!, selection);
-      return [
-        NoteAiPreview(
-          label: 'From your notes',
-          child: SelectableText(answer.text),
-        ),
-        Text(
-          '${selection.matching} matching notes · ${selection.sources.length} excerpts used',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        for (final citation in answer.citations)
-          FutureBuilder<OpenNote>(
-            future: ref
-                .read(notesRepositoryProvider)
-                .openDocument(citation.uuid),
-            builder: (context, snapshot) {
-              final current = snapshot.data;
-              final stale =
-                  current != null &&
-                  (!current.available ||
-                      RecallItem.note(current.note!)?.version !=
-                          citation.version);
-              return ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(
-                  citation.title.isEmpty ? 'Untitled note' : citation.title,
-                ),
-                subtitle: Text(
-                  '${citation.text}${stale ? '\nThis source changed or was deleted.' : ''}',
-                ),
-                onTap: current?.available == true
-                    ? () => context.push(noteLocation(citation.uuid))
-                    : null,
-              );
-            },
-          ),
-        const SizedBox(height: 12),
-        TextButton(onPressed: onDiscard, child: const Text('Ask again')),
-      ];
-    }
     final note = ref.watch(noteDocumentProvider(job.key)).value;
     final stale =
         note != null &&

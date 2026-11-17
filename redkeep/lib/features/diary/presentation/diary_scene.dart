@@ -9,6 +9,7 @@ import 'diary_style.dart';
 import '../application/diary_paper_providers.dart';
 import '../domain/diary_period.dart';
 import 'diary_paper_material.dart';
+import 'diary_paper_tape.dart';
 import 'diary_sheet.dart';
 
 /// All geometry uses the outer header's progress. The inner scrollable keeps
@@ -147,6 +148,9 @@ class DiaryScene extends StatelessWidget {
                         day: sheet,
                         showContent: incoming,
                         shadow: true,
+                        // The resting preview stays bare; tape arrives with
+                        // the page as it slides into place.
+                        tape: incoming,
                         minimumHeight: restRect.height,
                       ),
                     ),
@@ -171,6 +175,7 @@ class DiaryScene extends StatelessWidget {
                 painter: DiaryPaperPainter(
                   shape: shape,
                   paper: paper.background,
+                  flat: context.colors.surface,
                   ink: paper.foreground,
                   shadow: !simple,
                   shadowColor: context.colors.shadow,
@@ -220,6 +225,23 @@ class DiaryScene extends StatelessWidget {
               ),
             ),
           ),
+          // Tape lies over the writing, and leaves with the page's edges.
+          if (shape.detail > 0)
+            Positioned.fromRect(
+              rect: rect,
+              child: IgnorePointer(
+                child: RepaintBoundary(
+                  child: CustomPaint(
+                    key: const ValueKey('diary-paper-tape'),
+                    painter: DiaryPaperTape.forDate(
+                      day.calendarDate,
+                      colors: context.colors,
+                      detail: shape.detail,
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       );
 
@@ -280,6 +302,7 @@ class DiaryScene extends StatelessWidget {
                                 expansion: collapse,
                               ),
                               scrollOffset: fadingOffset,
+                              tape: true,
                               minimumHeight: rect.height,
                             ),
                           ),

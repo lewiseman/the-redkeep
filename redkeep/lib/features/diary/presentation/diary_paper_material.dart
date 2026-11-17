@@ -1,10 +1,12 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 
-// Bounded caches retain geometry for the visible sheets, rather than building
-// a texture or keeping a history of every day the reader has visited.
+import 'diary_paper_texture.dart';
+
+// Bounded caches retain geometry for the visible sheets, rather than keeping
+// a history of every day the reader has visited. The texture is shared.
 final _details = <int, _PaperDetail>{};
 final _outlines = <({DiaryPaperShape shape, Size size}), _PaperOutline>{};
 
@@ -56,14 +58,21 @@ class DiaryPaperShape {
   }
 
   _PaperOutline _makeOutline(Size size) {
-    if (size.isEmpty) return _PaperOutline(const [], Path());
+    if (size.isEmpty) {
+      return _PaperOutline(const [], Path(), Path());
+    }
     if (detail == 0) {
-      return _PaperOutline([
-        Offset.zero,
-        Offset(size.width, 0),
-        Offset(size.width, size.height),
-        Offset(0, size.height),
-      ], Path()..addRect(Offset.zero & size));
+      final rect = Path()..addRect(Offset.zero & size);
+      return _PaperOutline(
+        [
+          Offset.zero,
+          Offset(size.width, 0),
+          Offset(size.width, size.height),
+          Offset(0, size.height),
+        ],
+        rect,
+        rect,
+      );
     }
     final amount = detail * (size.shortestSide / 30).clamp(0.0, 1.0);
     final bounds = (Offset.zero & size).deflate(6 * amount);
@@ -74,6 +83,7 @@ class DiaryPaperShape {
     final grain = _paperDetail;
     // Fixed sample phases and continuous noise keep bumps from crawling when
     // the sheet changes size. The frequencies never depend on frame count.
+    final fringe = <Offset>[];
     final points = List<Offset>.generate(768, (i) {
       final u = i / 768;
       final tangent = metric.getTangentForOffset(metric.length * u)!;
@@ -82,18 +92,32 @@ class DiaryPaperShape {
           _noise(grain.broad, u) * 2.8 +
           _noise(grain.fine, u) * 2 +
           _noise(grain.micro, u) * .8;
+      // Tearing splits the sheet's layers, leaving a pale, fibrous margin
+      // that widens and narrows along the edge and opens up inside tears.
+      final split = (_noise(grain.fine, u * .5 + .25) + 1) / 2;
+      var margin = .5 + 2.6 * split * split;
       for (final tear in grain.tears) {
         final notch = tear.profile(tangent.position, inward, bounds);
         // Leave a small, asymmetric bite in the edge. Ease the grain beneath
         // it so a nearby outward bump cannot hide the tear's tip.
         displacement = displacement * (1 - notch) + tear.depth * notch;
+        margin += 2.4 * notch;
       }
-      return tangent.position + inward * (amount * displacement);
+      final point = tangent.position + inward * (amount * displacement);
+      fringe.add(point - inward * (amount * margin));
+      return point;
     });
-    return _PaperOutline(List.unmodifiable(points), pathFromOutline(points));
+    return _PaperOutline(
+      List.unmodifiable(points),
+      pathFromOutline(points),
+      pathFromOutline(fringe),
+    );
   }
 
   Path path(Size size) => _outline(size).path;
+
+  /// The torn margin just outside [path]; the same rectangle when flat.
+  Path fringe(Size size) => _outline(size).fringe;
   List<Offset> outline(Size size) => _outline(size).points;
 
   static Path pathFromOutline(List<Offset> points) {
@@ -128,9 +152,9 @@ double _noise(List<double> values, double u) {
 }
 
 class _PaperOutline {
-  _PaperOutline(this.points, this.path);
+  _PaperOutline(this.points, this.path, this.fringe);
   final List<Offset> points;
-  final Path path;
+  final Path path, fringe;
 
   ({Offset point, Offset tangent}) at(double u) {
     final position = u * points.length;
@@ -214,6 +238,7 @@ class _PaperDetail {
 
   late final List<double> broad, fine, micro;
   late final List<_PaperTear> tears;
+
   late final List<
     ({double u, double depth, double length, double slant, int tone})
   >
@@ -236,109 +261,161 @@ class DiaryPaperClipper extends CustomClipper<Path> {
       shape != oldClipper.shape || viewport != oldClipper.viewport;
 }
 
-/// Paints onto an opaque base; wear changes the material color, never its alpha.
+/// The diary's stock: a warm sheet lifted a little off the page around it, so
+/// it reads as paper at night as well as by day. Text keeps the theme's ink.
+Color diaryPaperTone(ColorScheme colors) => colors.brightness == Brightness.dark
+    ? Color.alphaBlend(const Color(0x17f2e4c6), colors.surface)
+    : Color.alphaBlend(const Color(0xa6fff5df), colors.surface);
+
+/// Paints an opaque sheet of paper: a cast shadow, a torn and fibrous
+/// margin, formation, fibres and grain from [diaryPaperTexture], soft light
+/// across the face and aged edges.
+///
+/// Every layer scales with [DiaryPaperShape.detail]. At no detail the sheet
+/// is a plain rectangle of [flat], the immersive reader's page.
 class DiaryPaperPainter extends CustomPainter {
   const DiaryPaperPainter({
     required this.shape,
     required this.paper,
     required this.ink,
+    Color? flat,
     this.shadow = false,
     this.shadowColor = const Color(0xff000000),
-  });
+  }) : flat = flat ?? paper;
 
   final DiaryPaperShape shape;
   final Color paper, ink, shadowColor;
+
+  /// The sheet's colour once fully expanded.
+  final Color flat;
   final bool shadow;
+
+  static const _white = Color(0xffffffff);
+  static const _black = Color(0xff000000);
 
   @override
   void paint(Canvas canvas, Size size) {
     if (size.isEmpty) return;
     final path = shape.path(size);
     final detail = shape.detail;
+    final dark = paper.computeLuminance() < .2;
+    final bounds = Offset.zero & size;
     if (shadow && detail > 0) {
       canvas.drawShadow(
-        path.shift(Offset(0, 3 * detail)),
-        shadowColor.withValues(alpha: .22 * detail),
-        6 * detail,
+        path.shift(Offset(0, 4 * detail)),
+        shadowColor.withValues(alpha: (dark ? .6 : .26) * detail),
+        9 * detail,
         true,
       );
       canvas.drawShadow(
         path,
-        shadowColor.withValues(alpha: .12 * detail),
-        1.2 * detail,
+        shadowColor.withValues(alpha: (dark ? .5 : .16) * detail),
+        1.4 * detail,
         true,
       );
     }
-    canvas.drawPath(path, Paint()..color = paper.withValues(alpha: 1));
+    if (detail > 0) {
+      // Split fibres are paler than the face of the sheet.
+      canvas.drawPath(
+        shape.fringe(size),
+        Paint()
+          ..color = Color.lerp(
+            paper,
+            _white,
+            dark ? .2 : .75,
+          )!.withValues(alpha: (dark ? .7 : .95) * detail),
+      );
+    }
+    canvas.drawPath(
+      path,
+      Paint()..color = Color.lerp(flat, paper, detail)!.withValues(alpha: 1),
+    );
     if (detail == 0) return;
 
-    const rim = 8.0;
-    final source = shape._paperDetail;
-    final edge = shape._outline(size);
-    if (edge.points.isEmpty) return;
     canvas.save();
     canvas.clipPath(path);
-    // A shallow rim with broken deposits follows the torn edge.
+    final texture = diaryPaperTexture(dark: dark);
+    if (texture != null) {
+      canvas.drawRect(
+        bounds,
+        Paint()
+          ..shader = texture
+          ..color = _black.withValues(alpha: detail),
+      );
+    }
+    // Light falls from the upper left across a sheet that is not quite flat.
+    canvas.drawRect(
+      bounds,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          stops: const [0, .42, 1],
+          colors: [
+            _white.withValues(alpha: (dark ? .05 : .28) * detail),
+            _white.withValues(alpha: 0),
+            _black.withValues(alpha: (dark ? .14 : .05) * detail),
+          ],
+        ).createShader(bounds),
+    );
+    // Handled edges age first: a soft, warm darkening just inside the rim.
     canvas.drawPath(
       path,
       Paint()
-        ..color = ink.withValues(alpha: .05 * detail)
+        ..color = (dark ? _black : const Color(0xff8a6a3a)).withValues(
+          alpha: (dark ? .22 : .10) * detail,
+        )
         ..style = PaintingStyle.stroke
-        ..strokeWidth = rim * 1.5,
+        ..strokeWidth = 12
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
     );
-    final metric = path.computeMetrics().single;
-    for (var i = 0; i < 48; i++) {
-      final tone = (_noise(source.broad, i / 48) + 1) / 2;
-      canvas.drawPath(
-        metric.extractPath(
-          metric.length * i / 48,
-          metric.length * (i + .7) / 48,
-        ),
-        Paint()
-          ..color = ink.withValues(alpha: (.018 + .045 * tone) * detail)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = rim * (.8 + tone * .7),
-      );
-    }
-
-    final fibers = List.generate(5, (_) => <Offset>[]);
-    for (final fiber in source.fibers) {
-      final sample = edge.at(fiber.u);
-      final inward = Offset(-sample.tangent.dy, sample.tangent.dx);
-      final start = sample.point + inward * (.4 + fiber.depth * rim * detail);
-      final direction =
-          sample.tangent * math.cos(fiber.slant) +
-          inward * math.sin(fiber.slant);
-      fibers[fiber.tone].addAll([start, start + direction * fiber.length]);
-    }
-    _paintFibers(canvas, fibers, detail);
     canvas.restore();
+    _paintDeckle(canvas, size, detail, dark);
   }
 
-  void _paintFibers(Canvas canvas, List<List<Offset>> fibers, double strength) {
-    for (var tone = 0; tone < fibers.length; tone++) {
-      final highlight = tone == 4;
-      canvas.drawPoints(
-        ui.PointMode.lines,
-        fibers[tone],
-        Paint()
-          ..color =
-              (highlight
-                      ? Color.lerp(paper, const Color(0xffffffff), .65)!
-                      : ink)
-                  .withValues(
-                    alpha: (highlight ? .22 : .065 + tone * .028) * strength,
-                  )
-          ..strokeWidth = highlight ? .65 : .6 + tone * .12
-          ..strokeCap = StrokeCap.round,
-      );
+  /// Short fibres where the sheet was torn, mostly reaching outward.
+  void _paintDeckle(Canvas canvas, Size size, double detail, bool dark) {
+    final source = shape._paperDetail;
+    final edge = shape._outline(size);
+    if (edge.points.isEmpty) return;
+    final light = <Offset>[], shade = <Offset>[];
+    for (var i = 0; i < source.fibers.length; i += 2) {
+      final fiber = source.fibers[i];
+      final sample = edge.at(fiber.u);
+      final inward = Offset(-sample.tangent.dy, sample.tangent.dx);
+      final start = sample.point + inward * (fiber.depth * 1.6);
+      final direction =
+          sample.tangent * math.sin(fiber.slant) -
+          inward * math.cos(fiber.slant);
+      (fiber.tone < 4 ? light : shade).addAll([
+        start,
+        start + direction * fiber.length * detail,
+      ]);
     }
+    final fibre = Color.lerp(paper, _white, dark ? .14 : .6)!;
+    canvas.drawPoints(
+      ui.PointMode.lines,
+      light,
+      Paint()
+        ..color = fibre.withValues(alpha: .75 * detail)
+        ..strokeWidth = .6
+        ..strokeCap = StrokeCap.round,
+    );
+    canvas.drawPoints(
+      ui.PointMode.lines,
+      shade,
+      Paint()
+        ..color = ink.withValues(alpha: .12 * detail)
+        ..strokeWidth = .5
+        ..strokeCap = StrokeCap.round,
+    );
   }
 
   @override
   bool shouldRepaint(DiaryPaperPainter oldDelegate) =>
       shape != oldDelegate.shape ||
       paper != oldDelegate.paper ||
+      flat != oldDelegate.flat ||
       ink != oldDelegate.ink ||
       shadow != oldDelegate.shadow ||
       shadowColor != oldDelegate.shadowColor;

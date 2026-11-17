@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:redkeep/core/presentation/redkeep_theme.dart';
 import 'package:redkeep/features/diary/presentation/diary_paper_material.dart';
 
 const _size = Size(300, 420);
@@ -13,6 +14,7 @@ Future<ByteData> _paint(
   required DiaryPaperShape shape,
   required Color paper,
   required Color ink,
+  Color? flat,
 }) async {
   tester.view.physicalSize = _size;
   tester.view.devicePixelRatio = 1;
@@ -23,7 +25,12 @@ Future<ByteData> _paint(
       child: RepaintBoundary(
         key: capture,
         child: CustomPaint(
-          painter: DiaryPaperPainter(shape: shape, paper: paper, ink: ink),
+          painter: DiaryPaperPainter(
+            shape: shape,
+            paper: paper,
+            flat: flat,
+            ink: ink,
+          ),
           child: const SizedBox.expand(),
         ),
       ),
@@ -99,16 +106,18 @@ void main() {
   for (final config in [
     (
       name: 'light',
-      paper: const Color(0xfffaf8fc),
+      paper: const Color(0xfffcf5e8),
+      flat: const Color(0xfffaf8fc),
       ink: const Color(0xff22212a),
     ),
     (
       name: 'dark',
-      paper: const Color(0xff17151d),
+      paper: const Color(0xff2a2822),
+      flat: const Color(0xff17151d),
       ink: const Color(0xffe8e1ee),
     ),
   ]) {
-    testWidgets('worn edges surround an opaque, clean sheet: ${config.name}', (
+    testWidgets('a textured, opaque sheet with a lit deckle: ${config.name}', (
       tester,
     ) async {
       addTearDown(tester.view.resetPhysicalSize);
@@ -118,26 +127,36 @@ void main() {
         tester,
         shape: shape,
         paper: config.paper,
+        flat: config.flat,
         ink: config.ink,
       );
       expect(_rimWear(sheet, config.paper), greaterThan(0));
-      final color = config.paper.toARGB32();
+      final face = <int>{};
+      var deviation = 0.0;
+      var samples = 0;
       for (var y = 28; y < 392; y++) {
         for (var x = 28; x < 272; x++) {
           final offset = _offset(x, y);
           expect(sheet.getUint8(offset + 3), 255);
           if (x > 40 && x < 260 && y > 40 && y < 380) {
-            expect(sheet.getUint8(offset), (color >> 16) & 255);
-            expect(sheet.getUint8(offset + 1), (color >> 8) & 255);
-            expect(sheet.getUint8(offset + 2), color & 255);
+            face.add(sheet.getUint32(offset));
+            // Texture and light stay near the stock, so ink stays legible.
+            final difference = _difference(sheet, offset, config.paper);
+            expect(difference, lessThan(64));
+            deviation += difference;
+            samples++;
           }
         }
       }
+      // Formation, grain and fibres vary the face rather than leaving it flat.
+      expect(face.length, greaterThan(20));
+      expect(deviation / samples, lessThan(10));
       expect(sheet.getUint8(_offset(0, 0) + 3), 0);
       final again = await _paint(
         tester,
         shape: shape,
         paper: config.paper,
+        flat: config.flat,
         ink: config.ink,
       );
       expect(
@@ -147,7 +166,7 @@ void main() {
     });
 
     testWidgets(
-      'expansion removes all edge material and matches surface: ${config.name}',
+      'expansion removes all paper detail and matches the page: ${config.name}',
       (tester) async {
         addTearDown(tester.view.resetPhysicalSize);
         addTearDown(tester.view.resetDevicePixelRatio);
@@ -155,25 +174,28 @@ void main() {
           tester,
           shape: const DiaryPaperShape(seed: 42),
           paper: config.paper,
+          flat: config.flat,
           ink: config.ink,
         );
         final half = await _paint(
           tester,
           shape: const DiaryPaperShape(seed: 42, expansion: .5),
           paper: config.paper,
+          flat: config.flat,
           ink: config.ink,
         );
         expect(
-          _rimWear(half, config.paper),
+          _rimWear(half, Color.lerp(config.flat, config.paper, .5)!),
           lessThan(_rimWear(rest, config.paper)),
         );
         final expanded = await _paint(
           tester,
           shape: const DiaryPaperShape(seed: 42, expansion: 1),
           paper: config.paper,
+          flat: config.flat,
           ink: config.ink,
         );
-        final color = config.paper.toARGB32();
+        final color = config.flat.toARGB32();
         for (var offset = 0; offset < expanded.lengthInBytes; offset += 4) {
           expect(expanded.getUint8(offset), (color >> 16) & 255);
           expect(expanded.getUint8(offset + 1), (color >> 8) & 255);
@@ -183,4 +205,35 @@ void main() {
       },
     );
   }
+
+  test('paper stock lifts off the page and keeps ink readable', () {
+    double contrast(Color a, Color b) {
+      final values = [a.computeLuminance(), b.computeLuminance()]..sort();
+      return (values.last + 0.05) / (values.first + 0.05);
+    }
+
+    for (final theme in [RedkeepTheme.light, RedkeepTheme.dark]) {
+      final colors = theme.colorScheme;
+      final paper = diaryPaperTone(colors);
+      expect(paper, isNot(colors.surface));
+      expect(contrast(colors.onSurface, paper), greaterThanOrEqualTo(7));
+      expect(
+        contrast(colors.onSurfaceVariant, paper),
+        greaterThanOrEqualTo(4.5),
+      );
+    }
+    final dark = RedkeepTheme.dark.colorScheme;
+    expect(
+      diaryPaperTone(dark).computeLuminance(),
+      greaterThan(dark.surface.computeLuminance()),
+    );
+  });
+}
+
+double _difference(ByteData data, int offset, Color color) {
+  final value = color.toARGB32();
+  return ((data.getUint8(offset) - ((value >> 16) & 255)).abs() +
+          (data.getUint8(offset + 1) - ((value >> 8) & 255)).abs() +
+          (data.getUint8(offset + 2) - (value & 255)).abs()) /
+      3;
 }

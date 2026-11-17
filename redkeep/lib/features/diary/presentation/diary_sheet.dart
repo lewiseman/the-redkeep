@@ -14,13 +14,14 @@ import '../application/diary_providers.dart';
 import '../domain/diary_document.dart';
 import 'diary_style.dart';
 import 'diary_paper_material.dart';
+import 'diary_paper_tape.dart';
 import 'diary_paper_stamp.dart';
 import 'diary_thought_mark.dart';
 import 'diary_writing_prompt.dart';
 import 'diary_widgets.dart';
 
 DiaryPaperColors diaryPaperColors(BuildContext context) => DiaryPaperColors(
-  background: context.colors.surface,
+  background: diaryPaperTone(context.colors),
   foreground: context.colors.onSurface,
   secondary: context.colors.onSurfaceVariant,
 );
@@ -37,6 +38,7 @@ class DiarySheet extends StatelessWidget {
     this.showContent = true,
     this.shadow = false,
     this.detailed = true,
+    this.tape = false,
     this.minimumHeight = 0,
   });
 
@@ -47,6 +49,9 @@ class DiarySheet extends StatelessWidget {
   final bool showContent;
   final bool shadow;
   final bool detailed;
+
+  /// Whether washi tape holds the detailed sheet down.
+  final bool tape;
 
   // Keep the content sized to the sheet throughout the transition.
   final double minimumHeight;
@@ -80,6 +85,7 @@ class DiarySheet extends StatelessWidget {
           ? DiaryPaperPainter(
               shape: outline,
               paper: paper.background,
+              flat: context.colors.surface,
               ink: paper.foreground,
               shadow: shadow,
               shadowColor: context.colors.shadow,
@@ -92,6 +98,13 @@ class DiarySheet extends StatelessWidget {
               variant: day.calendarDate.weekday,
               flatten: outline.expansion,
             ),
+      foregroundPainter: detailed && tape
+          ? DiaryPaperTape.forDate(
+              day.calendarDate,
+              colors: context.colors,
+              detail: outline.detail,
+            )
+          : null,
       child: content,
     );
   }

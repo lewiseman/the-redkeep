@@ -6,29 +6,91 @@ import '../domain/diary_timeline.dart';
 import 'diary_calendar.dart';
 import 'diary_style.dart';
 
+/// How far the thread travels between the reader and the open calendar.
+///
+/// At rest in the reader the thread hangs below the month. In the calendar
+/// it hangs across the bottom, a gentler sag holding the day's tab, with the
+/// calendar above it and the diary page waiting just below the screen.
+@immutable
+class DiaryThreadTravel {
+  const DiaryThreadTravel({required this.mid, required this.edge});
+
+  /// Lays the calendar's resting thread out on a reader of [height], whose
+  /// thread starts at [calendarTop], above a system gesture inset of [inset].
+  factory DiaryThreadTravel.of({
+    required double height,
+    required double calendarTop,
+    required double inset,
+  }) {
+    // The day's tab hangs this far above the system inset; the thread's ends
+    // rise a gentle sag above its lowest point.
+    final restMid = height - inset - restLift;
+    final mid = math.max(120.0, restMid - (calendarTop + 52));
+    final edge = math.max(
+      mid,
+      calendarTop + 52 + mid - restSag - (calendarTop - 15),
+    );
+    return DiaryThreadTravel(mid: mid, edge: edge);
+  }
+
+  static const restLift = 86.0;
+  static const restSag = 30.0;
+
+  /// How far the lowest point of the thread (and the page with it) and the
+  /// thread's ends move between the reader and the open calendar.
+  final double mid, edge;
+
+  /// Distance from the bottom of the reader to the resting thread's ends:
+  /// the calendar's content keeps above it.
+  double bottomInset(double height, double calendarTop) =>
+      math.max(0, height - (calendarTop - 15 + edge));
+
+  @override
+  bool operator ==(Object other) =>
+      other is DiaryThreadTravel && other.mid == mid && other.edge == edge;
+
+  @override
+  int get hashCode => Object.hash(mid, edge);
+}
+
 /// Pulling the diary page down draws the date thread down with it. The page
 /// hangs from its date tab, and everything above the stretched thread is the
-/// calendar, unrolling from the top as the page drops away.
+/// calendar, unrolling from the top as the page drops.
 ///
-/// [pull] runs from the resting reader (0) to the open calendar (1). At 1 the
-/// thread and page have left the bottom of the screen.
+/// [pull] runs from the resting reader (0) to the open calendar (1), where the
+/// thread hangs across the calendar's bottom. Whichever way it moves, the tab
+/// leads and the thread's ends trail: pulled down from the reader they stay
+/// high, so the thread stretches deep; lifted up from the calendar they stay
+/// low, so the thread arches, then springs back into its sag as it arrives.
 class DiaryCalendarCurtain extends StatelessWidget {
   const DiaryCalendarCurtain({
     super.key,
     required this.pull,
     required this.calendarTop,
-    required this.distance,
+    required this.travel,
+    required this.fromCalendar,
     required this.selectedDate,
     required this.timeline,
     required this.lastDate,
     required this.open,
     required this.calendar,
+    required this.onDateChosen,
+    required this.onReturn,
+    required this.onLiftStart,
+    required this.onLiftUpdate,
+    required this.onLiftEnd,
+    required this.onLiftCancel,
   });
 
   final Animation<double> pull;
 
-  /// The resting thread's top edge, and how far the page travels to leave.
-  final double calendarTop, distance;
+  /// The reader's resting thread's top edge.
+  final double calendarTop;
+  final DiaryThreadTravel travel;
+
+  /// Whether this motion began in the open calendar, so the thread trails a
+  /// rising tab rather than a falling one.
+  final bool fromCalendar;
   final DiaryPeriod selectedDate;
   final DiaryTimeline timeline;
   final DateTime lastDate;
@@ -37,17 +99,44 @@ class DiaryCalendarCurtain extends StatelessWidget {
   final bool open;
   final Widget calendar;
 
-  /// The page and its date tab follow the finger exactly.
-  static double midDrop(double pull, double distance) => distance * pull;
+  /// A tab on the resting thread: another day, or the day's own tab.
+  final ValueChanged<DiaryPeriod> onDateChosen;
+  final VoidCallback onReturn;
 
-  /// The thread's ends lag, so a short pull stretches it into a deep curve
-  /// before the whole thread follows the page off screen.
-  static double edgeDrop(double pull, double distance) =>
-      distance * Curves.easeInCubic.transform(pull.clamp(0.0, 1.0));
+  /// Lifting the resting thread, in physical pixels and pixels per second.
+  final VoidCallback onLiftStart, onLiftCancel;
+  final ValueChanged<double> onLiftUpdate, onLiftEnd;
+
+  /// The page and its date tab follow the finger exactly.
+  static double midDrop(double pull, DiaryThreadTravel travel) =>
+      travel.mid * pull;
+
+  static double edgeDrop(
+    double pull,
+    DiaryThreadTravel travel, {
+    required bool fromCalendar,
+  }) =>
+      travel.edge *
+      (fromCalendar ? Curves.easeOutCubic : Curves.easeInCubic).transform(
+        pull.clamp(0.0, 1.0),
+      );
 
   @override
   Widget build(BuildContext context) {
     final simple = RenderingPolicyScope.of(context).simplerEffects;
+    Widget lift(Widget child, {required HitTestBehavior behavior}) =>
+        GestureDetector(
+          behavior: behavior,
+          onVerticalDragStart: open ? (_) => onLiftStart() : null,
+          onVerticalDragUpdate: open
+              ? (details) => onLiftUpdate(details.delta.dy)
+              : null,
+          onVerticalDragEnd: open
+              ? (details) => onLiftEnd(details.primaryVelocity ?? 0)
+              : null,
+          onVerticalDragCancel: open ? onLiftCancel : null,
+          child: child,
+        );
     return LayoutBuilder(
       builder: (context, constraints) {
         final stripWidth = math.min(constraints.maxWidth, 700.0);
@@ -56,8 +145,8 @@ class DiaryCalendarCurtain extends StatelessWidget {
           child: RepaintBoundary(child: calendar),
           builder: (context, calendar) {
             final p = pull.value.clamp(0.0, 1.0);
-            final edge = edgeDrop(p, distance);
-            final mid = midDrop(p, distance);
+            final edge = edgeDrop(p, travel, fromCalendar: fromCalendar);
+            final mid = midDrop(p, travel);
             final region = _CurtainRegion(
               stripLeft: (constraints.maxWidth - stripWidth) / 2,
               stripWidth: stripWidth,
@@ -67,55 +156,67 @@ class DiaryCalendarCurtain extends StatelessWidget {
             );
             final reveal = Curves.easeOut.transform((p / .4).clamp(0.0, 1.0));
             Widget layer = calendar!;
+            if (!simple && reveal < 1) {
+              layer = Opacity(opacity: reveal, child: layer);
+            }
             if (p < 1) {
-              if (!simple) layer = Opacity(opacity: reveal, child: layer);
-              layer = ClipPath(
-                clipper: _CurtainClipper(region),
-                clipBehavior: simple ? Clip.hardEdge : Clip.antiAlias,
-                child: Transform.translate(
-                  offset: Offset(
-                    0,
-                    -56 * (1 - Curves.easeOutCubic.transform(p)),
-                  ),
-                  child: layer,
-                ),
+              layer = Transform.translate(
+                offset: Offset(0, -56 * (1 - Curves.easeOutCubic.transform(p))),
+                child: layer,
               );
             }
-            final moving = p > 0 && p < 1;
+            layer = ClipPath(
+              clipper: _CurtainClipper(region),
+              clipBehavior: simple ? Clip.hardEdge : Clip.antiAlias,
+              child: layer,
+            );
+            // The strip's box starts at the thread's highest drop, so the
+            // tabs hanging from it stay inside their own touch targets.
+            final shift = math.min(edge, mid);
             return Stack(
               fit: StackFit.expand,
               children: [
-                if (moving && !simple)
+                if (p > 0 && !simple)
                   IgnorePointer(
                     child: CustomPaint(
                       painter: _CurtainShadowPainter(
                         region: region,
                         color: context.colors.shadow,
-                        strength: reveal * reveal * (1 - p),
+                        strength: reveal * reveal * (1 - .7 * p),
                       ),
                     ),
                   ),
+                // Below the thread is the page: lifting anywhere there
+                // raises it, as lifting the thread itself does.
+                lift(const SizedBox.expand(), behavior: HitTestBehavior.opaque),
                 IgnorePointer(
                   ignoring: !open,
                   child: ExcludeSemantics(excluding: !open, child: layer),
                 ),
-                if (moving)
+                if (p > 0)
                   Positioned(
                     key: const ValueKey('diary-pulled-thread'),
-                    top: calendarTop,
+                    top: calendarTop + shift,
                     left: 0,
                     right: 0,
-                    height: 108,
+                    height: 108 + math.max(edge, mid) - shift,
                     child: IgnorePointer(
+                      ignoring: !open,
                       child: ExcludeSemantics(
-                        child: DiaryCalendar(
-                          selectedDate: selectedDate,
-                          timeline: timeline,
-                          lastDate: lastDate,
-                          enabled: false,
-                          onDateChanged: (_) {},
-                          edgeDrop: edge,
-                          midDrop: mid,
+                        excluding: !open,
+                        child: lift(
+                          behavior: HitTestBehavior.deferToChild,
+                          DiaryCalendar(
+                            key: const ValueKey('diary-resting-thread'),
+                            selectedDate: selectedDate,
+                            timeline: timeline,
+                            lastDate: lastDate,
+                            enabled: open,
+                            onDateChanged: onDateChosen,
+                            onSelectedTap: onReturn,
+                            edgeDrop: edge - shift,
+                            midDrop: mid - shift,
+                          ),
                         ),
                       ),
                     ),

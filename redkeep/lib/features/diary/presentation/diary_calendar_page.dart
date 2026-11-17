@@ -21,17 +21,14 @@ String _dateKey(DateTime date) => date.toIso8601String();
 /// A calendar route returns a civil date, or null when dismissed with Back.
 ///
 /// The diary reader also embeds it beneath its pulled-down page. Then
-/// [onSelected] and [onClose] replace the route's own pop.
+/// Then [onSelected] replaces the route's own pop, and the reader's thread
+/// and system Back return instead of a back button.
 class DiaryCalendarPage extends ConsumerStatefulWidget {
-  const DiaryCalendarPage({
-    super.key,
-    this.selected,
-    this.onSelected,
-    this.onClose,
-  });
+  const DiaryCalendarPage({super.key, this.selected, this.onSelected});
   final DiaryPeriod? selected;
   final ValueChanged<DiaryPeriod>? onSelected;
-  final VoidCallback? onClose;
+
+  bool get _embedded => onSelected != null;
   @override
   ConsumerState<DiaryCalendarPage> createState() => _DiaryCalendarPageState();
 }
@@ -339,7 +336,8 @@ class _DiaryCalendarPageState extends ConsumerState<DiaryCalendarPage> {
   }
 
   /// The year strip is the app bar: the current year sits beside search at
-  /// the trailing edge and earlier years fade away under the back button.
+  /// the trailing edge and earlier years fade away towards the leading one,
+  /// under the back button when this is its own route.
   Widget _header(BuildContext context, double inset) {
     final colors = context.colors;
     final direction = Directionality.of(context);
@@ -380,7 +378,11 @@ class _DiaryCalendarPageState extends ConsumerState<DiaryCalendarPage> {
             begin: AlignmentDirectional.centerStart,
             end: AlignmentDirectional.centerEnd,
             colors: const [Colors.transparent, Colors.white, Colors.white],
-            stops: [0, math.min(.45, 120 / bounds.width), 1],
+            stops: [
+              0,
+              math.min(.45, (widget._embedded ? 72 : 120) / bounds.width),
+              1,
+            ],
           ).createShader(bounds, textDirection: direction),
           child: _CalendarYearTabs(
             firstYear: _firstDate.year,
@@ -391,17 +393,17 @@ class _DiaryCalendarPageState extends ConsumerState<DiaryCalendarPage> {
                 : _showYear(year),
           ),
         ),
-        DecoratedBox(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: colors.surface.withValues(alpha: .7),
+        if (!widget._embedded)
+          DecoratedBox(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: colors.surface.withValues(alpha: .7),
+            ),
+            child: BackButton(
+              onPressed: () =>
+                  context.canPop() ? context.pop() : context.go('/diary'),
+            ),
           ),
-          child: BackButton(
-            onPressed:
-                widget.onClose ??
-                () => context.canPop() ? context.pop() : context.go('/diary'),
-          ),
-        ),
       ],
     );
   }

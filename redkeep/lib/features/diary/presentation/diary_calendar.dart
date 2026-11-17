@@ -27,6 +27,7 @@ class DiaryCalendar extends StatelessWidget {
     this.dayOffset = 0,
     this.edgeDrop = 0,
     this.midDrop = 0,
+    this.onSelectedTap,
     this.onDayDragStart,
     this.onDayDragUpdate,
     this.onDayDragEnd,
@@ -50,6 +51,13 @@ class DiaryCalendar extends StatelessWidget {
 
   bool get _pulled => edgeDrop != 0 || midDrop != 0;
 
+  /// Tapping the selected day's own tab; other tabs choose their day.
+  final VoidCallback? onSelectedTap;
+
+  /// Tabs hanging below the calendar's own height stay inside their boxes.
+  double get _hangExtent =>
+      _pulled ? math.max(0, math.max(edgeDrop, midDrop)) : 0;
+
   /// Extra drop of the thread at [x], following the stretched curve.
   double _dropAt(double x, double width) {
     final fraction = (x / width).clamp(0.0, 1.0);
@@ -69,6 +77,10 @@ class DiaryCalendar extends StatelessWidget {
   bool _available(DiaryPeriod? period) =>
       period != null && period.hasStarted(lastDate ?? DateTime.now());
   void _selectDay(int offset) {
+    if (offset == 0) {
+      if (enabled) onSelectedTap?.call();
+      return;
+    }
     final date = _at(offset);
     if (enabled && offset != 0 && _available(date)) onDateChanged(date!);
   }
@@ -87,7 +99,7 @@ class DiaryCalendar extends StatelessWidget {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 700),
           child: SizedBox(
-            height: height,
+            height: height + _hangExtent,
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final width = constraints.maxWidth;
@@ -235,7 +247,9 @@ class DiaryCalendar extends StatelessWidget {
     }
     final pinned = date.isDay && date.isCurrent(today);
     final available = _available(date);
-    final canSelect = enabled && available;
+    final canSelect =
+        enabled && available && (day != 0 || onSelectedTap != null);
+    final box = height + _hangExtent;
     final inactiveInk = Color.lerp(
       context.colors.onSurfaceVariant,
       context.colors.surface,
@@ -253,7 +267,7 @@ class DiaryCalendar extends StatelessWidget {
       left: x - targetWidth / 2,
       top: 0,
       width: targetWidth,
-      height: height,
+      height: box,
       child: IgnorePointer(
         ignoring: !canSelect || opacity < .3,
         child: Opacity(
@@ -271,7 +285,7 @@ class DiaryCalendar extends StatelessWidget {
               onTap: canSelect ? () => _selectDay(day) : null,
               child: Transform.rotate(
                 angle: tilt,
-                alignment: Alignment(0, centerY / height * 2 - 1),
+                alignment: Alignment(0, centerY / box * 2 - 1),
                 child: Stack(
                   clipBehavior: Clip.none,
                   children: [

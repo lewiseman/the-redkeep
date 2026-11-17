@@ -103,7 +103,14 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
   /// Only a touch that began on the resting page may pull it. Swiping down
   /// from the immersive reader restores the page and stops there.
   bool _downAtRest = false;
-  double _pullDistance = 600;
+  DiaryThreadTravel _travel = const DiaryThreadTravel(mid: 600, edge: 637);
+
+  /// A finger lifting the calendar's resting thread back up to the page.
+  bool _lifting = false;
+
+  /// Whether the current motion began in the open calendar; see
+  /// [DiaryCalendarCurtain.fromCalendar].
+  bool _fromCalendar = false;
   bool _calendarShown = false;
   bool _calendarOpen = false;
 
@@ -154,6 +161,8 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
   void _syncNavbar() {
     final calendar = _pullPointer != null
         ? _pull.value >= _pullCommit
+        : _lifting
+        ? _pull.value > 1 - _pullCommit
         : _calendarTarget;
     final hidden = _immersive || calendar;
     if (hidden == _navbarHidden) return;
@@ -244,7 +253,10 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
 
   void _openCalendar() {
     if (_busy || _calendarShown) return;
-    setState(() => _calendarShown = true);
+    setState(() {
+      _calendarShown = true;
+      _fromCalendar = false;
+    });
     _calendarTarget = true;
     _syncNavbar();
     _afterNextFrame(() => _settlePull(open: true));
@@ -256,14 +268,20 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
   void _afterNextFrame(VoidCallback start) {
     final shown = _calendarShown;
     WidgetsBinding.instance.endOfFrame.then((_) {
-      if (mounted && _calendarShown == shown && _pullPointer == null) start();
+      if (mounted &&
+          _calendarShown == shown &&
+          _pullPointer == null &&
+          !_lifting) {
+        start();
+      }
     });
   }
 
   /// Returns to the reader, on [date] when the calendar chose one. The page
   /// is replaced while hidden, so it rises on the thread already turned.
   void _closeCalendar([DiaryPeriod? date]) {
-    if (!_calendarShown || _pullPointer != null) return;
+    if (!_calendarShown || _pullPointer != null || _lifting) return;
+    setState(() => _fromCalendar = true);
     if (date != null && date != _selectedDate) {
       _replaceDate(date);
       _calendarTarget = false;
@@ -279,6 +297,7 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
     _pull.stop();
     _pull.value = 0;
     _pullPointer = null;
+    _lifting = false;
     _calendarTarget = false;
     _syncNavbar();
     setState(() {
@@ -302,8 +321,11 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
         !_busy &&
         _atTop) {
       _pullPointer = _pointers.single;
-      _pull.value = (-notification.overscroll / _pullDistance).clamp(0, 1);
-      setState(() => _calendarShown = true);
+      _pull.value = (-notification.overscroll / _travel.mid).clamp(0, 1);
+      setState(() {
+        _calendarShown = true;
+        _fromCalendar = false;
+      });
     }
     return false;
   }
@@ -323,7 +345,7 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
     }
     if (event.pointer != _pullPointer) return;
     final before = _pull.value;
-    _pull.value = (before + event.delta.dy / _pullDistance).clamp(0, 1);
+    _pull.value = (before + event.delta.dy / _travel.mid).clamp(0, 1);
     if ((before < _pullCommit) != (_pull.value < _pullCommit)) {
       HapticFeedback.selectionClick();
       _syncNavbar();
@@ -336,7 +358,7 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
     final velocity = _pointerVelocity?.getVelocity().pixelsPerSecond.dy ?? 0;
     final open =
         velocity > 700 || (_pull.value >= _pullCommit && velocity > -300);
-    _settlePull(open: open, velocity: velocity / _pullDistance);
+    _settlePull(open: open, velocity: velocity / _travel.mid);
   }
 
   void _pointerCancel(PointerCancelEvent event) {
@@ -347,8 +369,35 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
     if (_dragging) _settle(commit: false);
   }
 
+  /// The open calendar's thread, lifted by its tab or the page below it.
+  void _liftStart() {
+    if (!_calendarOpen || _lifting) return;
+    _pull.stop();
+    _lifting = true;
+    setState(() => _fromCalendar = true);
+  }
+
+  void _liftUpdate(double dy) {
+    if (!_lifting) return;
+    final before = _pull.value;
+    _pull.value = (before + dy / _travel.mid).clamp(0, 1);
+    final threshold = 1 - _pullCommit;
+    if ((before > threshold) != (_pull.value > threshold)) {
+      HapticFeedback.selectionClick();
+      _syncNavbar();
+    }
+  }
+
+  void _liftEnd(double velocity) {
+    if (!_lifting) return;
+    final close =
+        velocity < -700 || (_pull.value <= 1 - _pullCommit && velocity < 300);
+    _settlePull(open: !close, velocity: velocity / _travel.mid);
+  }
+
   Future<void> _settlePull({required bool open, double velocity = 0}) async {
     _pullPointer = null;
+    _lifting = false;
     _calendarTarget = open;
     _syncNavbar();
     final target = open ? 1.0 : 0.0;
@@ -516,9 +565,11 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
     // The resting thread hangs below the month; the page travels until it,
     // the thread and the hanging date tab have all left the screen.
     final calendarTop = top + 10 + _controlsHeight;
-    _pullDistance = math.max(
-      200,
-      MediaQuery.sizeOf(context).height - calendarTop + 30,
+    final height = MediaQuery.sizeOf(context).height;
+    _travel = DiaryThreadTravel.of(
+      height: height,
+      calendarTop: calendarTop,
+      inset: systemInset,
     );
     final calendarActive = _calendarShown || _pullPointer != null;
     final artworkWidth = diaryHeaderArtworkWidth(width);
@@ -656,10 +707,7 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
                         builder: (context, scene) => Transform.translate(
                           offset: Offset(
                             0,
-                            DiaryCalendarCurtain.midDrop(
-                              _pull.value,
-                              _pullDistance,
-                            ),
+                            DiaryCalendarCurtain.midDrop(_pull.value, _travel),
                           ),
                           child: scene,
                         ),
@@ -715,23 +763,32 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
             child: DiaryCalendarCurtain(
               pull: _pull,
               calendarTop: calendarTop,
-              distance: _pullDistance,
+              travel: _travel,
+              fromCalendar: _fromCalendar,
+              onDateChosen: _closeCalendar,
+              onReturn: _closeCalendar,
+              onLiftStart: _liftStart,
+              onLiftUpdate: _liftUpdate,
+              onLiftEnd: _liftEnd,
+              onLiftCancel: () {
+                if (_lifting) _settlePull(open: true);
+              },
               selectedDate: _selectedDate,
               timeline: _timeline,
               lastDate: _today,
               open: _calendarOpen,
-              // The bar has left, so the calendar keeps clear of the system
-              // gesture area only, not of the bar's resting space.
+              // The bar has left; the calendar's content ends where the
+              // resting thread meets the screen's edges.
               calendar: MediaQuery(
                 data: MediaQuery.of(context).copyWith(
-                  padding: MediaQuery.paddingOf(context)
-                      .copyWith(bottom: systemInset),
+                  padding: MediaQuery.paddingOf(
+                    context,
+                  ).copyWith(bottom: _travel.bottomInset(height, calendarTop)),
                 ),
                 child: DiaryCalendarPage(
                   key: const ValueKey('diary-embedded-calendar'),
                   selected: _selectedDate,
                   onSelected: _closeCalendar,
-                  onClose: _closeCalendar,
                 ),
               ),
             ),

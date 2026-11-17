@@ -156,7 +156,7 @@ void main() {
   }
 
   sceneTest(
-    'pulling the resting page down unrolls the calendar; a date or Back returns',
+    'pulling the page down unrolls the calendar; lifting its thread, a tab, a date or Back returns',
     (tester) async {
       await seed();
       await pumpApp(tester, initialLocation: '/diary', diary: repo);
@@ -191,11 +191,63 @@ void main() {
       expect(navbarHidden(tester), isTrue);
       await gesture.up();
       await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('diary-pulled-thread')), findsNothing);
       expect(find.byType(DiaryCalendarPage).hitTestable(), findsOneWidget);
       expect(navbarHidden(tester), isTrue);
 
-      // Choosing a day lowers the page back on that day.
+      // The thread rests across the calendar's bottom, holding the day's tab.
+      Finder threadTab(DiaryPeriod date) => find.descendant(
+        of: find.byKey(const ValueKey('diary-resting-thread')),
+        matching: find.byKey(
+          ValueKey(
+            'diary-calendar-date-${DateTime(date.year, date.month, date.day).toIso8601String()}',
+          ),
+        ),
+      );
+      final height =
+          tester.view.physicalSize.height / tester.view.devicePixelRatio;
+      // Today, a Monday, hangs in full above the bottom of the screen.
+      final restingLabel = tester.getRect(
+        find.descendant(of: threadTab(today), matching: find.text('Mon')),
+      );
+      expect(restingLabel.bottom, lessThan(height));
+      expect(restingLabel.top, greaterThan(height * .6));
+      expect(tester.getRect(paper).top, greaterThan(height - 40));
+
+      // A short lift settles back; lifting it further raises the page home.
+      await tester.drag(threadTab(today), const Offset(0, -40));
+      await tester.pumpAndSettle();
+      expect(find.byType(DiaryCalendarPage).hitTestable(), findsOneWidget);
+      final lift = await tester.startGesture(
+        tester.getRect(threadTab(today)).center,
+      );
+      for (var i = 0; i < 10; i++) {
+        await lift.moveBy(const Offset(0, -30));
+        await tester.pump();
+      }
+      expect(navbarHidden(tester), isFalse);
+      await lift.up();
+      await tester.pumpAndSettle();
+      expect(find.byType(DiaryCalendarPage), findsNothing);
+      expect(scene(tester).day.date, today);
+      expect(tester.getRect(paper).top, resting);
+
+      // Another tab on the resting thread returns on its day.
+      await tester.tap(find.byKey(const ValueKey('diary-date-control')));
+      await tester.pumpAndSettle();
+      await tester.tap(threadTab(DiaryPeriod(2026, 11, 1)));
+      await tester.pumpAndSettle();
+      expect(find.byType(DiaryCalendarPage), findsNothing);
+      expect(scene(tester).day.date, DiaryPeriod(2026, 11, 1));
+
+      // So does the day's own tab, and a day chosen in the calendar.
+      await tester.tap(find.byKey(const ValueKey('diary-date-control')));
+      await tester.pumpAndSettle();
+      await tester.tap(threadTab(DiaryPeriod(2026, 11, 1)));
+      await tester.pumpAndSettle();
+      expect(find.byType(DiaryCalendarPage), findsNothing);
+      expect(scene(tester).day.date, DiaryPeriod(2026, 11, 1));
+      await tester.tap(find.byKey(const ValueKey('diary-date-control')));
+      await tester.pumpAndSettle();
       await tester.tap(day(DiaryPeriod(2026, 11, 1)));
       await tester.pumpAndSettle();
       expect(find.byType(DiaryCalendarPage), findsNothing);

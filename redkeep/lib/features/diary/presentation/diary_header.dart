@@ -1,5 +1,6 @@
 import 'diary_style.dart';
 import '../domain/diary_period.dart';
+import '../domain/diary_raven.dart';
 import '../domain/diary_timeline.dart';
 import 'diary_calendar.dart';
 
@@ -23,6 +24,8 @@ class DiaryHeaderDelegate extends SliverPersistentHeaderDelegate {
     this.onDayDragUpdate,
     this.onDayDragEnd,
     this.onDayDragCancel,
+    this.written = const {},
+    this.ravenLetter,
   });
 
   final double topInset;
@@ -42,6 +45,10 @@ class DiaryHeaderDelegate extends SliverPersistentHeaderDelegate {
   final bool turning;
   final VoidCallback? onDayDragStart, onDayDragCancel;
   final ValueChanged<double>? onDayDragUpdate, onDayDragEnd;
+
+  /// Days with writing, and the letter the cord's raven brings, if any.
+  final Set<DiaryPeriod> written;
+  final DiaryRavenLetter? ravenLetter;
 
   @override
   double get maxExtent => topInset + controlsHeight + 118;
@@ -93,6 +100,9 @@ class DiaryHeaderDelegate extends SliverPersistentHeaderDelegate {
                       onDayDragUpdate: onDayDragUpdate,
                       onDayDragEnd: onDayDragEnd,
                       onDayDragCancel: onDayDragCancel,
+                      written: written,
+                      raven: true,
+                      ravenLetter: ravenLetter,
                     ),
                   ),
                 ],
@@ -150,7 +160,9 @@ class DiaryHeaderDelegate extends SliverPersistentHeaderDelegate {
       oldDelegate.onDayDragCancel != onDayDragCancel ||
       oldDelegate.controlsHeight != controlsHeight ||
       oldDelegate.onDateChanged != onDateChanged ||
-      oldDelegate.onPickDate != onPickDate;
+      oldDelegate.onPickDate != onPickDate ||
+      oldDelegate.written != written ||
+      oldDelegate.ravenLetter != ravenLetter;
 }
 
 /// A tinted surface that blends into the diary below the pinned header.

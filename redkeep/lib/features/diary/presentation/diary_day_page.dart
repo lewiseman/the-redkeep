@@ -14,13 +14,14 @@ import '../application/diary_providers.dart';
 import '../application/diary_paper_providers.dart';
 import '../application/diary_reader_day.dart';
 import '../domain/diary_period.dart';
+import '../domain/diary_raven.dart';
 import '../domain/diary_timeline.dart';
 import 'diary_style.dart';
-import 'diary_artwork.dart';
 import 'diary_calendar_curtain.dart';
 import 'diary_calendar_page.dart';
 import 'diary_header.dart';
 import 'diary_scene.dart';
+import 'diary_sky.dart';
 
 export '../application/diary_reader_day.dart' show DiaryDaySelection;
 
@@ -561,7 +562,6 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
     // The shell's bar floats over this page; at rest the paper ends above it.
     final navbarInset = MediaQuery.paddingOf(context).bottom;
     final systemInset = MediaQuery.viewPaddingOf(context).bottom;
-    final width = MediaQuery.sizeOf(context).width;
     // The resting thread hangs below the month; the page travels until it,
     // the thread and the hanging date tab have all left the screen.
     final calendarTop = top + 10 + _controlsHeight;
@@ -572,81 +572,29 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
       inset: systemInset,
     );
     final calendarActive = _calendarShown || _pullPointer != null;
-    final artworkWidth = diaryHeaderArtworkWidth(width);
-    final artworkTop = 60 - artworkWidth * .41;
+    final written = saved.value ?? const <DiaryPeriod>{};
+    final ravenLetter = diaryRavenLetter(_selectedDate, written);
     final page = Stack(
       children: [
         Positioned(
-          top: artworkTop,
-          left: (width - artworkWidth) / 2,
-          width: artworkWidth,
-          child: AnimatedBuilder(
-            animation: _outer,
-            child: RepaintBoundary(
-              child: ShaderMask(
-                blendMode: BlendMode.dstIn,
-                // Boost only the top edge and month controls, returning to the
-                // existing image opacity before reaching the calendar tabs.
-                shaderCallback: (_) =>
-                    LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      stops: const [0, .25, 1],
-                      colors: [
-                        Colors.white.withValues(
-                          alpha: context.isDark ? .94 : .82,
-                        ),
-                        Colors.white.withValues(
-                          alpha: context.isDark ? .94 : .82,
-                        ),
-                        Colors.white.withValues(
-                          alpha: context.isDark ? .68 : .24,
-                        ),
-                      ],
-                    ).createShader(
-                      Rect.fromLTWH(
-                        0,
-                        -artworkTop,
-                        artworkWidth,
-                        top + _controlsHeight + 20,
+          top: 0,
+          left: 0,
+          right: 0,
+          height: diarySkyExtent(context),
+          child: IgnorePointer(
+            // The sky drifts up a little slower than the header collapses.
+            child: AnimatedBuilder(
+              animation: _outer,
+              child: const DiarySky(),
+              builder: (context, sky) => Transform.translate(
+                offset: Offset(
+                  0,
+                  -28 *
+                      Curves.easeOutCubic.transform(
+                        (_outerOffset / 120).clamp(0, 1),
                       ),
-                    ),
-                child: DiaryArtwork(
-                  key: const ValueKey('diary-header-artwork'),
-                  assetKey: diaryHeaderArtworkKey,
-                  width: artworkWidth,
-                  color: context.colors.primary,
-                  colorBlendMode: BlendMode.color,
-                  fit: BoxFit.fitWidth,
                 ),
-              ),
-            ),
-            builder: (context, child) => Transform.translate(
-              offset: Offset(
-                0,
-                -28 *
-                    Curves.easeOutCubic.transform(
-                      (_outerOffset / 120).clamp(0, 1),
-                    ),
-              ),
-              child: child,
-            ),
-          ),
-        ),
-        Positioned.fill(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                stops: const [0, .13, .27, .42, 1],
-                colors: [
-                  context.colors.surface.withValues(alpha: .50),
-                  context.colors.surface.withValues(alpha: .094),
-                  context.colors.surface.withValues(alpha: .863),
-                  context.colors.surface,
-                  context.colors.surface,
-                ],
+                child: sky,
               ),
             ),
           ),
@@ -697,6 +645,8 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
                             onDayDragCancel: _dragging
                                 ? () => _settle(commit: false)
                                 : null,
+                            written: written,
+                            ravenLetter: ravenLetter,
                           ),
                         ),
                       ),
@@ -773,6 +723,8 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
               onLiftCancel: () {
                 if (_lifting) _settlePull(open: true);
               },
+              written: written,
+              ravenLetter: ravenLetter,
               selectedDate: _selectedDate,
               timeline: _timeline,
               lastDate: _today,

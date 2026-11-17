@@ -28,11 +28,7 @@ final startupArtworkProvider = FutureProvider<void>((ref) async {
       ) ??
       location;
   final isDiary = destination == '/' || destination == '/diary';
-  if (!isDiary &&
-      !const {
-        '/notes',
-        '/more',
-      }.contains(destination)) {
+  if (!isDiary && !const {'/notes', '/more'}.contains(destination)) {
     return;
   }
 
@@ -49,15 +45,6 @@ final startupArtworkProvider = FutureProvider<void>((ref) async {
     ])
       ref.watch(localArtworkFileProvider(key).future).then(localArtworkImage),
     if (isDiary && media != null && !media.size.isEmpty) ...[
-      ref.watch(
-        diaryImageProvider((
-          diaryHeaderArtworkKey,
-          diaryArtworkDecodeWidth(
-            diaryHeaderArtworkWidth(media.size.width),
-            media.devicePixelRatio,
-          ),
-        )).future,
-      ),
       ref.watch(
         diaryImageProvider((
           diaryCalendarPinArtworkKey,

@@ -13,6 +13,7 @@ import 'diary_artwork.dart';
 import 'diary_calendar_overview.dart';
 import 'diary_paper_stamp.dart';
 import 'diary_day_page.dart';
+import 'diary_sky.dart';
 
 DateTime _month(DateTime date) => DateTime(date.year, date.month);
 int _monthIndex(DateTime date) => date.year * 12 + date.month - 1;
@@ -149,26 +150,14 @@ class _DiaryCalendarPageState extends ConsumerState<DiaryCalendarPage> {
       body: Stack(
         children: [
           Positioned(
-            top: -150,
+            top: 0,
             left: 0,
             right: 0,
-            height: 420,
+            height: diarySkyExtent(context),
+            // Embedded, it unrolls beneath the reader's own sky, so the sky
+            // holds still while the calendar appears under it.
             child: IgnorePointer(
-              child: Opacity(
-                opacity: context.isDark ? .12 : .065,
-                child: ShaderMask(
-                  blendMode: BlendMode.dstIn,
-                  shaderCallback: (bounds) => const LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Colors.white, Colors.transparent],
-                  ).createShader(bounds),
-                  child: DiaryArtwork(
-                    assetKey: 'diary.header',
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              ),
+              child: DiarySky(strength: widget._embedded ? 1 : .6),
             ),
           ),
           SafeArea(

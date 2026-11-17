@@ -12,7 +12,7 @@ import '../domain/diary_period.dart';
 import '../domain/diary_document.dart';
 import 'diary_style.dart';
 import 'diary_day_page.dart';
-import 'diary_artwork.dart';
+import 'diary_sky.dart';
 import 'diary_search_opening.dart';
 import 'diary_search_loading.dart';
 import 'diary_search_paper.dart';
@@ -146,47 +146,9 @@ class _DiarySearchPageState extends ConsumerState<DiarySearchPage> {
               left: 0,
               right: 0,
               height: 320,
-              child: ExcludeSemantics(
-                child: IgnorePointer(
-                  child: Stack(
-                    children: [
-                      Positioned(
-                        top: -165,
-                        left: 0,
-                        right: 0,
-                        height: 420,
-                        child: Opacity(
-                          opacity: context.isDark ? .16 : .10,
-                          child: DiaryArtwork(
-                            assetKey: 'diary.header',
-                            color: context.colors.primary,
-                            colorBlendMode: BlendMode.color,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                      // Reach opaque paper before the image ends at y=255.
-                      // Covering that edge avoids a GPU mask seam on devices.
-                      Positioned.fill(
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              stops: const [0, .45, .72, 1],
-                              colors: [
-                                context.colors.surface.withValues(alpha: 0),
-                                context.colors.surface.withValues(alpha: .65),
-                                context.colors.surface,
-                                context.colors.surface,
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+              // The day page's sky, faintly, fading into the paper.
+              child: const ExcludeSemantics(
+                child: IgnorePointer(child: DiarySky(strength: .5)),
               ),
             ),
             SafeArea(

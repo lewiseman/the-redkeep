@@ -34,7 +34,6 @@ void main() {
         'navigation.diary.active': 120,
         'navigation.notes.inactive': 120,
         'navigation.more.inactive': 120,
-        'diary.header': 800,
         'diary.calendar.pin': 48,
       };
       expect(assets.resolved, unorderedEquals(expected.keys));
@@ -56,7 +55,7 @@ void main() {
         isTrue,
       );
       expect(
-        container.read(diaryImageProvider(('diary.header', 800))).hasValue,
+        container.read(diaryImageProvider(('diary.calendar.pin', 48))).hasValue,
         isTrue,
       );
       expect(assets.resolved, unorderedEquals(expected.keys));

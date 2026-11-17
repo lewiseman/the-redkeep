@@ -1,8 +1,14 @@
+import 'package:intl/intl.dart';
+
+import '../../../core/presentation/rendering_policy.dart';
 import 'diary_artwork.dart';
 import '../domain/diary_period.dart';
+import '../domain/diary_raven.dart';
 import '../domain/diary_timeline.dart';
+import 'diary_raven_perch.dart';
 
 import 'dart:math' as math;
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'diary_style.dart';
@@ -12,6 +18,9 @@ const diaryCalendarPinArtworkKey = 'diary.calendar.pin';
 const diaryCalendarPinSize = 24.0;
 const _calendarPinOverhang = 13.0;
 const _calendarPinHorizontalOffset = 8.0;
+
+/// How far a resting tab hangs below the cord, on a short loop of it.
+const _tabHang = 12.0;
 
 /// Paper date tabs on a fine ink curve. The page owns their motion, so the
 /// calendar follows a sheet's drag, cancellation and settling frame for frame.
@@ -28,6 +37,9 @@ class DiaryCalendar extends StatelessWidget {
     this.edgeDrop = 0,
     this.midDrop = 0,
     this.onSelectedTap,
+    this.written = const {},
+    this.raven = false,
+    this.ravenLetter,
     this.onDayDragStart,
     this.onDayDragUpdate,
     this.onDayDragEnd,
@@ -53,6 +65,19 @@ class DiaryCalendar extends StatelessWidget {
 
   /// Tapping the selected day's own tab; other tabs choose their day.
   final VoidCallback? onSelectedTap;
+
+  /// Days with writing: their tabs are sealed in red wax.
+  final Set<DiaryPeriod> written;
+
+  /// Whether the raven perches on the cord, and the letter it holds, if any.
+  /// Tapping a raven with a letter opens the day the letter came from.
+  final bool raven;
+  final DiaryRavenLetter? ravenLetter;
+
+  /// Where the raven perches, as a fraction of the cord's width, and how
+  /// large it is. It sits in the gap beside the day after the selected one.
+  static const _ravenPerch = .765;
+  static const _ravenSize = 40.0;
 
   /// Tabs hanging below the calendar's own height stay inside their boxes.
   double get _hangExtent =>
@@ -110,6 +135,9 @@ class DiaryCalendar extends StatelessWidget {
                   collapse,
                 )!;
                 final middleDay = dayOffset.round();
+                final ravenOpacity = raven
+                    ? (1 - collapse * 2.5).clamp(0.0, 1.0)
+                    : 0.0;
                 final previous = _at(-1);
                 final next = _at(1);
                 return Semantics(
@@ -159,6 +187,8 @@ class DiaryCalendar extends StatelessWidget {
                                 collapse: collapse,
                                 edgeDrop: edgeDrop,
                                 midDrop: midDrop,
+                                perch: ravenOpacity > 0 ? _ravenPerch : null,
+                                perchWeight: ravenOpacity,
                               ),
                             ),
                           ),
@@ -190,6 +220,8 @@ class DiaryCalendar extends StatelessWidget {
                             ),
                           ),
                         ),
+                        if (ravenOpacity > 0)
+                          _buildRaven(context, width, ravenOpacity),
                       ],
                     ),
                   ),
@@ -200,6 +232,77 @@ class DiaryCalendar extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// The raven on the cord, its feet on the cord as it sags, stretches and
+  /// dips a little under the bird's weight.
+  Widget _buildRaven(BuildContext context, double width, double opacity) {
+    final x = width * _ravenPerch;
+    final dip = _CalendarThreadPainter.perchDip * opacity;
+    final y =
+        _CalendarThreadPainter.heightAt(x, width) +
+        (_pulled ? _dropAt(x, width) : 0) +
+        dip;
+    // Leaning a little with the cord, as a bird balances on it.
+    final sag = 268 + 4 * (midDrop - edgeDrop);
+    final lean = math.atan(sag * (1 - 2 * _ravenPerch) / width) * .3;
+    final letter = ravenLetter;
+    final canOpen = letter != null && enabled;
+    final animate =
+        context
+            .dependOnInheritedWidgetOfExactType<RenderingPolicyScope>()
+            ?.policy
+            .animate ??
+        true;
+    const size = _ravenSize;
+    // A 48px target around the bird, the letter included.
+    const target = 52.0;
+    Widget bird = Transform.rotate(
+      angle: lean,
+      alignment: const Alignment(DiaryRaven.footX * 2 - 1, 1),
+      child: DiaryRaven(
+        key: const ValueKey('diary-raven'),
+        size: size,
+        letter: letter != null,
+        animate: animate,
+      ),
+    );
+    if (opacity < 1) bird = Opacity(opacity: opacity, child: bird);
+    return Positioned(
+      left: x - size * DiaryRaven.footX - (target - size) / 2 - 4,
+      top: y - size - (target - size) / 2 + 1,
+      width: target,
+      height: target,
+      child: Semantics(
+        button: canOpen,
+        excludeSemantics: true,
+        label: letter == null ? null : _letterLabel(context, letter),
+        onTap: canOpen ? () => onDateChanged(letter.from) : null,
+        child: GestureDetector(
+          behavior: canOpen
+              ? HitTestBehavior.opaque
+              : HitTestBehavior.deferToChild,
+          onTap: canOpen ? () => onDateChanged(letter.from) : null,
+          child: IgnorePointer(
+            ignoring: !canOpen,
+            child: Center(child: bird),
+          ),
+        ),
+      ),
+    );
+  }
+
+  static String _letterLabel(BuildContext context, DiaryRavenLetter letter) {
+    final locale = Localizations.localeOf(context).toString();
+    final weekday = DateFormat.EEEE(locale).format(letter.from.calendarDate);
+    final when = switch (letter.echo) {
+      DiaryEcho.year => 'a year ago today',
+      DiaryEcho.month => 'a month ago today',
+      DiaryEcho.weeks when letter.weeks == 1 => 'last $weekday',
+      DiaryEcho.weeks => '${letter.weeks} ${weekday}s ago',
+    };
+    return 'A raven brings your page from $when, '
+        '${letter.from.label(locale)}. Open it';
   }
 
   Widget _buildDay({
@@ -230,22 +333,24 @@ class DiaryCalendar extends StatelessWidget {
       width / 2 + relativeDay * compactDayWidth,
       collapse,
     )!;
-    final expandedPointY = _CalendarThreadPainter.heightAt(expandedX, width);
-    final drop = _pulled ? _dropAt(x, width) : 0.0;
-    final centerY =
-        drop +
-        ui.lerpDouble(
-          ui.lerpDouble(expandedPointY + 24, 62, prominence),
-          _CalendarThreadPainter.compactCenterY,
-          collapse,
-        )! -
-        lift;
-    final targetWidth = ui.lerpDouble(76, compactDayWidth, collapse)!;
     final date = _at(day);
     if (date == null) {
       return const Positioned(left: 0, top: 0, child: SizedBox.shrink());
     }
     final pinned = date.isDay && date.isCurrent(today);
+    // Today's tab is pinned onto the cord; the others hang from a loop.
+    final hang = pinned ? 0.0 : _tabHang;
+    final expandedPointY = _CalendarThreadPainter.heightAt(expandedX, width);
+    final drop = _pulled ? _dropAt(x, width) : 0.0;
+    final centerY =
+        drop +
+        ui.lerpDouble(
+          ui.lerpDouble(expandedPointY + 24 + hang, 62, prominence),
+          _CalendarThreadPainter.compactCenterY,
+          collapse,
+        )! -
+        lift;
+    final targetWidth = ui.lerpDouble(76, compactDayWidth, collapse)!;
     final available = _available(date);
     final canSelect =
         enabled && available && (day != 0 || onSelectedTap != null);
@@ -295,9 +400,11 @@ class DiaryCalendar extends StatelessWidget {
                           colors: context.colors,
                           date: date.calendarDate,
                           centerY: centerY,
+                          cordY: drop + expandedPointY,
                           prominence: prominence,
                           collapse: collapse,
                           pinned: pinned,
+                          sealed: written.contains(date),
                         ),
                       ),
                     ),
@@ -333,7 +440,11 @@ class DiaryCalendar extends StatelessWidget {
                       centerY:
                           drop +
                           ui.lerpDouble(
-                            ui.lerpDouble(expandedPointY + 16, 50, prominence),
+                            ui.lerpDouble(
+                              expandedPointY + 16 + hang,
+                              50,
+                              prominence,
+                            ),
                             24,
                             collapse,
                           )! -
@@ -363,7 +474,11 @@ class DiaryCalendar extends StatelessWidget {
                       centerY:
                           drop +
                           ui.lerpDouble(
-                            ui.lerpDouble(expandedPointY + 33, 71, prominence),
+                            ui.lerpDouble(
+                              expandedPointY + 33 + hang,
+                              71,
+                              prominence,
+                            ),
                             42,
                             collapse,
                           )! -
@@ -458,10 +573,27 @@ class _CalendarThreadPainter extends CustomPainter {
     required this.colors,
     this.edgeDrop = 0,
     this.midDrop = 0,
+    this.perch,
+    this.perchWeight = 0,
   });
   final ColorScheme colors;
   final double collapse, edgeDrop, midDrop;
+
+  /// Where a raven perches, as a fraction of the width, and how much of its
+  /// weight the cord bears there (it fades in and out with the bird).
+  final double? perch;
+  final double perchWeight;
   static const compactCenterY = 33.0;
+
+  /// How far the cord dips under a perched raven.
+  static const perchDip = 2.6;
+
+  double _dip(double x, double width) {
+    final at = perch;
+    if (at == null || perchWeight <= 0) return 0;
+    final d = (x - width * at) / 15;
+    return perchDip * perchWeight * math.exp(-d * d);
+  }
 
   static double heightAt(double x, double width, {double collapse = 0}) {
     final inset = 48 * collapse;
@@ -470,29 +602,109 @@ class _CalendarThreadPainter extends CustomPainter {
         268 * (1 - collapse) * fraction * (1 - fraction);
   }
 
+  /// The cord's colour: the accent, deepened with ink.
+  static Color cordColor(ColorScheme colors) =>
+      Color.lerp(colors.primary, colors.onSurface, .3)!;
+
   @override
   void paint(Canvas canvas, Size size) {
-    final path = diaryCalendarThreadPath(
-      size.width,
+    final curve = diaryCalendarThreadCurve(
       collapse: collapse,
       edgeDrop: edgeDrop,
       midDrop: midDrop,
     );
-    canvas.drawPath(
-      path.shift(Offset(0, .8 * (1 - collapse))),
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.6
-        ..color = colors.onSurface.withValues(alpha: .045 * (1 - collapse)),
-    );
+    final inset = 48 * collapse;
+    final x0 = inset, x1 = size.width - inset, xc = size.width / 2;
+    Offset at(double t) {
+      final u = 1 - t;
+      final x = u * u * x0 + 2 * u * t * xc + t * t * x1;
+      return Offset(
+        x,
+        (u * u + t * t) * curve.edge +
+            2 * u * t * curve.control +
+            _dip(x, size.width),
+      );
+    }
+
+    final Path path;
+    if (perch == null || perchWeight <= 0) {
+      path = diaryCalendarThreadPath(
+        size.width,
+        collapse: collapse,
+        edgeDrop: edgeDrop,
+        midDrop: midDrop,
+      );
+    } else {
+      // Traced point by point, so the cord can give under the raven.
+      const samples = 96;
+      final start = at(0);
+      path = Path()..moveTo(start.dx, start.dy);
+      for (var i = 1; i <= samples; i++) {
+        final point = at(i / samples);
+        path.lineTo(point.dx, point.dy);
+      }
+    }
+    final visibility = 1 - collapse;
+    final cord = cordColor(colors);
+    // A soft shadow on the sky beneath the cord.
+    if (visibility > 0) {
+      canvas.drawPath(
+        path.shift(Offset(0, 1.6 * visibility)),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.4
+          ..color = colors.shadow.withValues(alpha: .07 * visibility),
+      );
+    }
+    // The cord fades a little towards the screen's edges, as if strung from
+    // somewhere out of sight, rather than cut off by them.
+    final fade = Rect.fromLTWH(0, 0, size.width, 1);
     canvas.drawPath(
       path,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = .75
-        ..color = colors.primary.withValues(
-          alpha: ui.lerpDouble(.32, .10, collapse)!,
-        ),
+        ..strokeCap = StrokeCap.round
+        ..strokeWidth = ui.lerpDouble(1.5, .75, collapse)!
+        ..shader = LinearGradient(
+          stops: const [0, .14, .86, 1],
+          colors: [
+            for (final alpha in const [.4, 1.0, 1.0, .4])
+              cord.withValues(
+                alpha: alpha * ui.lerpDouble(.62, .10, collapse)!,
+              ),
+          ],
+        ).createShader(fade),
+    );
+    if (visibility <= 0) return;
+    // The twist: short, light, slanted strokes along the cord. They are
+    // spaced along the curve, so a stretched cord's twist opens out.
+    final steps = ((x1 - x0) / 5.5).round().clamp(8, 160);
+    final points = Float32List(steps * 4);
+    for (var i = 0; i < steps; i++) {
+      final t = (i + .5) / steps;
+      final u = 1 - t;
+      final point = at(t);
+      final x = point.dx, y = point.dy;
+      final dx = 2 * u * (xc - x0) + 2 * t * (x1 - xc);
+      final dy = 2 * (curve.control - curve.edge) * (1 - 2 * t);
+      final length = math.sqrt(dx * dx + dy * dy);
+      if (length == 0) continue;
+      // Along the cord, and a little across it.
+      final ax = dx / length, ay = dy / length;
+      final sx = ax * 1.1 - ay * .6, sy = ay * 1.1 + ax * .6;
+      points
+        ..[i * 4] = x - sx
+        ..[i * 4 + 1] = y - sy
+        ..[i * 4 + 2] = x + sx
+        ..[i * 4 + 3] = y + sy;
+    }
+    canvas.drawRawPoints(
+      ui.PointMode.lines,
+      points,
+      Paint()
+        ..strokeWidth = .6
+        ..strokeCap = StrokeCap.round
+        ..color = colors.surface.withValues(alpha: .55 * visibility),
     );
   }
 
@@ -501,6 +713,8 @@ class _CalendarThreadPainter extends CustomPainter {
       collapse != oldDelegate.collapse ||
       edgeDrop != oldDelegate.edgeDrop ||
       midDrop != oldDelegate.midDrop ||
+      perch != oldDelegate.perch ||
+      perchWeight != oldDelegate.perchWeight ||
       colors != oldDelegate.colors;
 }
 
@@ -509,15 +723,27 @@ class _DatePaperPainter extends CustomPainter {
     required this.colors,
     required this.date,
     required this.centerY,
+    required this.cordY,
     required this.prominence,
     required this.collapse,
     required this.pinned,
+    this.sealed = false,
   });
 
   final ColorScheme colors;
   final DateTime date;
+
+  /// Whether the day has writing, shown by a wax seal on the tab's corner.
+  final bool sealed;
   final double centerY, prominence, collapse;
+
+  /// Where the cord crosses this tab's column, in the tab's own coordinates.
+  final double cordY;
   final bool pinned;
+
+  /// How surely the tab's eyelet sits on the cord: only the resting tabs
+  /// beside the selected one hang from it by a loop.
+  double get threaded => math.pow(1 - prominence, 2).toDouble();
 
   static double heightFor(double prominence, double collapse) =>
       ui.lerpDouble(ui.lerpDouble(50, 80, prominence), 52, collapse)!;
@@ -546,15 +772,64 @@ class _DatePaperPainter extends CustomPainter {
         opacity: visibility,
       ).paintRect(canvas, bounds);
       if (!pinned) {
+        final eyelet = Offset(size.width / 2, bounds.top + 9);
         canvas.drawCircle(
-          Offset(size.width / 2, bounds.top + 9),
-          1.15,
+          eyelet,
+          1.2,
           Paint()
             ..color = colors.onSurfaceVariant.withValues(
-              alpha: .28 * visibility,
+              alpha: .3 * visibility,
             ),
         );
+        canvas.drawCircle(
+          eyelet,
+          2.1,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = .55
+            ..color = colors.onSurfaceVariant.withValues(
+              alpha: .24 * visibility,
+            ),
+        );
+        // A resting tab hangs below the cord from a short loop of it,
+        // tied through its eyelet.
+        final looped = threaded * visibility;
+        if (looped > 0 && cordY < eyelet.dy - 2) {
+          canvas.drawPath(
+            Path()
+              ..moveTo(eyelet.dx - .4, eyelet.dy)
+              ..quadraticBezierTo(
+                eyelet.dx - 1.8,
+                (eyelet.dy + cordY) / 2,
+                eyelet.dx,
+                cordY,
+              )
+              ..moveTo(eyelet.dx + .4, eyelet.dy)
+              ..quadraticBezierTo(
+                eyelet.dx + 1.8,
+                (eyelet.dy + cordY) / 2,
+                eyelet.dx,
+                cordY,
+              ),
+            Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 1.05
+              ..strokeCap = StrokeCap.round
+              ..color = _CalendarThreadPainter.cordColor(colors)
+                  .withValues(alpha: .7 * looped),
+          );
+        }
       }
+    }
+    // A day with writing carries a small seal of red wax on its corner.
+    if (sealed && visibility > 0) {
+      final radius = ui.lerpDouble(4.2, 5.4, prominence)!;
+      diaryPaintWaxSeal(
+        canvas,
+        Offset(bounds.right - radius * .55, bounds.bottom - radius * .7),
+        radius,
+        opacity: visibility,
+      );
     }
     if (prominence > 0) {
       final y = ui.lerpDouble(centerY + 26, 54, collapse)!;
@@ -574,6 +849,8 @@ class _DatePaperPainter extends CustomPainter {
       colors != oldDelegate.colors ||
       date != oldDelegate.date ||
       centerY != oldDelegate.centerY ||
+      cordY != oldDelegate.cordY ||
+      sealed != oldDelegate.sealed ||
       prominence != oldDelegate.prominence ||
       collapse != oldDelegate.collapse ||
       pinned != oldDelegate.pinned;

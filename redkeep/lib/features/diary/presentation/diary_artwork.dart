@@ -6,11 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/bootstrap/bootstrap_providers.dart';
 import '../../../app/bootstrap/bootstrap_controller.dart';
 
-const diaryHeaderArtworkKey = 'diary.header';
-
-double diaryHeaderArtworkWidth(double viewportWidth) =>
-    viewportWidth.clamp(0.0, 700.0);
-
 int diaryArtworkDecodeWidth(double width, double pixelRatio) =>
     (width * pixelRatio.clamp(1, 2)).ceil().clamp(1, 1400);
 

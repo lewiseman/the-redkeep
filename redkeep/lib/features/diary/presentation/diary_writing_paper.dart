@@ -9,6 +9,7 @@ import '../../../core/presentation/rendering_policy.dart';
 import '../domain/diary_period.dart';
 import 'diary_artwork.dart';
 import 'diary_paper_stamp.dart';
+import 'diary_sky.dart';
 import 'diary_writing_prompt.dart';
 import 'photos/diary_ink_action.dart';
 
@@ -43,7 +44,6 @@ class DiaryWritingBackdrop extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     final sheetTop = MediaQuery.paddingOf(context).top + diaryWritingSheetGap;
     final width = MediaQuery.sizeOf(context).width;
-    final artworkWidth = width.clamp(0.0, 700.0);
     final inset = ((width - diaryWritingSheetMaxWidth) / 2).clamp(6.0, width);
     final band = sheetTop + 48;
     return RepaintBoundary(
@@ -58,42 +58,8 @@ class DiaryWritingBackdrop extends StatelessWidget {
                   left: 0,
                   right: 0,
                   height: band,
-                  child: ClipRect(
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        Positioned(
-                          // The same crop of the sky as the day page.
-                          top: 60 - artworkWidth * .41,
-                          left: (width - artworkWidth) / 2,
-                          width: artworkWidth,
-                          child: DiaryArtwork(
-                            assetKey: 'diary.header',
-                            width: artworkWidth,
-                            color: colors.primary,
-                            colorBlendMode: BlendMode.color,
-                            fit: BoxFit.fitWidth,
-                          ),
-                        ),
-                        Positioned.fill(
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                stops: const [0, .7, 1],
-                                colors: [
-                                  colors.surface.withValues(alpha: .5),
-                                  colors.surface.withValues(alpha: .68),
-                                  colors.surface,
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  // The day page's sky, glimpsed above the sheet.
+                  child: const DiarySky(strength: .7),
                 ),
               Positioned(
                 top: sheetTop,

@@ -130,6 +130,29 @@ void main() {
     ),
   );
 
+  sceneTest('the raven on the cord brings a letter from last week', (
+    tester,
+  ) async {
+    final lastMonday = DiaryPeriod(2026, 10, 26);
+    await pumpApp(tester, initialLocation: '/diary', diary: repo);
+    final raven = find.byKey(const ValueKey('diary-raven'));
+    expect(raven, findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp('A raven brings')), findsNothing);
+
+    // Writing on last Monday gives today's raven that page's letter.
+    await seed(date: lastMonday);
+    await tester.pumpAndSettle();
+    expect(
+      find.bySemanticsLabel(
+        RegExp('A raven brings your page from last Monday'),
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(raven);
+    await tester.pumpAndSettle();
+    expect(scene(tester).day.date, lastMonday);
+  });
+
   for (final location in ['/', '/diary']) {
     sceneTest('the immersive reader at $location slides the bottom bar away', (
       tester,

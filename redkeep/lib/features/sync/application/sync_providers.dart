@@ -10,11 +10,11 @@ import '../../../app/storage_providers.dart';
 import '../../ai/application/ai_lifecycle.dart';
 import '../../diary/application/diary_providers.dart';
 import '../../notes/application/notes_providers.dart';
+import '../../onboarding/application/onboarding_controller.dart';
 import '../../watchlist/application/watchlist_providers.dart';
 import '../data/backup_identity.dart';
 import '../data/drift_account_reset_data.dart';
 import '../data/redkeep_backup.dart';
-import '../legacy/legacy_import.dart';
 
 final writingSessionEpochProvider = NotifierProvider<WritingSessionEpoch, int>(
   WritingSessionEpoch.new,
@@ -38,10 +38,7 @@ final networkServiceProvider = Provider<NetworkService>(
 );
 
 final syncBackendProvider = Provider<BackupBackend>((ref) {
-  final backend = GoogleDriveBackend(
-    appId: backupAppId,
-    legacyNamespaces: const [legacySyncNamespace],
-  );
+  final backend = GoogleDriveBackend(appId: backupAppId);
   ref.onDispose(backend.dispose);
   return backend;
 });
@@ -78,9 +75,8 @@ class _WorkManagerSchedule implements BackupSchedule {
   Future<void> apply(BackupSettings settings, {required bool signedIn}) async {
     await initializeBackgroundBackups();
     final config = await redkeepBackupConfig();
-    await redkeepBackupScheduler(
-      config.stateDirectory,
-    ).apply(settings, signedIn: signedIn);
+    await redkeepBackupScheduler(config.stateDirectory)
+        .apply(settings, signedIn: signedIn);
   }
 }
 
@@ -88,41 +84,12 @@ final backupScheduleProvider = Provider<BackupSchedule>(
   (ref) => _WorkManagerSchedule(),
 );
 
-/// Before the first backup, copies anything that exists only in the old
-/// per-document Drive sync. Null for providers other than Google Drive.
-final legacyImportHookProvider = Provider<BackupHook?>((ref) {
-  final backend = ref.watch(syncBackendProvider);
-  if (backend is! GoogleDriveBackend) return null;
-  return () => runLegacyImport(ref, backend.auth);
-});
-
-Future<int> runLegacyImport(Ref ref, GoogleAuthService auth) async {
-  final account = auth.currentUser;
-  if (account == null) return 0;
-  final import = LegacyImport(
-    db: ref.read(appDatabaseProvider),
-    marker: await LegacyImport.markerFile(await appSupportDirectory()),
-  );
-  if (await import.isDone(account.id)) return 0;
-  final client = await auth.authenticatedClient();
-  if (client == null) {
-    throw const BackupException(BackupErrorKind.auth, 'Sign in to back up.');
-  }
-  try {
-    return await import.run(accountId: account.id, client: client);
-  } finally {
-    client.close();
-  }
-}
-
 final backupEngineProvider = FutureProvider<BackupEngine>((ref) async {
   final device = await ref.watch(deviceIdentityProvider.future);
-  final hook = ref.watch(legacyImportHookProvider);
   final engine = await createRedkeepBackupEngine(
     backend: ref.watch(syncBackendProvider),
     network: ref.watch(networkServiceProvider),
     deviceName: device.deviceName,
-    beforeBackup: [?hook],
     canRun: ref.watch(accountResetStorageProvider).canSync,
   );
   ref.onDispose(engine.dispose);
@@ -171,81 +138,6 @@ class BackupSettingsController extends AsyncNotifier<BackupSettings> {
   }
 }
 
-/// A backup that can be restored because this phone has no writing yet.
-class RestoreOffer {
-  /// The newest backup, or null when only the old per-document sync exists.
-  final RemoteBackup? backup;
-  const RestoreOffer.backup(RemoteBackup this.backup);
-  const RestoreOffer.legacy() : backup = null;
-  bool get legacy => backup == null;
-}
-
-final restoreOfferProvider =
-    NotifierProvider<RestoreOfferController, RestoreOffer?>(
-      RestoreOfferController.new,
-    );
-
-class RestoreOfferController extends Notifier<RestoreOffer?> {
-  var _declined = false;
-  @override
-  RestoreOffer? build() => null;
-
-  /// Looks for a backup when signed in on a phone without writing.
-  Future<RestoreOffer?> check() async {
-    if (_declined || !ref.read(syncAuthProvider).isSignedIn) return null;
-    try {
-      final engine = await ref.read(backupEngineProvider.future);
-      if (!await engine.isEmpty!()) {
-        if (ref.mounted) state = null;
-        return null;
-      }
-      final backup = await engine.latestBackup();
-      RestoreOffer? offer;
-      if (backup != null) {
-        offer = RestoreOffer.backup(backup);
-      } else {
-        final backend = ref.read(syncBackendProvider);
-        if (backend is GoogleDriveBackend) {
-          final client = await backend.auth.authenticatedClient();
-          if (client != null) {
-            try {
-              if (await LegacyDriveReader(client).hasData()) {
-                offer = const RestoreOffer.legacy();
-              }
-            } finally {
-              client.close();
-            }
-          }
-        }
-      }
-      if (ref.mounted && !_declined) state = offer;
-      return offer;
-    } on Object {
-      // Offline or signed out: offered again on the next sign-in or launch.
-      return null;
-    }
-  }
-
-  /// "Skip": not offered again until the app restarts.
-  void decline() {
-    _declined = true;
-    state = null;
-  }
-
-  void clear() => state = null;
-}
-
-/// True while a restore replaces the database; the app shows progress only.
-final restoringProvider = NotifierProvider<RestoringFlag, bool>(
-  RestoringFlag.new,
-);
-
-class RestoringFlag extends Notifier<bool> {
-  @override
-  bool build() => false;
-  void set(bool value) => state = value;
-}
-
 final backupActionsProvider = Provider<BackupActions>(BackupActions.new);
 
 class BackupActions {
@@ -255,25 +147,30 @@ class BackupActions {
   Future<BackupState> backUpNow() async =>
       (await ref.read(backupEngineProvider.future)).backUpNow();
 
+  /// Backs up after connecting an account, unless this phone has no writing
+  /// yet: an empty journal never replaces a backup already in the cloud.
+  Future<void> backUpIfWriting() async {
+    final engine = await ref.read(backupEngineProvider.future);
+    if (await engine.isEmpty?.call() ?? false) return;
+    await engine.backUpNow();
+  }
+
   Future<void> pause() async =>
       (await ref.read(backupEngineProvider.future)).cancel();
 
-  /// Replaces this phone's (empty) journal with [backup].
+  /// Replaces this phone's journal with [backup]. Restores happen only during
+  /// onboarding, before any writing exists, so the screen stays in place; the
+  /// generation still stops any late write reaching the replaced database.
   Future<RestoreResult> restore(RemoteBackup backup) async {
     final engine = await ref.read(backupEngineProvider.future);
     final db = ref.read(appDatabaseProvider);
-    final restoring = ref.read(restoringProvider.notifier);
-    // Removing the Navigator disposes editors; the generation stops any
-    // late write from reaching the database being replaced.
-    restoring.set(true);
     db.writingBlocked = true;
     db.writingGeneration++;
-    ref.read(writingSessionEpochProvider.notifier).reset();
     var reopened = false;
     try {
       return await engine.restore(
         backup,
-        closeDatabase: db.close,
+        closeDatabase: db.closeConnection,
         reopenDatabase: () async {
           reopened = true;
           ref.invalidate(appDatabaseProvider);
@@ -284,20 +181,8 @@ class BackupActions {
       );
     } finally {
       if (!reopened) db.writingBlocked = false;
-      ref.read(restoreOfferProvider.notifier).clear();
       ref.read(aiResumeAfterResetProvider)();
-      restoring.set(false);
     }
-  }
-
-  /// Copies the old per-document sync into this phone, then backs up.
-  Future<int> restoreLegacy() async {
-    final backend = ref.read(syncBackendProvider);
-    if (backend is! GoogleDriveBackend) return 0;
-    final added = await runLegacyImport(ref, backend.auth);
-    ref.read(restoreOfferProvider.notifier).clear();
-    unawaited(backUpNow());
-    return added;
   }
 }
 
@@ -309,18 +194,27 @@ final accountResetProvider =
           engine: ref.watch(backupEngineProvider).requireValue,
           backend: ref.watch(syncBackendProvider),
           network: ref.watch(networkServiceProvider),
-          localData: DriftAccountResetData(
-            ref.watch(appDatabaseProvider),
-            beforeClear: () => ref.read(aiResetProvider)(),
-          ),
+          // Read lazily: a restore swaps the database, and rebuilding this
+          // controller would briefly report a reset check over the app.
+          localData: _CurrentDatabaseReset(ref),
         ),
       ),
       retry: (_, _) => null,
     );
 
-/// Starts backups: silent sign-in, the overnight schedule, a backup when one
-/// is due (on launch and whenever the app goes to the background, in case the
-/// background job was delayed), and the restore offer on an empty phone.
+class _CurrentDatabaseReset implements AccountResetLocalData {
+  _CurrentDatabaseReset(this.ref);
+  final Ref ref;
+  @override
+  Future<void> clear() => DriftAccountResetData(
+    ref.read(appDatabaseProvider),
+    beforeClear: () => ref.read(aiResetProvider)(),
+  ).clear();
+}
+
+/// Starts backups: silent sign-in, the overnight schedule, and a backup when
+/// one is due (on launch and whenever the app goes to the background, in case
+/// the background job was delayed). Restoring belongs to onboarding.
 final backupCoordinatorProvider = FutureProvider<void>((ref) async {
   final engine = await ref.watch(backupEngineProvider.future);
   final reset = ref.watch(accountResetProvider.notifier);
@@ -341,9 +235,7 @@ final backupCoordinatorProvider = FutureProvider<void>((ref) async {
     }
   }, fireImmediately: true);
   bool canRun() =>
-      ref.mounted &&
-      !ref.read(accountResetProvider).blocksDataAccess &&
-      !ref.read(restoringProvider);
+      ref.mounted && !ref.read(accountResetProvider).blocksDataAccess;
   Future<void> applySchedule() async {
     try {
       await ref
@@ -355,21 +247,22 @@ final backupCoordinatorProvider = FutureProvider<void>((ref) async {
   }
 
   Future<void> backUpIfDue() async {
-    if (!canRun() || !auth.isSignedIn || engine.state.busy) return;
+    // Nothing is backed up until onboarding, and any restore in it, is done.
+    if (!canRun() ||
+        !auth.isSignedIn ||
+        engine.state.busy ||
+        ref.read(onboardingControllerProvider).complete != true) {
+      return;
+    }
     if (await engine.isDue()) {
       await engine.backUpNow(trigger: BackupTrigger.automatic);
     }
   }
 
-  Future<void> signedIn() async {
-    await ref.read(restoreOfferProvider.notifier).check();
-    if (ref.mounted) await backUpIfDue();
-  }
-
   final accounts = auth.onAuthStateChanged.listen((account) async {
     // Sign-out during a reset must still cancel the overnight job.
     if (ref.mounted) await applySchedule();
-    if (account != null && canRun()) await signedIn();
+    if (account != null && canRun()) await backUpIfDue();
   });
   final lifecycle = AppLifecycleListener(
     onPause: () => unawaited(backUpIfDue()),
@@ -381,5 +274,5 @@ final backupCoordinatorProvider = FutureProvider<void>((ref) async {
   await auth.trySilentSignIn();
   if (!canRun()) return;
   await applySchedule();
-  if (auth.isSignedIn && ref.mounted) await signedIn();
+  if (auth.isSignedIn && ref.mounted) await backUpIfDue();
 }, retry: (_, _) => null);

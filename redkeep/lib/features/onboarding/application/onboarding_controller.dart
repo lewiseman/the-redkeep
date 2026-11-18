@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/storage_providers.dart';
 import '../domain/onboarding_repository.dart';
+import 'onboarding_restore.dart';
 
 final onboardingControllerProvider =
     NotifierProvider<OnboardingController, OnboardingState>(
@@ -35,8 +36,18 @@ class OnboardingController extends Notifier<OnboardingState> {
     if (state.saving) return;
     final name = await ref.read(onboardingRepositoryProvider).readName();
     if (ref.mounted && !state.saving) {
-      state = OnboardingState(complete: name != null, name: name);
+      // A restore during onboarding brings back a name; onboarding still
+      // finishes on its own page, with the restored name on the cover.
+      final held = ref.read(onboardingRestoreProvider).holdsOnboarding;
+      state = OnboardingState(complete: name != null && !held, name: name);
     }
+  }
+
+  /// Finishes onboarding with the name restored from a backup. Nothing is
+  /// written: the name is already in the restored journal.
+  void confirmRestored(String name) {
+    if (state.complete == true) return;
+    state = OnboardingState(complete: true, name: name);
   }
 
   Future<void> complete(String value) async {

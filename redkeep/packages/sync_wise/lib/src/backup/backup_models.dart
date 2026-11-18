@@ -168,8 +168,13 @@ class RemoteObject {
   });
 }
 
+/// The storage format this version writes and reads. Objects without a
+/// format were written by format 1. Restores skip backups in newer formats.
+const backupFormatVersion = 1;
+
 /// Property keys and values stored on remote objects.
 abstract final class BackupProperties {
+  static const format = 'swFormat';
   static const kind = 'swKind';
   static const state = 'swState';
   static const sha256 = 'swSha256';

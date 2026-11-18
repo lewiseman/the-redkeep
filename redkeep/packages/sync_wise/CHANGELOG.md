@@ -1,3 +1,10 @@
+## 1.0.0 — 17 November 2026
+
+- First stable storage format (`swFormat` 1). Unmarked backups read as format
+  1; newer formats are left untouched.
+- Removed `legacyNamespaces`/`DriveNamespace`: account reset deletes only the
+  objects this package writes.
+
 ## 0.1.0 — 17 November 2026
 
 - Replaced per-document sync, device roles and the Drive document registry with

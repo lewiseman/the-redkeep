@@ -235,7 +235,6 @@ class FakeAuth implements SyncAuth {
 class FakeDriveBackend implements BackupBackend {
   final FakeDrive drive;
   final String appId;
-  final List<DriveNamespace> legacy;
   final int chunkSize;
   @override
   final FakeAuth auth = FakeAuth();
@@ -243,7 +242,6 @@ class FakeDriveBackend implements BackupBackend {
   FakeDriveBackend(
     this.drive, {
     this.appId = 'app',
-    this.legacy = const [],
     this.chunkSize = 256 * 1024,
   });
   @override
@@ -259,7 +257,6 @@ class FakeDriveBackend implements BackupBackend {
         drive.client,
         appId: appId,
         chunkSize: chunkSize,
-        legacyNamespaces: legacy,
         retry: BackupRetry(attempts: 3, sleep: (_) async {}),
       ),
     );

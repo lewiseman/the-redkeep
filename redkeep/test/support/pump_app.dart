@@ -21,6 +21,7 @@ import 'package:redkeep/features/diary/domain/diary_repository.dart';
 import 'empty_diary_repository.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -62,6 +63,9 @@ Future<GoRouter> pumpApp(
   AiCloudSettings? aiSettings = testAiSettings,
   VoiceCapture Function(String)? voiceCapture,
   FakeWatchReminders? watchReminders,
+
+  /// Overrides for backups; when given, backups are enabled.
+  List<Override> backups = const [],
 }) async {
   final db = database ?? AppDatabase(NativeDatabase.memory());
   if (database == null) addTearDown(db.close);
@@ -78,7 +82,8 @@ Future<GoRouter> pumpApp(
         watchRemindersProvider.overrideWithValue(
           watchReminders ?? FakeWatchReminders(),
         ),
-        syncEnabledProvider.overrideWithValue(false),
+        syncEnabledProvider.overrideWithValue(backups.isNotEmpty),
+        ...backups,
         aiEnabledProvider.overrideWithValue(aiEnabled),
         appearanceFontLoaderProvider.overrideWithValue(fontLoader),
         fontPreviewLoaderProvider.overrideWithValue(FakeFontPreviewLoader()),

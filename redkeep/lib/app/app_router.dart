@@ -24,6 +24,7 @@ import 'package:go_router/go_router.dart';
 
 import '../features/appearance/presentation/appearance_page.dart';
 import '../features/onboarding/application/onboarding_controller.dart';
+import '../features/onboarding/application/onboarding_restore.dart';
 import '../features/onboarding/presentation/onboarding_page.dart';
 import '../features/notes/presentation/note_chat_page.dart';
 import '../features/notes/presentation/note_page.dart';
@@ -54,6 +55,7 @@ GoRouter createAppRouter(Ref ref) {
   final refresh = ValueNotifier(0);
   ref.listen(bootstrapControllerProvider, (_, _) => refresh.value++);
   ref.listen(onboardingControllerProvider, (_, _) => refresh.value++);
+  ref.listen(onboardingRestoreProvider, (_, _) => refresh.value++);
   // Routes on this navigator cover the shell, so they show no bottom bar. Every
   // descendant must name it too, or it would render on the shell's navigator,
   // underneath its own parent.
@@ -72,6 +74,7 @@ GoRouter createAppRouter(Ref ref) {
           ref.read(onboardingControllerProvider).complete != null,
       onboardingComplete:
           ref.read(onboardingControllerProvider).complete == true,
+      holdOnboarding: ref.read(onboardingRestoreProvider).holdsOnboarding,
     ),
     routes: [
       ShellRoute(

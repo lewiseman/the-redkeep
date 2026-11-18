@@ -10,7 +10,6 @@ import '../../../core/notifications/app_notifications.dart';
 import '../application/sync_providers.dart';
 import 'backup_sheet.dart';
 import 'backup_status.dart';
-import 'restore_offer.dart';
 import 'sync_material.dart';
 import '../../onboarding/application/onboarding_controller.dart';
 
@@ -30,17 +29,11 @@ class SyncAccountCard extends ConsumerWidget {
       final account = await ref.read(syncAuthProvider).signIn();
       if (account == null || !context.mounted) return;
       unawaited(requestNotificationPermission());
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Connected as ${account.email}.')),
-      );
-      // An empty phone may restore; otherwise back up straight away.
-      final offer = await ref.read(restoreOfferProvider.notifier).check();
-      if (!context.mounted) return;
-      if (offer != null) {
-        await RestoreOfferSheet.show(context, offer);
-      } else {
-        await ref.read(backupActionsProvider).backUpNow();
-      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Connected as ${account.email}.')));
+      // Restoring belongs to onboarding; here the journal is just backed up.
+      await ref.read(backupActionsProvider).backUpIfWriting();
     } catch (error) {
       if (context.mounted) {
         ScaffoldMessenger.of(context)

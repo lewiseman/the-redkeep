@@ -30,23 +30,6 @@ class MemoryResetStorage extends AccountResetStorage {
   Future<bool> canSync() async => true;
 }
 
-class FixedOffer extends RestoreOfferController {
-  FixedOffer(this.offer);
-  final RestoreOffer? offer;
-  @override
-  RestoreOffer? build() => offer;
-}
-
-final _backup = RemoteBackup(
-  id: 'b1',
-  createdAt: DateTime(2026, 11, 16, 2, 4),
-  size: 3 * 1024 * 1024,
-  sha256: 'a' * 64,
-  md5: 'b' * 32,
-  schemaVersion: 13,
-  deviceName: 'Android device',
-);
-
 void main() {
   late Directory state;
   setUp(() async {
@@ -61,7 +44,6 @@ void main() {
     double width = 390,
     double scale = 1,
     bool connected = true,
-    RestoreOffer? offer,
     BackupState backup = const BackupState(),
   }) async {
     tester.view.devicePixelRatio = 1;
@@ -81,7 +63,6 @@ void main() {
           backupEngineProvider.overrideWithValue(AsyncData(engine)),
           backupStateProvider.overrideWith(() => FixedBackupState(backup)),
           backupSettingsProvider.overrideWith(() => settings),
-          restoreOfferProvider.overrideWith(() => FixedOffer(offer)),
           onboardingControllerProvider.overrideWith(NamedOnboarding.new),
           accountResetStorageProvider.overrideWithValue(MemoryResetStorage()),
         ],
@@ -245,59 +226,61 @@ void main() {
       },
     );
 
-    testWidgets('backup sheet opens above nested navigators ${brightness.name}', (
-      tester,
-    ) async {
-      await pump(tester, brightness: brightness, screen: 'nested');
-      await tester.tap(find.byKey(const ValueKey('sync-card-status')));
-      await tester.pumpAndSettle();
-      final sheet = find.byType(BackupSheet);
-      expect(sheet, findsOneWidget);
-      expect(
-        find.ancestor(
-          of: sheet,
-          matching: find.byKey(const ValueKey('nested-navigator')),
-        ),
-        findsNothing,
-      );
-      expect(find.text('Back up to Google Drive'), findsOneWidget);
-      expect(find.text('Daily'), findsOneWidget);
-      expect(find.text('Add-only'), findsNothing);
-      await tester.drag(sheet, const Offset(0, -300));
-      await tester.pumpAndSettle();
-      expect(sheet, findsOneWidget);
-      await tester.fling(sheet, const Offset(0, 800), 2000);
-      await tester.pumpAndSettle();
-      expect(sheet, findsNothing);
-      await unmount(tester);
-    });
+    testWidgets(
+      'backup sheet opens above nested navigators ${brightness.name}',
+      (tester) async {
+        await pump(tester, brightness: brightness, screen: 'nested');
+        await tester.tap(find.byKey(const ValueKey('sync-card-status')));
+        await tester.pumpAndSettle();
+        final sheet = find.byType(BackupSheet);
+        expect(sheet, findsOneWidget);
+        expect(
+          find.ancestor(
+            of: sheet,
+            matching: find.byKey(const ValueKey('nested-navigator')),
+          ),
+          findsNothing,
+        );
+        expect(find.text('Back up to Google Drive'), findsOneWidget);
+        expect(find.text('Daily'), findsOneWidget);
+        expect(find.text('Add-only'), findsNothing);
+        await tester.drag(sheet, const Offset(0, -300));
+        await tester.pumpAndSettle();
+        expect(sheet, findsOneWidget);
+        await tester.fling(sheet, const Offset(0, 800), 2000);
+        await tester.pumpAndSettle();
+        expect(sheet, findsNothing);
+        await unmount(tester);
+      },
+    );
 
-    testWidgets('backing up shows one progress bar and Pause ${brightness.name}', (
-      tester,
-    ) async {
-      await pump(
-        tester,
-        brightness: brightness,
-        screen: 'sheet',
-        backup: const BackupState(
-          activity: BackupActivity.uploading,
-          bytesDone: 50,
-          bytesTotal: 100,
-        ),
-      );
-      Finder inSheet(Finder finder) =>
-          find.descendant(of: find.byType(BackupSheet), matching: finder);
-      expect(find.text('Backing up · 50%'), findsOneWidget);
-      final bar = tester.widget<LinearProgressIndicator>(
-        find.byKey(const ValueKey('backup-progress')),
-      );
-      expect(bar.value, .5);
-      expect(inSheet(find.byType(LinearProgressIndicator)), findsOneWidget);
-      expect(inSheet(find.byType(CircularProgressIndicator)), findsNothing);
-      expect(find.byKey(const ValueKey('backup-pause')), findsOneWidget);
-      expect(find.byKey(const ValueKey('backup-now')), findsNothing);
-      await unmount(tester);
-    });
+    testWidgets(
+      'backing up shows one progress bar and Pause ${brightness.name}',
+      (tester) async {
+        await pump(
+          tester,
+          brightness: brightness,
+          screen: 'sheet',
+          backup: const BackupState(
+            activity: BackupActivity.uploading,
+            bytesDone: 50,
+            bytesTotal: 100,
+          ),
+        );
+        Finder inSheet(Finder finder) =>
+            find.descendant(of: find.byType(BackupSheet), matching: finder);
+        expect(find.text('Backing up · 50%'), findsOneWidget);
+        final bar = tester.widget<LinearProgressIndicator>(
+          find.byKey(const ValueKey('backup-progress')),
+        );
+        expect(bar.value, .5);
+        expect(inSheet(find.byType(LinearProgressIndicator)), findsOneWidget);
+        expect(inSheet(find.byType(CircularProgressIndicator)), findsNothing);
+        expect(find.byKey(const ValueKey('backup-pause')), findsOneWidget);
+        expect(find.byKey(const ValueKey('backup-now')), findsNothing);
+        await unmount(tester);
+      },
+    );
 
     testWidgets('choosing a schedule saves it ${brightness.name}', (
       tester,
@@ -319,23 +302,6 @@ void main() {
       await unmount(tester);
     });
 
-    testWidgets('an empty phone is offered its backup ${brightness.name}', (
-      tester,
-    ) async {
-      await pump(
-        tester,
-        brightness: brightness,
-        screen: 'sheet',
-        offer: RestoreOffer.backup(_backup),
-      );
-      expect(find.byKey(const ValueKey('restore-offer')), findsOneWidget);
-      expect(find.textContaining('3.0 MB'), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('skip-restore')));
-      await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('restore-offer')), findsNothing);
-      await unmount(tester);
-    });
-
     for (final screen in ['more', 'expanded', 'collapsed', 'sheet', 'reset']) {
       testWidgets('backup UI 320px 3x ${brightness.name} $screen', (
         tester,
@@ -347,7 +313,6 @@ void main() {
           width: 320,
           scale: 3,
           connected: screen != 'expanded',
-          offer: screen == 'sheet' ? RestoreOffer.backup(_backup) : null,
           backup: BackupState(
             lastSuccess: DateTime(2026, 11, 16, 2, 4),
             lastSize: 3 * 1024 * 1024,

@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'dart:isolate';
 
-import 'package:path_provider/path_provider.dart';
 import 'package:sqlite3/sqlite3.dart';
 import 'package:sync_wise/notifications.dart';
 import 'package:sync_wise/sync_wise.dart';
@@ -74,7 +73,12 @@ Future<bool> redkeepDatabaseIsEmpty(String path) async {
     final db = sqlite3.open(path, mode: OpenMode.readOnly);
     try {
       db.execute('PRAGMA busy_timeout = 10000');
-      for (final table in ['notes', 'diary_entries', 'watch_titles', 'watch_lists']) {
+      for (final table in [
+        'notes',
+        'diary_entries',
+        'watch_titles',
+        'watch_lists',
+      ]) {
         final exists = db.select(
           "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
           [table],
@@ -88,6 +92,3 @@ Future<bool> redkeepDatabaseIsEmpty(String path) async {
     }
   });
 }
-
-/// `<app support>`, where the database and the legacy marker live.
-Future<Directory> appSupportDirectory() => getApplicationSupportDirectory();

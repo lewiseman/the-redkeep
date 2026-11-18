@@ -66,7 +66,6 @@ void main() {
       final container = tester.container();
       expect(container.read(accountResetProvider).blocksDataAccess, false);
       expect(container.read(appDatabaseProvider).writingBlocked, false);
-      expect(container.read(restoringProvider), false);
       await tester.pumpWidget(const SizedBox());
       await tester.pumpAndSettle();
       await db.close();

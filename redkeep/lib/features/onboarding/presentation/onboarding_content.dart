@@ -3,13 +3,11 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts_lite.dart';
 
 import '../../../app/bootstrap/startup_handoff.dart';
 import '../../../core/presentation/rendering_policy.dart';
 import 'onboarding_book.dart';
 import 'onboarding_chapter.dart';
-import 'onboarding_controls.dart';
 import 'onboarding_terms.dart';
 
 class OnboardingContent extends StatefulWidget {
@@ -25,14 +23,16 @@ class OnboardingContent extends StatefulWidget {
     required this.saving,
     required this.nameController,
     required this.nameFocus,
-    required this.onBegin,
     required this.onSave,
     required this.onFlip,
     required this.onDragStart,
     required this.onDragUpdate,
     required this.onDragEnd,
     required this.onDragCancel,
-    this.error,
+    required this.shrink,
+    required this.backup,
+    required this.actions,
+    this.nameEditable = true,
   });
 
   final int page;
@@ -45,9 +45,17 @@ class OnboardingContent extends StatefulWidget {
   final bool saving;
   final TextEditingController nameController;
   final FocusNode nameFocus;
-  final String? error;
-  final VoidCallback onBegin;
   final VoidCallback onSave;
+
+  /// 0 to 1 while the book makes room for the backup step.
+  final Animation<double> shrink;
+  final bool backup;
+
+  /// False once the name comes from a restored backup.
+  final bool nameEditable;
+
+  /// The description, buttons or backup panel under the book.
+  final Widget actions;
   final ValueChanged<int> onFlip;
   final VoidCallback onDragStart;
   final void Function(double delta, double width) onDragUpdate;
@@ -101,7 +109,7 @@ class _OnboardingContentState extends State<OnboardingContent> {
               closing: widget.close.value,
               nameController: widget.nameController,
               nameFocus: widget.nameFocus,
-              editable: naming && !widget.saving,
+              editable: naming && !widget.saving && widget.nameEditable,
               onSubmit: widget.onSave,
               onPageTap: touring && !widget.turning ? widget.onFlip : null,
             ),
@@ -115,13 +123,14 @@ class _OnboardingContentState extends State<OnboardingContent> {
     required bool naming,
     required bool touring,
   }) => AnimatedBuilder(
-    animation: widget.close,
+    animation: Listenable.merge([widget.close, widget.shrink]),
     builder: (context, _) => LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxHeight < 260;
-        final showMascot = !naming && constraints.maxHeight >= 200;
+        // The backup step needs the room the Grand Maestar takes.
+        final showMascot =
+            !naming && !widget.backup && constraints.maxHeight >= 200;
         final mascotHeight = math.min(125.0, constraints.maxHeight * .25);
-        print(mascotHeight);
         return Center(
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
@@ -156,12 +165,14 @@ class _OnboardingContentState extends State<OnboardingContent> {
                           (bookConstraints.maxHeight - 12) /
                           (1 + .12 * framing);
                       if (maxHeight < 48) return const SizedBox.shrink();
-                      final openWidth = math.min(
-                        math.min(bookConstraints.maxWidth - 24, 720.0),
-                        ((bookConstraints.maxHeight - 12) / 1.12 - 20) *
-                                onboardingSpreadAspectRatio +
-                            12,
-                      );
+                      final openWidth =
+                          math.min(
+                            math.min(bookConstraints.maxWidth - 24, 720.0),
+                            ((bookConstraints.maxHeight - 12) / 1.12 - 20) *
+                                    onboardingSpreadAspectRatio +
+                                12,
+                          ) *
+                          (1 - .3 * widget.shrink.value);
                       // A closed journal occupies one leaf, so it can use twice
                       // the spread width. Grow only after the cover has folded,
                       // matching the book's final settling phase.
@@ -211,7 +222,7 @@ class _OnboardingContentState extends State<OnboardingContent> {
                     },
                   ),
                 ),
-                if (!naming)
+                if (!naming && !widget.backup)
                   OnboardingPageHints(page: widget.page, compact: compact),
               ],
             ),
@@ -220,72 +231,6 @@ class _OnboardingContentState extends State<OnboardingContent> {
       },
     ),
   );
-
-  Widget _buildActions({required bool naming, required bool keyboard}) =>
-      Padding(
-        padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
-        child: Column(
-          key: const ValueKey('onboarding-actions'),
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (!naming)
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 460),
-                child: const Text(
-                  'Your space for notes, diary and passing thoughts, with AI support.',
-                  key: ValueKey('onboarding-description'),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Color(0xFF514354),
-                    fontSize: 18,
-                    height: 1.45,
-                    letterSpacing: -.2,
-                  ),
-                ),
-              )
-            else if (!keyboard)
-              Text(
-                'Your story starts with you.',
-                textAlign: TextAlign.center,
-                style: GoogleFontsLite.getFont(
-                  'Allura',
-                  color: const Color(0xFF433548),
-                  fontSize: 30,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            if (widget.error != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 12),
-                child: Semantics(
-                  liveRegion: true,
-                  child: Text(
-                    widget.error!,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Color(0xFF9B3E4C)),
-                  ),
-                ),
-              ),
-            if (!naming || !keyboard || widget.error != null)
-              const SizedBox(height: 20),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 460),
-              child: OnboardingPrimaryButton(
-                simple: RenderingPolicyScope.of(context).simplerEffects,
-                label: naming
-                    ? (widget.saving ? 'Saving…' : 'Save')
-                    : "Let's begin",
-                onPressed: naming
-                    ? (!widget.saving &&
-                              widget.nameController.text.trim().isNotEmpty
-                          ? widget.onSave
-                          : null)
-                    : (widget.touring ? widget.onBegin : null),
-              ),
-            ),
-          ],
-        ),
-      );
 
   @override
   Widget build(BuildContext context) {
@@ -353,10 +298,7 @@ class _OnboardingContentState extends State<OnboardingContent> {
                               naming: naming,
                               touring: touring,
                             );
-                            final actions = _buildActions(
-                              naming: naming,
-                              keyboard: keyboard,
-                            );
+                            final actions = widget.actions;
                             if (wide) {
                               return Row(
                                 children: [

@@ -53,6 +53,14 @@ class AppDatabase extends _$AppDatabase {
   int writingGeneration = 0;
   bool writingBlocked = false;
 
+  /// Closes the SQLite connection so a restore can replace the file.
+  ///
+  /// Unlike [close], this does not wait for query streams to finish: Riverpod
+  /// pauses streams nobody watches, and a paused stream never finishes, so
+  /// [close] would wait forever while the restore screen hides every page.
+  /// Those streams belong to providers rebuilt on the restored database.
+  Future<void> closeConnection() => executor.close();
+
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (migrator) => migrator.createAll(),

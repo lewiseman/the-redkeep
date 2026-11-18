@@ -43,7 +43,7 @@ abstract interface class BackupRemote {
 
   Future<void> delete(String id);
 
-  /// Deletes everything this app stored, including legacy namespaces.
+  /// Deletes everything this app stored.
   Future<void> deleteAll({void Function(int done, int total)? onProgress});
 }
 

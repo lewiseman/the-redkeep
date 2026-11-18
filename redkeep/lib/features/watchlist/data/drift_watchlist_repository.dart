@@ -7,7 +7,9 @@ import '../../sync/data/writing_session.dart';
 import '../domain/catalog_title.dart';
 import '../domain/watch_title.dart';
 import '../domain/watchlist_repository.dart';
-import 'watchlist_sync.dart' show watchProfileId;
+
+/// The single taste profile row's id.
+final watchProfileId = watchTitleId('profile');
 
 class DriftWatchlistRepository implements WatchlistRepository {
   DriftWatchlistRepository(

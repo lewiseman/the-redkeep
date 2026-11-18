@@ -144,9 +144,25 @@ downloads only the files that are missing or different.
 ## Account reset
 
 `AccountResetController` (Riverpod) pauses backups, deletes every object the
-app stored (`GoogleDriveBackend.legacyNamespaces` covers older formats), clears
-local data through your `AccountResetLocalData`, and signs out. It is durable:
+app stored, clears local data through your `AccountResetLocalData`, and signs
+out. It is durable:
 an interrupted reset continues on the next launch.
+
+## Storage format (version 1)
+
+Format 1 is stable. In the app folder each object carries appProperties:
+
+| Key | Value |
+|---|---|
+| `swApp` | your `appId` |
+| `swFormat` | `1` (objects without it are format 1) |
+| `swKind` | `snapshot`, `files-manifest` or `file` |
+| `swState` | `uploading` or `committed` |
+| `swSha256`, `swSchema`, `swCreated`, `swDevice`, `swFiles`, `swCipher` | snapshot details |
+
+A snapshot is the gzip-compressed SQLite file (`VACUUM INTO`), passed through
+the cipher. Only `committed` snapshots are restored. Objects in a newer format
+are never listed, restored or deleted by this version.
 
 ## Encryption
 

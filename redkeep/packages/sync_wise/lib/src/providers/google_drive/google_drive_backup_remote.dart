@@ -8,12 +8,11 @@ import '../../backup/backup_config.dart';
 import '../../backup/backup_models.dart';
 import '../../backup/backup_remote.dart';
 
-/// Marks objects that belong to an older storage format of the same app, so
-/// account reset can remove them too.
-class DriveNamespace {
+/// An appProperties key and value that mark this app's objects.
+class _Namespace {
   final String key;
   final String value;
-  const DriveNamespace(this.key, this.value);
+  const _Namespace(this.key, this.value);
 }
 
 class DriveRequestFailed implements Exception {
@@ -38,18 +37,16 @@ class GoogleDriveBackupRemote implements BackupRemote {
   final http.Client _http;
   final String appId;
   final int chunkSize;
-  final List<DriveNamespace> legacyNamespaces;
   final BackupRetry retry;
 
   GoogleDriveBackupRemote(
     this._http, {
     required this.appId,
     this.chunkSize = 2 * 1024 * 1024,
-    this.legacyNamespaces = const [],
     BackupRetry? retry,
   }) : retry = retry ?? BackupRetry();
 
-  DriveNamespace get _own => DriveNamespace(ownerKey, appId);
+  _Namespace get _own => _Namespace(ownerKey, appId);
 
   // ---- HTTP helpers --------------------------------------------------------
 
@@ -142,15 +139,12 @@ class GoogleDriveBackupRemote implements BackupRemote {
   String _has(String key, String value) =>
       " and appProperties has { key='${_escape(key)}' and value='${_escape(value)}' }";
 
-  bool _owns(RemoteObject object, DriveNamespace namespace) =>
+  bool _owns(RemoteObject object, _Namespace namespace) =>
       object.properties[namespace.key] == namespace.value;
 
   // ---- Listing -------------------------------------------------------------
 
-  Future<List<RemoteObject>> _list(
-    DriveNamespace namespace, {
-    String? kind,
-  }) async {
+  Future<List<RemoteObject>> _list(_Namespace namespace, {String? kind}) async {
     var query =
         "'appDataFolder' in parents and trashed = false${_has(namespace.key, namespace.value)}";
     if (kind != null) query += _has(BackupProperties.kind, kind);
@@ -193,7 +187,7 @@ class GoogleDriveBackupRemote implements BackupRemote {
   @override
   Future<List<RemoteObject>> list({String? kind}) => _list(_own, kind: kind);
 
-  Future<RemoteObject?> _get(String id, DriveNamespace namespace) async {
+  Future<RemoteObject?> _get(String id, _Namespace namespace) async {
     final uri = Uri.parse('$_files/${Uri.encodeComponent(id)}')
         .replace(queryParameters: {'fields': _fields});
     final response = await _retrying(() => _send('GET', uri));
@@ -432,7 +426,7 @@ class GoogleDriveBackupRemote implements BackupRemote {
 
   // ---- Delete --------------------------------------------------------------
 
-  Future<void> _delete(String id, DriveNamespace namespace) async {
+  Future<void> _delete(String id, _Namespace namespace) async {
     final owned = await _get(id, namespace);
     if (owned == null) return;
     final response = await _retrying(
@@ -449,23 +443,17 @@ class GoogleDriveBackupRemote implements BackupRemote {
   Future<void> deleteAll({
     void Function(int done, int total)? onProgress,
   }) async {
-    final namespaces = [_own, ...legacyNamespaces];
-    final targets = <(String, DriveNamespace)>[
-      for (final namespace in namespaces)
-        for (final object in await _list(namespace)) (object.id, namespace),
-    ];
+    final targets = await _list(_own);
     var done = 0;
     onProgress?.call(done, targets.length);
-    for (final (id, namespace) in targets) {
-      await _delete(id, namespace);
+    for (final object in targets) {
+      await _delete(object.id, _own);
       onProgress?.call(++done, targets.length);
     }
-    for (final namespace in namespaces) {
-      if ((await _list(namespace)).isNotEmpty) {
-        throw StateError(
-          'Google Drive still contains backup data. Close the app on other devices and retry.',
-        );
-      }
+    if ((await _list(_own)).isNotEmpty) {
+      throw StateError(
+        'Google Drive still contains backup data. Close the app on other devices and retry.',
+      );
     }
   }
 }

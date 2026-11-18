@@ -10,7 +10,6 @@ import '../../../core/presentation/rendering_policy.dart';
 import '../application/sync_providers.dart';
 import 'backup_status.dart';
 import 'reset_account_page.dart';
-import 'restore_offer.dart';
 import 'sync_material.dart';
 
 /// The backup sheet: your journal's flight to Google Drive, when it backs up,
@@ -182,7 +181,6 @@ class _BackupSheetState extends ConsumerState<BackupSheet> {
     final cloud = ref.watch(syncBackendProvider).displayName;
     final settings =
         ref.watch(backupSettingsProvider).value ?? const BackupSettings();
-    final offer = ref.watch(restoreOfferProvider);
     final deviceName = ref.watch(deviceIdentityProvider).value?.deviceName;
     final palette = MorePalette.of(context);
     final status = describeBackup(
@@ -223,7 +221,6 @@ class _BackupSheetState extends ConsumerState<BackupSheet> {
                     deviceName: deviceName,
                   ),
                   _NoticeSlot(notice: _notice),
-                  if (offer != null && !running) RestoreOfferPanel(offer: offer),
                   const SizedBox(height: 14),
                   if (running && state.activity == BackupActivity.uploading)
                     OutlinedButton.icon(
@@ -299,12 +296,15 @@ class _BackupSheetState extends ConsumerState<BackupSheet> {
                           ),
                         ),
                         value: settings.allowCellular,
-                        onChanged: account == null ||
+                        onChanged:
+                            account == null ||
                                 settings.interval == BackupInterval.manual
                             ? null
                             : (value) => ref
                                   .read(backupSettingsProvider.notifier)
-                                  .save(settings.copyWith(allowCellular: value)),
+                                  .save(
+                                    settings.copyWith(allowCellular: value),
+                                  ),
                       ),
                     ],
                   ),

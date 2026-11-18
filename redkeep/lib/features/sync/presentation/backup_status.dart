@@ -154,7 +154,8 @@ BackupStatusView describeBackup(
   }
   return BackupStatusView(
     label: 'Backed up ${backupTime(last, at)}',
-    detail: '$cloudName${state.lastSize == null ? '' : ' · ${backupSize(state.lastSize!)}'}',
+    detail:
+        '$cloudName${state.lastSize == null ? '' : ' · ${backupSize(state.lastSize!)}'}',
     icon: Icons.cloud_done_outlined,
     stamp: stamp,
   );

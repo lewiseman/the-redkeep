@@ -21,7 +21,6 @@ void main() {
       drive.client,
       appId: 'app',
       chunkSize: 256 * 1024,
-      legacyNamespaces: const [DriveNamespace('legacyNs', 'app-v1')],
       retry: BackupRetry(attempts: 3, sleep: (_) async {}),
     );
   });
@@ -103,13 +102,14 @@ void main() {
     );
   });
 
-  test('reset deletes current and legacy objects only', () async {
+  test('reset deletes only this app\'s objects', () async {
     drive.add({'swApp': 'app'});
-    drive.add({'legacyNs': 'app-v1'});
-    final foreign = drive.add({'legacyNs': 'someone-else'});
+    drive.add({'swApp': 'app', 'swKind': 'snapshot'});
+    final foreign = drive.add({'swApp': 'other'});
+    final untagged = drive.add({'redkeepNamespace': 'redkeep-v1'});
     final progress = <int>[];
     await remote.deleteAll(onProgress: (done, _) => progress.add(done));
-    expect(drive.files.keys, [foreign.id]);
+    expect(drive.files.keys.toSet(), {foreign.id, untagged.id});
     expect(progress, [0, 1, 2]);
   });
 

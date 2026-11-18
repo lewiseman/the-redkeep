@@ -67,6 +67,7 @@ void main() {
     expect(stored.properties['swApp'], 'app');
     expect(stored.properties['swSchema'], '3');
     expect(stored.properties['swDevice'], 'Test phone');
+    expect(stored.properties['swFormat'], '1');
     expect(notifier.events.last, 'clear');
     expect(
       await Directory(p.join(root.path, 'state', 'staging')).exists(),
@@ -90,6 +91,27 @@ void main() {
     await first.backUpNow();
     expect(await File('$dbPath.before-restore').exists(), isFalse);
   });
+
+  test(
+    'format 1 reads unmarked backups and leaves newer formats alone',
+    () async {
+      expect((await engine().backUpNow()).error, isNull);
+      final current = snapshots(state: 'committed').single;
+      // Backups made before the format marker are format 1.
+      current.properties.remove('swFormat');
+      final newer = drive.add(
+        {...current.properties, 'swFormat': '2'},
+        bytes: current.bytes,
+        created: DateTime.utc(2030),
+      );
+      final latest = (await engine().latestBackup())!;
+      expect(latest.id, current.id);
+      for (var i = 0; i < 3; i++) {
+        expect((await engine().backUpNow()).error, isNull);
+      }
+      expect(drive.files.containsKey(newer.id), isTrue);
+    },
+  );
 
   test('a dropped connection resumes from the server offset', () async {
     _writeDatabase(dbPath, rows: ['big'], version: 3, blob: 900 * 1024);

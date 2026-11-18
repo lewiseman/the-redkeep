@@ -20,20 +20,12 @@ const onboardingFeatures = [
     accent: Color(0xFFA46D63),
   ),
   (
-    name: 'Grand Maester',
-    artwork: 'onboarding.chapter.maester',
-    scene: 'A fountain pen, lavender and paper writing prompts.',
-    title: 'A little help with your words.',
-    detail: 'Optional help to rewrite, summarize, and reflect, using your computer or a provider you choose.',
+    name: 'Backup',
+    // Provider-neutral art: the buttons below name the sign-in provider.
+    artwork: 'onboarding.chapter.backup',
+    scene: 'A journal resting safely, ready to come back to you.',
+    title: 'Keep your journal safe.',
+    detail: 'Restore your journal from a backup, or skip and start fresh.',
     accent: Color(0xFF8265B0),
-  ),
-  (
-    name: 'Appearance',
-    artwork: 'onboarding.chapter.appearance',
-    scene: 'Paper color swatches and light, dark and system theme cards.',
-    title: 'Make it yours.',
-    detail:
-        'Follow your device theme, reduce motion, and simplify visual effects.',
-    accent: Color(0xFFAA8146),
   ),
 ];

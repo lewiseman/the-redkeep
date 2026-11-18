@@ -550,6 +550,7 @@ class BackupEngine implements BackupLifecycle {
           length: job.length,
           mimeType: 'application/gzip',
           properties: {
+            BackupProperties.format: '$backupFormatVersion',
             BackupProperties.kind: BackupProperties.snapshot,
             BackupProperties.state: BackupProperties.uploading,
             BackupProperties.sha256: job.sha256,
@@ -675,6 +676,7 @@ class BackupEngine implements BackupLifecycle {
         name: 'file-$hash',
         length: length,
         properties: {
+          BackupProperties.format: '$backupFormatVersion',
           BackupProperties.kind: BackupProperties.file,
           BackupProperties.state: BackupProperties.uploading,
           BackupProperties.sha256: hash,
@@ -716,6 +718,7 @@ class BackupEngine implements BackupLifecycle {
       length: length,
       mimeType: 'application/json',
       properties: {
+        BackupProperties.format: '$backupFormatVersion',
         BackupProperties.kind: BackupProperties.filesManifest,
         BackupProperties.state: BackupProperties.committed,
       },
@@ -745,7 +748,11 @@ class BackupEngine implements BackupLifecycle {
 
   Future<void> _prune(BackupRemote remote, BackupJob job) async {
     try {
-      final snapshots = await remote.list(kind: BackupProperties.snapshot);
+      // Objects written by a newer format belong to a newer app: never touch.
+      final snapshots = [
+        for (final s in await remote.list(kind: BackupProperties.snapshot))
+          if (_format(s) <= backupFormatVersion) s,
+      ];
       final committed =
           snapshots
               .where(
@@ -803,6 +810,9 @@ class BackupEngine implements BackupLifecycle {
     }
   }
 
+  static int _format(RemoteObject object) =>
+      int.tryParse(object.properties[BackupProperties.format] ?? '') ?? 1;
+
   static DateTime _created(RemoteObject object) {
     final ms = int.tryParse(object.properties[BackupProperties.created] ?? '');
     return ms != null
@@ -824,6 +834,7 @@ class BackupEngine implements BackupLifecycle {
         for (final s in snapshots)
           if (s.properties[BackupProperties.state] ==
                   BackupProperties.committed &&
+              _format(s) <= backupFormatVersion &&
               s.md5 != null &&
               RegExp(r'^[a-f0-9]{64}$')
                   .hasMatch(s.properties[BackupProperties.sha256] ?? ''))

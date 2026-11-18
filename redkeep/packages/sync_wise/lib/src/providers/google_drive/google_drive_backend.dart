@@ -12,8 +12,6 @@ class GoogleDriveBackend implements BackupBackend {
   final String appId;
   final int chunkSize;
 
-  /// Older formats of this app's data, removed by account reset.
-  final List<DriveNamespace> legacyNamespaces;
   final BackupRetry? retry;
   final bool _ownsAuth;
 
@@ -21,7 +19,6 @@ class GoogleDriveBackend implements BackupBackend {
     required this.appId,
     GoogleAuthService? auth,
     this.chunkSize = 2 * 1024 * 1024,
-    this.legacyNamespaces = const [],
     this.retry,
   }) : auth = auth ?? GoogleAuthService(),
        _ownsAuth = auth == null;
@@ -30,12 +27,10 @@ class GoogleDriveBackend implements BackupBackend {
   factory GoogleDriveBackend.fromConfig(
     BackupConfig config, {
     GoogleAuthService? auth,
-    List<DriveNamespace> legacyNamespaces = const [],
   }) => GoogleDriveBackend(
     appId: config.appId,
     auth: auth,
     chunkSize: config.chunkSize,
-    legacyNamespaces: legacyNamespaces,
     retry: BackupRetry(
       attempts: config.retryAttempts,
       base: config.retryBaseDelay,
@@ -57,7 +52,6 @@ class GoogleDriveBackend implements BackupBackend {
         client,
         appId: appId,
         chunkSize: chunkSize,
-        legacyNamespaces: legacyNamespaces,
         retry: retry,
       ),
     );

@@ -7,15 +7,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts_lite.dart';
 
 import '../../../core/presentation/rendering_policy.dart';
+import '../../sync/application/sync_providers.dart';
 import '../application/onboarding_controller.dart';
+import '../application/onboarding_restore.dart';
 import 'book_artwork.dart';
+import 'onboarding_backup_panel.dart';
 import 'onboarding_book.dart';
 import 'onboarding_chapter.dart';
 import 'onboarding_controls.dart';
 import 'onboarding_content.dart';
 import 'onboarding_terms.dart';
 
-enum _Stage { touring, closing, naming, opening }
+/// `backup`: the book shrinks to make room for signing in and restoring.
+enum _Stage { touring, closing, naming, opening, backup }
 
 class OnboardingPage extends ConsumerStatefulWidget {
   const OnboardingPage({super.key});
@@ -33,6 +37,10 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
     vsync: this,
     duration: const Duration(milliseconds: 1100),
   );
+  late final _shrink = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 450),
+  );
   final _name = TextEditingController();
   final _nameFocus = FocusNode();
   final _tourFocus = FocusNode();
@@ -44,10 +52,23 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
   bool _dragging = false, _finishingTurn = false;
   bool _autoplayPaused = false;
 
+  /// The name on the cover came from a restored backup and is final.
+  bool _restored = false;
+  bool _leavingBackup = false;
+
   @override
   void initState() {
     super.initState();
     _name.addListener(_nameChanged);
+    // Rebuilt after a restore: open on the closed cover with its name.
+    final restore = ref.read(onboardingRestoreProvider);
+    if (restore.phase == OnboardingRestorePhase.restored) {
+      _stage = _Stage.naming;
+      _close.value = 1;
+      _page = onboardingFeatures.length - 1;
+      _restored = restore.name != null;
+      _name.text = restore.name ?? '';
+    }
   }
 
   void _nameChanged() {
@@ -74,6 +95,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
         });
       }
       if (_close.isAnimating) _close.value = _stage == _Stage.opening ? 0 : 1;
+      if (_shrink.isAnimating) _shrink.value = _stage == _Stage.backup ? 1 : 0;
     }
     _scheduleAutoplay();
   }
@@ -209,12 +231,77 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
     // Wait for naming to enable or mount the field before requesting focus,
     // including when reduced motion skips the fold.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && _stage == _Stage.naming) _nameFocus.requestFocus();
+      if (mounted && _stage == _Stage.naming && !_restored) {
+        _nameFocus.requestFocus();
+      }
     });
+  }
+
+  Future<void> _animate(AnimationController controller, double target) async {
+    try {
+      if (_motion) {
+        await controller
+            .animateTo(target, curve: Curves.easeInOutCubic)
+            .orCancel;
+      } else {
+        controller.value = target;
+      }
+    } on TickerCanceled {
+      /* Motion was reduced; the target is set by didChangeDependencies. */
+    }
+  }
+
+  /// Continue with the sign-in provider: shrink the book and look for a
+  /// backup. No name is written until this step is over.
+  Future<void> _startBackup() async {
+    if (_turning || _stage != _Stage.touring) return;
+    _autoplay?.cancel();
+    setState(() => _stage = _Stage.backup);
+    unawaited(ref.read(onboardingRestoreProvider.notifier).connect());
+    await _animate(_shrink, 1);
+  }
+
+  /// Leaves the backup step: back to the last page, or on to the name.
+  Future<void> _leaveBackup({required bool toName}) async {
+    if (_stage != _Stage.backup ||
+        _leavingBackup ||
+        ref.read(onboardingRestoreProvider).busy) {
+      return;
+    }
+    _leavingBackup = true;
+    ref.read(onboardingRestoreProvider.notifier).dismiss();
+    await _animate(_shrink, 0);
+    _leavingBackup = false;
+    if (!mounted) return;
+    _autoplayPaused = true;
+    setState(() => _stage = _Stage.touring);
+    if (toName) {
+      await _begin();
+    } else {
+      _tourFocus.requestFocus();
+    }
+  }
+
+  /// The backup is restored: the book returns and closes on its name.
+  Future<void> _finishRestore(String? name) async {
+    if (_stage != _Stage.backup) return;
+    _name.text = name ?? '';
+    _restored = name != null;
+    await _animate(_shrink, 0);
+    if (!mounted) return;
+    setState(() => _stage = _Stage.touring);
+    await _begin();
+  }
+
+  void _confirmRestored() {
+    if (!_restored || _stage != _Stage.naming) return;
+    ref.read(onboardingControllerProvider.notifier).confirmRestored(_name.text);
+    ref.read(onboardingRestoreProvider.notifier).dismiss();
   }
 
   Future<void> _back() async {
     if (_stage != _Stage.naming ||
+        _restored ||
         ref.read(onboardingControllerProvider).saving) {
       return;
     }
@@ -250,6 +337,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
     _autoplay?.cancel();
     _turn.dispose();
     _close.dispose();
+    _shrink.dispose();
     _name.dispose();
     _nameFocus.dispose();
     _tourFocus.dispose();
@@ -269,79 +357,123 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
         )),
       );
     }
+    ref.listen(onboardingRestoreProvider, (_, next) {
+      if (_stage != _Stage.backup || _leavingBackup) return;
+      if (next.phase == OnboardingRestorePhase.restored) {
+        unawaited(_finishRestore(next.name));
+      } else if (next.phase == OnboardingRestorePhase.idle) {
+        // The sign-in was dismissed.
+        unawaited(_leaveBackup(toName: false));
+      }
+    });
     final naming = _stage == _Stage.naming;
     final touring = _stage == _Stage.touring;
+    final backupStage = _stage == _Stage.backup;
     final enabled = !state.saving && !_turning && (touring || naming);
     final chapter = onboardingFeatures[_page];
+    final backupsAvailable = ref.watch(syncEnabledProvider);
+    final backupPage = _page == onboardingFeatures.length - 1;
     final error = state.saveFailed
         ? 'Your name could not be saved. Check device storage and try again.'
         : state.nameInvalid
         ? 'Enter your name to continue.'
         : null;
-    Widget actions() => Padding(
-      padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (!naming)
-            const Text(
-              'Your space for notes, diary and passing thoughts, with local AI support.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Color(0xFF514354),
-                fontSize: 18,
-                height: 1.45,
-                letterSpacing: -.2,
-              ),
+    Widget actions() {
+      final keyboard = MediaQuery.viewInsetsOf(context).bottom > 0;
+      if (backupStage) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
+          child: OnboardingBackupPanel(
+            onSkip: () => _leaveBackup(toName: true),
+          ),
+        );
+      }
+      // Restoring needs an account: the last page offers it, earlier pages
+      // lead there. Without backups the tour closes straight to the name.
+      final (String label, VoidCallback? onPressed) = naming
+          ? _restored
+                ? ('Continue', enabled ? _confirmRestored : null)
+                : (
+                    state.saving ? 'Saving…' : 'Save',
+                    enabled && _name.text.trim().isNotEmpty ? _save : null,
+                  )
+          : !backupsAvailable
+          ? ("Let's begin", enabled ? _begin : null)
+          : backupPage
+          ? (
+              onboardingSignInLabel(ref.watch(syncBackendProvider)),
+              enabled ? _startBackup : null,
             )
-          else if (MediaQuery.viewInsetsOf(context).bottom == 0)
-            Text(
-              'Your story starts with you.',
-              textAlign: TextAlign.center,
-              style: GoogleFontsLite.getFont(
-                'Allura',
-                color: const Color(0xFF433548),
-                fontSize: 30,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          if (error != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: Semantics(
-                liveRegion: true,
-                child: Text(
-                  error,
+          : ('Next', enabled ? () => _flip(1) : null);
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
+        child: Column(
+          key: const ValueKey('onboarding-actions'),
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (!naming)
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 460),
+                child: const Text(
+                  'Your space for notes, diary and passing thoughts, with AI support.',
+                  key: ValueKey('onboarding-description'),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Color(0xFF8C3544)),
+                  style: TextStyle(
+                    color: Color(0xFF514354),
+                    fontSize: 18,
+                    height: 1.45,
+                    letterSpacing: -.2,
+                  ),
+                ),
+              )
+            else if (!keyboard)
+              Text(
+                _restored ? 'Welcome back.' : 'Your story starts with you.',
+                textAlign: TextAlign.center,
+                style: GoogleFontsLite.getFont(
+                  'Allura',
+                  color: const Color(0xFF433548),
+                  fontSize: 30,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
+            if (error != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    error,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Color(0xFF9B3E4C)),
+                  ),
+                ),
+              ),
+            if (!naming || !keyboard || error != null)
+              const SizedBox(height: 20),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 460),
+              child: OnboardingPrimaryButton(
+                key: const ValueKey('onboarding-primary'),
+                label: label,
+                onPressed: onPressed,
+                simple: policy.simplerEffects,
+              ),
             ),
-          if (!naming ||
-              MediaQuery.viewInsetsOf(context).bottom == 0 ||
-              error != null)
-            const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            child: OnboardingPrimaryButton(
-              label: naming
-                  ? state.saving
-                        ? 'Saving…'
-                        : 'Save'
-                  : "Let's begin",
-              onPressed: enabled
-                  ? naming
-                        ? _name.text.trim().isEmpty
-                              ? null
-                              : _save
-                        : _begin
-                  : null,
-              simple: policy.simplerEffects,
-            ),
-          ),
-        ],
-      ),
-    );
+            if (touring && backupsAvailable && backupPage)
+              TextButton(
+                key: const ValueKey('onboarding-skip-backup'),
+                onPressed: enabled ? _begin : null,
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFF715B83),
+                  minimumSize: const Size(0, 48),
+                ),
+                child: const Text('Skip', style: TextStyle(fontSize: 16)),
+              ),
+          ],
+        ),
+      );
+    }
 
     Widget book(double maxWidth, double maxHeight, {bool embeddedName = true}) {
       final openWidth = math.max(
@@ -426,7 +558,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
                           artworkWidth: artworkWidth.toDouble(),
                           nameController: _name,
                           nameFocus: _nameFocus,
-                          editable: naming && !state.saving,
+                          editable: naming && !state.saving && !_restored,
                           showNameField: embeddedName,
                           onSubmit: _save,
                           onPageTap: touring && enabled ? _flip : null,
@@ -448,7 +580,9 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
     Widget gate(Widget child) => PopScope<Object?>(
       canPop: _stage == _Stage.touring || state.saving,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop && naming) {
+        if (!didPop && backupStage) {
+          unawaited(_leaveBackup(toName: false));
+        } else if (!didPop && naming) {
           if (_nameFocus.hasFocus ||
               MediaQuery.viewInsetsOf(context).bottom > 0) {
             _nameFocus.unfocus();
@@ -467,6 +601,9 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
           },
           if (naming && enabled)
             const SingleActivator(LogicalKeyboardKey.escape): () => _back(),
+          if (backupStage)
+            const SingleActivator(LogicalKeyboardKey.escape): () =>
+                _leaveBackup(toName: false),
         },
         child: Focus(focusNode: _tourFocus, autofocus: true, child: child),
       ),
@@ -491,8 +628,10 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
           saving: state.saving,
           nameController: _name,
           nameFocus: _nameFocus,
-          error: error,
-          onBegin: _begin,
+          nameEditable: !_restored,
+          shrink: _shrink,
+          backup: backupStage,
+          actions: actions(),
           onSave: _save,
           onFlip: _flip,
           onDragStart: _startDrag,
@@ -552,7 +691,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
                               child: TextField(
                                 controller: _name,
                                 focusNode: _nameFocus,
-                                enabled: !state.saving,
+                                enabled: !state.saving && !_restored,
                                 autofillHints: const [AutofillHints.name],
                                 textCapitalization: TextCapitalization.words,
                                 inputFormatters: [
@@ -570,7 +709,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
                                 ),
                               ),
                             )
-                          else
+                          else if (!backupStage)
                             Padding(
                               padding: const EdgeInsets.all(24),
                               child: Column(
@@ -606,7 +745,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
                                 ],
                               ),
                             ),
-                          if (!naming) hints(),
+                          if (!naming && !backupStage) hints(),
                           actions(),
                           if (MediaQuery.viewInsetsOf(context).bottom == 0)
                             const OnboardingTerms(),

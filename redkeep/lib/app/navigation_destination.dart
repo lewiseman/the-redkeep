@@ -55,9 +55,13 @@ String? navigationRedirect(
   Uri requested, {
   required bool startupReady,
   required bool onboardingComplete,
+  bool holdOnboarding = false,
 }) {
   final destination = _requestedDestination(requested);
-  final location = !startupReady
+  // A restore in onboarding re-runs the startup checks; stay on the book.
+  final location = holdOnboarding
+      ? _gate('/onboarding', destination)
+      : !startupReady
       ? _gate('/startup', destination)
       : !onboardingComplete
       ? _gate('/onboarding', destination)

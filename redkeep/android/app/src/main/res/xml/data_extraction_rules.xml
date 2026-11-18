@@ -5,6 +5,12 @@
     <exclude domain="file" path="diary_photo_uploads/" />
     <!-- Drive backup progress and staging: device-specific, never restored. -->
     <exclude domain="file" path="sync_wise/" />
+    <!-- The journal is restored from its Drive backup, never by Android: an
+         older device-backup copy would hide the newer Drive backup. -->
+    <exclude domain="file" path="redkeep.sqlite" />
+    <exclude domain="file" path="redkeep.sqlite-journal" />
+    <exclude domain="file" path="redkeep.sqlite-wal" />
+    <exclude domain="file" path="redkeep.sqlite-shm" />
     <exclude domain="sharedpref" path="redkeep_companion.xml" />
     <exclude domain="sharedpref" path="FlutterSecureStorageConfiguration:redkeep_companion.xml" />
     <exclude domain="sharedpref" path="FlutterSecureKeyStorage:redkeep_companion.xml" />
@@ -14,6 +20,12 @@
     <exclude domain="file" path="diary_photo_uploads/" />
     <!-- Drive backup progress and staging: device-specific, never restored. -->
     <exclude domain="file" path="sync_wise/" />
+    <!-- The journal is restored from its Drive backup, never by Android: an
+         older device-backup copy would hide the newer Drive backup. -->
+    <exclude domain="file" path="redkeep.sqlite" />
+    <exclude domain="file" path="redkeep.sqlite-journal" />
+    <exclude domain="file" path="redkeep.sqlite-wal" />
+    <exclude domain="file" path="redkeep.sqlite-shm" />
     <exclude domain="sharedpref" path="redkeep_companion.xml" />
     <exclude domain="sharedpref" path="FlutterSecureStorageConfiguration:redkeep_companion.xml" />
     <exclude domain="sharedpref" path="FlutterSecureKeyStorage:redkeep_companion.xml" />

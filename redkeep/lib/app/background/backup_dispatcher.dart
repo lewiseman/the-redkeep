@@ -6,7 +6,6 @@ import 'package:workmanager/workmanager.dart';
 
 import '../../features/sync/data/backup_identity.dart';
 import '../../features/sync/data/redkeep_backup.dart';
-import '../../features/sync/legacy/legacy_import.dart';
 
 Future<void>? _initialized;
 
@@ -23,36 +22,15 @@ void backupDispatcher() {
     if (task != backupTaskName) return true;
     WidgetsFlutterBinding.ensureInitialized();
     final auth = GoogleAuthService();
-    final backend = GoogleDriveBackend(
-      appId: backupAppId,
-      auth: auth,
-      legacyNamespaces: const [legacySyncNamespace],
-    );
+    final backend = GoogleDriveBackend(appId: backupAppId, auth: auth);
     try {
       return await runScheduledBackup(() async {
         final device = await DeviceIdentityService.load();
-        final marker = await LegacyImport.markerFile(
-          await appSupportDirectory(),
-        );
         return createRedkeepBackupEngine(
           backend: backend,
           network: NetworkService(),
           deviceName: device.deviceName,
           canRun: AccountResetStorage().canSync,
-          beforeBackup: [
-            // Old sync data is copied in by the app, which owns the database.
-            () async {
-              final account = auth.currentUser;
-              if (account != null &&
-                  !await LegacyImport.isDoneAt(marker, account.id) &&
-                  await _hasLegacyData(auth)) {
-                throw const BackupException(
-                  BackupErrorKind.busy,
-                  'Open Redkeep once to finish moving to backups.',
-                );
-              }
-            },
-          ],
         );
       });
     } finally {
@@ -60,14 +38,4 @@ void backupDispatcher() {
       auth.dispose();
     }
   });
-}
-
-Future<bool> _hasLegacyData(GoogleAuthService auth) async {
-  final client = await auth.authenticatedClient();
-  if (client == null) return false;
-  try {
-    return await LegacyDriveReader(client).hasData();
-  } finally {
-    client.close();
-  }
 }

@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
@@ -77,20 +76,35 @@ class NoteScene extends ConsumerWidget {
             backgroundColor: colors.background,
             foregroundColor: colors.foreground,
             surfaceTintColor: Colors.transparent,
-            // Artwork shows untinted behind the status bar; its icons follow
-            // the top of the image so they stay visible.
-            systemOverlayStyle: header == null
-                ? base.appBarTheme.systemOverlayStyle
-                : ThemeData.estimateBrightnessForColor(header) ==
-                      Brightness.light
+            // Status bar icons follow what is behind them: the top of the
+            // artwork, or else the paper.
+            systemOverlayStyle:
+                ThemeData.estimateBrightnessForColor(
+                      header ?? colors.background,
+                    ) ==
+                    Brightness.light
                 ? SystemUiOverlayStyle.dark
                 : SystemUiOverlayStyle.light,
           ),
         ),
-        child: NotePaperOpacity(
-          opacity: opacity,
-          frosted: image != null,
-          child: child,
+        child: NoteChrome(
+          theme: base,
+          child: NotePaperOpacity(
+            // Without artwork the paper fills the page over a soft wash;
+            // it lets the wash show only as far as the writing stays clear.
+            opacity: image == null
+                ? AlwaysStoppedAnimation(
+                    notePaperOpacity(
+                      paper: colors.background,
+                      ink: colors.foreground,
+                      behind: base.colorScheme.surface,
+                      preferred: opacity.value,
+                    ),
+                  )
+                : opacity,
+            frosted: image != null,
+            child: child,
+          ),
         ),
       ),
     );
@@ -154,6 +168,26 @@ ColorScheme noteSceneScheme(ColorScheme base, NoteColors colors) {
   );
 }
 
+/// The most see-through [paper] can be, from [preferred] up to solid, while
+/// [ink] keeps [ratio] contrast with the paper as seen over [behind].
+///
+/// Pale paper barely changes over the cream wash and keeps its translucency.
+/// Bold paper (crimson, cobalt) would blend into a mid tone that light ink
+/// no longer reads on, so it turns nearly solid.
+double notePaperOpacity({
+  required Color paper,
+  required Color ink,
+  required Color behind,
+  double preferred = .78,
+  double ratio = 7,
+}) {
+  for (var opacity = preferred; opacity < 1; opacity += .02) {
+    final seen = Color.alphaBlend(paper.withValues(alpha: opacity), behind);
+    if (noteAiContrast(ink, seen) >= ratio) return opacity;
+  }
+  return 1;
+}
+
 /// Shares the original painting's readable paper opacity with the folded paper.
 class NotePaperOpacity extends InheritedWidget {
   const NotePaperOpacity({
@@ -182,20 +216,16 @@ class NotePaperOpacity extends InheritedWidget {
 const notePaperFrostSigma = 10.0;
 
 /// One blur over the artwork behind the whole note page (bar and body), so
-/// immersive paper and its bar read as one continuous frosted sheet instead
-/// of two blurs meeting at a seam. [amount] is the paper's expansion: the
-/// folded preview leaves the scene sharp around the card.
+/// the paper and its bar read as one continuous frosted sheet instead of two
+/// blurs meeting at a seam.
 class NotePageFrost extends StatelessWidget {
-  const NotePageFrost({super.key, required this.amount, required this.child});
+  const NotePageFrost({super.key, required this.child});
 
-  final double amount;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    final sigma = notePaperFrostSigma * amount.clamp(0.0, 1.0);
-    if (sigma <= 0 ||
-        !NotePaperOpacity.frostedOf(context) ||
+    if (!NotePaperOpacity.frostedOf(context) ||
         RenderingPolicyScope.of(context).simplerEffects) {
       return child;
     }
@@ -204,7 +234,10 @@ class NotePageFrost extends StatelessWidget {
       children: [
         ClipRect(
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
+            filter: ImageFilter.blur(
+              sigmaX: notePaperFrostSigma,
+              sigmaY: notePaperFrostSigma,
+            ),
             child: const SizedBox.expand(),
           ),
         ),
@@ -212,13 +245,31 @@ class NotePageFrost extends StatelessWidget {
       ],
     );
   }
+}
 
-  /// The paper's own extra blur, so it always totals full strength on top of
-  /// the page frost (stacked Gaussian blurs add in quadrature).
-  static double paperSigma(double expansion) {
-    final page = notePaperFrostSigma * expansion.clamp(0.0, 1.0);
-    return math.sqrt(
-      math.max(0.0, notePaperFrostSigma * notePaperFrostSigma - page * page),
-    );
-  }
+/// The app's own theme, kept for a note page's controls.
+///
+/// Only the paper takes the note's color; buttons, the dock and the format
+/// tools stay neutral so they never compete with the writing.
+class NoteChrome extends InheritedWidget {
+  const NoteChrome({super.key, required this.theme, required super.child});
+  final ThemeData theme;
+
+  /// The neutral theme, or the current one outside a note scene.
+  static ThemeData of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<NoteChrome>()?.theme ??
+      Theme.of(context);
+
+  @override
+  bool updateShouldNotify(NoteChrome oldWidget) => theme != oldWidget.theme;
+}
+
+/// Shows [child] in the note page's neutral control theme.
+class NoteChromeTheme extends StatelessWidget {
+  const NoteChromeTheme({super.key, required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) =>
+      Theme(data: NoteChrome.of(context), child: child);
 }

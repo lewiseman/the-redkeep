@@ -9,7 +9,6 @@ class NoteCollectionEntry {
     required this.excerpt,
     required this.updatedAt,
     required this.pinned,
-    this.hasWebsite = false,
   });
 
   static const excerptCharacters = 600;
@@ -19,7 +18,4 @@ class NoteCollectionEntry {
   final String excerpt;
   final DateTime updatedAt;
   final bool pinned;
-
-  /// Whether this device holds a generated website for the note.
-  final bool hasWebsite;
 }

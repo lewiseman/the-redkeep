@@ -16,27 +16,18 @@ import 'note_ai_widgets.dart';
 import 'note_app_bar.dart';
 import 'note_chat_cards.dart';
 
-/// Words to put in the message box when the chat opens, e.g. "Build it
-/// again" from a website. Nothing is sent until the person sends it.
-class NoteChatDraftMessage {
-  const NoteChatDraftMessage(this.text);
-  final String text;
-}
-
-/// The Maester's conversation about one note: writing help and the note's
-/// website in one place. Each change the Maester asks for shows as a card;
-/// note text changes only when the person keeps it.
+/// The Maester's conversation about one note. Each change the Maester asks
+/// for shows as a card; note text changes only when the person keeps it.
 class NoteChatPage extends ConsumerStatefulWidget {
-  const NoteChatPage({super.key, required this.id, this.draft = ''});
+  const NoteChatPage({super.key, required this.id});
   final String id;
-  final String draft;
 
   @override
   ConsumerState<NoteChatPage> createState() => _NoteChatPageState();
 }
 
 class _NoteChatPageState extends ConsumerState<NoteChatPage> {
-  late final _input = TextEditingController(text: widget.draft);
+  final _input = TextEditingController();
   final _focus = FocusNode();
 
   @override
@@ -67,7 +58,7 @@ class _NoteChatPageState extends ConsumerState<NoteChatPage> {
       builder: (dialog) => AlertDialog(
         title: const Text('Clear this conversation?'),
         content: const Text(
-          'The Maester forgets it. Your note and its website stay as they are.',
+          'The Maester forgets it. Your note stays as it is.',
         ),
         actions: [
           TextButton(
@@ -94,7 +85,6 @@ class _NoteChatPageState extends ConsumerState<NoteChatPage> {
     ref.watch(aiJobsProvider(noteChatScope(id)));
     final opened = ref.watch(noteDocumentProvider(id)).value;
     final note = opened?.available == true ? opened!.note : null;
-    final website = ref.watch(noteWebsiteProvider(id)).value;
     final turns = ref.watch(noteChatTurnsProvider(id)).value ?? const [];
     final chat = ref.watch(noteChatProvider(id));
     final noteColor = NoteColors.fromBackground(
@@ -110,7 +100,7 @@ class _NoteChatPageState extends ConsumerState<NoteChatPage> {
             data: palette.theme(Theme.of(context)),
             child: Builder(
               builder: (context) => Scaffold(
-                appBar: _bar(context, note, website != null, turns.isNotEmpty),
+                appBar: _bar(context, note, turns.isNotEmpty),
                 body: SafeArea(
                   top: false,
                   child: Column(
@@ -121,7 +111,6 @@ class _NoteChatPageState extends ConsumerState<NoteChatPage> {
                           turns: turns,
                           chat: chat,
                           note: note,
-                          hasWebsite: website != null,
                         ),
                       ),
                       _Composer(
@@ -147,7 +136,6 @@ class _NoteChatPageState extends ConsumerState<NoteChatPage> {
   PreferredSizeWidget _bar(
     BuildContext context,
     NoteDocument? note,
-    bool hasWebsite,
     bool hasTurns,
   ) {
     final theme = Theme.of(context);
@@ -216,7 +204,6 @@ class _NoteChatPageState extends ConsumerState<NoteChatPage> {
           style: noteBarButtonStyle(context),
           icon: const Icon(Icons.more_horiz_rounded),
           onSelected: (value) => switch (value) {
-            'website' => context.push(noteWebsiteLocation(widget.id)),
             'photo' => showNoteAiTools(
               context,
               widget.id,
@@ -227,14 +214,6 @@ class _NoteChatPageState extends ConsumerState<NoteChatPage> {
             _ => null,
           },
           itemBuilder: (_) => [
-            if (hasWebsite)
-              const PopupMenuItem(
-                value: 'website',
-                child: ListTile(
-                  leading: Icon(Icons.web_rounded),
-                  title: Text('Open website'),
-                ),
-              ),
             if (photos)
               const PopupMenuItem(
                 value: 'photo',
@@ -264,7 +243,6 @@ class _NoteChatPageState extends ConsumerState<NoteChatPage> {
     required List<NoteChatTurn> turns,
     required NoteChatState chat,
     required NoteDocument? note,
-    required bool hasWebsite,
   }) {
     final empty = note == null || note.text.body.trim().isEmpty;
     final latest = turns.isEmpty ? null : turns.last;
@@ -272,7 +250,6 @@ class _NoteChatPageState extends ConsumerState<NoteChatPage> {
       if (turns.isEmpty && !chat.sending)
         _Welcome(
           empty: empty,
-          hasWebsite: hasWebsite,
           onPick: chat.sending ? null : (text) => _send(text),
         ),
       if (turns.length >= noteChatKeptTurns)
@@ -325,12 +302,8 @@ class _NoteChatPageState extends ConsumerState<NoteChatPage> {
 
 /// What the Maester can do, before anything was said.
 class _Welcome extends StatelessWidget {
-  const _Welcome({
-    required this.empty,
-    required this.hasWebsite,
-    required this.onPick,
-  });
-  final bool empty, hasWebsite;
+  const _Welcome({required this.empty, required this.onPick});
+  final bool empty;
   final ValueChanged<String>? onPick;
 
   @override
@@ -343,11 +316,6 @@ class _Welcome extends StatelessWidget {
         ('Tidy and organise this note', Icons.format_list_bulleted_rounded),
         ('Fix grammar and clarity', Icons.spellcheck_rounded),
         ('Make it warmer and friendlier', Icons.sentiment_satisfied_rounded),
-        if (!hasWebsite) ('Turn this note into a website', Icons.web_rounded),
-      ],
-      if (hasWebsite) ...[
-        ('Give the website a darker look', Icons.dark_mode_outlined),
-        ('Add a quiz to the website', Icons.quiz_outlined),
       ],
     ];
     return Column(
@@ -372,9 +340,7 @@ class _Welcome extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          hasWebsite
-              ? 'Ask me to improve the writing, or to change this note’s website. You review every change to your words.'
-              : 'Ask me to improve the writing or turn it into a website. You review every change to your words.',
+          'Ask me to improve the writing. You review every change to your words.',
           textAlign: TextAlign.center,
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,

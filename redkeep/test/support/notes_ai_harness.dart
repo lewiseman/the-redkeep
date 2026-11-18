@@ -25,10 +25,6 @@ const noteMetadataOutput = '{"titles":["Raised bed plan"]}';
 
 /// The request scope the notes tests act as.
 const notesJobScope = 'note-ai:test:';
-const noteWebsiteOutput =
-    '<!doctype html><html><head><style>:root[data-theme="dark"]{--ink:#eee}</style></head>'
-    '<body><h1>Garden plan</h1><p>Plant tomatoes in the raised bed.</p>'
-    '<script>document.querySelector("h1").dataset.ready = "1";</script></body></html>';
 
 /// The cloud provider as the notes tests see it.
 class NotesRemote {

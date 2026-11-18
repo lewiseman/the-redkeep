@@ -129,18 +129,6 @@ class _NoteChatActionCardState extends ConsumerState<NoteChatActionCard> {
         tool: NoteAiTool.template,
         quote: text('idea'),
       ),
-      NoteChatTools.buildWebsite => (
-        title: 'Build the website',
-        icon: Icons.web_rounded,
-        tool: NoteAiTool.presentation,
-        quote: text('brief'),
-      ),
-      NoteChatTools.updateWebsite => (
-        title: 'Change the website',
-        icon: Icons.auto_fix_high_rounded,
-        tool: NoteAiTool.presentation,
-        quote: text('instruction'),
-      ),
       _ => (
         title: 'Maester',
         icon: Icons.auto_awesome_rounded,
@@ -165,9 +153,6 @@ class _NoteChatActionCardState extends ConsumerState<NoteChatActionCard> {
     final proposal = action.status == NoteChatActionStatus.ready
         ? _chat.proposal(action)
         : null;
-    final website =
-        action.call.name == NoteChatTools.buildWebsite ||
-        action.call.name == NoteChatTools.updateWebsite;
     return Card(
       key: ValueKey('note-chat-card-${action.status.name}'),
       margin: EdgeInsets.zero,
@@ -219,7 +204,6 @@ class _NoteChatActionCardState extends ConsumerState<NoteChatActionCard> {
               NoteChatActionStatus.running || NoteChatActionStatus.ready => [
                 _status('Set aside. Ask again to make it.', Icons.history),
               ],
-              NoteChatActionStatus.kept when website => _websiteKept(),
               NoteChatActionStatus.kept => [
                 _status('Kept in your note.', Icons.check_circle_outline),
                 if (widget.latest)
@@ -307,14 +291,6 @@ class _NoteChatActionCardState extends ConsumerState<NoteChatActionCard> {
         liveRegion: true,
         child: Text(noteAiPhaseTitle(tool, job.phase)),
       ),
-      if (tool == NoteAiTool.presentation)
-        Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Text(
-            'A website can take a few minutes. Stay on this page.',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ),
       Align(
         alignment: AlignmentDirectional.centerStart,
         child: TextButton.icon(
@@ -406,45 +382,6 @@ class _NoteChatActionCardState extends ConsumerState<NoteChatActionCard> {
             icon: const Icon(Icons.check_rounded),
             label: const Text('Keep in note'),
           ),
-        ],
-      ),
-    ];
-  }
-
-  List<Widget> _websiteKept() {
-    final page = ref.watch(noteWebsiteProvider(widget.noteId)).value;
-    return [
-      _status(
-        widget.action.call.name == NoteChatTools.buildWebsite
-            ? 'Website built.'
-            : 'Website changed.',
-        Icons.check_circle_outline,
-      ),
-      const SizedBox(height: 6),
-      Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          if (page != null)
-            FilledButton.tonalIcon(
-              key: const ValueKey('note-chat-open-website'),
-              onPressed: () => context.push(noteWebsiteLocation(widget.noteId)),
-              icon: const Icon(Icons.open_in_new_rounded),
-              label: const Text('Open website'),
-            ),
-          if (widget.latest && page != null && page.canUndo)
-            TextButton.icon(
-              key: const ValueKey('note-chat-undo-website'),
-              onPressed: _working
-                  ? null
-                  : () => _do(() async {
-                      if (!await _chat.undoWebsite()) {
-                        throw const FormatException('Nothing to undo.');
-                      }
-                    }),
-              icon: const Icon(Icons.undo_rounded),
-              label: const Text('Undo'),
-            ),
         ],
       ),
     ];

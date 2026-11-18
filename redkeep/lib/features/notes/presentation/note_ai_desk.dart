@@ -33,9 +33,8 @@ class NoteAiLanding {
 /// Opens the Maester's desk over the note. Keeping a result closes the desk
 /// and returns a [NoteAiLanding] so the note can show what changed.
 ///
-/// [initialTool] opens that tool straight away, e.g. Regenerate on a
-/// website page. [only] limits the desk to those tools, e.g. when writing
-/// and websites belong to the Maester's chat.
+/// [initialTool] opens that tool straight away. [only] limits the desk to
+/// those tools, e.g. Explore a photo from the Maester's chat.
 Future<NoteAiLanding?> showNoteAiTools(
   BuildContext context,
   String id, {
@@ -109,16 +108,11 @@ class _NoteAiDeskState extends ConsumerState<NoteAiDesk> {
     final title = state?.text.title ?? saved?.text.title ?? '';
     final only = widget.only;
     final all = draft
-        ? [
-            NoteAiTool.template,
-            // A new note can start as a website too.
-            NoteAiTool.presentation,
-          ]
+        ? [NoteAiTool.template]
         : [
             NoteAiTool.writing,
             if (saved.details.attachments.any((a) => a.isImage))
               NoteAiTool.image,
-            NoteAiTool.presentation,
           ];
     final tools = [
       for (final t in all)

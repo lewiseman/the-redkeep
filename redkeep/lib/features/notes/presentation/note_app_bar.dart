@@ -5,23 +5,18 @@ import '../../../core/presentation/rendering_policy.dart';
 import 'note_scene.dart';
 
 /// The one app bar of [NotePage], shared by reading and editing so switching
-/// between them keeps the same back button, AI button, and paper fill.
+/// between them keeps the same back button over the same paper.
 class NoteAppBar extends StatelessWidget implements PreferredSizeWidget {
   const NoteAppBar({
     super.key,
     required this.onBack,
-    required this.actions,
+    this.actions = const [],
     this.backTooltip = 'Back',
-    this.fill = 1,
   });
 
   final VoidCallback? onBack;
   final String backTooltip;
   final List<Widget> actions;
-
-  /// How much of the paper surface the bar paints: zero lets the note scene
-  /// show through (folded preview), one continues flat paper under the bar.
-  final double fill;
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
@@ -34,8 +29,7 @@ class NoteAppBar extends StatelessWidget implements PreferredSizeWidget {
       builder: (context) => FadeTransition(
         opacity: NotePaperOpacity.of(context),
         child: ColoredBox(
-          color: Theme.of(context).appBarTheme.backgroundColor!
-              .withValues(alpha: fill.clamp(0, 1)),
+          color: Theme.of(context).appBarTheme.backgroundColor!,
           child: const SizedBox.expand(),
         ),
       ),
@@ -57,12 +51,16 @@ class NoteAppBar extends StatelessWidget implements PreferredSizeWidget {
   );
 }
 
-/// The round surface button style of the note bar (back and more).
+/// The round button style of a note page's controls (back, more, Maester).
+/// Neutral, in the app's own colors, whatever the note's paper.
 ButtonStyle noteBarButtonStyle(BuildContext context) {
-  final colors = Theme.of(context).colorScheme;
+  final colors = NoteChrome.of(context).colorScheme;
   return IconButton.styleFrom(
+    // Plain paper is the app's surfaceContainerHigh, so the lighter surface
+    // and a hairline keep the button visible on every paper.
     backgroundColor: colors.surface,
     foregroundColor: colors.onSurface,
+    side: BorderSide(color: colors.outlineVariant.withValues(alpha: .7)),
     minimumSize: const Size.square(48),
   );
 }
@@ -78,26 +76,18 @@ class NoteAiButton extends StatelessWidget {
   final String tooltip;
 
   @override
-  Widget build(BuildContext context) => Tooltip(
-    message: tooltip,
-    child: Semantics(
-      button: true,
-      enabled: onPressed != null,
-      child: InkWell(
-        onTap: onPressed,
-        customBorder: const CircleBorder(),
-        child: Opacity(
-          opacity: onPressed == null ? .5 : 1,
-          child: Padding(
-            padding: const EdgeInsets.all(8),
-            child: Image.asset(
-              'assets/branding/grand_maestar.png',
-              width: 40,
-              height: 40,
-              excludeFromSemantics: true,
-            ),
-          ),
-        ),
+  Widget build(BuildContext context) => IconButton(
+    tooltip: tooltip,
+    onPressed: onPressed,
+    style: noteBarButtonStyle(context)
+        .copyWith(padding: const WidgetStatePropertyAll(EdgeInsets.all(4))),
+    icon: Opacity(
+      opacity: onPressed == null ? .5 : 1,
+      child: Image.asset(
+        'assets/branding/grand_maestar.png',
+        width: 40,
+        height: 40,
+        excludeFromSemantics: true,
       ),
     ),
   );

@@ -218,7 +218,6 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
           if (!didPop) _finish(widget.onBack);
         },
         child: NotePageFrost(
-          amount: 1,
           child: Scaffold(
             appBar: NoteAppBar(
               backTooltip: 'Close editor',
@@ -242,6 +241,7 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
                 KeyedSubtree(
                   key: const ValueKey('note-more-actions'),
                   child: NoteActionsMenu(
+                    style: noteBarButtonStyle(context),
                     isPinned: saved?.pinned ?? false,
                     onTogglePin: value == null || saved == null
                         ? null
@@ -268,10 +268,7 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
                         loading: () => NotePaper(
                           key: widget.paperKey,
                           color: paperColor,
-                          isPreviewMode: false,
-                          readOnly: true,
                           bottomPadding: toolsExtent,
-                          onEdit: () {},
                           children: [
                             SliverToBoxAdapter(
                               child: Semantics(
@@ -331,26 +328,13 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
                           return NotePaper(
                             key: widget.paperKey,
                             color: paperColor,
-                            isPreviewMode: false,
                             bottomPadding: toolsExtent,
-                            onEdit: () {},
                             children: [
                               SliverToBoxAdapter(
                                 child: Column(
                                   crossAxisAlignment:
                                       CrossAxisAlignment.stretch,
                                   children: [
-                                    NoteAttachmentStrip(
-                                      attachments: state.details.attachments,
-                                      onRemove: (index) =>
-                                          controller.editDetails(
-                                            state.details.copy(
-                                              attachments: [
-                                                ...state.details.attachments,
-                                              ]..removeAt(index),
-                                            ),
-                                          ),
-                                    ),
                                     Builder(
                                       builder: (context) {
                                         final placeholderStyle = _titleStyle
@@ -398,6 +382,17 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
                                       NoteTagChips(tags: state.details.tags),
                                     ],
                                     const SizedBox(height: 20),
+                                    NotePhotoPrints(
+                                      attachments: state.details.attachments,
+                                      onRemove: (index) =>
+                                          controller.editDetails(
+                                            state.details.copy(
+                                              attachments: [
+                                                ...state.details.attachments,
+                                              ]..removeAt(index),
+                                            ),
+                                          ),
+                                    ),
                                     if (_rich case final rich?)
                                       Builder(
                                         builder: (context) => QuillEditor(
@@ -425,6 +420,17 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
                                           ),
                                         ),
                                       ),
+                                    NoteFileTags(
+                                      attachments: state.details.attachments,
+                                      onRemove: (index) =>
+                                          controller.editDetails(
+                                            state.details.copy(
+                                              attachments: [
+                                                ...state.details.attachments,
+                                              ]..removeAt(index),
+                                            ),
+                                          ),
+                                    ),
                                     if (state.message case final message?) ...[
                                       const SizedBox(height: 24),
                                       Semantics(
@@ -484,27 +490,31 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
                       right: 0,
                       bottom: 0,
                       child: NoteBarEntrance(
-                        child: NoteFormatBar(
-                          keyboardOpen: keyboardOpen,
-                          controller: _richFocus.hasFocus ? _rich : null,
-                          onAttach: _attach,
-                          onDictate: _dictating ? null : _dictate,
-                          showDictate: ref
-                              .watch(aiCapabilitiesProvider)
-                              .contains(AiCapability.transcription),
-                          onFormat: _rich == null
-                              ? null
-                              : _richFocus.requestFocus,
-                          onHideKeyboard: () =>
-                              FocusScope.of(context).unfocus(),
-                          suggestingTitle: _suggestingTitle,
-                          onSuggestTitle:
-                              _titleFocus.hasFocus &&
-                                  ref
-                                      .watch(aiCapabilitiesProvider)
-                                      .contains(AiCapability.chat)
-                              ? _suggestTitle
-                              : null,
+                        // Neutral like the reading dock; only the paper
+                        // takes the note's color.
+                        child: NoteChromeTheme(
+                          child: NoteFormatBar(
+                            keyboardOpen: keyboardOpen,
+                            controller: _richFocus.hasFocus ? _rich : null,
+                            onAttach: _attach,
+                            onDictate: _dictating ? null : _dictate,
+                            showDictate: ref
+                                .watch(aiCapabilitiesProvider)
+                                .contains(AiCapability.transcription),
+                            onFormat: _rich == null
+                                ? null
+                                : _richFocus.requestFocus,
+                            onHideKeyboard: () =>
+                                FocusScope.of(context).unfocus(),
+                            suggestingTitle: _suggestingTitle,
+                            onSuggestTitle:
+                                _titleFocus.hasFocus &&
+                                    ref
+                                        .watch(aiCapabilitiesProvider)
+                                        .contains(AiCapability.chat)
+                                ? _suggestTitle
+                                : null,
+                          ),
                         ),
                       ),
                     ),

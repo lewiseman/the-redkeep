@@ -25,20 +25,17 @@ import '../domain/note_help_contract.dart';
 import '../domain/note_image_contract.dart';
 import '../domain/note_rich_markdown.dart';
 import '../domain/note_scan_contract.dart';
-import '../domain/note_website.dart';
 import '../domain/transform_contract.dart';
 import 'note_ai_desk.dart';
 import 'note_ai_folio.dart';
 import 'note_ai_loading.dart';
 import 'note_ai_widgets.dart';
 import 'note_writing_widgets.dart';
-import 'website/note_website_view.dart';
 
 NoteAiTool noteToolForJob(AiJob job) => switch (job.operation) {
   AiOperation.noteTemplate => NoteAiTool.template,
   AiOperation.noteImage => NoteAiTool.image,
   AiOperation.noteScan => NoteAiTool.scan,
-  AiOperation.noteWebsite => NoteAiTool.presentation,
   _ => NoteAiTool.writing,
 };
 
@@ -63,36 +60,6 @@ class NoteAiToolPage extends ConsumerStatefulWidget {
 
 class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
   final _input = TextEditingController();
-
-  /// The note's current website, when this is the website tool.
-  NoteWebsite? get _website {
-    final id = widget.id;
-    if (widget.tool != NoteAiTool.presentation || id == null || !isNoteId(id)) {
-      return null;
-    }
-    return ref.watch(noteWebsiteProvider(id)).value;
-  }
-
-  /// A new note with nothing written yet: the website tool writes it first.
-  bool get _creating {
-    if (widget.tool != NoteAiTool.presentation) return false;
-    final subject = _subject();
-    return subject != null && subject.body.trim().isEmpty;
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    final id = widget.id;
-    // A new website starts from the last brief.
-    if (widget.tool == NoteAiTool.presentation && id != null && isNoteId(id)) {
-      ref.read(noteWebsitesProvider).get(id).then((website) {
-        if (mounted && website != null && _input.text.isEmpty) {
-          setState(() => _input.text = website.brief);
-        }
-      });
-    }
-  }
 
   final _question = TextEditingController();
   final _review = TextEditingController();
@@ -147,7 +114,6 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
     NoteAiTool.template => AiOperation.noteTemplate,
     NoteAiTool.image => AiOperation.noteImage,
     NoteAiTool.scan => AiOperation.noteScan,
-    NoteAiTool.presentation => AiOperation.noteWebsite,
     _ => _writing,
   };
   bool _matches(AiJob job) =>
@@ -157,40 +123,19 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
   Future<void> _generate() => _run(() async {
     FocusScope.of(context).unfocus();
     final actions = ref.read(noteAiControllerProvider);
-    if (widget.tool == NoteAiTool.presentation && _creating) {
-      // A new, empty note: the Maester writes it first, then builds its
-      // website from that text. Both stay editable.
-      await actions.start(
-        AiOperation.noteDraft,
-        widget.id!,
-        scope: _scope,
-        topic: _question.text,
-      );
-      final draft = ref.read(_jobs).job;
-      if (draft == null || draft.phase != 'completed') return;
-      await actions.apply(draft, scope: _scope);
-      await actions.start(
-        AiOperation.noteWebsite,
-        widget.id!,
-        scope: _scope,
-        description: _input.text,
-      );
-    } else {
-      final operation = _operation;
-      await actions.start(
-        operation,
-        widget.id!,
-        scope: _scope,
-        intent: operation == AiOperation.noteCustom ? _question.text : '',
-        topic: _input.text,
-        description: _input.text,
-        image: _image,
-        mode: _imageMode,
-        question: _imageMode == 'question' ? _question.text : '',
-        selectionStart: _selection?.start,
-        selectionEnd: _selection?.end,
-      );
-    }
+    final operation = _operation;
+    await actions.start(
+      operation,
+      widget.id!,
+      scope: _scope,
+      intent: operation == AiOperation.noteCustom ? _question.text : '',
+      topic: _input.text,
+      image: _image,
+      mode: _imageMode,
+      question: _imageMode == 'question' ? _question.text : '',
+      selectionStart: _selection?.start,
+      selectionEnd: _selection?.end,
+    );
   });
   Future<void> _apply(AiJob job) => _run(() async {
     await ref
@@ -231,7 +176,6 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
     'tone-note' => 'Tone changed',
     'markdown-note' => 'Note organized',
     'custom-note' => 'Note updated',
-    'build-website' => 'Website ready',
     _ => widget.tool.landed,
   };
 
@@ -398,8 +342,7 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
     final instructionTooLong =
         customWriting &&
         utf8.encode(_question.text.trim()).length > transformIntentBytes;
-    final missingInput =
-        (customWriting || _creating) && _question.text.trim().isEmpty;
+    final missingInput = customWriting && _question.text.trim().isEmpty;
     return [
       if (hasFolio && widget.tool == NoteAiTool.writing)
         _folio(
@@ -546,55 +489,6 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
                   ),
           ),
       ],
-      if (widget.tool == NoteAiTool.presentation) ...[
-        if (_creating) ...[
-          const Text(
-            'Describe the note. The Maester writes it, then builds its website. You can edit the text afterwards.',
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            key: const ValueKey('notes-ai-website-idea'),
-            controller: _question,
-            maxLength: 240,
-            minLines: 1,
-            maxLines: 3,
-            onChanged: (_) => setState(() {}),
-            decoration: const InputDecoration(
-              labelText: 'What is this note?',
-              hintText: 'e.g. Packing list for a week in Japan',
-            ),
-          ),
-        ],
-        if (_website case final website?)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Text(
-              website.isOutdatedFor(note?.text.body ?? '')
-                  ? 'Your text changed since the current website was made. A new one replaces it; your text stays as it is.'
-                  : 'A new website replaces the current one. Your text stays as it is.',
-            ),
-          ),
-        _label('What should it be like?'),
-        NoteAiIdeas(
-          ideas: noteWebsiteIdeas,
-          value: _input.text,
-          onChanged: (v) => setState(() => _input.text = v),
-        ),
-        TextField(
-          key: const ValueKey('notes-ai-website-brief'),
-          controller: _input,
-          maxLength: 240,
-          decoration: const InputDecoration(
-            labelText: 'Describe the website (optional)',
-          ),
-        ),
-        NoteAiDetails(
-          _creating
-              ? 'What you describe is sent to write the note; the note and this description are then sent to build the website, which is kept beside it. This can take a few minutes.'
-              : 'Your note text is not changed; the website is kept beside it. The title, text, this description and the number of photos are sent. Photos stay on this device. A long note can take a few minutes.',
-          title: 'What is used',
-        ),
-      ],
       const SizedBox(height: 18),
       FilledButton.icon(
         key: const ValueKey('notes-ai-generate'),
@@ -602,12 +496,6 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
         icon: const Icon(Icons.auto_awesome_rounded),
         label: Text(switch (widget.tool) {
           NoteAiTool.scan => 'Read the page',
-          NoteAiTool.presentation =>
-            _creating
-                ? 'Write it and build the website'
-                : _website == null
-                ? 'Build the website'
-                : 'Build a new website',
           _ => 'Write it on the page',
         }),
       ),
@@ -776,20 +664,7 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
           ),
         ),
     ];
-    if (job.operation == AiOperation.noteWebsite) {
-      result.add(
-        ClipRRect(
-          borderRadius: BorderRadius.circular(18),
-          child: SizedBox(
-            height: 460,
-            child: NoteWebsiteView(
-              html: job.text!,
-              photos: note?.note?.details.attachments ?? const [],
-            ),
-          ),
-        ),
-      );
-    } else if (job.operation == AiOperation.noteScan) {
+    if (job.operation == AiOperation.noteScan) {
       final scan = NoteScanResult.parse(job.text!);
       if (_reviewedJob != job.id) {
         _review.text = scan.text;

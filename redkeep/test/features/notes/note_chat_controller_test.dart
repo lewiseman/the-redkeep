@@ -49,7 +49,11 @@ void main() {
               'instruction': '',
               'passage': '',
             }),
-            call('b', 'build_website', {'brief': ''}),
+            call('b', 'edit_note', {
+              'operation': 'rewrite',
+              'instruction': '',
+              'passage': '',
+            }),
             call('c', 'offer_choices', {
               'question': 'Next?',
               'options': ['Shorter', 'Longer'],

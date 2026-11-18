@@ -17,8 +17,8 @@ const _anthropic = AiCloudSettings(
 );
 
 const _tool = AiToolSpec(
-  name: 'update_website',
-  description: 'Change the website.',
+  name: 'edit_note',
+  description: 'Change the note.',
   parameters: {
     'type': 'object',
     'properties': {
@@ -38,7 +38,7 @@ const _request = AiConverseRequest(
       calls: [
         AiToolCall(
           id: 'call.1',
-          name: 'update_website',
+          name: 'edit_note',
           arguments: {'instruction': 'Darker'},
         ),
       ],
@@ -79,7 +79,7 @@ void main() {
                 'id': 'call_2',
                 'type': 'function',
                 'function': {
-                  'name': 'update_website',
+                  'name': 'edit_note',
                   'arguments': '{"instruction":"Add a quiz"}',
                 },
               },
@@ -87,7 +87,7 @@ void main() {
               {
                 'id': 'call_3',
                 'type': 'function',
-                'function': {'name': 'update_website', 'arguments': '{'},
+                'function': {'name': 'edit_note', 'arguments': '{'},
               },
             ],
           },
@@ -102,7 +102,7 @@ void main() {
     expect(result.usage.inputTokens, 40);
     final body = jsonDecode(sent.body) as Map;
     expect(sent.url.path, '/v1/chat/completions');
-    expect(body['tools'].single['function']['name'], 'update_website');
+    expect(body['tools'].single['function']['name'], 'edit_note');
     final messages = body['messages'] as List;
     expect(messages.map((m) => m['role']), [
       'system',
@@ -126,7 +126,7 @@ void main() {
         {
           'type': 'tool_use',
           'id': 'toolu_2',
-          'name': 'update_website',
+          'name': 'edit_note',
           'input': {'instruction': 'Add a quiz'},
         },
       ],
@@ -134,7 +134,7 @@ void main() {
     });
     final result = await ai.converse(_anthropic, _request);
     expect(result.value.text, 'Adding a quiz.');
-    expect(result.value.calls.single.name, 'update_website');
+    expect(result.value.calls.single.name, 'edit_note');
     final body = jsonDecode(sent.body) as Map;
     expect(sent.url.path, '/v1/messages');
     expect(body['system'], 'Be the Maester.');
@@ -145,7 +145,7 @@ void main() {
     expect(messages[1]['content'][1], {
       'type': 'tool_use',
       'id': 'call_1',
-      'name': 'update_website',
+      'name': 'edit_note',
       'input': {'instruction': 'Darker'},
     });
     expect(messages[2]['content'], [
@@ -185,7 +185,7 @@ void main() {
                         {
                           'type': 'function_call',
                           'call_id': 'call_9',
-                          'name': 'update_website',
+                          'name': 'edit_note',
                           'arguments': '{"instruction":"Add a quiz"}',
                         },
                       ],
@@ -208,7 +208,7 @@ void main() {
       expect(requests.last.url.path, '/v1/responses');
       final body = jsonDecode(requests.last.body) as Map;
       expect(body['instructions'], 'Be the Maester.');
-      expect(body['tools'].single['name'], 'update_website');
+      expect(body['tools'].single['name'], 'edit_note');
       expect((body['input'] as List).map((i) => i['type'] ?? i['role']), [
         'user',
         'assistant',

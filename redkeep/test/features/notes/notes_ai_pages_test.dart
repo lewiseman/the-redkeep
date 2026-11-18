@@ -1,4 +1,3 @@
-import 'package:redkeep/features/notes/application/note_editor_controller.dart';
 import 'package:redkeep/features/notes/application/notes_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -8,23 +7,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:redkeep/app/navigation_destination.dart';
 import 'package:redkeep/features/ai/domain/ai_conversation.dart';
-import 'package:redkeep/core/presentation/rendering_policy.dart';
 import 'package:redkeep/features/appearance/domain/appearance_preferences.dart';
 import 'package:redkeep/features/notes/domain/note_document.dart';
-import 'package:redkeep/features/notes/data/drift_note_websites.dart';
-import 'package:redkeep/features/notes/domain/note_website.dart';
-import 'package:redkeep/features/notes/domain/website/website_contract.dart';
 
 import '../../support/fake_appearance_repository.dart';
 import '../../support/fake_ai_provider.dart';
 import '../../support/notes_ai_harness.dart';
 import '../../support/pump_app.dart';
 
-import 'package:redkeep/features/notes/presentation/note_card.dart';
 import 'package:redkeep/features/notes/presentation/note_read_page.dart';
 import 'package:redkeep/features/notes/presentation/note_scan_page.dart';
-import 'package:redkeep/features/notes/presentation/note_ai_sheet.dart';
-import 'package:redkeep/features/notes/presentation/note_ai_widgets.dart';
 import 'package:redkeep/features/notes/presentation/note_tag_picker.dart';
 
 import 'package:redkeep/core/media/compress_image.dart';
@@ -315,7 +307,7 @@ void main() {
       expect(turn.system, contains(passage));
       expect(
         turn.tools.map((t) => t.name),
-        containsAll(['edit_note', 'build_website', 'offer_choices']),
+        containsAll(['edit_note', 'offer_choices']),
       );
       // Only the named passage is sent to be rewritten.
       expect(jsonDecode(h.aiProvider.requests.single.user), {
@@ -472,6 +464,58 @@ void main() {
     }
   });
 
+  testWidgets('photos read as prints above the writing, files as tags below', (
+    tester,
+  ) async {
+    late String path;
+    await tester.runAsync(() async {
+      path = await h.media.write(h.remote.generated);
+      await h.save(
+        body: 'Trip writing',
+        details: NoteDetails(
+          attachments: [
+            NoteAttachment(path: path, type: 'image/png', name: 'Beach.png'),
+            const NoteAttachment(
+              path: 'note_media/ticket.pdf',
+              type: 'application/pdf',
+              name: 'Ticket.pdf',
+            ),
+          ],
+        ),
+      );
+    });
+    try {
+      await pumpApp(
+        tester,
+        notes: h.repository,
+        noteMedia: h.media,
+        database: h.db,
+        initialLocation: noteLocation(notesTestId),
+      );
+      await tester.pumpAndSettle();
+      final print = find.bySemanticsLabel('Photo, Beach.png');
+      final writing = find.text('Trip writing', findRichText: true).first;
+      final tag = find.text('Ticket.pdf');
+      expect(print, findsOneWidget);
+      // A photo shows the picture, not its file name.
+      expect(find.text('Beach.png'), findsNothing);
+      expect(find.text('PDF'), findsOneWidget);
+      expect(
+        tester.getRect(print).bottom,
+        lessThan(tester.getTopLeft(writing).dy),
+      );
+      expect(
+        tester.getTopLeft(tag).dy,
+        greaterThan(tester.getRect(writing).bottom),
+      );
+      expect(find.byTooltip('Remove attachment'), findsNothing);
+      expect(tester.takeException(), isNull);
+    } finally {
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpAndSettle();
+    }
+  });
+
   testWidgets(
     'editing attachments saves into the note and Done returns to reading',
     (tester) async {
@@ -495,7 +539,7 @@ void main() {
           initialLocation: noteLocation(notesTestId),
         );
         await startEditing(tester);
-        expect(find.text('Page.png'), findsOneWidget);
+        expect(find.bySemanticsLabel('Photo, Page.png'), findsOneWidget);
         await enterNoteBody(tester, 'My own revised words');
         await tester.pumpAndSettle();
         await tester.tap(find.byTooltip('Remove attachment'));
@@ -514,198 +558,6 @@ void main() {
         expect(
           (await h.repository.openDocument(notesTestId)).note!.text.body,
           'My own revised words',
-        );
-        expect(tester.takeException(), isNull);
-      } finally {
-        await tester.pumpWidget(const SizedBox());
-        await tester.pumpAndSettle();
-      }
-    },
-  );
-
-  for (final dark in [false, true]) {
-    testWidgets(
-      'a website note opens on its page, edits its text and marks itself outdated; dark=$dark',
-      (tester) async {
-        tester.view.physicalSize = const Size(320, 640);
-        tester.view.devicePixelRatio = 1;
-        tester.platformDispatcher.textScaleFactorTestValue = 3;
-        addTearDown(tester.view.reset);
-        addTearDown(tester.platformDispatcher.clearAllTestValues);
-        final appearance = FakeAppearanceRepository(
-          AppearancePreferences(
-            theme: dark ? AppTheme.dark : AppTheme.light,
-            reduceMotion: dark,
-            simplerEffects: dark,
-          ),
-        );
-        addTearDown(appearance.close);
-        await DriftNoteWebsites(h.db).save(
-          NoteWebsite(
-            noteId: notesTestId,
-            html: noteWebsiteOutput,
-            sourceHash: websiteContentHash(notesTestBody),
-            brief: 'A garden guide',
-            madeAt: DateTime.utc(2026),
-          ),
-        );
-        try {
-          final router = await pumpApp(
-            tester,
-            notes: h.repository,
-            database: h.db,
-            repository: appearance,
-            initialLocation: '/notes',
-          );
-          String path() => router.state.uri.path;
-          // What tapping the card does (at 3x text it sits under the bar).
-          tester.widget<NoteCard>(find.byType(NoteCard).first).onTap();
-          await tester.pumpAndSettle();
-          expect(path(), noteWebsiteLocation(notesTestId));
-          expect(
-            find.byKey(const ValueKey('note-website-view')),
-            findsOneWidget,
-          );
-          expect(
-            find.byKey(const ValueKey('note-website-outdated')),
-            findsNothing,
-          );
-          expect(find.textContaining('Website · built'), findsOneWidget);
-          expect(find.byTooltip('Ask the Maester'), findsOneWidget);
-
-          // Narrow: Edit text is in the menu.
-          await tester.tap(find.byKey(const ValueKey('note-website-menu')));
-          await tester.pumpAndSettle();
-          await tester.tap(find.text('Edit text'));
-          await tester.pumpAndSettle();
-          expect(path(), noteLocation(notesTestId));
-          expect(noteBodyText(tester), notesTestBody);
-
-          // The text changes; the website is kept but marked outdated.
-          await h.save(body: 'Plant peppers instead.');
-          await tester.pumpAndSettle();
-          await tester.tap(find.byTooltip('Close editor'));
-          await tester.pumpAndSettle();
-          expect(path(), noteWebsiteLocation(notesTestId));
-          final pill = find.byKey(const ValueKey('note-website-outdated'));
-          expect(pill, findsOneWidget);
-          expect(find.textContaining('Website · built'), findsNothing);
-          expect(
-            find.byTooltip('Ask the Maester (text changed)'),
-            findsOneWidget,
-          );
-          expect(
-            (await h.repository.openDocument(notesTestId)).note!.text.body,
-            'Plant peppers instead.',
-          );
-
-          await tester.tap(pill);
-          await tester.pumpAndSettle();
-          final again = find.byKey(
-            const ValueKey('note-website-outdated-regenerate'),
-          );
-          await tester.ensureVisible(again);
-          await tester.pumpAndSettle();
-          await tester.tap(again);
-          await tester.pumpAndSettle();
-          // Building again is asked in the Maester's chat, which knows
-          // the website; nothing is sent until the person sends it.
-          expect(path(), noteChatLocation(notesTestId));
-          expect(
-            tester
-                .widget<TextField>(
-                  find.byKey(const ValueKey('note-chat-input')),
-                )
-                .controller!
-                .text,
-            'Build the website again from my latest text.',
-          );
-          expect(find.text('Give the website a darker look'), findsOneWidget);
-          expect(tester.takeException(), isNull);
-        } finally {
-          await tester.pumpWidget(const SizedBox());
-          await tester.pumpAndSettle();
-        }
-      },
-    );
-  }
-
-  testWidgets(
-    'the website opens the Maester chat, which changes it and offers undo',
-    (tester) async {
-      await DriftNoteWebsites(h.db).save(
-        NoteWebsite(
-          noteId: notesTestId,
-          html: sanitizeWebsite(noteWebsiteOutput),
-          sourceHash: websiteContentHash(notesTestBody),
-          brief: 'A garden guide',
-          madeAt: DateTime.utc(2026),
-        ),
-      );
-      h.remote.output = '<<<<<<< FIND\n<h1>Garden plan</h1>\n=======\n<h1>Garden plan</h1><p>Quiz</p>\n>>>>>>> REPLACE';
-      h.aiProvider.turns.add(
-        const AiConverseReply(
-          text: 'Adding a short quiz.',
-          calls: [
-            AiToolCall(
-              id: 'call_1',
-              name: 'update_website',
-              arguments: {'instruction': 'Add a short quiz'},
-            ),
-          ],
-        ),
-      );
-      try {
-        final router = await pumpApp(
-          tester,
-          notes: h.repository,
-          database: h.db,
-          aiProvider: h.aiProvider,
-          aiSettings: testAiSettings,
-          initialLocation: noteWebsiteLocation(notesTestId),
-        );
-        await tester.tap(find.byTooltip('Ask the Maester'));
-        await tester.pumpAndSettle();
-        expect(router.state.uri.path, noteChatLocation(notesTestId));
-        await tester.enterText(
-          find.byKey(const ValueKey('note-chat-input')),
-          'Add a quiz to the site',
-        );
-        await tester.pump();
-        await tester.tap(find.byKey(const ValueKey('note-chat-send')));
-        // The page is edited and checked on background isolates.
-        for (var i = 0; i < 50; i++) {
-          if (find.text('Website changed.').evaluate().isNotEmpty) break;
-          await tester.runAsync(
-            () => Future<void>.delayed(const Duration(milliseconds: 100)),
-          );
-          await tester.pump();
-        }
-        await tester.pumpAndSettle();
-        expect(find.text('Website changed.'), findsOneWidget);
-        // The chat knows the note has a website and how it was described.
-        final turn = h.aiProvider.conversations.single;
-        expect(turn.system, contains('has an interactive website'));
-        expect(turn.system, contains('A garden guide'));
-        expect(turn.tools.map((t) => t.name), contains('update_website'));
-        expect(
-          jsonDecode(h.aiProvider.requests.single.user)['instruction'],
-          'Add a short quiz',
-        );
-        final website = await DriftNoteWebsites(h.db).get(notesTestId);
-        expect(website!.html, contains('<p>Quiz</p>'));
-        expect(website.canUndo, isTrue);
-        final undo = find.byKey(const ValueKey('note-chat-undo-website'));
-        await tester.ensureVisible(undo);
-        await tester.pumpAndSettle();
-        await tester.tap(undo);
-        await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 50)),
-        );
-        await tester.pumpAndSettle();
-        expect(
-          (await DriftNoteWebsites(h.db).get(notesTestId))!.html,
-          isNot(contains('<p>Quiz</p>')),
         );
         expect(tester.takeException(), isNull);
       } finally {
@@ -748,114 +600,6 @@ void main() {
       }
     },
   );
-
-  testWidgets('a new note can start as a website', (tester) async {
-    final id = 'f' * 32;
-    h.scope.read(noteNewIdsProvider.notifier).add(id);
-    final sub = h.scope.listen(noteEditorProvider(id), (_, _) {});
-    addTearDown(sub.close);
-    h.holdPage();
-    await tester.runAsync(() => h.scope.read(noteEditorProvider(id).future));
-    const body = '- [ ] Rain jacket\n- [ ] Walking shoes';
-    h.aiProvider.replies.addAll([
-      jsonEncode({'title': 'Japan packing', 'body': body}),
-      noteWebsiteOutput,
-    ]);
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: h.scope,
-        child: MaterialApp(
-          builder: (context, child) => RenderingPolicyScope(
-            policy: RenderingPolicy(
-              osReducedMotion: false,
-              preferences: const AppearancePreferences(),
-            ),
-            child: child!,
-          ),
-          // As in the desk, the tool scrolls with its sheet.
-          home: Scaffold(
-            body: ListView(
-              children: [
-                NoteAiToolPage(
-                  tool: NoteAiTool.presentation,
-                  id: id,
-                  embedded: true,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-    final idea = find.byKey(const ValueKey('notes-ai-website-idea'));
-    expect(idea, findsOneWidget);
-    final generate = find.byKey(const ValueKey('notes-ai-generate'));
-    await tester.ensureVisible(generate);
-    expect(tester.widget<FilledButton>(generate).onPressed, isNull);
-    await tester.enterText(idea, 'Packing list for a week in Japan');
-    await tester.pump();
-    await tester.ensureVisible(generate);
-    await tester.tap(generate);
-    for (var i = 0; i < 50; i++) {
-      if (find
-          .byKey(const ValueKey('note-website-view'))
-          .evaluate()
-          .isNotEmpty) {
-        break;
-      }
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 50)),
-      );
-      await tester.pump();
-    }
-    expect(find.byKey(const ValueKey('note-website-view')), findsOneWidget);
-    final saved = (await tester.runAsync(() => h.repository.openDocument(id)))!
-        .note!;
-    expect(saved.text.body, body);
-    expect(h.aiProvider.requests, hasLength(2));
-    expect(tester.takeException(), isNull);
-    await tester.pumpWidget(const SizedBox());
-    // Let the editor's autosave timer run out.
-    await tester.pump(const Duration(seconds: 2));
-    sub.close();
-    await tester.pump(const Duration(seconds: 2));
-  });
-
-  testWidgets('the note text page links back to its website', (tester) async {
-    await DriftNoteWebsites(h.db).save(
-      NoteWebsite(
-        noteId: notesTestId,
-        html: noteWebsiteOutput,
-        sourceHash: websiteContentHash('older text'),
-        madeAt: DateTime.utc(2026),
-      ),
-    );
-    try {
-      final router = await pumpApp(
-        tester,
-        notes: h.repository,
-        database: h.db,
-        initialLocation: noteLocation(notesTestId),
-      );
-      final card = find.byKey(const ValueKey('note-website-card'));
-      expect(card, findsOneWidget);
-      expect(
-        find.descendant(
-          of: card,
-          matching: find.byKey(const ValueKey('note-website-outdated')),
-        ),
-        findsOneWidget,
-      );
-      await tester.tap(card);
-      await tester.pumpAndSettle();
-      expect(router.state.uri.path, noteWebsiteLocation(notesTestId));
-      expect(tester.takeException(), isNull);
-    } finally {
-      await tester.pumpWidget(const SizedBox());
-      await tester.pumpAndSettle();
-    }
-  });
 }
 
 /// Editing is a state of the note page; this is what the Edit control does.

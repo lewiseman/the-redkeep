@@ -7,16 +7,11 @@ import '../application/notes_providers.dart';
 import 'note_edit_page.dart';
 import 'note_read_page.dart';
 
-/// How a note page opens.
-enum NoteOpen { read, edit }
-
 /// Reading and editing share one note page. A new note opens in editing.
 class NotePage extends ConsumerStatefulWidget {
-  const NotePage({super.key, required this.id, this.startEditing = false});
+  const NotePage({super.key, required this.id});
   final String id;
 
-  /// Opens straight into writing, e.g. "Edit text" on the note's website.
-  final bool startEditing;
   @override
   ConsumerState<NotePage> createState() => _NotePageState();
 }
@@ -31,8 +26,7 @@ class _NotePageState extends ConsumerState<NotePage> {
   void initState() {
     super.initState();
     // A new note opens straight into writing.
-    _editing =
-        widget.startEditing || ref.read(noteNewIdsProvider).contains(widget.id);
+    _editing = ref.read(noteNewIdsProvider).contains(widget.id);
   }
 
   void _leave() {
@@ -47,13 +41,8 @@ class _NotePageState extends ConsumerState<NotePage> {
       ref.read(noteDocumentProvider(widget.id)).value?.available == true;
 
   /// Shows the saved note from the top of its folded preview. Empty new notes
-  /// and notes opened only to edit return to where they began.
+  /// return to where they began.
   Future<void> _back() async {
-    // Opened only to edit (from the website): return there.
-    if (widget.startEditing) {
-      _leave();
-      return;
-    }
     if (await _hasSavedNote()) {
       if (mounted) {
         setState(() {

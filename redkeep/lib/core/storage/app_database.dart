@@ -26,7 +26,6 @@ part 'app_database.g.dart';
     Notes,
     NoteTags,
     NoteMediaOps,
-    NoteWebsites,
     NoteChatTurns,
     DiaryEntries,
     DiaryDays,
@@ -41,7 +40,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   /// Also recorded with each backup; newer backups are refused on restore.
-  static const currentSchemaVersion = 14;
+  static const currentSchemaVersion = 15;
 
   @override
   int get schemaVersion => currentSchemaVersion;
@@ -93,16 +92,6 @@ class AppDatabase extends _$AppDatabase {
         }
         await _dropColumn('diary_entries', 'conversation');
         await migrator.createTable(aiUsageMonths);
-      }
-      if (from < 5) {
-        // Note websites live beside notes, outside their synced details.
-        await migrator.createTable(noteWebsites);
-      } else if (from < 6) {
-        // Pages remember their own state and their previous version.
-        await migrator.addColumn(noteWebsites, noteWebsites.state);
-        await migrator.addColumn(noteWebsites, noteWebsites.previousHtml);
-        await migrator.addColumn(noteWebsites, noteWebsites.previousSourceHash);
-        await migrator.addColumn(noteWebsites, noteWebsites.syncChecks);
       }
       if (from < 7) {
         // Each note's Maester conversation, kept on this device only.
@@ -217,6 +206,10 @@ class AppDatabase extends _$AppDatabase {
         ]) {
           await _dropColumn('watch_titles', column);
         }
+      }
+      if (from < 15) {
+        // Note websites are gone.
+        await customStatement('DROP TABLE IF EXISTS note_websites');
       }
     },
   );

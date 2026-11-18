@@ -401,8 +401,7 @@ const noteDraftIdeaChars = 240;
 const noteDraftBodyBytes = 12000;
 const noteDraftLines = 300;
 
-/// What a new note should be, for the Maester to draft it, e.g. before
-/// building its website.
+/// What a new note should be, for the Maester to draft it.
 class NoteDraftSource {
   const NoteDraftSource(this.idea);
   final String idea;

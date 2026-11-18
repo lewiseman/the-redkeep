@@ -34,7 +34,7 @@ enum AiOperation {
     1800,
     noteTemplateSystem,
   ),
-  // Writes a new note from an idea, so it has text to build a website from.
+  // Writes a new note from an idea.
   noteDraft(
     'draft-note',
     true,
@@ -58,17 +58,6 @@ enum AiOperation {
     2048,
     12288,
     '$noteScanSystem\nReturn exactly: {"text":"…","readable":true}',
-  ),
-  // A whole interactive page; long notes make long websites.
-  noteWebsite('build-website', true, '', 32000, 2097152, noteWebsiteSystem),
-  // Changes a kept website as asked, keeping everything else.
-  noteWebsiteRemix(
-    'remix-website',
-    true,
-    '',
-    32000,
-    2097152,
-    noteWebsiteRemixSystem,
   );
 
   const AiOperation(
@@ -98,12 +87,8 @@ enum AiOperation {
     noteDraft => 'Draft a note',
     noteImage => 'Ask about an image',
     noteScan => 'Scan a page',
-    noteWebsiteRemix => 'Remix website',
-    _ => 'Note website',
   };
   int get inputBytes => switch (this) {
-    noteWebsite => 100000,
-    noteWebsiteRemix => 400000,
     noteTags => 6000,
     _ => 2000,
   };
@@ -114,15 +99,8 @@ enum AiOperation {
   double get temperature => switch (this) {
     noteTemplate => .7,
     noteDraft => .5,
-    noteWebsite => .4,
-    noteWebsiteRemix => .3,
     _ => 0,
   };
 
-  /// How long one attempt may run; null keeps the transport's default.
-  /// A whole website takes minutes to write.
-  Duration? get timeout => this == noteWebsite || this == noteWebsiteRemix
-      ? const Duration(minutes: 10)
-      : null;
   double get topP => this == noteTemplate ? .95 : 1;
 }

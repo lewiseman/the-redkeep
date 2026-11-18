@@ -75,20 +75,10 @@ class NoteChatController extends Notifier<NoteChatState> {
       throw const FormatException('This note is unavailable.');
     }
     final text = editing?.text ?? note!.text;
-    final website = note == null
-        ? null
-        : await ref.read(noteWebsitesProvider).get(id);
     return NoteChatContext(
       title: text.title,
       body: text.body,
       saved: note != null,
-      website: website == null
-          ? null
-          : NoteChatWebsite(
-              brief: website.brief,
-              madeAt: website.madeAt,
-              outdated: website.isOutdatedFor(text.body),
-            ),
     );
   }
 
@@ -259,20 +249,6 @@ class NoteChatController extends Notifier<NoteChatState> {
             scope: _scope,
             topic: idea,
           );
-        case NoteChatBuildWebsite(:final brief):
-          await controller.start(
-            AiOperation.noteWebsite,
-            id,
-            scope: _scope,
-            description: brief,
-          );
-        case NoteChatUpdateWebsite(:final instruction):
-          await controller.start(
-            AiOperation.noteWebsiteRemix,
-            id,
-            scope: _scope,
-            intent: instruction,
-          );
         case NoteChatChoices():
           return;
       }
@@ -299,22 +275,6 @@ class NoteChatController extends Notifier<NoteChatState> {
           detail: jobs.message ?? 'The Maester could not finish.',
         ),
       );
-      return;
-    }
-    // Websites live beside the note and can be undone, so they land at
-    // once; words in the note wait to be kept.
-    if (intent is NoteChatBuildWebsite || intent is NoteChatUpdateWebsite) {
-      try {
-        await controller.apply(job, scope: _scope);
-        await mark((a) => a.copy(status: NoteChatActionStatus.kept));
-      } catch (error) {
-        await mark(
-          (a) => a.copy(
-            status: NoteChatActionStatus.failed,
-            detail: aiErrorMessage(error),
-          ),
-        );
-      }
       return;
     }
     await mark(
@@ -361,9 +321,6 @@ class NoteChatController extends Notifier<NoteChatState> {
 
   /// Stops the change being made; the running card records it.
   Future<void> stop() => ref.read(aiJobsProvider(_scope).notifier).cancel();
-
-  /// Puts back the website from before the last change.
-  Future<bool> undoWebsite() => ref.read(noteWebsitesProvider).undo(id);
 
   /// Forgets this note's conversation on this device.
   Future<void> clear() async {

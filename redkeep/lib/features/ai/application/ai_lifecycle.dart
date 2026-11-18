@@ -1,6 +1,5 @@
 import '../../notes/application/notes_providers.dart';
 import '../../../app/navigation_destination.dart';
-import '../../notes/presentation/website/website_assets.dart';
 import '../../notes/data/note_media_store.dart';
 
 import 'package:go_router/go_router.dart';
@@ -48,7 +47,6 @@ final aiResetProvider = Provider<Future<void> Function()>(
     await ref.read(aiProviderStoreProvider).clear();
     ref.invalidate(aiCloudSettingsProvider);
     await DiaryPickerRecovery().reset();
-    clearNoteWebsiteCache();
     await ref.read(noteMediaStoreProvider).clearAll();
     await ref.read(diaryPhotoStoreProvider).clearAll();
   },

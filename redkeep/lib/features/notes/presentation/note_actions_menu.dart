@@ -17,6 +17,7 @@ class NoteActionsMenu extends StatelessWidget {
     required this.onScan,
     required this.onDelete,
     this.style,
+    this.position = PopupMenuPosition.under,
   });
 
   final bool isPinned;
@@ -30,6 +31,9 @@ class NoteActionsMenu extends StatelessWidget {
 
   /// Replaces the button's default surface style, e.g. to match a coloured bar.
   final ButtonStyle? style;
+
+  /// Where the menu opens: under a top bar, or over a bottom dock.
+  final PopupMenuPosition position;
 
   @override
   Widget build(BuildContext context) {
@@ -50,8 +54,8 @@ class NoteActionsMenu extends StatelessWidget {
             foregroundColor: colors.onSurface,
             minimumSize: const Size.square(48),
           ),
-      position: PopupMenuPosition.under,
-      offset: const Offset(0, 8),
+      position: position,
+      offset: Offset(0, position == PopupMenuPosition.under ? 8 : -8),
       requestFocus: true,
       constraints: BoxConstraints.tightFor(width: width),
       color: colors.surfaceContainerLow,

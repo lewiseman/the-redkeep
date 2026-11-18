@@ -12,8 +12,6 @@ import 'package:redkeep/features/notes/application/note_editor_controller.dart';
 import 'package:redkeep/features/notes/application/notes_providers.dart';
 import 'package:redkeep/features/notes/domain/note_document.dart';
 import 'package:redkeep/features/notes/domain/note_help_contract.dart';
-import 'package:redkeep/features/notes/domain/note_website.dart';
-import 'package:redkeep/features/notes/domain/website/website_contract.dart';
 
 import '../../support/fake_ai_provider.dart';
 import '../../support/notes_ai_harness.dart';
@@ -65,29 +63,11 @@ void main() {
             scope: notesJobScope,
             image: attachment,
           );
-        } else if (operation == AiOperation.noteWebsiteRemix) {
-          await h.scope
-              .read(noteWebsitesProvider)
-              .save(
-                NoteWebsite(
-                  noteId: notesTestId,
-                  html: sanitizeWebsite(noteWebsiteOutput),
-                  sourceHash: websiteContentHash(notesTestBody),
-                  madeAt: DateTime.utc(2026),
-                ),
-              );
-          await actions().start(
-            operation,
-            notesTestId,
-            scope: notesJobScope,
-            intent: 'Darker',
-          );
         } else {
           await actions().start(
             operation,
             notesTestId,
             scope: notesJobScope,
-            description: 'A garden plan',
             intent: operation == AiOperation.noteCustom ? 'Shorten it.' : '',
           );
         }
@@ -220,17 +200,16 @@ void main() {
     expect(note.tags, ['travel']);
   });
 
-  test('a new note can be written from an idea and get its website', () async {
+  test('a new note can be written from an idea', () async {
     final id = 'd' * 32;
     h.scope.read(noteNewIdsProvider.notifier).add(id);
     final sub = h.scope.listen(noteEditorProvider(id), (_, _) {});
     addTearDown(sub.close);
     await h.scope.read(noteEditorProvider(id).future);
     const body = '## Clothes\n\n- [ ] Rain jacket\n- [ ] Walking shoes';
-    h.aiProvider.replies.addAll([
+    h.aiProvider.replies.add(
       jsonEncode({'title': 'Japan packing', 'body': body}),
-      noteWebsiteOutput,
-    ]);
+    );
     await actions().start(
       AiOperation.noteDraft,
       id,
@@ -244,20 +223,6 @@ void main() {
     final saved = (await h.repository.openDocument(id)).note!;
     expect(saved.text.title, 'Japan packing');
     expect(saved.text.body, body);
-
-    await actions().start(
-      AiOperation.noteWebsite,
-      id,
-      scope: notesJobScope,
-      description: 'Checklist',
-    );
-    expect(
-      jsonDecode(h.remote.submissions.last['prompt'] as String)['text'],
-      body,
-    );
-    await actions().apply(job(), scope: notesJobScope);
-    final website = (await h.scope.read(noteWebsitesProvider).get(id))!;
-    expect(website.isOutdatedFor(body), isFalse);
   });
 
   test('a drafted note must fit the editor', () async {
@@ -434,72 +399,6 @@ void main() {
       expect(h.remote.submissions, isEmpty);
     },
   );
-
-  test(
-    'a website is kept beside the note and never changes its text',
-    () async {
-      h.remote.output = noteWebsiteOutput;
-      await actions().start(
-        AiOperation.noteWebsite,
-        notesTestId,
-        scope: notesJobScope,
-        description: '  An interactive   garden guide ',
-      );
-      final sent = h.remote.submissions.single;
-      expect(sent['system'], contains('data-theme'));
-      expect(jsonDecode(sent['prompt'] as String), {
-        'title': 'Garden',
-        'text': notesTestBody,
-        'brief': 'An interactive garden guide',
-        'photos': 0,
-      });
-      final before = (await h.repository.openDocument(notesTestId)).note!;
-      await actions().apply(job(), scope: notesJobScope);
-      final after = (await h.repository.openDocument(notesTestId)).note!;
-      expect(after.revision, before.revision);
-      expect(after.text.body, notesTestBody);
-      expect(after.details.encode(), before.details.encode());
-      final website = (await h.scope
-          .read(noteWebsitesProvider)
-          .get(notesTestId))!;
-      expect(website.brief, 'An interactive garden guide');
-      expect(website.model, 'test-model');
-      expect(website.isOutdatedFor(notesTestBody), isFalse);
-      expect(website.html, contains('Content-Security-Policy'));
-      // Its own script stays; it runs in the sandboxed view.
-      expect(website.html, contains('dataset.ready'));
-
-      await h.save(body: 'Plant peppers instead.');
-      expect(website.isOutdatedFor('Plant peppers instead.'), isTrue);
-    },
-  );
-
-  test('editing during a website build prevents keeping it', () async {
-    h.remote.output = noteWebsiteOutput;
-    await actions().start(
-      AiOperation.noteWebsite,
-      notesTestId,
-      scope: notesJobScope,
-    );
-    final old = job();
-    await h.save(body: 'New manual writing');
-    await expectLater(
-      actions().apply(old, scope: notesJobScope),
-      throwsFormatException,
-    );
-    expect(await h.scope.read(noteWebsitesProvider).get(notesTestId), isNull);
-  });
-
-  test('a cut-off website is refused', () async {
-    h.remote.output = noteWebsiteOutput.replaceFirst('</html>', '');
-    await actions().start(
-      AiOperation.noteWebsite,
-      notesTestId,
-      scope: notesJobScope,
-    );
-    expect(job().phase, 'failed');
-    expect(await h.scope.read(noteWebsitesProvider).get(notesTestId), isNull);
-  });
 
   test('cancel and reject never change notes', () async {
     h.remote.queued = true;

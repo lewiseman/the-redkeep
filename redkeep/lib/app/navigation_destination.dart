@@ -105,7 +105,7 @@ String _destination(String location) {
     return location;
   }
   final match = RegExp(
-    r'^/notes/([0-9a-f]{32})(?:/website|/scan|/maester|/background(?:/photo)?)?$',
+    r'^/notes/([0-9a-f]{32})(?:/scan|/maester|/background(?:/photo)?)?$',
   ).firstMatch(location);
   return match != null && isNoteId(match[1]!)
       ? location
@@ -116,10 +116,6 @@ String _destination(String location) {
 /// separate editing address. New notes open in editing on their own.
 String noteLocation(String id) =>
     isNoteId(id) ? '/notes/$id' : AppDestination.unavailable.location;
-
-/// A note's generated website, shown on a page of its own.
-String noteWebsiteLocation(String id) =>
-    isNoteId(id) ? '/notes/$id/website' : AppDestination.unavailable.location;
 
 /// The note's conversation with the Maester, on a page of its own.
 String noteChatLocation(String id) =>

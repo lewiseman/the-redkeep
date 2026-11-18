@@ -33,13 +33,6 @@ enum NoteAiTool {
     'Read a page',
     'Photo to written words',
     Color(0xFF527C9C),
-  ),
-  presentation(
-    'Website',
-    'Turn this note into an interactive page. Your text stays as it is.',
-    'Style this note',
-    'Make it a website',
-    Color(0xFF75619B),
   );
 
   const NoteAiTool(
@@ -61,7 +54,6 @@ enum NoteAiTool {
     writing => 'Your note was rewritten',
     image => 'Added to the end of your note',
     scan => 'Page added to the end of your note',
-    presentation => 'Website ready',
   };
 }
 
@@ -190,21 +182,6 @@ class _ToolPainter extends CustomPainter {
         line(70, 70, 70, 53);
         canvas.drawRect(const Rect.fromLTWH(6, 37, 68, 7), fill);
         line(6, 40, 74, 40);
-      case NoteAiTool.presentation:
-        sheet(9, 15, 61, 49);
-        line(9, 25, 70, 25);
-        for (var i = 0; i < 3; i++) {
-          canvas.drawCircle(Offset(16 + i * 6, 20), 1.5, Paint()..color = ink);
-        }
-        canvas.drawRRect(
-          RRect.fromRectAndRadius(
-            const Rect.fromLTWH(16, 32, 22, 24),
-            const Radius.circular(2),
-          ),
-          fill,
-        );
-        lines(44, 34, 18, 3);
-        sparkle(64, 63);
       case NoteAiTool.template:
         sheet(14, 12, 49, 57);
         line(23, 25, 49, 25);
@@ -552,109 +529,6 @@ class NoteAiChoices<T> extends StatelessWidget {
                 borderRadius: BorderRadius.circular(14),
               ),
             ),
-          ),
-      ],
-    ),
-  );
-}
-
-/// Concrete starting points let a person choose a picture before typing.
-/// Starting points for a website brief: a label, the brief, an icon and a
-/// tint.
-const noteWebsiteIdeas = [
-  (
-    'Guide',
-    'A clear guide with a table of contents and collapsible sections',
-    Icons.menu_book_outlined,
-    Color(0xFF75619B),
-  ),
-  (
-    'Timeline',
-    'An interactive timeline of what happened, in order',
-    Icons.timeline_rounded,
-    Color(0xFF527C9C),
-  ),
-  (
-    'Cook mode',
-    'A recipe app: adjustable servings, step-by-step cook mode and timers',
-    Icons.restaurant_outlined,
-    Color(0xFFB5683F),
-  ),
-  (
-    'Workout timer',
-    'An interval timer that runs through the routine, with sounds and progress',
-    Icons.fitness_center_rounded,
-    Color(0xFF527C9C),
-  ),
-  (
-    'Calculator',
-    'A working budget calculator with totals, splits and a chart',
-    Icons.calculate_outlined,
-    Color(0xFF75619B),
-  ),
-  (
-    'Packing list',
-    'A tickable list grouped sensibly, with progress that is remembered',
-    Icons.checklist_rounded,
-    Color(0xFF44766B),
-  ),
-  (
-    'Dashboard',
-    'A dashboard with charts of the numbers in the note',
-    Icons.insights_rounded,
-    Color(0xFFB5683F),
-  ),
-  (
-    'Magazine',
-    'An elegant magazine-style story with bold headings',
-    Icons.auto_stories_outlined,
-    Color(0xFF9C6887),
-  ),
-];
-
-/// Quick starting points that fill in a description.
-class NoteAiIdeas extends StatelessWidget {
-  const NoteAiIdeas({
-    super.key,
-    required this.value,
-    required this.onChanged,
-    required this.ideas,
-  });
-  final String value;
-  final ValueChanged<String>? onChanged;
-
-  /// A label, the text it fills in, an icon and a tint.
-  final List<(String, String, IconData, Color)> ideas;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 12),
-    child: Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        for (final idea in ideas)
-          ChoiceChip(
-            selectedColor: Color.alphaBlend(
-              Theme.of(context).colorScheme.primary.withValues(alpha: .14),
-              noteAiPaper(context),
-            ),
-            backgroundColor: noteAiPaper(context),
-            selected: value == idea.$2,
-            label: Text(idea.$1),
-            avatar: Icon(
-              value == idea.$2 ? Icons.check_rounded : idea.$3,
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? Color.lerp(idea.$4, Colors.white, .4)
-                  : idea.$4,
-              size: 24,
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
-            showCheckmark: false,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-            onSelected: onChanged == null ? null : (_) => onChanged!(idea.$2),
           ),
       ],
     ),

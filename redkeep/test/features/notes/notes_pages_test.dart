@@ -2,7 +2,6 @@ import 'package:redkeep/features/notes/presentation/note_markdown_preview.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:redkeep/features/assets/presentation/local_artwork.dart';
 import 'package:redkeep/features/notes/presentation/note_card.dart';
-import 'package:redkeep/features/notes/presentation/note_paper_surface.dart';
 import 'package:redkeep/features/notes/presentation/note_paper.dart';
 import 'package:redkeep/app/bottom_navbar.dart';
 
@@ -137,19 +136,8 @@ void main() {
   String path(GoRouter router) =>
       router.routeInformationProvider.value.uri.path;
 
-  double paperFold(WidgetTester tester) =>
-      (tester
-                  .widget<ClipPath>(
-                    find
-                        .descendant(
-                          of: find.byType(NotePaper),
-                          matching: find.byType(ClipPath),
-                        )
-                        .first,
-                  )
-                  .clipper!
-              as NotePaperShape)
-          .fold;
+  /// Reading shows the note's actions in a dock at the bottom.
+  Finder readDock() => find.byKey(const ValueKey('note-read-dock'));
 
   Finder readingChecks() => find.byWidgetPredicate(
     (widget) =>
@@ -172,7 +160,7 @@ void main() {
       notes: repo,
       database: db,
     );
-    expect(paperFold(tester), greaterThan(0));
+    expect(readDock(), findsOneWidget);
     expect(readingChecks(), findsNWidgets(2));
     expect(find.text('Buy milk', findRichText: true), findsNWidgets(2));
     expect(find.text('Nested', findRichText: true), findsOneWidget);
@@ -186,7 +174,6 @@ void main() {
       (await repo.openDocument(id)).note!.text.body,
       before.replaceFirst('[X]', '[ ]'),
     );
-    expect(paperFold(tester), greaterThan(0));
     expect(bodyField(), findsNothing);
   });
 
@@ -216,9 +203,6 @@ void main() {
         of: find.byType(NotePaper),
         matching: find.byType(CustomScrollView),
       );
-      await tester.drag(scrollView, const Offset(0, -180));
-      await tester.pumpAndSettle();
-      expect(paperFold(tester), 0);
       expect(readingChecks(), findsNWidgets(2));
       await revealBelowAppBar(tester, readingChecks().first);
       await tester.pumpAndSettle();
@@ -263,7 +247,6 @@ void main() {
       );
       expect(tester.widget(parsedText), same(rendered));
       expect(position.pixels, pixels);
-      expect(paperFold(tester), 0);
     },
   );
 
@@ -455,7 +438,7 @@ void main() {
     (true, true),
   ]) {
     noteTest(
-      'closing the editor returns to the top of preview; reduced=$reducedMotion systemBack=$systemBack',
+      'closing the editor returns to the top of the note; reduced=$reducedMotion systemBack=$systemBack',
       (tester) async {
         final body = List.filled(
           80,
@@ -492,29 +475,16 @@ void main() {
           }
         }
 
-        expect(paperFold(tester), greaterThan(0));
+        expect(readDock(), findsOneWidget);
         expect(find.byType(RedkeepBottomNavbar), findsNothing);
-        await tester.drag(paperScroll, const Offset(0, -180));
-        await tester.pumpAndSettle();
-        expect(paperFold(tester), 0);
         expect((await repo.openDocument(id)).note!.revision, 1);
         expect(path(router), noteLocation(id));
-        await tap(tester, 'Back');
-        expect(paperFold(tester), greaterThan(0));
-        expect(
-          router.routeInformationProvider.value.uri.path,
-          noteLocation(id),
-        );
         final readingPaper = tester.state(find.byType(NotePaper));
         await tap(tester, 'Edit note');
-        expect(paperFold(tester), 0);
         // Editing is the same paper made editable: no navigation, no new page.
         expect(path(router), noteLocation(id));
         expect(tester.state(find.byType(NotePaper)), same(readingPaper));
-        // While editing, pulling down cannot fold the paper back to preview.
-        await tester.drag(paperScroll, const Offset(0, 300));
-        await tester.pumpAndSettle();
-        expect(paperFold(tester), 0);
+        expect(readDock(), findsNothing);
         final changedBody = 'Changed writing\n\n$body';
         await enterNoteBody(tester, changedBody);
         await tester.pumpAndSettle();
@@ -525,7 +495,7 @@ void main() {
         await back('Close editor');
         expect(path(router), noteLocation(id));
         expect(bodyField(), findsNothing);
-        expect(paperFold(tester), greaterThan(0));
+        expect(readDock(), findsOneWidget);
         expect(position().pixels, position().minScrollExtent);
         expect(find.text('Changed writing'), findsOneWidget);
         expect((await repo.openDocument(id)).note!.text.body, changedBody);
@@ -535,6 +505,36 @@ void main() {
       },
     );
   }
+
+  noteTest('reading keeps the note actions in reach at the bottom', (
+    tester,
+  ) async {
+    await seed(title: '', body: 'Untitled writing');
+    await pumpApp(
+      tester,
+      initialLocation: noteLocation(id),
+      notes: repo,
+      database: db,
+    );
+    final screen = tester.getSize(find.byType(MaterialApp));
+    final dock = tester.getRect(readDock());
+    expect(dock.top, greaterThan(screen.height * .75));
+    for (final tooltip in ['AI tools', 'Edit note', 'Note actions']) {
+      expect(
+        find.descendant(of: readDock(), matching: find.byTooltip(tooltip)),
+        findsOneWidget,
+        reason: tooltip,
+      );
+    }
+    // Only Back stays at the top.
+    expect(find.byTooltip('Back'), findsOneWidget);
+    // An untitled note still opens with its date before the writing.
+    final stamp = tester.getRect(find.byKey(const ValueKey('note-updated-at')));
+    final writing = tester.getRect(
+      find.text('Untitled writing', findRichText: true).first,
+    );
+    expect(stamp.bottom, lessThanOrEqualTo(writing.top));
+  });
 
   noteTest('create, read, edit and confirmed deletion on one page', (
     tester,
@@ -672,7 +672,7 @@ void main() {
       // Writing saved itself; leaving the editor shows the note it made.
       expect(path(router), noteLocation(ids[1]));
       expect(bodyField(), findsNothing);
-      expect(paperFold(tester), greaterThan(0));
+      expect(readDock(), findsOneWidget);
       expect(find.text('Kept'), findsOneWidget);
       expect(
         (await repo.openDocument(ids[1])).note!.text.body,

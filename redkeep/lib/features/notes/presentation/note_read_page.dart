@@ -1,13 +1,12 @@
 import 'note_actions_menu.dart';
 import 'note_ai_sheet.dart';
 import 'note_app_bar.dart';
-import '../../../core/presentation/rendering_policy.dart';
 import 'note_scene.dart';
 import 'note_media_widgets.dart';
 import 'note_tag_chips.dart';
 import 'note_tag_picker.dart';
 import '../domain/note_colors.dart';
-import 'website/note_website_card.dart';
+import 'note_read_dock.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -44,24 +43,17 @@ class NoteReadView extends ConsumerStatefulWidget {
 
 class _NoteReadViewState extends ConsumerState<NoteReadView> {
   String? _error;
-
-  /// While the AI desk is open its kept result decides where the paper goes.
-  bool _aiOpen = false;
   NoteAiLanding? _landing;
   final _paper = NotePaperController();
-  final _expansion = ValueNotifier<double>(0);
 
   @override
   void dispose() {
     _paper.dispose();
-    _expansion.dispose();
     super.dispose();
   }
 
-  void _back(bool available) {
-    if (available && _expansion.value > 0) {
-      _paper.collapse();
-    } else if (context.canPop()) {
+  void _back() {
+    if (context.canPop()) {
       context.pop();
     } else {
       context.go(AppDestination.notes.location);
@@ -80,17 +72,6 @@ class _NoteReadViewState extends ConsumerState<NoteReadView> {
             .showSnackBar(SnackBar(content: Text(error)));
       }
     });
-    ref.listen(noteDocumentProvider(widget.id), (previous, next) {
-      final before = previous?.value?.note;
-      final after = next.value?.note;
-      if (before != null &&
-          after != null &&
-          before.revision != after.revision &&
-          !ref.read(checklist.notifier).isChecklistSave(after) &&
-          !_aiOpen) {
-        _paper.collapse();
-      }
-    });
     final opened = ref.watch(noteDocumentProvider(widget.id));
     final busy = ref.watch(notesActionsProvider);
     final current = opened.value;
@@ -99,207 +80,194 @@ class _NoteReadViewState extends ConsumerState<NoteReadView> {
     return NoteScene(
       details: note?.details ?? const NoteDetails(),
       seed: widget.id.hashCode,
-      child: ValueListenableBuilder<double>(
-        valueListenable: _expansion,
-        builder: (context, expansion, _) => PopScope(
-          canPop: current?.available != true || expansion == 0,
-          onPopInvokedWithResult: (didPop, _) {
-            if (!didPop) _paper.collapse();
-          },
-          child: NotePageFrost(
-            amount: paperShown ? expansion : 0,
-            child: Scaffold(
-              appBar: NoteAppBar(
-                // Folded preview lets the note scene show through the bar;
-                // immersive paper continues under it.
-                fill: expansion,
-                onBack: () => _back(current?.available == true),
-                actions: [
-                  if (current?.available == true) ...[
-                    NoteAiButton(onPressed: _openAi),
-                    // Immersive paper keeps only AI and Edit; the folded
-                    // preview offers the note's actions instead.
-                    AnimatedSwitcher(
-                      duration: RenderingPolicyScope.of(context).duration,
-                      child: KeyedSubtree(
-                        key: const ValueKey('note-more-actions'),
-                        child: NoteActionsMenu(
-                          isPinned: note!.pinned,
-                          onTogglePin: busy
-                              ? null
-                              : () => _act(
-                                  () => ref
-                                      .read(notesActionsProvider.notifier)
-                                      .organize(
-                                        note,
-                                        pinned: !note.pinned,
-                                        tags: note.tags,
+      child: NotePageFrost(
+        child: Scaffold(
+          appBar: NoteAppBar(onBack: _back),
+          // The paper runs to the bottom edge with the dock floating over it.
+          body: NoteAiLandingHost(
+            landing: _landing,
+            details: note?.details ?? const NoteDetails(),
+            onDismissed: () => setState(() => _landing = null),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                SafeArea(
+                  bottom: !paperShown,
+                  child: opened.when(
+                    loading: () => const Center(child: Text('Loading note…')),
+                    error: (_, _) => SingleChildScrollView(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        children: [
+                          const Text('This note could not be loaded.'),
+                          OutlinedButton(
+                            onPressed: () =>
+                                ref.invalidate(noteDocumentProvider(widget.id)),
+                            child: const Text('Retry loading'),
+                          ),
+                        ],
+                      ),
+                    ),
+                    data: (value) {
+                      final note = value.note;
+                      if (!value.available) {
+                        return SingleChildScrollView(
+                          padding: const EdgeInsets.all(24),
+                          child: PaperSurface(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Text(
+                                  'Note unavailable',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .headlineSmall,
+                                ),
+                                const SizedBox(height: 12),
+                                const Text(
+                                  'This note is missing or was deleted.',
+                                ),
+                                if (note?.deletedAt != null) ...[
+                                  const Text(
+                                    'This note is in Trash. Restore it to read or edit the saved text.',
+                                  ),
+                                  OutlinedButton(
+                                    onPressed: busy
+                                        ? null
+                                        : () => _act(
+                                            () => ref
+                                                .read(
+                                                  notesActionsProvider.notifier,
+                                                )
+                                                .restore(note!),
+                                          ),
+                                    child: const Text('Restore note'),
+                                  ),
+                                  OutlinedButton(
+                                    onPressed: busy
+                                        ? null
+                                        : () => _permanentlyDelete(value),
+                                    child: const Text('Delete forever'),
+                                  ),
+                                ],
+                                if (_error != null) _failure(),
+                                FilledButton(
+                                  onPressed: () =>
+                                      context.go(AppDestination.notes.location),
+                                  child: const Text('Return to Notes'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }
+                      final shown = note!;
+                      final titled = shown.text.title.trim().isNotEmpty;
+                      // This context is outside the note's scene, so its
+                      // paper and ink are resolved here directly.
+                      final paint = NoteColors.fromBackground(
+                        Theme.of(context).colorScheme,
+                        shown.details.background,
+                      );
+                      return NotePaper(
+                        key: widget.paperKey,
+                        controller: _paper,
+                        color: paint.background,
+                        bottomPadding: NoteReadDock.extent,
+                        children: [
+                          SliverToBoxAdapter(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                // Every note opens with the same header:
+                                // its date, then the title when it has one.
+                                Text(
+                                  [
+                                    _updatedLabel(shown.updatedAt),
+                                    if (shown.pinned) 'Pinned',
+                                  ].join(' · ').toUpperCase(),
+                                  key: const ValueKey('note-updated-at'),
+                                  style: Theme.of(context).textTheme.labelSmall
+                                      ?.copyWith(
+                                        color: paint.foreground.withValues(
+                                          alpha: .72,
+                                        ),
+                                        letterSpacing: 1.1,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                 ),
-                          onTags: busy ? null : () => _tags(note),
-                          onBackground: busy ? null : () => _background(note),
-                          onScan: busy ? null : _scan,
-                          onDelete: busy ? null : () => _delete(note),
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-              // Immersive paper runs to the bottom edge; its scroll padding
-              // keeps text clear of the system inset.
-              body: NoteAiLandingHost(
-                landing: _landing,
-                details: note?.details ?? const NoteDetails(),
-                onDismissed: () => setState(() => _landing = null),
-                child: Padding(
-                  padding: EdgeInsets.only(
-                    bottom:
-                        MediaQuery.paddingOf(context).bottom *
-                        (paperShown ? 1 - expansion.clamp(0.0, 1.0) : 1),
-                  ),
-                  child: SafeArea(
-                    bottom: false,
-                    child: opened.when(
-                      loading: () => const Center(child: Text('Loading note…')),
-                      error: (_, _) => SingleChildScrollView(
-                        padding: const EdgeInsets.all(24),
-                        child: Column(
-                          children: [
-                            const Text('This note could not be loaded.'),
-                            OutlinedButton(
-                              onPressed: () => ref.invalidate(
-                                noteDocumentProvider(widget.id),
-                              ),
-                              child: const Text('Retry loading'),
-                            ),
-                          ],
-                        ),
-                      ),
-                      data: (value) {
-                        final note = value.note;
-                        if (!value.available) {
-                          return SingleChildScrollView(
-                            padding: const EdgeInsets.all(24),
-                            child: PaperSurface(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  Text(
-                                    'Note unavailable',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .headlineSmall,
+                                const SizedBox(height: 10),
+                                if (titled)
+                                  SelectableText(
+                                    shown.text.title,
+                                    style: const TextStyle(
+                                      fontSize: 26,
+                                      height: 1.25,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
-                                  const SizedBox(height: 12),
-                                  const Text(
-                                    'This note is missing or was deleted.',
-                                  ),
-                                  if (note?.deletedAt != null) ...[
-                                    const Text(
-                                      'This note is in Trash. Restore it to read or edit the saved text.',
-                                    ),
-                                    OutlinedButton(
-                                      onPressed: busy
-                                          ? null
-                                          : () => _act(
-                                              () => ref
-                                                  .read(
-                                                    notesActionsProvider
-                                                        .notifier,
-                                                  )
-                                                  .restore(note!),
-                                            ),
-                                      child: const Text('Restore note'),
-                                    ),
-                                    OutlinedButton(
-                                      onPressed: busy
-                                          ? null
-                                          : () => _permanentlyDelete(value),
-                                      child: const Text('Delete forever'),
-                                    ),
-                                  ],
-                                  if (_error != null) _failure(),
-                                  FilledButton(
-                                    onPressed: () => context.go(
-                                      AppDestination.notes.location,
-                                    ),
-                                    child: const Text('Return to Notes'),
-                                  ),
+                                if (shown.tags.isNotEmpty) ...[
+                                  if (titled) const SizedBox(height: 16),
+                                  NoteTagChips(tags: shown.tags),
                                 ],
-                              ),
+                                SizedBox(
+                                  height: titled || shown.tags.isNotEmpty
+                                      ? 20
+                                      : 6,
+                                ),
+                                NotePhotoPrints(
+                                  attachments: shown.details.attachments,
+                                ),
+                                NoteMarkdownPreview(
+                                  key: ValueKey((
+                                    shown.id,
+                                    layout?.revision ?? shown.revision,
+                                  )),
+                                  text: layout?.body ?? shown.text.body,
+                                  readingNoteId: shown.id,
+                                ),
+                                NoteFileTags(
+                                  attachments: shown.details.attachments,
+                                ),
+                                if (_error != null) _failure(),
+                              ],
                             ),
-                          );
-                        }
-                        final shown = note!;
-                        return NotePaper(
-                          key: widget.paperKey,
-                          controller: _paper,
-                          color: NoteColors.fromBackground(
-                            Theme.of(context).colorScheme,
-                            note.details.background,
-                          ).background,
-                          isPreviewMode: true,
-                          onExpansionChanged: (value) =>
-                              _expansion.value = value,
-                          onEdit: _edit,
-                          children: [
-                            SliverToBoxAdapter(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  NoteWebsiteCard(
-                                    noteId: shown.id,
-                                    body: shown.text.body,
-                                  ),
-                                  NoteAttachmentStrip(
-                                    attachments: note.details.attachments,
-                                  ),
-                                  if (note.text.title.trim().isNotEmpty)
-                                    SelectableText(
-                                      note.text.title,
-                                      style: const TextStyle(
-                                        fontSize: 24,
-                                        height: 1.3,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  if (note.tags.isNotEmpty) ...[
-                                    if (note.text.title.trim().isNotEmpty)
-                                      const SizedBox(height: 20),
-                                    NoteTagChips(tags: note.tags),
-                                  ],
-                                  if (note.text.title.trim().isNotEmpty ||
-                                      note.tags.isNotEmpty)
-                                    const SizedBox(height: 20),
-                                  NoteMarkdownPreview(
-                                    key: ValueKey((
-                                      note.id,
-                                      layout?.revision ?? note.revision,
-                                    )),
-                                    text: layout?.body ?? note.text.body,
-                                    readingNoteId: note.id,
-                                  ),
-                                  const SizedBox(height: 24),
-                                  Text(
-                                    _updatedLabel(note.updatedAt).toUpperCase(),
-                                    key: const ValueKey('note-updated-at'),
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .labelSmall,
-                                  ),
-                                  if (note.pinned) const Text('Pinned'),
-                                  if (_error != null) _failure(),
-                                ],
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                 ),
-              ),
+                if (paperShown)
+                  NoteReadDock(
+                    color: NoteColors.presetForType(
+                      note!.details.background['type'],
+                    ),
+                    onAi: _openAi,
+                    onEdit: _edit,
+                    actions: NoteActionsMenu(
+                      key: const ValueKey('note-more-actions'),
+                      position: PopupMenuPosition.over,
+                      style: noteBarButtonStyle(context),
+                      isPinned: note.pinned,
+                      onTogglePin: busy
+                          ? null
+                          : () => _act(
+                              () => ref
+                                  .read(notesActionsProvider.notifier)
+                                  .organize(
+                                    note,
+                                    pinned: !note.pinned,
+                                    tags: note.tags,
+                                  ),
+                            ),
+                      onTags: busy ? null : () => _tags(note),
+                      onBackground: busy ? null : () => _background(note),
+                      onScan: busy ? null : _scan,
+                      onDelete: busy ? null : () => _delete(note),
+                    ),
+                  ),
+              ],
             ),
           ),
         ),
@@ -315,16 +283,11 @@ class _NoteReadViewState extends ConsumerState<NoteReadView> {
     if (mounted) widget.onEdit();
   }
 
-  /// The Maester's chat opens on its own page. Kept changes land in the
-  /// note while it is open, so the paper stays as it is meanwhile.
-  Future<void> _openAi() async {
-    _aiOpen = true;
-    await context.push(noteChatLocation(widget.id));
-    _aiOpen = false;
-  }
+  /// The Maester's chat opens on its own page.
+  void _openAi() => context.push(noteChatLocation(widget.id));
 
   /// Scanning has its own page; added words are told on the paper, which
-  /// unfolds to show them.
+  /// scrolls to show them.
   Future<void> _scan() async {
     final landing = await context.push<NoteAiLanding>(
       noteScanLocation(widget.id),

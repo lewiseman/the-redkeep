@@ -40,8 +40,12 @@ void main() {
   test('records what came of a call and tells it back as history', () async {
     const call = AiToolCall(
       id: 'call_1',
-      name: 'update_website',
-      arguments: {'instruction': 'Bigger headings'},
+      name: 'edit_note',
+      arguments: {
+        'operation': 'custom',
+        'instruction': 'Bigger headings',
+        'passage': '',
+      },
     );
     await chats.add(
       NoteChatTurn(

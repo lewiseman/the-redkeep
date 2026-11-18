@@ -29,7 +29,6 @@ import '../features/onboarding/presentation/onboarding_page.dart';
 import '../features/notes/presentation/note_chat_page.dart';
 import '../features/notes/presentation/note_page.dart';
 import '../features/notes/presentation/note_scan_page.dart';
-import '../features/notes/presentation/website/note_website_page.dart';
 import '../features/stock_photos/domain/stock_photo.dart';
 import '../features/stock_photos/presentation/stock_photo_preview_page.dart';
 import '../features/stock_photos/presentation/stock_photo_search_page.dart';
@@ -211,8 +210,6 @@ GoRouter createAppRouter(Ref ref) {
                 ),
               ),
               // Editing is a state of this page, not a route of its own.
-              // It can be opened straight into editing, e.g. from the
-              // note's website.
               GoRoute(
                 path: ':id',
                 pageBuilder: (context, state) => _page(
@@ -220,7 +217,6 @@ GoRouter createAppRouter(Ref ref) {
                   NotePage(
                     key: ValueKey(state.pathParameters['id']),
                     id: state.pathParameters['id']!,
-                    startEditing: state.extra == NoteOpen.edit,
                   ),
                 ),
               ),
@@ -235,9 +231,8 @@ GoRouter createAppRouter(Ref ref) {
                   ),
                 ),
               ),
-              // The Maester's conversation about this note and its
-              // website. A sibling, so leaving returns to where it was
-              // opened: the note or its website.
+              // The Maester's conversation about this note. A sibling, so
+              // leaving returns to the note.
               GoRoute(
                 path: ':id/maester',
                 pageBuilder: (context, state) => _page(
@@ -245,9 +240,6 @@ GoRouter createAppRouter(Ref ref) {
                   NoteChatPage(
                     key: ValueKey(state.uri.path),
                     id: state.pathParameters['id']!,
-                    draft: state.extra is NoteChatDraftMessage
-                        ? (state.extra as NoteChatDraftMessage).text
-                        : '',
                   ),
                 ),
               ),
@@ -279,18 +271,6 @@ GoRouter createAppRouter(Ref ref) {
                     ),
                   ),
                 ],
-              ),
-              // A sibling, not a child: leaving the website returns to
-              // where it was opened from, not to the note.
-              GoRoute(
-                path: ':id/website',
-                pageBuilder: (context, state) => _page(
-                  state,
-                  NoteWebsitePage(
-                    key: ValueKey(state.uri.path),
-                    id: state.pathParameters['id']!,
-                  ),
-                ),
               ),
             ],
           ),

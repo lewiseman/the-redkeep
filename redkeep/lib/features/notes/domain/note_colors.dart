@@ -96,5 +96,32 @@ enum NoteColorPreset {
     );
   }
 
+  /// The note's color for an action sitting on a neutral [surface], e.g.
+  /// the reading dock's Edit button: the preset's light or dark tone,
+  /// whichever stands out more, deepened when neither does. Plain notes use
+  /// the app's [primary].
+  ///
+  /// The app's accent would clash with colored paper (green on crimson).
+  Color accentOn(Color surface, {required Color primary}) {
+    if (this == plain) return primary;
+    final light = _lightBackground!, dark = _darkBackground!;
+    final tone = _contrast(light, surface) >= _contrast(dark, surface)
+        ? light
+        : dark;
+    // Mid tones (cobalt on a dark dock) move away from the surface until the
+    // button reads as a button.
+    final away = surface.computeLuminance() > .5 ? Colors.black : Colors.white;
+    for (var step = 0; step <= 10; step++) {
+      final mixed = Color.lerp(tone, away, step / 10)!;
+      if (_contrast(mixed, surface) >= 3) return mixed;
+    }
+    return away;
+  }
+
+  static double _contrast(Color a, Color b) {
+    final x = a.computeLuminance(), y = b.computeLuminance();
+    return (max(x, y) + .05) / (min(x, y) + .05);
+  }
+
   Map<String, dynamic> toBackground() => {'type': type};
 }

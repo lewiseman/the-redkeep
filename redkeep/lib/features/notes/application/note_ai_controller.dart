@@ -2,7 +2,6 @@ import 'dart:convert';
 
 import '../domain/note_rich_markdown.dart';
 
-import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
@@ -18,10 +17,6 @@ import '../domain/note_help_contract.dart';
 import '../domain/note_image_contract.dart';
 import '../domain/note_scan_contract.dart';
 import '../domain/transform_contract.dart';
-import '../domain/website/website_contract.dart';
-import '../domain/note_website.dart';
-import '../../ai/application/ai_cloud.dart';
-import '../../ai/domain/ai_provider.dart';
 import 'note_ai_sources.dart';
 import 'note_editor_controller.dart';
 import 'notes_providers.dart';
@@ -52,7 +47,6 @@ class NoteAiController {
     required String scope,
     String intent = '',
     String topic = '',
-    String description = '',
     NoteAttachment? image,
     String mode = 'describe',
     String question = '',
@@ -116,38 +110,6 @@ class NoteAiController {
         prompt = NoteTemplateSource(topic).request();
       case AiOperation.noteDraft:
         prompt = NoteDraftSource(topic).request();
-      case AiOperation.noteWebsite:
-        final request = WebsiteRequest(
-          title: text.title,
-          body: text.body,
-          brief: description,
-          photos: note!.details.attachments
-              .where((a) => a.isImage)
-              .take(websiteMaxPhotos)
-              .length,
-        );
-        prompt = request.request();
-        source['brief'] = request.cleanBrief;
-      case AiOperation.noteWebsiteRemix:
-        final instruction = intent.replaceAll(RegExp(r'\s+'), ' ').trim();
-        if (instruction.isEmpty || instruction.runes.length > 240) {
-          throw const FormatException(
-            'Describe the change in one line of at most 240 characters.',
-          );
-        }
-        final website = await ref.read(noteWebsitesProvider).get(id);
-        if (website == null) {
-          throw const FormatException('This note has no website to remix.');
-        }
-        final html = website.html;
-        final page = await Isolate.run(() => websiteSource(html));
-        prompt = jsonEncode({'instruction': instruction, 'page': page});
-        if (utf8.encode(prompt).length > websiteRemixInputBytes) {
-          throw const FormatException(
-            'This website is too large to remix. Build it again instead.',
-          );
-        }
-        source['pageHash'] = websiteContentHash(html);
       case AiOperation.noteImage || AiOperation.noteScan:
         if (image == null || !image.isImage) {
           throw const FormatException('Choose an image first.');
@@ -250,61 +212,6 @@ class NoteAiController {
     final opened = await repo.openDocument(id);
     final editing = unsaved ? ref.read(noteEditorProvider(id)).value : null;
     var text = opened.note?.text ?? editing?.text ?? const PlainTextDocument();
-    if (job.operation == AiOperation.noteWebsiteRemix) {
-      // Applied to the page it was asked of; the text it came from stays.
-      final websites = ref.read(noteWebsitesProvider);
-      final website = await websites.get(id);
-      if (website == null ||
-          websiteContentHash(website.html) != source['pageHash']) {
-        throw const FormatException(
-          'The website changed while it was being remixed. Nothing was applied.',
-        );
-      }
-      final html = website.html, output = job.text!;
-      final remixed = await Isolate.run(
-        () => applyWebsiteRemix(websiteSource(html), output),
-      );
-      await websites.save(
-        NoteWebsite(
-          noteId: id,
-          html: await sanitizeWebsiteBounded(remixed),
-          sourceHash: website.sourceHash,
-          brief: website.brief,
-          model:
-              ref
-                  .read(aiCloudSettingsProvider)
-                  .value
-                  ?.model(AiCapability.chat) ??
-              website.model,
-          madeAt: ref.read(notesClockProvider)(),
-        ),
-      );
-      await _clearReviewedJob(job, scope);
-      return opened.note;
-    }
-    if (job.operation == AiOperation.noteWebsite) {
-      // The website is kept beside the note; its text is never changed.
-      final note = opened.note!;
-      await ref
-          .read(noteWebsitesProvider)
-          .save(
-            NoteWebsite(
-              noteId: id,
-              html: await sanitizeWebsiteBounded(job.text!),
-              sourceHash: websiteContentHash(note.text.body),
-              brief: source['brief'] as String? ?? '',
-              model:
-                  ref
-                      .read(aiCloudSettingsProvider)
-                      .value
-                      ?.model(AiCapability.chat) ??
-                  '',
-              madeAt: ref.read(notesClockProvider)(),
-            ),
-          );
-      await _clearReviewedJob(job, scope);
-      return note;
-    }
     var details =
         opened.note?.details.copy(tags: opened.note!.tags) ??
         editing?.details ??

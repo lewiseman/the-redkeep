@@ -125,6 +125,19 @@ class _Season extends ConsumerWidget {
       shape: const Border(),
       collapsedShape: const Border(),
       expansionAnimationStyle: animate ? null : AnimationStyle.noAnimation,
+      leading: season.posterPath == null
+          ? null
+          : SizedBox(
+              width: 40,
+              height: 60,
+              child: WatchPoster(
+                path: season.posterPath,
+                size: 'w185',
+                radius: 4,
+                media: WatchMedia.tv,
+                semanticLabel: '${season.name} poster',
+              ),
+            ),
       title: Text(season.name),
       subtitle: Text(
         '$watched of ${season.episodeCount}',
@@ -136,7 +149,17 @@ class _Season extends ConsumerWidget {
             : () => _markSeason(context, ref, watch: !complete),
         child: Text(complete ? 'Unmark' : 'Mark all'),
       ),
-      children: [_Episodes(title: title, season: season, episodes: episodes)],
+      children: [
+        if (season.overview.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              season.overview,
+              style: TextStyle(color: palette.muted, fontSize: 13, height: 1.4),
+            ),
+          ),
+        _Episodes(title: title, season: season, episodes: episodes),
+      ],
     );
   }
 
@@ -201,6 +224,19 @@ class _Episodes extends ConsumerWidget {
             controlAffinity: ListTileControlAffinity.leading,
             value: episodes.contains(episode.code),
             title: Text('${episode.number}. ${episode.name}'),
+            secondary: episode.stillPath == null
+                ? null
+                : SizedBox(
+                    width: 96,
+                    height: 54,
+                    child: WatchPoster(
+                      path: episode.stillPath,
+                      size: 'w300',
+                      radius: 4,
+                      media: WatchMedia.tv,
+                      semanticLabel: 'A still from ${episode.name}',
+                    ),
+                  ),
             subtitle: episode.airDate == null
                 ? null
                 : Text(

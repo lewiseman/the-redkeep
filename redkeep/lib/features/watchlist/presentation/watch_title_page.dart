@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/presentation/diary_typography.dart';
 import '../../../core/presentation/rendering_policy.dart';
@@ -11,10 +12,11 @@ import '../domain/catalog_title.dart';
 import '../domain/watch_title.dart';
 import 'watch_list_sheet.dart';
 import 'watch_seasons.dart';
+import 'watch_title_extras.dart';
 import 'watch_widgets.dart';
 
-/// A film or show's own page, reached by its address: what it is, then the
-/// reader's status, lists and episodes.
+/// A film or show's own page, reached by its address: the reader's status,
+/// lists and episodes, then everything TMDB shares about it.
 class WatchTitlePage extends ConsumerWidget {
   const WatchTitlePage({super.key, required this.watchKey});
   final WatchKey watchKey;
@@ -101,8 +103,11 @@ class _Details extends ConsumerWidget {
         ?.where((l) => l.items.contains(title.key.id))
         .map((l) => l.name)
         .toList();
+    final region = ref.watch(tmdbRegionProvider);
     final runtime = title.runtime;
-    final seasons = title.seasons.where((s) => s.number > 0).length;
+    final seasons = title.seasons.length;
+    final dates = DateFormat.yMMMd();
+    final money = NumberFormat.compactSimpleCurrency(name: 'USD');
 
     final name = Semantics(
       header: true,
@@ -119,6 +124,7 @@ class _Details extends ConsumerWidget {
       ?title.year?.toString(),
       tv ? 'Series' : 'Film',
       if (runtime != null) tv ? '${runtime}m episodes' : watchRuntime(runtime),
+      ?title.certification,
     ].join(' · ');
     final heading = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -153,14 +159,19 @@ class _Details extends ConsumerWidget {
     );
     // Side by side, unless large text leaves the name too little room.
     final stacked = MediaQuery.textScalerOf(context).scale(14) > 21;
+    final trailer = title.trailer;
+    final homepage = title.homepage;
     final header = Padding(
       padding: const EdgeInsets.fromLTRB(4, 8, 4, 20),
-      child: stacked
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [poster, const SizedBox(height: 16), heading],
-            )
-          : Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (stacked) ...[
+            poster,
+            const SizedBox(height: 16),
+            heading,
+          ] else
+            Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 poster,
@@ -168,55 +179,138 @@ class _Details extends ConsumerWidget {
                 Expanded(child: heading),
               ],
             ),
+          if (trailer != null || homepage != null) ...[
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (trailer != null)
+                  FilledButton.tonalIcon(
+                    onPressed: () => openTitleLink(context, trailer.url),
+                    icon: const Icon(Icons.play_arrow_rounded),
+                    label: Text(
+                      trailer.type == 'Trailer'
+                          ? 'Play trailer'
+                          : 'Play ${trailer.type?.toLowerCase() ?? 'video'}',
+                    ),
+                  ),
+                if (homepage != null)
+                  TextButton.icon(
+                    onPressed: () =>
+                        openTitleLink(context, Uri.parse(homepage)),
+                    icon: const Icon(Icons.open_in_new),
+                    label: const Text('Official site'),
+                  ),
+              ],
+            ),
+          ],
+        ],
+      ),
     );
 
+    String? date(DateTime? value) => value == null ? null : dates.format(value);
+    final next = title.nextEpisode;
     final facts = <Widget>[
       if (title.voteCount > 0)
         _Fact(
           Icons.star_outline,
           'TMDB rating',
-          '${title.voteAverage.toStringAsFixed(1)}/10',
+          '${title.voteAverage.toStringAsFixed(1)}/10 · '
+              '${NumberFormat.compact().format(title.voteCount)} votes',
+        ),
+      if (title.status != null)
+        _Fact(Icons.flag_outlined, 'Status', title.status!),
+      if (date(title.releaseDate) case final released?)
+        _Fact(Icons.event_outlined, tv ? 'First aired' : 'Released', released),
+      if (date(title.lastAirDate) case final last?)
+        _Fact(Icons.event_available_outlined, 'Last aired', last),
+      if (next != null)
+        _Fact(
+          Icons.upcoming_outlined,
+          'Next episode',
+          ['S${next.season} E${next.number}', ?date(next.airDate)].join(' · '),
         ),
       if (tv && seasons > 0)
-        _Fact(Icons.video_library_outlined, 'Seasons', '$seasons'),
-      if (title.genres.isNotEmpty)
         _Fact(
-          Icons.category_outlined,
-          'Genre',
-          title.genres.take(3).join(', '),
+          Icons.video_library_outlined,
+          'Seasons',
+          [
+            '$seasons',
+            if (title.episodeCount != null) '${title.episodeCount} episodes',
+          ].join(' · '),
         ),
-      if (title.language != null)
+      if (title.genres.isNotEmpty)
+        _Fact(Icons.category_outlined, 'Genre', title.genres.join(', ')),
+      if (title.certification != null)
+        _Fact(
+          Icons.shield_outlined,
+          'Rated',
+          '${title.certification} ($region)',
+        ),
+      if (title.originalTitle != null)
+        _Fact(Icons.translate, 'Original title', title.originalTitle!),
+      if (title.spokenLanguages.isNotEmpty)
+        _Fact(
+          Icons.record_voice_over_outlined,
+          'Languages',
+          title.spokenLanguages.join(', '),
+        )
+      else if (title.language != null)
         _Fact(Icons.translate, 'Language', title.language!.toUpperCase()),
-      if (title.director != null)
+      if (title.networks.isNotEmpty)
+        _Fact(Icons.live_tv_outlined, 'Network', title.networks.join(', ')),
+      if (title.budget != null)
+        _Fact(Icons.payments_outlined, 'Budget', money.format(title.budget)),
+      if (title.revenue != null)
+        _Fact(
+          Icons.confirmation_number_outlined,
+          'Box office',
+          money.format(title.revenue),
+        ),
+      if (title.companies.isNotEmpty)
+        _Fact(
+          Icons.business_outlined,
+          'Studios',
+          title.companies.take(4).join(', '),
+        ),
+      if (title.countries.isNotEmpty)
+        _Fact(Icons.public, 'Made in', title.countries.join(', ')),
+    ];
+    final watch = <Widget>[
+      if (title.providers.isNotEmpty)
+        _Fact(Icons.live_tv_outlined, 'Stream', title.providers.join(', ')),
+      if (title.rent.isNotEmpty)
+        _Fact(Icons.schedule_outlined, 'Rent', title.rent.join(', ')),
+      if (title.buy.isNotEmpty)
+        _Fact(Icons.shopping_bag_outlined, 'Buy', title.buy.join(', ')),
+    ];
+    // One line a job, as a show lists the same job for many people.
+    final jobs = <String, List<String>>{};
+    for (final person in title.crew) {
+      for (final job in (person.role ?? 'Crew').split(', ')) {
+        jobs.putIfAbsent(job, () => []).add(person.name);
+      }
+    }
+    final crew = [
+      for (final MapEntry(key: job, value: names) in jobs.entries)
         _Fact(
           Icons.person_outline,
-          tv ? 'Created by' : 'Directed by',
-          title.director!,
-        ),
-      if (title.cast.isNotEmpty)
-        _Fact(Icons.people_outline, 'Starring', title.cast.take(4).join(', ')),
-      if (title.providers.isNotEmpty)
-        _Fact(
-          Icons.live_tv_outlined,
-          'Streaming on',
-          title.providers.join(', '),
+          // "Producers", but "Screenplay" and "Novel" stay as they are.
+          names.length > 1 && (job.endsWith('er') || job.endsWith('or'))
+              ? '${job}s'
+              : job,
+          [
+            ...names.take(4),
+            if (names.length > 4) '+${names.length - 4} more',
+          ].join(', '),
+          stacked: true,
         ),
     ];
+    final pictures = titlePictures(title);
 
     final parts = <Widget>[
       header,
-      if (title.overview.isNotEmpty)
-        _Section(
-          icon: Icons.notes,
-          label: 'About',
-          child: Text(title.overview, style: body),
-        ),
-      if (facts.isNotEmpty)
-        _Section(
-          icon: Icons.info_outline,
-          label: 'Details',
-          child: Column(children: facts),
-        ),
       if (stale)
         Padding(
           padding: const EdgeInsets.fromLTRB(4, 0, 4, 12),
@@ -261,6 +355,66 @@ class _Details extends ConsumerWidget {
           icon: Icons.video_library_outlined,
           label: 'Episodes',
           child: WatchSeasons(title: title, saved: saved),
+        ),
+      if (title.overview.isNotEmpty || title.keywords.isNotEmpty)
+        _Section(
+          icon: Icons.notes,
+          label: 'About',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (title.overview.isNotEmpty) Text(title.overview, style: body),
+              if (title.overview.isNotEmpty && title.keywords.isNotEmpty)
+                const SizedBox(height: 12),
+              if (title.keywords.isNotEmpty) TitleTags(tags: title.keywords),
+            ],
+          ),
+        ),
+      if (pictures.length > 1)
+        _Section(
+          icon: Icons.photo_library_outlined,
+          label: 'Pictures',
+          child: TitlePictures(title: title),
+        ),
+      if (title.cast.isNotEmpty)
+        _Section(
+          icon: Icons.people_outline,
+          label: 'Cast',
+          child: CastRow(cast: title.cast),
+        ),
+      if (crew.isNotEmpty)
+        _Section(
+          icon: Icons.movie_creation_outlined,
+          label: tv ? 'Made by' : 'Crew',
+          child: Column(children: crew),
+        ),
+      if (facts.isNotEmpty)
+        _Section(
+          icon: Icons.info_outline,
+          label: 'Details',
+          child: Column(children: facts),
+        ),
+      if (watch.isNotEmpty)
+        _Section(
+          icon: Icons.tv_outlined,
+          label: 'Where to watch',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ...watch,
+              const SizedBox(height: 4),
+              Text(
+                'In $region, from JustWatch via TMDB.',
+                style: TextStyle(color: palette.muted, fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+      if (title.recommendations.isNotEmpty)
+        _Section(
+          icon: Icons.recommend_outlined,
+          label: 'More like this',
+          child: MoreLikeThisRow(titles: title.recommendations),
         ),
       Padding(
         padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
@@ -398,15 +552,18 @@ class _Section extends StatelessWidget {
 /// A fact set out like a line in a book's contents: label, dotted leader,
 /// value. Stacked instead at large text sizes.
 class _Fact extends StatelessWidget {
-  const _Fact(this.icon, this.label, this.value);
+  const _Fact(this.icon, this.label, this.value, {this.stacked = false});
   final IconData icon;
   final String label;
   final String value;
 
+  /// The label above the value, for values that are lists of names.
+  final bool stacked;
+
   @override
   Widget build(BuildContext context) {
     final palette = MorePalette.of(context);
-    final narrow = MediaQuery.textScalerOf(context).scale(14) > 21;
+    final narrow = stacked || MediaQuery.textScalerOf(context).scale(14) > 21;
     final text = DiaryTypography.of(context).body;
     final labelText = Text(
       label,
@@ -425,9 +582,13 @@ class _Fact extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: narrow
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [labelText, valueText],
+          ? SizedBox(
+              // Left-aligned, however short the words.
+              width: double.infinity,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [labelText, valueText],
+              ),
             )
           : LayoutBuilder(
               // Values sit flush right; the leader fills the gap to them.
@@ -436,7 +597,11 @@ class _Fact extends StatelessWidget {
                 children: [
                   Icon(icon, size: 17, color: palette.muted),
                   const SizedBox(width: 8),
-                  labelText,
+                  // A long label wraps between its words, never past the edge.
+                  ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: box.maxWidth * .34),
+                    child: labelText,
+                  ),
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(6, 0, 6, 7),

@@ -21,6 +21,7 @@ class WatchPoster extends ConsumerWidget {
     this.media,
     this.fit = BoxFit.cover,
     this.semanticLabel,
+    this.icon,
   });
 
   final String? path;
@@ -29,6 +30,9 @@ class WatchPoster extends ConsumerWidget {
   final WatchMedia? media;
   final BoxFit fit;
   final String? semanticLabel;
+
+  /// Shown while there is no picture; a film or show icon by default.
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -41,7 +45,10 @@ class WatchPoster extends ConsumerWidget {
       color: palette.cloth,
       child: Center(
         child: Icon(
-          media == WatchMedia.tv ? Icons.tv_outlined : Icons.movie_outlined,
+          icon ??
+              (media == WatchMedia.tv
+                  ? Icons.tv_outlined
+                  : Icons.movie_outlined),
           color: palette.muted,
         ),
       ),

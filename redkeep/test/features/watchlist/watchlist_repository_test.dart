@@ -50,24 +50,21 @@ void main() {
     },
   );
 
-  test(
-    'a status lives on one row with a snapshot of the title',
-    () async {
-      await repository.setStatus(matrix, WatchStatus.planned);
-      clock = clock.add(const Duration(minutes: 1));
-      final saved = await repository.setStatus(matrix, WatchStatus.watching);
+  test('a status lives on one row with a snapshot of the title', () async {
+    await repository.setStatus(matrix, WatchStatus.planned);
+    clock = clock.add(const Duration(minutes: 1));
+    final saved = await repository.setStatus(matrix, WatchStatus.watching);
 
-      expect(saved.id, matrix.key.id);
-      expect(saved.status, WatchStatus.watching);
-      expect(saved.posterPath, '/m.jpg');
-      expect(saved.revision, 3);
-      expect(saved.updatedAt, clock);
+    expect(saved.id, matrix.key.id);
+    expect(saved.status, WatchStatus.watching);
+    expect(saved.posterPath, '/m.jpg');
+    expect(saved.revision, 3);
+    expect(saved.updatedAt, clock);
 
-      final cleared = await repository.setStatus(matrix, null);
-      expect(cleared.status, isNull);
-      expect(cleared.removed, isFalse, reason: 'clearing is not removing');
-    },
-  );
+    final cleared = await repository.setStatus(matrix, null);
+    expect(cleared.status, isNull);
+    expect(cleared.removed, isFalse, reason: 'clearing is not removing');
+  });
 
   test('episodes are stored sorted and toggled without duplicates', () async {
     await repository.setEpisodes(thrones, watched: {'s2e1', 's1e10', 's1e2'});

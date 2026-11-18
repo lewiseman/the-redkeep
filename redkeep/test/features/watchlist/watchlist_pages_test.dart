@@ -6,6 +6,7 @@ import 'package:redkeep/features/watchlist/data/drift_watchlist_repository.dart'
 import 'package:redkeep/features/watchlist/domain/catalog_title.dart';
 import 'package:redkeep/features/watchlist/domain/watch_title.dart';
 import 'package:redkeep/features/watchlist/presentation/watch_seasons.dart';
+import 'package:redkeep/features/watchlist/presentation/watch_title_extras.dart';
 import 'package:redkeep/features/watchlist/presentation/watch_widgets.dart';
 
 import '../../support/pump_app.dart';
@@ -95,7 +96,7 @@ void main() {
     );
   });
 
-  pageTest('a cached title shows its details and takes a status', (
+  pageTest('a cached title shows what TMDB knows and takes a status', (
     tester,
   ) async {
     await repository.cacheTitles([
@@ -104,9 +105,26 @@ void main() {
         title: 'The Matrix',
         year: 1999,
         runtime: 136,
+        certification: 'R',
         director: 'Lana Wachowski',
         overview: 'A hacker learns the truth.',
+        keywords: ['simulated reality'],
+        backdrops: ['/b1.jpg', '/b2.jpg'],
+        cast: [Credit(name: 'Keanu Reeves', role: 'Neo')],
+        crew: [
+          Credit(name: 'Lana Wachowski', role: 'Director, Screenplay'),
+          Credit(name: 'Lilly Wachowski', role: 'Director'),
+        ],
+        videos: [TitleVideo(youtubeKey: 'k', name: 'Trailer', type: 'Trailer')],
+        budget: 63000000,
         providers: ['Max'],
+        rent: ['Apple TV'],
+        recommendations: [
+          CatalogTitle(
+            key: WatchKey(WatchMedia.movie, 604),
+            title: 'The Matrix Reloaded',
+          ),
+        ],
         detailed: true,
       ),
     ]);
@@ -115,12 +133,6 @@ void main() {
       initialLocation: '/watchlist/movie/603',
       database: db,
     );
-
-    expect(find.text('The Matrix'), findsOneWidget);
-    expect(find.text('1999 · Film · 2h 16m'), findsOneWidget);
-    expect(find.text('Directed by'), findsOneWidget);
-    expect(find.text('Lana Wachowski'), findsOneWidget);
-    expect(find.text('Max'), findsOneWidget, reason: 'streaming on');
     Future<void> reveal(Finder target) async {
       await tester.scrollUntilVisible(
         target,
@@ -131,14 +143,49 @@ void main() {
       await tester.pumpAndSettle();
     }
 
+    expect(find.text('The Matrix'), findsOneWidget);
+    expect(find.text('1999 · Film · 2h 16m · R'), findsOneWidget);
+    expect(find.text('Play trailer'), findsOneWidget);
+
     await reveal(find.widgetWithText(ChoiceChip, 'Watching'));
     await tester.tap(find.widgetWithText(ChoiceChip, 'Watching'));
     await tester.pumpAndSettle();
     expect(find.text('Not rated'), findsNothing, reason: 'no ratings');
     expect(find.byType(TextField), findsNothing, reason: 'no notes');
 
+    for (final text in [
+      'simulated reality',
+      'Pictures',
+      'Neo',
+      'Directors',
+      'Lana Wachowski, Lilly Wachowski',
+      'Screenplay',
+      r'$63M',
+      'Max',
+      'Apple TV',
+      'The Matrix Reloaded',
+    ]) {
+      await reveal(find.text(text));
+      expect(find.text(text), findsOneWidget, reason: text);
+    }
+
     final row = await db.select(db.watchTitles).getSingle();
     expect(row.status, 'watching');
+
+    // A picture opens full screen, and swiping moves to the next.
+    await tester.scrollUntilVisible(
+      find.bySemanticsLabel('Still 1 of 2'),
+      -200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.bySemanticsLabel('Still 1 of 2'));
+    await tester.pumpAndSettle();
+    expect(find.byType(TitleGalleryPage), findsOneWidget);
+    expect(find.text('The Matrix · 1 of 2'), findsOneWidget);
+    await tester.fling(find.byType(PageView), const Offset(-400, 0), 1000);
+    await tester.pumpAndSettle();
+    expect(find.text('The Matrix · 2 of 2'), findsOneWidget);
   });
 
   test('show progress counts real episodes and finds the next one', () {

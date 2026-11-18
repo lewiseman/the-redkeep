@@ -131,11 +131,17 @@ class TmdbClient {
   Future<CatalogTitle> details(WatchKey key) async {
     final tv = key.media == WatchMedia.tv;
     final body = await _get('/${key.media.name}/${key.tmdbId}', {
-      'append_to_response': tv
-          ? 'keywords,aggregate_credits,watch/providers,images'
-          : 'keywords,credits,watch/providers,images',
-      // Stills without text, which suit a profile's photos.
-      'include_image_language': 'null',
+      'append_to_response': [
+        'keywords',
+        tv ? 'aggregate_credits' : 'credits',
+        'watch/providers',
+        'images',
+        'videos',
+        'recommendations',
+        tv ? 'content_ratings' : 'release_dates',
+      ].join(','),
+      // English posters and stills, and those with no words at all.
+      'include_image_language': 'en,null',
     });
     return detailsFromJson(key.media, body, region: region);
   }
@@ -211,6 +217,21 @@ class TmdbClient {
     );
   }
 
+  /// Most of what TMDB shares about a title, sized for one page.
+  static const _castShown = 30;
+  static const _picturesShown = 30;
+  static const _crewJobs = {
+    'Director',
+    'Screenplay',
+    'Writer',
+    'Story',
+    'Novel',
+    'Producer',
+    'Original Music Composer',
+    'Director of Photography',
+    'Editor',
+  };
+
   static CatalogTitle detailsFromJson(
     WatchMedia media,
     Map<String, dynamic> json, {
@@ -222,28 +243,107 @@ class TmdbClient {
       throw const TmdbException(TmdbFailure.unavailable);
     }
     final tv = media == WatchMedia.tv;
+    List<Map> list(Object? value) =>
+        value is List ? value.whereType<Map>().toList() : const [];
+    List<String> names(Object? value, [String field = 'name']) => [
+      for (final m in list(value))
+        if (m[field] is String && (m[field] as String).isNotEmpty)
+          m[field] as String,
+    ];
     final credits =
         (json[tv ? 'aggregate_credits' : 'credits'] as Map?) ?? const {};
     final keywords = (json['keywords'] as Map?) ?? const {};
     final providers =
         ((json['watch/providers'] as Map?)?['results'] as Map?)?[region]
             as Map?;
-    String? director;
+    final images = (json['images'] as Map?) ?? const {};
+
+    final creators = names(json['created_by']);
+    final crewByName = <String, List<String>>{};
+    for (final c in list(credits['crew'])) {
+      final name = c['name'];
+      // A show's crew lists its jobs; a film's crew has one job a row.
+      final jobs = tv
+          ? [for (final j in list(c['jobs'])) ?j['job'] as String?]
+          : [?c['job'] as String?];
+      if (name is! String) continue;
+      for (final job in jobs.where(_crewJobs.contains)) {
+        final held = crewByName.putIfAbsent(name, () => []);
+        if (!held.contains(job)) held.add(job);
+      }
+    }
+    final director = tv
+        ? creators.firstOrNull
+        : crewByName.entries
+              .where((e) => e.value.contains('Director'))
+              .map((e) => e.key)
+              .firstOrNull;
+    final crewProfiles = {
+      for (final c in list(credits['crew']))
+        if (c['name'] is String) c['name'] as String: _path(c['profile_path']),
+    };
+    final crew = [
+      for (final name in creators)
+        Credit(name: name, role: 'Creator', profilePath: null),
+      for (final entry in crewByName.entries)
+        if (!creators.contains(entry.key))
+          Credit(
+            name: entry.key,
+            role: entry.value.join(', '),
+            profilePath: crewProfiles[entry.key],
+          ),
+    ];
+
+    final cast = [
+      for (final c in list(credits['cast']).take(_castShown))
+        if (c['name'] is String)
+          Credit(
+            name: c['name'] as String,
+            role: tv
+                ? list(c['roles'])
+                      .map((r) => r['character'])
+                      .whereType<String>()
+                      .where((r) => r.isNotEmpty)
+                      .firstOrNull
+                : (c['character'] as String?)?.trim().nullIfEmpty,
+            profilePath: _path(c['profile_path']),
+          ),
+    ];
+
+    final videos = [
+      for (final v in list((json['videos'] as Map?)?['results']))
+        if (v['site'] == 'YouTube' && v['key'] is String)
+          TitleVideo(
+            youtubeKey: v['key'] as String,
+            name: v['name'] as String? ?? 'Trailer',
+            type: v['type'] as String?,
+          ),
+    ]..sort((a, b) => _videoRank(a).compareTo(_videoRank(b)));
+
+    String? certification;
     if (tv) {
-      final creators = json['created_by'] as List? ?? const [];
-      director =
-          creators.whereType<Map>().map((c) => c['name']).firstOrNull
-              as String?;
-    } else {
-      director =
-          (credits['crew'] as List? ?? const [])
-                  .whereType<Map>()
-                  .where((c) => c['job'] == 'Director')
-                  .map((c) => c['name'])
+      certification =
+          list((json['content_ratings'] as Map?)?['results'])
+                  .where((r) => r['iso_3166_1'] == region)
+                  .map((r) => r['rating'])
                   .firstOrNull
               as String?;
+    } else {
+      final dates = list((json['release_dates'] as Map?)?['results'])
+          .where((r) => r['iso_3166_1'] == region)
+          .expand((r) => list(r['release_dates']));
+      certification = dates
+          .map((d) => d['certification'])
+          .whereType<String>()
+          .where((c) => c.isNotEmpty)
+          .firstOrNull;
     }
+
+    final next = json['next_episode_to_air'];
+    final originalTitle =
+        (json[tv ? 'original_name' : 'original_title'] as String?)?.trim();
     final runtimes = json['episode_run_time'] as List? ?? const [];
+    final homepage = (json['homepage'] as String?)?.trim();
     return CatalogTitle(
       key: WatchKey(media, id),
       title: title,
@@ -252,26 +352,12 @@ class TmdbClient {
       tagline: json['tagline'] as String? ?? '',
       posterPath: _path(json['poster_path']),
       backdropPath: _path(json['backdrop_path']),
-      backdrops: [
-        for (final b
-            in ((json['images'] as Map?)?['backdrops'] as List? ?? const [])
-                .take(5))
-          if (b is Map) ?_path(b['file_path']),
-      ],
-      genres: [
-        for (final g in json['genres'] as List? ?? const [])
-          if (g is Map && g['name'] is String) g['name'] as String,
-      ],
-      keywords: [
-        for (final k
-            in (keywords[tv ? 'results' : 'keywords'] as List? ?? const [])
-                .take(12))
-          if (k is Map && k['name'] is String) k['name'] as String,
-      ],
-      cast: [
-        for (final c in (credits['cast'] as List? ?? const []).take(8))
-          if (c is Map && c['name'] is String) c['name'] as String,
-      ],
+      backdrops: _paths(images['backdrops']),
+      posters: _paths(images['posters']),
+      genres: names(json['genres']),
+      keywords: names(keywords[tv ? 'results' : 'keywords']).take(20).toList(),
+      cast: cast,
+      crew: crew,
       director: director,
       runtime: tv
           ? runtimes.whereType<int>().firstOrNull
@@ -280,26 +366,78 @@ class TmdbClient {
       voteAverage: (json['vote_average'] as num?)?.toDouble() ?? 0,
       voteCount: json['vote_count'] as int? ?? 0,
       popularity: (json['popularity'] as num?)?.toDouble() ?? 0,
-      providers: [
-        for (final p in providers?['flatrate'] as List? ?? const [])
-          if (p is Map && p['provider_name'] is String)
-            p['provider_name'] as String,
-      ],
+      providers: names(providers?['flatrate'], 'provider_name'),
+      rent: names(providers?['rent'], 'provider_name'),
+      buy: names(providers?['buy'], 'provider_name'),
       seasons: [
-        for (final s in json['seasons'] as List? ?? const [])
-          if (s is Map &&
-              s['season_number'] is int &&
-              (s['season_number'] as int) > 0)
+        for (final s in list(json['seasons']))
+          if (s['season_number'] is int && (s['season_number'] as int) > 0)
             SeasonSummary(
               number: s['season_number'] as int,
               name: s['name'] as String? ?? 'Season ${s['season_number']}',
               episodeCount: s['episode_count'] as int? ?? 0,
               airDate: DateTime.tryParse(s['air_date'] as String? ?? ''),
+              posterPath: _path(s['poster_path']),
+              overview: s['overview'] as String? ?? '',
             ),
       ],
+      videos: videos,
+      recommendations: summaries(
+        (json['recommendations'] as Map?)?['results'],
+        media: media,
+      ).where((r) => r.posterPath != null).take(20).toList(),
+      originalTitle: originalTitle == null || originalTitle == title
+          ? null
+          : originalTitle,
+      status: (json['status'] as String?)?.nullIfEmpty,
+      releaseDate: DateTime.tryParse(
+        json[tv ? 'first_air_date' : 'release_date'] as String? ?? '',
+      ),
+      lastAirDate: tv
+          ? DateTime.tryParse(json['last_air_date'] as String? ?? '')
+          : null,
+      certification: certification?.trim().nullIfEmpty,
+      budget: (json['budget'] as int?).takeIfPositive,
+      revenue: (json['revenue'] as int?).takeIfPositive,
+      companies: names(json['production_companies']),
+      countries: names(json['production_countries']),
+      spokenLanguages: [
+        for (final l in list(json['spoken_languages']))
+          if ((l['english_name'] ?? l['name']) case final String name
+              when name.isNotEmpty)
+            name,
+      ],
+      networks: names(json['networks']),
+      episodeCount: (json['number_of_episodes'] as int?).takeIfPositive,
+      nextEpisode:
+          next is Map &&
+              next['season_number'] is int &&
+              next['episode_number'] is int
+          ? EpisodeSummary(
+              season: next['season_number'] as int,
+              number: next['episode_number'] as int,
+              name: next['name'] as String? ?? '',
+              airDate: DateTime.tryParse(next['air_date'] as String? ?? ''),
+            )
+          : null,
+      homepage: homepage != null && homepage.startsWith('https://')
+          ? homepage
+          : null,
       detailed: true,
     );
   }
+
+  /// Trailers, then teasers, then everything else.
+  static int _videoRank(TitleVideo v) => switch (v.type) {
+    'Trailer' => 0,
+    'Teaser' => 1,
+    _ => 2,
+  };
+
+  static List<String> _paths(Object? images) => [
+    for (final i in (images is List ? images : const []).take(_picturesShown))
+      if (i is Map) ?_path(i['file_path']),
+  ];
 
   static List<EpisodeSummary> episodesFromJson(
     int season,
@@ -314,6 +452,7 @@ class TmdbClient {
           overview: e['overview'] as String? ?? '',
           airDate: DateTime.tryParse(e['air_date'] as String? ?? ''),
           runtime: e['runtime'] as int?,
+          stillPath: _path(e['still_path']),
         ),
   ];
 
@@ -337,4 +476,8 @@ class TmdbClient {
 
 extension on int? {
   int? get takeIfPositive => this == null || this! <= 0 ? null : this;
+}
+
+extension on String {
+  String? get nullIfEmpty => isEmpty ? null : this;
 }

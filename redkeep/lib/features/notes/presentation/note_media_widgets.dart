@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../ai/application/ai_jobs.dart';
 import '../../sync/application/sync_providers.dart';
 import '../data/note_media_store.dart';
 import '../domain/note_details.dart';
@@ -161,7 +160,6 @@ Future<Map<String, dynamic>?> pickNoteBackground(
     maxWidth: 560,
     maxHeight: MediaQuery.sizeOf(context).height * .85,
   ),
-  // The sheet rises above the keyboard so the backdrop prompt stays visible.
   builder: (sheetContext) => Padding(
     padding: EdgeInsets.only(
       bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
@@ -187,10 +185,6 @@ class _BackgroundPickerState extends ConsumerState<_BackgroundPicker> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final preset = NoteColors.presetForType(_background['type']);
-    // Applying mid-painting would discard the artwork being painted.
-    final painting = ref
-        .watch(aiJobsProvider(NoteArtworkSection.scope(widget.id)))
-        .busy;
     final keyboard = MediaQuery.viewInsetsOf(context).bottom > 0;
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -209,7 +203,7 @@ class _BackgroundPickerState extends ConsumerState<_BackgroundPicker> {
               ),
               const SizedBox(height: 2),
               Text(
-                'Choose the paper and what is painted on it.',
+                'Choose the paper and a picture to set behind it.',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -267,11 +261,9 @@ class _BackgroundPickerState extends ConsumerState<_BackgroundPicker> {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  onPressed: painting
-                      ? null
-                      : () => Navigator.pop(context, _background),
+                  onPressed: () => Navigator.pop(context, _background),
                   icon: const Icon(Icons.check_rounded),
-                  label: Text(painting ? 'Painting…' : 'Apply background'),
+                  label: const Text('Apply background'),
                 ),
               ),
             ),

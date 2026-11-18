@@ -34,13 +34,6 @@ enum NoteAiTool {
     'Photo to written words',
     Color(0xFF527C9C),
   ),
-  background(
-    'Generate a background',
-    'Choose a preset or describe a background.',
-    'Add a backdrop',
-    'Generate a background',
-    Color(0xFF9C6887),
-  ),
   presentation(
     'Website',
     'Turn this note into an interactive page. Your text stays as it is.',
@@ -68,7 +61,6 @@ enum NoteAiTool {
     writing => 'Your note was rewritten',
     image => 'Added to the end of your note',
     scan => 'Page added to the end of your note',
-    background => 'New background set',
     presentation => 'Website ready',
   };
 }
@@ -169,7 +161,6 @@ class _ToolPainter extends CustomPainter {
         canvas.restore();
         sparkle(64, 15);
       case NoteAiTool.image:
-      case NoteAiTool.background:
         sheet(10, 18, 53, 43, tinted: true);
         canvas.drawCircle(
           const Offset(47, 30),
@@ -183,14 +174,9 @@ class _ToolPainter extends CustomPainter {
           ..lineTo(49, 42)
           ..lineTo(59, 54);
         canvas.drawPath(hills, stroke);
-        if (tool == NoteAiTool.image) {
-          canvas.drawCircle(const Offset(59, 57), 11, Paint()..color = paper);
-          canvas.drawCircle(const Offset(59, 57), 11, stroke);
-          line(67, 65, 74, 72);
-        } else {
-          sparkle(66, 16);
-          sparkle(65, 66);
-        }
+        canvas.drawCircle(const Offset(59, 57), 11, Paint()..color = paper);
+        canvas.drawCircle(const Offset(59, 57), 11, stroke);
+        line(67, 65, 74, 72);
       case NoteAiTool.scan:
         sheet(22, 14, 36, 51);
         lines(29, 29, 22, 4);
@@ -626,39 +612,19 @@ const noteWebsiteIdeas = [
   ),
 ];
 
-class NoteAiBackdropIdeas extends StatelessWidget {
-  const NoteAiBackdropIdeas({
+/// Quick starting points that fill in a description.
+class NoteAiIdeas extends StatelessWidget {
+  const NoteAiIdeas({
     super.key,
     required this.value,
     required this.onChanged,
-    this.ideas = _backdrops,
+    required this.ideas,
   });
   final String value;
   final ValueChanged<String>? onChanged;
 
   /// A label, the text it fills in, an icon and a tint.
   final List<(String, String, IconData, Color)> ideas;
-
-  static const _backdrops = [
-    (
-      'Ocean',
-      'Soft ocean waves and sea glass, calm and minimal',
-      Icons.waves_rounded,
-      Color(0xFF527C9C),
-    ),
-    (
-      'Leaves',
-      'Soft green leaves on warm paper, calm and minimal',
-      Icons.spa_outlined,
-      Color(0xFF44766B),
-    ),
-    (
-      'Sunset',
-      'A warm peach sunset with soft clouds, calm and minimal',
-      Icons.wb_twilight_rounded,
-      Color(0xFFB5683F),
-    ),
-  ];
 
   @override
   Widget build(BuildContext context) => Padding(

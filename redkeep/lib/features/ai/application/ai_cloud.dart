@@ -267,28 +267,6 @@ class AiCloud {
     );
   }
 
-  Future<Uint8List> generateImage(
-    String prompt, {
-    String size = '1024x1536',
-    Future<void>? abort,
-  }) async {
-    final ready = await _ready(AiCapability.image);
-    return _run(
-      ready.settings,
-      ready.model,
-      (price) => const AiUsage(images: 1).cost(price),
-      () => ref
-          .read(aiCloudClientProvider)
-          .generateImage(
-            ready.settings,
-            ready.model,
-            prompt,
-            size: size,
-            abort: abort,
-          ),
-    );
-  }
-
   Future<List<String>> listModels(
     AiCloudSettings settings, {
     Future<void>? abort,

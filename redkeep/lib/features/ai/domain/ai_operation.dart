@@ -59,14 +59,6 @@ enum AiOperation {
     12288,
     '$noteScanSystem\nReturn exactly: {"text":"…","readable":true}',
   ),
-  noteBackground(
-    'generate-note-background',
-    true,
-    'backgroundContract',
-    256,
-    2048,
-    '',
-  ),
   // A whole interactive page; long notes make long websites.
   noteWebsite('build-website', true, '', 32000, 2097152, noteWebsiteSystem),
   // Changes a kept website as asked, keeping everything else.
@@ -106,23 +98,17 @@ enum AiOperation {
     noteDraft => 'Draft a note',
     noteImage => 'Ask about an image',
     noteScan => 'Scan a page',
-    noteBackground => 'Generate a background',
     noteWebsiteRemix => 'Remix website',
     _ => 'Note website',
   };
   int get inputBytes => switch (this) {
     noteWebsite => 100000,
     noteWebsiteRemix => 400000,
-    // A description plus the note's title and opening, in any script.
-    noteBackground => 8000,
     noteTags => 6000,
     _ => 2000,
   };
-  AiCapability get capability => this == noteBackground
-      ? AiCapability.image
-      : imageInput
-      ? AiCapability.vision
-      : AiCapability.chat;
+  AiCapability get capability =>
+      imageInput ? AiCapability.vision : AiCapability.chat;
   final int outputTokens, outputBytes;
 
   double get temperature => switch (this) {

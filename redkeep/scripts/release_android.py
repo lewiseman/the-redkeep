@@ -238,6 +238,9 @@ def main():
     tmdb = config.get("TMDB_API_KEY", "")
     if not tmdb or tmdb.startswith("YOUR_"):
         raise ReleaseError("env.json must include a TMDB_API_KEY for the Watchlist.")
+    unsplash = config.get("UNSPLASH_ACCESS_KEY", "")
+    if not unsplash or unsplash.startswith("YOUR_"):
+        raise ReleaseError("env.json must include an UNSPLASH_ACCESS_KEY for note background photos.")
     tools = android_tools()
     source_commit = run("git", "rev-parse", "HEAD", capture=True)
     # Website metadata is generated after building, outside the app source tree.

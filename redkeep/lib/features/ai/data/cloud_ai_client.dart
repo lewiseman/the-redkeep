@@ -624,41 +624,6 @@ class OpenAiCloudClient implements AiCloudClient {
   }
 
   @override
-  Future<AiResult<Uint8List>> generateImage(
-    AiCloudSettings settings,
-    String model,
-    String prompt, {
-    String size = '1024x1536',
-    Future<void>? abort,
-  }) async {
-    final json = await transport.json(
-      settings,
-      'POST',
-      '/images/generations',
-      body: {
-        'model': model,
-        'prompt': prompt,
-        'n': 1,
-        'size': openAiImageSize(model, size),
-        // GPT image models always answer in base64; older ones need asking.
-        if (model.startsWith('dall-e')) 'response_format': 'b64_json',
-      },
-      abort: abort,
-    );
-    final data = json['data'];
-    final first = data is List && data.isNotEmpty ? data.first : null;
-    final encoded = first is Map ? first['b64_json'] : null;
-    if (encoded is! String) {
-      throw const AiProviderFailure(AiProviderFailureKind.invalidResponse);
-    }
-    try {
-      return AiResult(base64Decode(encoded), const AiUsage(images: 1));
-    } on FormatException {
-      throw const AiProviderFailure(AiProviderFailureKind.invalidResponse);
-    }
-  }
-
-  @override
   Future<List<String>> listModels(
     AiCloudSettings settings, {
     Future<void>? abort,
@@ -880,15 +845,6 @@ class AnthropicCloudAdapter extends OpenAiCloudClient {
     double seconds = 0,
     Future<void>? abort,
   }) async => throw _unsupported;
-
-  @override
-  Future<AiResult<Uint8List>> generateImage(
-    AiCloudSettings settings,
-    String model,
-    String prompt, {
-    String size = '1024x1536',
-    Future<void>? abort,
-  }) async => throw _unsupported;
 }
 
 /// Picks the adapter for the configured format.
@@ -935,28 +891,8 @@ class CloudAiClient implements AiCloudClient {
   );
 
   @override
-  Future<AiResult<Uint8List>> generateImage(
-    AiCloudSettings settings,
-    String model,
-    String prompt, {
-    String size = '1024x1536',
-    Future<void>? abort,
-  }) =>
-      _for(settings)
-          .generateImage(settings, model, prompt, size: size, abort: abort);
-
-  @override
   Future<List<String>> listModels(
     AiCloudSettings settings, {
     Future<void>? abort,
   }) => _for(settings).listModels(settings, abort: abort);
-}
-
-/// GPT image models take 1024x1536 for a tall page; DALL·E 3 names its
-/// portrait size 1024x1792, and DALL·E 2 only paints squares.
-String openAiImageSize(String model, String size) {
-  if (size != '1024x1536') return size;
-  if (model.startsWith('dall-e-3')) return '1024x1792';
-  if (model.startsWith('dall-e-2')) return '1024x1024';
-  return size;
 }

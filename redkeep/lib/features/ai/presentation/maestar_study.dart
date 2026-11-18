@@ -11,7 +11,6 @@ const maestarLinks = [
   AiCapability.chat,
   AiCapability.vision,
   AiCapability.transcription,
-  AiCapability.image,
 ];
 
 /// Each link of the chain is forged from its own metal.
@@ -19,21 +18,18 @@ Color maestarMetal(AiCapability capability) => switch (capability) {
   AiCapability.chat => const Color(0xFFD4A84B), // gold
   AiCapability.vision => const Color(0xFFB9C0C8), // silver
   AiCapability.transcription => const Color(0xFFC46A3C), // copper
-  AiCapability.image => const Color(0xFFA97B3F), // bronze
 };
 
 String maestarMetalName(AiCapability capability) => switch (capability) {
   AiCapability.chat => 'gold',
   AiCapability.vision => 'silver',
   AiCapability.transcription => 'copper',
-  AiCapability.image => 'bronze',
 };
 
 IconData maestarIcon(AiCapability capability) => switch (capability) {
   AiCapability.chat => Icons.edit_note_rounded,
   AiCapability.vision => Icons.image_search_rounded,
   AiCapability.transcription => Icons.graphic_eq_rounded,
-  AiCapability.image => Icons.palette_outlined,
 };
 
 /// The open header of Grand Maestar: a candlelit study with the Maestar's

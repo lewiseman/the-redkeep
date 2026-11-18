@@ -59,9 +59,8 @@ Future<BackupEngine> createRedkeepBackupEngine({
   );
 }
 
-/// Diary photos and note attachments, stored next to the database. Only files
-/// the journal still references are backed up; note background images are
-/// generated per device and stay local.
+/// Diary photos, note attachments and note background images, stored next to
+/// the database. Only files the journal still references are backed up.
 List<BackupFileSet> redkeepFileSets(File database) {
   final root = database.parent;
   Future<Set<String>> under(String folder) async => {
@@ -84,8 +83,8 @@ List<BackupFileSet> redkeepFileSets(File database) {
   ];
 }
 
-/// Media paths referenced by diary entries and note attachments (with a
-/// scanned note's `.scan.json` text). Rows that fail to parse are skipped
+/// Media paths referenced by diary entries, note attachments (with a scanned
+/// note's `.scan.json` text) and note backgrounds. Rows that fail to parse are skipped
 /// rather than failing the backup. Reads with its own read-only connection.
 Future<Set<String>> redkeepMediaPaths(String path) async {
   if (!await File(path).exists()) return {};
@@ -134,6 +133,11 @@ Set<String> mediaPathsIn(Database db) {
         result
           ..add(path)
           ..add('$path.scan.json');
+      }
+      final background = details['background'];
+      final image = background is Map ? background['image'] : null;
+      if (image is String && image.startsWith('note_media/')) {
+        result.add(image);
       }
     }
   }

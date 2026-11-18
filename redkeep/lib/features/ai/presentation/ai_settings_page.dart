@@ -108,7 +108,6 @@ class _AiSettingsFormState extends ConsumerState<_AiSettingsForm>
   static const _modelCapabilities = [
     AiCapability.chat,
     AiCapability.transcription,
-    AiCapability.image,
   ];
 
   static String _money(double value) =>
@@ -323,7 +322,6 @@ class _AiSettingsFormState extends ConsumerState<_AiSettingsForm>
     String usd(double v) => '\$${v.toStringAsFixed(v < 1 ? 3 : 2)}';
     return switch (capability) {
       AiCapability.transcription => '${usd(price.unit)} per minute',
-      AiCapability.image => '${usd(price.unit)} per image',
       _ => '${usd(price.input)} in · ${usd(price.output)} out per M tokens',
     };
   }
@@ -890,9 +888,7 @@ class _PriceDialog extends StatefulWidget {
 }
 
 class _PriceDialogState extends State<_PriceDialog> {
-  bool get _perUnit =>
-      widget.capability == AiCapability.transcription ||
-      widget.capability == AiCapability.image;
+  bool get _perUnit => widget.capability == AiCapability.transcription;
   late final _first = TextEditingController(
     text: '${_perUnit ? widget.price.unit : widget.price.input}',
   );
@@ -917,8 +913,6 @@ class _PriceDialogState extends State<_PriceDialog> {
           decoration: InputDecoration(
             labelText: widget.capability == AiCapability.transcription
                 ? 'USD per minute of audio'
-                : widget.capability == AiCapability.image
-                ? 'USD per image'
                 : 'USD per million input tokens',
           ),
         ),

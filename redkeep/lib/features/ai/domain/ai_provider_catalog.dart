@@ -41,7 +41,6 @@ const customAiProviderPreset = AiProviderPreset(
     AiCapability.chat,
     AiCapability.vision,
     AiCapability.transcription,
-    AiCapability.image,
   },
 );
 
@@ -57,12 +56,10 @@ const aiProviderCatalog = <AiProviderPreset>[
       AiCapability.chat,
       AiCapability.vision,
       AiCapability.transcription,
-      AiCapability.image,
     },
     defaultModels: {
       AiCapability.chat: 'gpt-5-mini',
       AiCapability.transcription: 'gpt-4o-mini-transcribe',
-      AiCapability.image: 'gpt-image-1',
     },
     prices: {
       'gpt-5-mini': AiPrice(input: .25, output: 2),
@@ -73,8 +70,6 @@ const aiProviderCatalog = <AiProviderPreset>[
       'gpt-4o-mini-transcribe': AiPrice(unit: .003),
       'gpt-4o-transcribe': AiPrice(unit: .006),
       'whisper-1': AiPrice(unit: .006),
-      'gpt-image-1': AiPrice(unit: .07),
-      'gpt-image-1-mini': AiPrice(unit: .02),
     },
   ),
   AiProviderPreset(
@@ -124,7 +119,7 @@ const aiProviderCatalog = <AiProviderPreset>[
     name: 'xAI',
     baseUrl: 'https://api.x.ai/v1',
     keyUrl: 'https://console.x.ai',
-    capabilities: {AiCapability.chat, AiCapability.vision, AiCapability.image},
+    capabilities: {AiCapability.chat, AiCapability.vision},
   ),
   customAiProviderPreset,
 ];

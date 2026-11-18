@@ -14,7 +14,6 @@ const testAiSettings = AiCloudSettings(
   models: {
     AiCapability.chat: 'test-model',
     AiCapability.transcription: 'test-transcribe',
-    AiCapability.image: 'test-image',
   },
   monthlyLimitUsd: 0,
 );
@@ -46,10 +45,7 @@ class FakeAiProviderClient implements AiCloudClient {
   final turns = <AiConverseReply>[];
   final conversations = <AiConverseRequest>[];
   final transcribed = <Uint8List>[];
-  final images = <String>[];
-  final imageSizes = <String>[];
   String transcript = 'Spoken words';
-  Uint8List? image;
   AiUsage usage = const AiUsage(inputTokens: 10, outputTokens: 5);
 
   Future<void> _wait(Future<void>? abort) async {
@@ -102,20 +98,6 @@ class FakeAiProviderClient implements AiCloudClient {
     transcribed.add(audio);
     await _wait(abort);
     return AiResult(transcript, AiUsage(seconds: seconds));
-  }
-
-  @override
-  Future<AiResult<Uint8List>> generateImage(
-    AiCloudSettings settings,
-    String model,
-    String prompt, {
-    String size = '1024x1536',
-    Future<void>? abort,
-  }) async {
-    images.add(prompt);
-    imageSizes.add(size);
-    await _wait(abort);
-    return AiResult(image ?? Uint8List(0), const AiUsage(images: 1));
   }
 
   @override

@@ -1,4 +1,6 @@
 import 'package:redkeep/features/notes/data/note_media_store.dart';
+import 'package:redkeep/features/stock_photos/application/stock_photo_providers.dart';
+import 'package:redkeep/features/stock_photos/domain/stock_photo_source.dart';
 import 'package:redkeep/features/voice/application/voice_coordination.dart';
 import 'package:redkeep/features/voice/application/voice_capture.dart';
 import 'package:drift/native.dart';
@@ -66,6 +68,10 @@ Future<GoRouter> pumpApp(
 
   /// Overrides for backups; when given, backups are enabled.
   List<Override> backups = const [],
+
+  /// The stock photo library; none (not configured) by default.
+  StockPhotoSource? stockPhotos,
+  List<Override> overrides = const [],
 }) async {
   final db = database ?? AppDatabase(NativeDatabase.memory());
   if (database == null) addTearDown(db.close);
@@ -79,6 +85,9 @@ Future<GoRouter> pumpApp(
           voiceCaptureFactoryProvider.overrideWithValue(voiceCapture),
         appDatabaseProvider.overrideWithValue(db),
         watchPostersEnabledProvider.overrideWithValue(false),
+        stockPhotoImagesEnabledProvider.overrideWithValue(false),
+        stockPhotoSourceProvider.overrideWithValue(stockPhotos),
+        ...overrides,
         watchRemindersProvider.overrideWithValue(
           watchReminders ?? FakeWatchReminders(),
         ),

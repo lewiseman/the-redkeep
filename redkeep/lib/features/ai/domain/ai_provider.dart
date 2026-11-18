@@ -10,8 +10,7 @@ enum AiProviderFormat { openAiCompatible, anthropic }
 enum AiCapability {
   chat('Writing'),
   vision('Images in'),
-  transcription('Speech to text'),
-  image('Image generation');
+  transcription('Speech to text');
 
   const AiCapability(this.label);
   final String label;
@@ -76,7 +75,7 @@ class AiProviderFailure implements Exception {
   String toString() => 'AiProviderFailure(${kind.name})';
 }
 
-/// USD prices. Tokens are priced per million; audio per minute; images each.
+/// USD prices. Tokens are priced per million; audio per minute.
 class AiPrice {
   const AiPrice({this.input = 0, this.output = 0, this.unit = 0});
   final double input, output, unit;
@@ -204,16 +203,14 @@ class AiUsage {
     this.inputTokens = 0,
     this.outputTokens = 0,
     this.seconds = 0,
-    this.images = 0,
   });
-  final int inputTokens, outputTokens, images;
+  final int inputTokens, outputTokens;
   final double seconds;
 
   double cost(AiPrice price) =>
       inputTokens * price.input / 1e6 +
       outputTokens * price.output / 1e6 +
-      seconds / 60 * price.unit +
-      images * price.unit;
+      seconds / 60 * price.unit;
 }
 
 class AiImageInput {
@@ -271,13 +268,6 @@ abstract interface class AiCloudClient {
     String filename = 'speech.wav',
     String mime = 'audio/wav',
     double seconds = 0,
-    Future<void>? abort,
-  });
-  Future<AiResult<Uint8List>> generateImage(
-    AiCloudSettings settings,
-    String model,
-    String prompt, {
-    String size = '1024x1536',
     Future<void>? abort,
   });
   Future<List<String>> listModels(

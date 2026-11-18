@@ -8,7 +8,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/storage_providers.dart';
 import '../../notes/application/note_ai_sources.dart';
 import '../../notes/data/note_media_store.dart';
-import '../../notes/domain/note_background_contract.dart';
 import '../../sync/application/sync_providers.dart'
     show writingSessionEpochProvider;
 import '../domain/ai_job.dart';
@@ -120,9 +119,6 @@ class AiJobs extends Notifier<AiJobState> {
   Future<String> _send(AiJob job, Future<void> abort) async {
     final cloud = ref.read(aiCloudProvider);
     final operation = job.operation;
-    if (operation == AiOperation.noteBackground) {
-      return _noteBackground(job, abort);
-    }
     final images = switch (operation) {
       AiOperation.noteImage || AiOperation.noteScan => [
         AiImageInput(await _noteUpload(job), mime: 'image/png'),
@@ -174,38 +170,6 @@ class AiJobs extends Notifier<AiJobState> {
     } on FormatException {
       /* Rejected by validation. */
     }
-    return text;
-  }
-
-  Future<String> _noteBackground(AiJob job, Future<void> abort) async {
-    final png = await ref
-        .read(aiCloudProvider)
-        .generateImage(
-          noteBackgroundImagePrompt(job.prompt),
-          // Notes are read on a phone held upright.
-          size: noteBackgroundImageSize,
-          abort: abort,
-        );
-    if (png.length < 24 || png[0] != 0x89 || png[1] != 0x50) {
-      throw const FormatException(
-        'The generated image was not a PNG. Nothing was applied.',
-      );
-    }
-    final data = ByteData.sublistView(png);
-    final text = jsonEncode({
-      'width': data.getUint32(16),
-      'height': data.getUint32(20),
-      'bytes': png.length,
-      'sha256': sha256.convert(png).toString(),
-      'seed': 0,
-    });
-    final meta = NoteBackgroundResult.parse(text);
-    if (!meta.matches(png, meta.sha256)) {
-      throw const FormatException(
-        'The generated image failed verification. Nothing was applied.',
-      );
-    }
-    await ref.read(noteMediaStoreProvider).write(png, identity: job.id);
     return text;
   }
 

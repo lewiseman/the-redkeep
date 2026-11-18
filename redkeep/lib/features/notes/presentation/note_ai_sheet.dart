@@ -38,7 +38,6 @@ NoteAiTool noteToolForJob(AiJob job) => switch (job.operation) {
   AiOperation.noteTemplate => NoteAiTool.template,
   AiOperation.noteImage => NoteAiTool.image,
   AiOperation.noteScan => NoteAiTool.scan,
-  AiOperation.noteBackground => NoteAiTool.background,
   AiOperation.noteWebsite => NoteAiTool.presentation,
   _ => NoteAiTool.writing,
 };
@@ -98,7 +97,7 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
   final _question = TextEditingController();
   final _review = TextEditingController();
   AiOperation _writing = AiOperation.noteMarkdown;
-  String _imageMode = 'describe', _backgroundTone = 'light';
+  String _imageMode = 'describe';
   String? _error, _reviewedJob;
   NoteAttachment? _image;
   TextSelection? _selection;
@@ -148,7 +147,6 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
     NoteAiTool.template => AiOperation.noteTemplate,
     NoteAiTool.image => AiOperation.noteImage,
     NoteAiTool.scan => AiOperation.noteScan,
-    NoteAiTool.background => AiOperation.noteBackground,
     NoteAiTool.presentation => AiOperation.noteWebsite,
     _ => _writing,
   };
@@ -186,7 +184,6 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
         intent: operation == AiOperation.noteCustom ? _question.text : '',
         topic: _input.text,
         description: _input.text,
-        tone: _backgroundTone,
         image: _image,
         mode: _imageMode,
         question: _imageMode == 'question' ? _question.text : '',
@@ -549,25 +546,6 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
                   ),
           ),
       ],
-      if (widget.tool == NoteAiTool.background) ...[
-        _label('Paint a backdrop'),
-        NoteAiBackdropIdeas(
-          value: _input.text,
-          onChanged: (v) => setState(() => _input.text = v),
-        ),
-        TextField(
-          controller: _input,
-          maxLength: 240,
-          decoration: const InputDecoration(
-            labelText: 'Describe the background',
-          ),
-        ),
-        NoteAiChoices(
-          choices: const {'light': 'Light', 'dark': 'Dark'},
-          selected: _backgroundTone,
-          onChanged: (String v) => setState(() => _backgroundTone = v),
-        ),
-      ],
       if (widget.tool == NoteAiTool.presentation) ...[
         if (_creating) ...[
           const Text(
@@ -597,7 +575,7 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
             ),
           ),
         _label('What should it be like?'),
-        NoteAiBackdropIdeas(
+        NoteAiIdeas(
           ideas: noteWebsiteIdeas,
           value: _input.text,
           onChanged: (v) => setState(() => _input.text = v),
@@ -624,7 +602,6 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
         icon: const Icon(Icons.auto_awesome_rounded),
         label: Text(switch (widget.tool) {
           NoteAiTool.scan => 'Read the page',
-          NoteAiTool.background => 'Paint it',
           NoteAiTool.presentation =>
             _creating
                 ? 'Write it and build the website'
@@ -799,15 +776,7 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
           ),
         ),
     ];
-    if (job.operation == AiOperation.noteBackground) {
-      result.add(
-        _folio(
-          status: 'New backdrop',
-          imageKey: backgroundPreviewPath(job.id, job.text!),
-          child: _page(lines: 3),
-        ),
-      );
-    } else if (job.operation == AiOperation.noteWebsite) {
+    if (job.operation == AiOperation.noteWebsite) {
       result.add(
         ClipRRect(
           borderRadius: BorderRadius.circular(18),

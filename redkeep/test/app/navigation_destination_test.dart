@@ -165,7 +165,12 @@ void main() {
 
   test('note IDs survive both gates; there is no editing address, and reject malformed input', () {
     const id = '0123456789abcdef0123456789abcdef';
-    for (final path in ['/notes', '/notes/$id']) {
+    for (final path in [
+      '/notes',
+      '/notes/$id',
+      noteBackgroundSearchLocation(id),
+      noteBackgroundPhotoLocation(id),
+    ]) {
       expect(validatedNavigationLocation(path), path);
       final startup = redirect(path, ready: false)!;
       final welcome = redirect(startup, complete: false)!;
@@ -177,6 +182,8 @@ void main() {
       '/notes/$id/',
       '/notes/$id/edit',
       '/notes/$id/edit/extra',
+      '/notes/$id/background/other',
+      '/notes/$id/background/photo/1',
       '/notes/$id?text=private',
       '/notes/$id#private',
       '/notes/%2F$id',
@@ -185,6 +192,7 @@ void main() {
       expect(validatedNavigationLocation(path), '/unavailable', reason: path);
     }
     expect(noteLocation('bad'), '/unavailable');
+    expect(noteBackgroundSearchLocation('bad'), '/unavailable');
   });
 
   test(

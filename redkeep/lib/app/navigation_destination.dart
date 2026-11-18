@@ -99,8 +99,9 @@ String _destination(String location) {
   if (watch != null && WatchKey.fromRoute(watch[1], watch[2]) != null) {
     return location;
   }
-  final match = RegExp(r'^/notes/([0-9a-f]{32})(?:/website|/scan|/maester)?$')
-      .firstMatch(location);
+  final match = RegExp(
+    r'^/notes/([0-9a-f]{32})(?:/website|/scan|/maester|/background(?:/photo)?)?$',
+  ).firstMatch(location);
   return match != null && isNoteId(match[1]!)
       ? location
       : AppDestination.unavailable.location;
@@ -122,6 +123,16 @@ String noteChatLocation(String id) =>
 /// Scanning a page into a note, on a page of its own.
 String noteScanLocation(String id) =>
     isNoteId(id) ? '/notes/$id/scan' : AppDestination.unavailable.location;
+
+/// Searching stock photos for the note's background.
+String noteBackgroundSearchLocation(String id) => isNoteId(id)
+    ? '/notes/$id/background'
+    : AppDestination.unavailable.location;
+
+/// One stock photo, previewed before it becomes the note's background.
+String noteBackgroundPhotoLocation(String id) => isNoteId(id)
+    ? '/notes/$id/background/photo'
+    : AppDestination.unavailable.location;
 
 String _requestedDestination(Uri requested) {
   final isGate =

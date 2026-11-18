@@ -13,7 +13,6 @@ import '../../ai/domain/ai_job.dart';
 import '../../ai/domain/ai_operation.dart';
 import '../../diary/data/prepare_diary_image.dart';
 import '../data/note_media_store.dart';
-import '../domain/note_background_contract.dart';
 import '../domain/note_document.dart';
 import '../domain/note_help_contract.dart';
 import '../domain/note_image_contract.dart';
@@ -54,7 +53,6 @@ class NoteAiController {
     String intent = '',
     String topic = '',
     String description = '',
-    String tone = 'light',
     NoteAttachment? image,
     String mode = 'describe',
     String question = '',
@@ -77,7 +75,6 @@ class NoteAiController {
         AiOperation.noteTemplate,
         AiOperation.noteDraft,
         AiOperation.noteScan,
-        AiOperation.noteBackground,
       }.contains(operation)) {
         throw const FormatException('Write something in this note first.');
       }
@@ -151,37 +148,6 @@ class NoteAiController {
           );
         }
         source['pageHash'] = websiteContentHash(html);
-      case AiOperation.noteBackground:
-        if (description.runes.length > noteBackgroundPromptChars ||
-            RegExp(r'[\x00-\x1f\x7f]').hasMatch(description) ||
-            !noteBackgroundTones.containsKey(tone)) {
-          throw const FormatException(
-            'Describe a background in one line of at most 240 characters.',
-          );
-        }
-        // A new note's words are still only in its editor.
-        final writing = unsaved
-            ? ref.read(noteEditorProvider(id)).value?.text ?? text
-            : text;
-        final title = noteBackgroundExcerpt(
-          writing.title,
-          noteBackgroundTitleChars,
-        );
-        final body = noteBackgroundExcerpt(
-          writing.body,
-          noteBackgroundBodyChars,
-        );
-        if (description.trim().isEmpty && title.isEmpty && body.isEmpty) {
-          throw const FormatException(
-            'Describe the artwork, or write something in this note first.',
-          );
-        }
-        prompt = jsonEncode({
-          'prompt': description.trim(),
-          'tone': tone,
-          'title': title,
-          'body': body,
-        });
       case AiOperation.noteImage || AiOperation.noteScan:
         if (image == null || !image.isImage) {
           throw const FormatException('Choose an image first.');
@@ -394,16 +360,6 @@ class NoteAiController {
           );
         }
         text = PlainTextDocument(title: text.title, body: append(value));
-      case AiOperation.noteBackground:
-        final path = backgroundPreviewPath(job.id, job.text!);
-        if (await ref.read(noteMediaStoreProvider).resolve(path) == null) {
-          throw const FormatException('The background preview is unavailable.');
-        }
-        final background = Map<String, dynamic>.from(details.background)
-          ..remove('asset');
-        details = details.copy(
-          background: {...background, 'image': path, 'image_source': 'local'},
-        );
       default:
         final range = TransformSource.decode(source['range'] as String);
         if (range.replace(job.text!) == text.body) {

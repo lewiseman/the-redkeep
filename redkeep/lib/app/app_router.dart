@@ -30,6 +30,9 @@ import '../features/notes/presentation/note_chat_page.dart';
 import '../features/notes/presentation/note_page.dart';
 import '../features/notes/presentation/note_scan_page.dart';
 import '../features/notes/presentation/website/note_website_page.dart';
+import '../features/stock_photos/domain/stock_photo.dart';
+import '../features/stock_photos/presentation/stock_photo_preview_page.dart';
+import '../features/stock_photos/presentation/stock_photo_search_page.dart';
 import 'bootstrap/bootstrap_controller.dart';
 import 'bootstrap/startup_handoff.dart';
 import 'bootstrap/startup_page.dart';
@@ -210,6 +213,35 @@ GoRouter createAppRouter(Ref ref) {
                         : '',
                   ),
                 ),
+              ),
+              // Stock photos for the note's background. Full page, so they
+              // cover the background sheet that opened them; each pops its
+              // chosen `note_media/` path back to the caller.
+              GoRoute(
+                path: ':id/background',
+                parentNavigatorKey: fullPage,
+                pageBuilder: (context, state) => _page(
+                  state,
+                  StockPhotoSearchPage(noteId: state.pathParameters['id']!),
+                ),
+                routes: [
+                  GoRoute(
+                    path: 'photo',
+                    parentNavigatorKey: fullPage,
+                    pageBuilder: (context, state) => _page(
+                      state,
+                      // The photo travels as `extra`; without it (after
+                      // the app was restarted) search again instead.
+                      state.extra is StockPhoto
+                          ? StockPhotoPreviewPage(
+                              photo: state.extra! as StockPhoto,
+                            )
+                          : StockPhotoSearchPage(
+                              noteId: state.pathParameters['id']!,
+                            ),
+                    ),
+                  ),
+                ],
               ),
               // A sibling, not a child: leaving the website returns to
               // where it was opened from, not to the note.

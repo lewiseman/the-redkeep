@@ -34,7 +34,6 @@ const noteWebsiteOutput =
 class NotesRemote {
   NotesRemote(this.ai) {
     ai.reply = output;
-    ai.image = generated;
   }
   final FakeAiProviderClient ai;
   final Uint8List generated = image.encodePng(
@@ -45,8 +44,6 @@ class NotesRemote {
 
   /// Holds requests open until released.
   set queued(bool value) => ai.gate = value ? Completer<void>() : null;
-  set corruptImage(bool value) =>
-      ai.image = value ? Uint8List.fromList([1, 2, 3]) : generated;
 
   /// What was sent, as the user message and how many images it carried.
   List<Map<String, dynamic>> get submissions => [

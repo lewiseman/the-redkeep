@@ -162,53 +162,10 @@ void main() {
     expect(upload.files.single.filename, 'speech.wav');
   });
 
-  test('image generation decodes base64 output', () async {
-    final ai = client(
-      (_, _) => json({
-        'data': [
-          {
-            'b64_json': base64Encode([9, 8, 7]),
-          },
-        ],
-      }),
-    );
-    final result = await ai.generateImage(testAiSettings, 'test-image', 'sea');
-    expect(result.value, [9, 8, 7]);
-    expect(result.usage.images, 1);
-  });
-
-  test(
-    'images are requested in portrait for every OpenAI image model',
-    () async {
-      final ai = client(
-        (_, _) => json({
-          'data': [
-            {
-              'b64_json': base64Encode([1]),
-            },
-          ],
-        }),
-      );
-      String sentSize() =>
-          (jsonDecode((sent.single as http.Request).body) as Map)['size']
-              as String;
-      for (final (model, size) in [
-        ('gpt-image-1', '1024x1536'),
-        ('gpt-image-1-mini', '1024x1536'),
-        ('dall-e-3', '1024x1792'),
-      ]) {
-        sent.clear();
-        await ai.generateImage(testAiSettings, model, 'sea');
-        expect(sentSize(), size, reason: model);
-      }
-    },
-  );
-
-  test('Anthropic has no speech or images, and sends nothing', () async {
+  test('Anthropic has no speech, and sends nothing', () async {
     final ai = client((_, _) => json({}));
     for (final call in <Future<Object?> Function()>[
       () => ai.transcribe(_anthropic, 'm', Uint8List(4)),
-      () => ai.generateImage(_anthropic, 'm', 'p'),
     ]) {
       await expectLater(
         call(),

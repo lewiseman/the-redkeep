@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:redkeep/features/notes/domain/note_background_contract.dart';
 import 'package:redkeep/features/ai/application/ai_jobs.dart';
 import 'package:redkeep/features/ai/domain/ai_job.dart';
 import 'package:redkeep/features/ai/domain/ai_operation.dart';
@@ -37,7 +36,7 @@ void main() {
   AiJob job() => h.scope.read(aiJobsProvider(notesJobScope)).job!;
 
   for (final operation in AiOperation.values.where(
-    (o) => o.isNote && o.available && o != AiOperation.noteBackground,
+    (o) => o.isNote && o.available,
   )) {
     test(
       '${operation.wireName} rejects a malformed result without changing writing',
@@ -403,100 +402,29 @@ void main() {
     },
   );
 
-  test('background images are generated, verified and kept locally', () async {
-    await actions().start(
-      AiOperation.noteBackground,
-      notesTestId,
-      scope: notesJobScope,
-      description: 'Soft leaves',
-    );
-    expect(h.scope.read(aiJobsProvider(notesJobScope)).message, isNull);
-    expect(job().phase, 'completed');
-    expect(h.aiProvider.images.single, contains('Soft leaves'));
-    expect(h.aiProvider.imageSizes.single, '1024x1536');
-    expect(h.aiProvider.images.single, contains('Portrait'));
-    // The note is sent as context so the artwork suits it.
-    expect(h.aiProvider.images.single, contains('Title: Garden'));
-    expect(h.aiProvider.images.single, contains(notesTestBody));
-    for (final dropped in ['calm', 'subtle', 'soft,', 'low in contrast']) {
-      expect(h.aiProvider.images.single, isNot(contains(dropped)));
-    }
-    expect(
-      await h.media.resolve(backgroundPreviewPath(job().id, job().text!)),
-      isNotNull,
-    );
-    final saved = (await actions().apply(job(), scope: notesJobScope))!;
-    expect(saved.details.background['image'], startsWith('note_media/'));
-    expect(saved.text.body, notesTestBody);
-  });
-
-  test('an empty description lets the note choose the artwork', () async {
-    await h.save(
-      title: 'Lisbon trip',
-      body: 'Tram 28. ${'Pastéis de nata. ' * 200}',
-    );
-    await actions().start(
-      AiOperation.noteBackground,
-      notesTestId,
-      scope: notesJobScope,
-    );
-    expect(job().phase, 'completed');
-    final prompt = h.aiProvider.images.single;
-    expect(prompt, contains('Choose the subject, setting and art style'));
-    expect(prompt, contains('Title: Lisbon trip'));
-    // Long notes send only their opening.
-    final text = prompt.split('Text: ').last;
-    expect(text.runes.length, lessThanOrEqualTo(noteBackgroundBodyChars + 1));
-    expect(text, endsWith('…'));
-  });
-
-  test('an empty description on an empty note sends nothing', () async {
-    await h.save(title: '', body: '');
-    await expectLater(
-      actions().start(
-        AiOperation.noteBackground,
-        notesTestId,
-        scope: notesJobScope,
-      ),
-      throwsFormatException,
-    );
-    expect(h.aiProvider.images, isEmpty);
-  });
-
-  test('a corrupted generated image is never applied', () async {
-    h.remote.corruptImage = true;
-    await actions().start(
-      AiOperation.noteBackground,
-      notesTestId,
-      scope: notesJobScope,
-      description: 'Soft leaves',
-    );
-    expect(job().phase, 'failed');
-    expect(
-      (await h.repository.openDocument(notesTestId)).note!.details.background,
-      {'type': 'sage'},
-    );
-  });
-
   test(
     'a provider without the feature, or oversized input, sends nothing',
     () async {
       h.scope.dispose();
       h.scope = h.createScope(
-        settings: testAiSettings.copyWith(models: {AiCapability.chat: 'm'}),
+        settings: testAiSettings.copyWith(
+          models: {AiCapability.transcription: 'm'},
+        ),
       );
       h.holdPage();
       await actions().start(
-        AiOperation.noteBackground,
+        AiOperation.noteRewrite,
         notesTestId,
         scope: notesJobScope,
-        description: 'Soft leaves',
       );
-      expect(h.aiProvider.images, isEmpty);
+      expect(h.remote.submissions, isEmpty);
       expect(
         h.scope.read(aiJobsProvider(notesJobScope)).message,
         contains('does not offer'),
       );
+      h.scope.dispose();
+      h.scope = h.createScope();
+      h.holdPage();
       await h.save(body: 'word ' * 1000);
       await actions().start(
         AiOperation.noteRewrite,

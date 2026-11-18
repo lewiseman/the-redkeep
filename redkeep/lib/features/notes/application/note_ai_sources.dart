@@ -5,7 +5,6 @@ import '../domain/note_rich_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../ai/domain/ai_operation.dart';
-import '../domain/note_background_contract.dart';
 import '../domain/note_help_contract.dart';
 import '../domain/note_image_contract.dart';
 import '../domain/note_scan_contract.dart';
@@ -73,8 +72,6 @@ void validateNoteAiOutput(
       NoteImageAnswer.parse(text);
     case AiOperation.noteScan:
       NoteScanResult.parse(text);
-    case AiOperation.noteBackground:
-      NoteBackgroundResult.parse(text);
     case AiOperation.noteWebsiteRemix:
       if (!text.contains('>>>>>>> REPLACE') &&
           !RegExp(r'</html\s*>\s*$', caseSensitive: false).hasMatch(text)) {
@@ -100,6 +97,3 @@ void validateNoteAiOutput(
       }
   }
 }
-
-String backgroundPreviewPath(String id, String output) =>
-    'note_media/$id-${NoteBackgroundResult.parse(output).sha256}.png';

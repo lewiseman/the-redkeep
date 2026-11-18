@@ -83,8 +83,6 @@ void main() {
       'Pin note',
       'Unpin note',
       'Edit tags',
-      'Markdown preview',
-      'Show plain text',
       'Delete note',
     };
     if (noteActions.contains(text) && find.text(text).evaluate().isEmpty) {
@@ -862,10 +860,13 @@ void main() {
           router.go(noteLocation(id));
           await tester.pumpAndSettle();
           expect(find.byKey(const ValueKey('note-updated-at')), findsOneWidget);
-          expect(find.textContaining('Updated '), findsOneWidget);
-          await tap(tester, 'Show plain text');
-          expect(tester.takeException(), isNull);
-          await tap(tester, 'Markdown preview');
+          // Shown as an uppercase date, e.g. "NOV 18 · 3:04 PM".
+          expect(
+            tester
+                .widget<Text>(find.byKey(const ValueKey('note-updated-at')))
+                .data,
+            matches(RegExp(r'^[A-Z]{3} \d{1,2}(, \d{4})? · ')),
+          );
           await tap(tester, 'Edit tags');
           await tester.enterText(
             find.byKey(const ValueKey('tag-search')),

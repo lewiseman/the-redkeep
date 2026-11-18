@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/bootstrap/bootstrap_providers.dart';
 import '../../../core/presentation/rendering_policy.dart';
+import '../../sync/application/sync_providers.dart';
 import '../data/note_media_store.dart';
 import '../domain/note_document.dart';
 import '../domain/note_colors.dart';
@@ -19,6 +20,12 @@ final noteBackgroundImageProvider = FutureProvider.autoDispose
       File? file;
       if (key.startsWith('note_media/')) {
         file = await ref.watch(noteMediaStoreProvider).resolve(key);
+        // A restore brings backgrounds back after the journal itself.
+        if (file == null) {
+          ref.listen(restoredMediaProvider, (_, next) {
+            if (next.value == key) ref.invalidateSelf();
+          });
+        }
       } else {
         final uri = await (await ref.watch(assetResolverProvider)).resolve(key);
         file = File.fromUri(uri);

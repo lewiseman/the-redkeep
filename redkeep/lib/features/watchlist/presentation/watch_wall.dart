@@ -29,6 +29,9 @@ TextStyle wallHand(BuildContext context, {double size = 20, Color? color}) =>
       color: color ?? MorePalette.of(context).ink,
     );
 
+/// The hero tag a title's poster flies under, wall to page.
+String wallPosterTag(String id) => 'watch-poster-$id';
+
 /// How each status marks a polaroid.
 enum WallMark {
   none,
@@ -70,9 +73,21 @@ class WallPolaroid extends StatefulWidget {
     this.onDoubleTap,
     this.onLongPress,
     this.doubleTapLabel,
+    this.captionSize = 21,
+    this.stampScale = 1,
+    this.showMeta = true,
   });
 
   final WatchTitle title;
+
+  /// The handwritten name's size; larger on a title's own page.
+  final double captionSize;
+
+  /// How large the status stamp is printed.
+  final double stampScale;
+
+  /// The year and kind under the name; a title's own page says them itself.
+  final bool showMeta;
   final VoidCallback? onTap;
   final VoidCallback? onDoubleTap;
   final VoidCallback? onLongPress;
@@ -126,23 +141,35 @@ class _WallPolaroidState extends State<WallPolaroid>
     )!;
     final doubleTap = widget.onDoubleTap;
 
-    final poster = AspectRatio(
-      aspectRatio: 2 / 3,
-      child: mark == WallMark.dropped
-          ? ColorFiltered(
-              colorFilter: const ColorFilter.matrix([
-                .3, .55, .1, 0, 20, //
-                .3, .55, .1, 0, 20,
-                .3, .55, .1, 0, 20,
-                0, 0, 0, .7, 0,
-              ]),
-              child: WatchPoster(
-                path: title.posterPath,
-                media: title.media,
-                radius: 2,
-              ),
-            )
-          : WatchPoster(path: title.posterPath, media: title.media, radius: 2),
+    // The same picture on the wall and on the title's own page, so it
+    // flies between them.
+    final poster = HeroMode(
+      enabled: RenderingPolicyScope.of(context).animate,
+      child: Hero(
+        tag: wallPosterTag(title.id),
+        child: AspectRatio(
+          aspectRatio: 2 / 3,
+          child: mark == WallMark.dropped
+              ? ColorFiltered(
+                  colorFilter: const ColorFilter.matrix([
+                    .3, .55, .1, 0, 20, //
+                    .3, .55, .1, 0, 20,
+                    .3, .55, .1, 0, 20,
+                    0, 0, 0, .7, 0,
+                  ]),
+                  child: WatchPoster(
+                    path: title.posterPath,
+                    media: title.media,
+                    radius: 2,
+                  ),
+                )
+              : WatchPoster(
+                  path: title.posterPath,
+                  media: title.media,
+                  radius: 2,
+                ),
+        ),
+      ),
     );
 
     final card = DecoratedBox(
@@ -172,6 +199,8 @@ class _WallPolaroidState extends State<WallPolaroid>
       child: Padding(
         padding: const EdgeInsets.fromLTRB(8, 8, 8, 10),
         child: Column(
+          // Hugs its picture and words, whatever room it is given.
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Stack(
@@ -182,11 +211,15 @@ class _WallPolaroidState extends State<WallPolaroid>
                   Positioned(
                     right: -6,
                     bottom: 14,
-                    child: _SlammedStamp(
-                      slam: _slam,
-                      label: stamp,
-                      ink: mark.ink,
-                      tilt: -.32 + ((seed >> 4) % 10) / 60,
+                    child: Transform.scale(
+                      scale: widget.stampScale,
+                      alignment: Alignment.bottomRight,
+                      child: _SlammedStamp(
+                        slam: _slam,
+                        label: stamp,
+                        ink: mark.ink,
+                        tilt: -.32 + ((seed >> 4) % 10) / 60,
+                      ),
                     ),
                   ),
               ],
@@ -196,7 +229,7 @@ class _WallPolaroidState extends State<WallPolaroid>
               title.title,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: wallHand(context, size: 21).copyWith(
+              style: wallHand(context, size: widget.captionSize).copyWith(
                 decoration: mark == WallMark.dropped
                     ? TextDecoration.lineThrough
                     : null,
@@ -205,29 +238,32 @@ class _WallPolaroidState extends State<WallPolaroid>
                 color: mark == WallMark.dropped ? palette.muted : palette.ink,
               ),
             ),
-            const SizedBox(height: 2),
-            Text(
-              [
-                ?title.year?.toString(),
-                kind,
-                if (mark == WallMark.pin) 'watching',
-              ].join(' · '),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: mark == WallMark.pin ? palette.accent : palette.muted,
-                fontSize: 11.5,
-                fontWeight: mark == WallMark.pin
-                    ? FontWeight.w600
-                    : FontWeight.w400,
+            if (widget.showMeta) ...[
+              const SizedBox(height: 2),
+              Text(
+                [
+                  ?title.year?.toString(),
+                  kind,
+                  if (mark == WallMark.pin) 'watching',
+                ].join(' · '),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: mark == WallMark.pin ? palette.accent : palette.muted,
+                  fontSize: 11.5,
+                  fontWeight: mark == WallMark.pin
+                      ? FontWeight.w600
+                      : FontWeight.w400,
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),
     );
 
     return Semantics(
+      container: true,
       button: true,
       label: [
         title.title,

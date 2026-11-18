@@ -76,7 +76,7 @@ void main() {
     expect(find.text('The Matrix'), findsNothing);
   });
 
-  pageTest('a double tap stamps a poster watched, and undo lifts it', (
+  pageTest('a double tap stamps a poster watched, and another lifts it', (
     tester,
   ) async {
     await repository.setStatus(matrix, WatchStatus.planned);
@@ -91,7 +91,12 @@ void main() {
     expect((await db.select(db.watchTitles).getSingle()).status, 'completed');
     expect(find.text('WATCHED'), findsOneWidget);
 
-    await tester.tap(find.text('Undo'));
+    expect(find.byType(SnackBar), findsNothing, reason: 'the stamp says it');
+
+    // Double tap again to lift it off.
+    await tester.tap(poster);
+    await tester.pump(const Duration(milliseconds: 60));
+    await tester.tap(poster);
     await tester.pumpAndSettle();
     expect((await db.select(db.watchTitles).getSingle()).status, 'planned');
     expect(find.text('WATCHED'), findsNothing);
@@ -308,8 +313,8 @@ void main() {
     expect(find.text('1999 · Film · 2h 16m · R'), findsOneWidget);
     expect(find.text('Play trailer'), findsOneWidget);
 
-    await reveal(find.widgetWithText(ChoiceChip, 'Watching'));
-    await tester.tap(find.widgetWithText(ChoiceChip, 'Watching'));
+    // The stamp rack is always under the thumb.
+    await tester.tap(find.bySemanticsLabel('Watching'));
     await tester.pumpAndSettle();
     expect(find.text('Not rated'), findsNothing, reason: 'no ratings');
     expect(find.byType(TextField), findsNothing, reason: 'no notes');
@@ -347,6 +352,76 @@ void main() {
     await tester.fling(find.byType(PageView), const Offset(-400, 0), 1000);
     await tester.pumpAndSettle();
     expect(find.text('The Matrix · 2 of 2'), findsOneWidget);
+  });
+
+  pageTest(
+    'a stamp dropped on the polaroid prints, and tapping lifts it, quietly',
+    (tester) async {
+      await repository.setStatus(matrix, WatchStatus.planned);
+      await pumpApp(
+        tester,
+        initialLocation: '/watchlist/movie/603',
+        database: db,
+      );
+      await tester.pumpAndSettle();
+      expect(find.bySemanticsLabel('Plan to watch, stamped'), findsOneWidget);
+
+      // Lift the Watched stamp off the rack and let go over the poster.
+      final stamp = tester.getCenter(find.bySemanticsLabel('Watched'));
+      final poster = tester.getCenter(find.byType(WallPolaroid));
+      final drag = await tester.startGesture(stamp);
+      await tester.pump(const Duration(milliseconds: 50));
+      for (var i = 1; i <= 10; i++) {
+        await drag.moveTo(Offset.lerp(stamp, poster, i / 10)!);
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await drag.up();
+      await tester.pumpAndSettle();
+      expect((await db.select(db.watchTitles).getSingle()).status, 'completed');
+      expect(
+        find.descendant(
+          of: find.byType(WallPolaroid),
+          matching: find.text('WATCHED'),
+        ),
+        findsOneWidget,
+        reason: 'printed on it',
+      );
+
+      await tester.tap(find.bySemanticsLabel('Watched, stamped'));
+      await tester.pumpAndSettle();
+      expect((await db.select(db.watchTitles).getSingle()).status, isNull);
+      expect(find.byType(SnackBar), findsNothing, reason: 'the stamp says it');
+    },
+  );
+
+  pageTest('pictures sit in a pile, flung aside one by one', (tester) async {
+    await repository.cacheTitles([
+      const CatalogTitle(
+        key: WatchKey(WatchMedia.movie, 603),
+        title: 'The Matrix',
+        backdrops: ['/b1.jpg', '/b2.jpg', '/b3.jpg'],
+        detailed: true,
+      ),
+    ]);
+    await pumpApp(
+      tester,
+      initialLocation: '/watchlist/movie/603',
+      database: db,
+    );
+    await tester.scrollUntilVisible(
+      find.bySemanticsLabel('Still 1 of 3'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.fling(
+      find.bySemanticsLabel('Still 1 of 3'),
+      const Offset(-300, 0),
+      1500,
+    );
+    await tester.pumpAndSettle();
+    expect(find.bySemanticsLabel('Still 2 of 3'), findsOneWidget);
+    expect(find.text('2 / 3'), findsOneWidget);
   });
 
   test('show progress counts real episodes and finds the next one', () {

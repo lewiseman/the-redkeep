@@ -15,7 +15,7 @@ void main() {
     () async {
       expect(
         await validateAssetSources(catalogPath, sourcePath),
-        contains('22 images (PNG/WebP/JPEG), 5461477 bytes'),
+        contains('23 images (PNG/WebP/JPEG), 5514047 bytes'),
       );
     },
   );

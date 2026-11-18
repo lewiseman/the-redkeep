@@ -199,6 +199,15 @@
       "bytes": 183756,
       "sha256": "1bdd1dd323bdbadca6329e219f22027b60c042c0db0e208976227f1f13edbc6c",
       "provenance": "tool/assets/PROVENANCE.md"
+    },
+    {
+      "key": "watchlist.rack",
+      "revision": "v1",
+      "path": "watchlist/rack-v1.webp",
+      "sourcePath": "watchlist_rack.webp",
+      "bytes": 52570,
+      "sha256": "82300dda40cd04d1739f432bc8df063437ca809b8eaccbd1a166b0d394cd110b",
+      "provenance": "tool/assets/PROVENANCE.md"
     }
   ]
 }

@@ -388,6 +388,9 @@ class _SpringyState extends State<Springy> with SingleTickerProviderStateMixin {
   }
 
   void _up() {
+    // The finger can lift after this was swapped out, as when a dragged
+    // item leaves a placeholder in its spot.
+    if (!mounted) return;
     if (_press.value == 0 || !RenderingPolicyScope.of(context).animate) {
       return;
     }

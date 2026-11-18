@@ -254,43 +254,19 @@ class _Wall extends ConsumerWidget {
     WidgetRef ref,
     WatchTitle title,
   ) async {
-    final repository = ref.read(watchlistRepositoryProvider);
-    final catalog = catalogFromWatchTitle(title);
-    final before = title.status;
-    final lifting = before == WatchStatus.completed;
+    final lifting = title.status == WatchStatus.completed;
     HapticFeedback.heavyImpact();
-    final messenger = ScaffoldMessenger.of(context);
-    final done = await runWatchAction(
+    // The stamp slamming down (or lifting off) is the confirmation; a
+    // second double tap undoes it.
+    await runWatchAction(
       context,
-      () => repository.setStatus(
-        catalog,
-        lifting ? WatchStatus.planned : WatchStatus.completed,
-      ),
+      () => ref
+          .read(watchlistRepositoryProvider)
+          .setStatus(
+            catalogFromWatchTitle(title),
+            lifting ? WatchStatus.planned : WatchStatus.completed,
+          ),
     );
-    if (done == null) return;
-    messenger
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          behavior: SnackBarBehavior.floating,
-          content: Text(
-            lifting
-                ? '${title.title} is back on the to-see pile'
-                : 'Stamped ${title.title} watched',
-          ),
-          action: SnackBarAction(
-            label: 'Undo',
-            onPressed: () => repository
-                .setStatus(catalog, before)
-                .then<void>(
-                  (_) {},
-                  onError: (Object error) => messenger.showSnackBar(
-                    SnackBar(content: Text(watchErrorText(error))),
-                  ),
-                ),
-          ),
-        ),
-      );
   }
 
   static String _emptyTitle(LibraryTab tab) => switch (tab) {

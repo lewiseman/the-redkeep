@@ -379,3 +379,18 @@ not added to the Flutter bundle. The website keeps `ai.webp` for its own pages.
 
 Release order: publish `backup.webp` through the website hosting process before
 releasing the updated mobile catalog.
+
+## Watchlist stamp rack — 19 November 2026
+
+The title page's status stamps stand in a wooden rack. The user generated the
+rack image (a five-slot oak plank with brass screws, transparent background)
+and supplied it in chat as a 1168×201 RGBA PNG of 290,283 bytes.
+`website/public/art/watchlist_rack.webp` is that image converted with
+`cwebp -q 92 -m 6 -alpha_q 100 -exact`: 1168×201 WebP, 52,570 bytes, SHA-256
+`82300dda40cd04d1739f432bc8df063437ca809b8eaccbd1a166b0d394cd110b`.
+It is registered as `watchlist.rack`, revision `v1`, installed at
+`watchlist/rack-v1.webp` through the existing verified download flow. It is
+not added to the Flutter bundle.
+
+Release order: publish `watchlist_rack.webp` through the website hosting
+process before releasing the updated mobile catalog.

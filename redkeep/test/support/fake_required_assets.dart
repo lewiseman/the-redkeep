@@ -39,6 +39,7 @@ class FakeRequiredAssets implements RequiredAssets {
     'notes.add' => 'notes_add.png',
     'more.appearance' => 'more_appearance.png',
     'more.watchlist' => 'more_watchlist.webp',
+    'watchlist.rack' => 'watchlist_rack.webp',
     _ when key.startsWith('navigation.') && key.endsWith('.active') =>
       '${key.split('.')[1]}.png',
     _ when key.startsWith('navigation.') =>

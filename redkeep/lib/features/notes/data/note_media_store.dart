@@ -16,12 +16,17 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../../../app/storage_providers.dart';
+import '../../../core/media/compress_image.dart';
 import '../../../core/storage/app_database.dart';
 import '../../ai/data/ai_provider_store.dart';
+import '../../diary/data/prepare_diary_image.dart';
 import '../domain/note_details.dart';
 
 final noteMediaStoreProvider = Provider<NoteMediaStore>(
-  (ref) => NoteMediaStore(ref.watch(appDatabaseProvider)),
+  (ref) => NoteMediaStore(
+    ref.watch(appDatabaseProvider),
+    encoder: ref.watch(photoEncoderProvider),
+  ),
 );
 
 /// Immutable app-owned copies. Staging is journaled before touching files.
@@ -31,11 +36,15 @@ class NoteMediaStore {
     Future<Directory> Function()? support,
     bool? android,
     Future<LostDataResponse> Function()? retrieve,
-  }) : _support = support ?? getApplicationSupportDirectory,
+    PhotoEncoder? encoder,
+  }) : _encoder = encoder ?? encodeWebp,
+       _support = support ?? getApplicationSupportDirectory,
        _android = android ?? Platform.isAndroid,
        _retrieve = retrieve ?? ImagePicker().retrieveLostData,
        _generation = db.writingGeneration;
+  static const fileLimitBytes = 10 * 1024 * 1024;
   final bool _android;
+  final PhotoEncoder _encoder;
   final Future<LostDataResponse> Function() _retrieve;
   static Future<void> _pickerTail = Future.value();
   Future<({String id, NoteAttachment attachment})?>? _recovering;
@@ -135,21 +144,50 @@ class NoteMediaStore {
     return path;
   }
 
+  /// Photos (except GIFs) are compressed to WebP from sources up to 40 MB;
+  /// every other file, videos included, is copied unchanged up to 10 MB.
   Future<NoteAttachment> importPath(String path) async {
     _check();
     final source = File(path);
     final stat = await source.stat();
     if (stat.type != FileSystemEntityType.file ||
         stat.size == 0 ||
-        stat.size > 40 * 1024 * 1024) {
+        stat.size > photoSourceBytes) {
       throw const FormatException('Choose a readable file smaller than 40 MB.');
     }
-    final bytes = await source.readAsBytes();
+    final header = await _header(source);
     final type =
-        lookupMimeType(path, headerBytes: bytes.take(32).toList()) ??
-        'application/octet-stream';
-    final owned = await write(bytes, extension: p.extension(path));
-    return NoteAttachment(path: owned, type: type, name: p.basename(path));
+        lookupMimeType(path, headerBytes: header) ?? 'application/octet-stream';
+    final signature = imageSignature(header);
+    final photo =
+        type.startsWith('image/') &&
+        signature != null &&
+        signature != ImageSignature.gif;
+    if (!photo && stat.size > fileLimitBytes) {
+      throw const FormatException('Choose a file smaller than 10 MB.');
+    }
+    final bytes = await source.readAsBytes();
+    _check();
+    if (!photo) {
+      final owned = await write(bytes, extension: p.extension(path));
+      return NoteAttachment(path: owned, type: type, name: p.basename(path));
+    }
+    final compressed = await compressPhoto(bytes, encoder: _encoder);
+    _check();
+    return NoteAttachment(
+      path: await write(compressed.bytes, extension: compressed.ext),
+      type: compressed.mime,
+      name: p.setExtension(p.basename(path), compressed.ext),
+    );
+  }
+
+  static Future<Uint8List> _header(File file) async {
+    final raf = await file.open();
+    try {
+      return await raf.read(32);
+    } finally {
+      await raf.close();
+    }
   }
 
   Future<List<NoteAttachment>> pickFiles() async {
@@ -249,10 +287,18 @@ class NoteMediaStore {
         image.copyRotate(image.bakeOrientation(decoded), angle: 90),
       );
     });
+    final webp = await _encoder(
+      rotated,
+      longEdge: photoLongEdge,
+      quality: photoQuality,
+    );
+    if (webp.isEmpty) {
+      throw const FormatException('This image could not be rotated.');
+    }
     return NoteAttachment(
-      path: await write(rotated),
-      type: 'image/png',
-      name: attachment.filename,
+      path: await write(webp, extension: '.webp'),
+      type: 'image/webp',
+      name: p.setExtension(attachment.filename, '.webp'),
     );
   }
 

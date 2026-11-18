@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:redkeep/core/media/compress_image.dart';
 import 'package:redkeep/core/storage/app_database.dart';
 import 'package:redkeep/app/storage_providers.dart';
 import 'package:redkeep/features/diary/application/diary_providers.dart';
@@ -108,6 +109,9 @@ void main() {
         ProviderScope(
           overrides: [
             syncEnabledProvider.overrideWithValue(false),
+            photoEncoderProvider.overrideWithValue(
+              (bytes, {required longEdge, required quality}) async => bytes,
+            ),
             appDatabaseProvider.overrideWithValue(db),
             diaryRepositoryProvider.overrideWithValue(repo),
             diaryPhotoStoreProvider.overrideWithValue(

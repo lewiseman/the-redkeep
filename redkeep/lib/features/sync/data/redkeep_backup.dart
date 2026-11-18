@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 
@@ -19,6 +20,7 @@ const redkeepBackupNotices = BackupNotices(
   uploading: 'Backing up your journal',
   downloading: 'Downloading your backup',
   restoring: 'Restoring your journal',
+  restoringFiles: 'Restoring media',
   failedTitle: "Backup didn't finish",
   failedBody: 'Open Redkeep to back up your journal.',
 );
@@ -51,9 +53,91 @@ Future<BackupEngine> createRedkeepBackupEngine({
     notices: redkeepBackupNotices,
     deviceName: deviceName,
     beforeBackup: beforeBackup,
+    fileSets: redkeepFileSets(database),
     canRun: canRun,
     isEmpty: () => redkeepDatabaseIsEmpty(database.path),
   );
+}
+
+/// Diary photos and note attachments, stored next to the database. Only files
+/// the journal still references are backed up; note background images are
+/// generated per device and stay local.
+List<BackupFileSet> redkeepFileSets(File database) {
+  final root = database.parent;
+  Future<Set<String>> under(String folder) async => {
+    for (final path in await redkeepMediaPaths(database.path))
+      if (path.startsWith('$folder/')) path,
+  };
+  return [
+    BackupFileSet(
+      name: 'diary_photos',
+      root: root,
+      include: const ['diary_photos'],
+      select: () => under('diary_photos'),
+    ),
+    BackupFileSet(
+      name: 'note_media',
+      root: root,
+      include: const ['note_media'],
+      select: () => under('note_media'),
+    ),
+  ];
+}
+
+/// Media paths referenced by diary entries and note attachments (with a
+/// scanned note's `.scan.json` text). Rows that fail to parse are skipped
+/// rather than failing the backup. Reads with its own read-only connection.
+Future<Set<String>> redkeepMediaPaths(String path) async {
+  if (!await File(path).exists()) return {};
+  return Isolate.run(() {
+    final db = sqlite3.open(path, mode: OpenMode.readOnly);
+    try {
+      db.execute('PRAGMA busy_timeout = 10000');
+      return mediaPathsIn(db);
+    } finally {
+      db.close();
+    }
+  });
+}
+
+Set<String> mediaPathsIn(Database db) {
+  bool has(String table) => db.select(
+    "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+    [table],
+  ).isNotEmpty;
+  Object? decode(Object? raw) {
+    if (raw is! String) return null;
+    try {
+      return jsonDecode(raw);
+    } on FormatException {
+      return null;
+    }
+  }
+
+  Iterable<String> paths(Object? list) => [
+    if (list is List)
+      for (final item in list)
+        if (item is Map && item['path'] is String) item['path'] as String,
+  ];
+
+  final result = <String>{};
+  if (has('diary_entries')) {
+    for (final row in db.select('SELECT photos FROM diary_entries')) {
+      result.addAll(paths(decode(row['photos'])));
+    }
+  }
+  if (has('notes')) {
+    for (final row in db.select('SELECT details FROM notes')) {
+      final details = decode(row['details']);
+      if (details is! Map) continue;
+      for (final path in paths(details['attachments'])) {
+        result
+          ..add(path)
+          ..add('$path.scan.json');
+      }
+    }
+  }
+  return result;
 }
 
 BackupNotifier redkeepBackupNotifier() =>

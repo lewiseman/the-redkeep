@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 
+import '../../../core/media/compress_image.dart';
 import '../domain/diary_period.dart';
 import '../domain/diary_document.dart';
 import '../domain/diary_photo.dart';
@@ -17,6 +18,20 @@ class DiaryPhotoDraft {
     this.sha256 = '',
     this.sourceExtension = '',
   }) : id = id ?? const Uuid().v4();
+
+  /// A newly picked photo, compressed before anything is hashed or stored.
+  static Future<DiaryPhotoDraft> compressed(
+    Uint8List source, {
+    PhotoEncoder? encoder,
+  }) async {
+    final photo = await compressPhoto(source, encoder: encoder);
+    return DiaryPhotoDraft(
+      bytes: photo.bytes,
+      sha256: await DiaryPhotoStore.digest(photo.bytes),
+      sourceExtension: photo.ext,
+    );
+  }
+
   final String id;
   final String? path;
   final Uint8List bytes;

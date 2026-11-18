@@ -67,6 +67,10 @@ enum BackupActivity {
   finishing,
   downloading,
   restoring,
+
+  /// Downloading files (e.g. photos) after the database was restored.
+  /// The app is usable meanwhile.
+  restoringFiles,
 }
 
 class BackupState {
@@ -83,6 +87,10 @@ class BackupState {
   /// A job was interrupted and will resume where it stopped.
   final bool resumable;
 
+  /// The database was restored but some of its files are still to download.
+  /// Backups first finish these, so no file is dropped from the cloud.
+  final bool filesPending;
+
   const BackupState({
     this.activity = BackupActivity.idle,
     this.bytesDone = 0,
@@ -92,6 +100,7 @@ class BackupState {
     this.error,
     this.suspended = false,
     this.resumable = false,
+    this.filesPending = false,
   });
 
   bool get busy => activity != BackupActivity.idle;
@@ -110,6 +119,7 @@ class BackupState {
     bool clearError = false,
     bool? suspended,
     bool? resumable,
+    bool? filesPending,
   }) => BackupState(
     activity: activity ?? this.activity,
     bytesDone: bytesDone ?? this.bytesDone,
@@ -119,6 +129,7 @@ class BackupState {
     error: clearError ? null : error ?? this.error,
     suspended: suspended ?? this.suspended,
     resumable: resumable ?? this.resumable,
+    filesPending: filesPending ?? this.filesPending,
   );
 }
 

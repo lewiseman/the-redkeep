@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqlite3/sqlite3.dart';
@@ -371,11 +372,188 @@ void main() {
     await File(p.join(photos.path, 'a.jpg')).delete();
     final backup = (await engine(files: [set]).latestBackup())!;
     expect(backup.filesManifestId, isNotNull);
-    final result = await engine(
-      files: [set],
-    ).restore(backup, closeDatabase: () async {}, reopenDatabase: () async {});
+    final restorer = engine(files: [set]);
+    final result = await restorer.restore(
+      backup,
+      closeDatabase: () async {},
+      reopenDatabase: () async {},
+    );
     expect(result.filesError, isNull);
+    expect(result.filesPending, isTrue);
+    expect(await restorer.filesPending(), isTrue);
+    expect((await restorer.restoreFiles()).error, isNull);
+    expect(await restorer.filesPending(), isFalse);
     expect(await File(p.join(photos.path, 'a.jpg')).readAsBytes(), bytes);
+  });
+
+  group('files', () {
+    late Directory support;
+    late Directory photos;
+    setUp(() async {
+      support = Directory(p.join(root.path, 'support'));
+      photos = Directory(p.join(support.path, 'photos'));
+      await photos.create(recursive: true);
+    });
+
+    List<FakeFile> stored() => drive.files.values
+        .where((f) => f.properties['swKind'] == 'file')
+        .toList();
+
+    Future<Map<String, List<int>>> write(int count, {int size = 3000}) async {
+      final written = <String, List<int>>{};
+      for (var i = 0; i < count; i++) {
+        final bytes = List.generate(
+          size,
+          (j) => Random(i * 997 + j).nextInt(256),
+        );
+        await File(p.join(photos.path, 'p$i.jpg')).writeAsBytes(bytes);
+        written['photos/p$i.jpg'] = bytes;
+      }
+      return written;
+    }
+
+    BackupFileSet set({Set<String>? only}) => BackupFileSet(
+      name: 'photos',
+      root: support,
+      include: const ['photos'],
+      select: only == null ? null : () async => only,
+    );
+
+    Future<BackupEngine> restoredWithout(
+      Iterable<String> missing, {
+      BackupFileSet? files,
+    }) async {
+      final backup = (await engine(files: [files ?? set()]).latestBackup())!;
+      for (final path in missing) {
+        await File(p.join(support.path, path)).delete();
+      }
+      final e = engine(files: [files ?? set()]);
+      final result = await e.restore(
+        backup,
+        closeDatabase: () async {},
+        reopenDatabase: () async {},
+      );
+      expect(result.filesPending, isTrue);
+      return e;
+    }
+
+    test('select backs up only the chosen paths', () async {
+      await write(3);
+      final chosen = set(
+        only: {'photos/p0.jpg', 'photos/p2.jpg', '../x', 'other/p1.jpg'},
+      );
+      expect((await engine(files: [chosen]).backUpNow()).error, isNull);
+      expect(stored(), hasLength(2));
+    });
+
+    test(
+      'restore leaves files for the background and reports progress',
+      () async {
+        final written = await write(4);
+        expect((await engine(files: [set()]).backUpNow()).error, isNull);
+        final e = await restoredWithout(written.keys);
+        expect(
+          await File(p.join(support.path, 'photos/p0.jpg')).exists(),
+          isFalse,
+        );
+        expect((await e.load()).filesPending, isTrue);
+
+        final states = <BackupState>[];
+        final landed = <String>[];
+        final sub1 = e.states.listen(states.add);
+        final sub2 = e.restoredFiles.listen(landed.add);
+        final done = await e.restoreFiles();
+        await sub1.cancel();
+        await sub2.cancel();
+        expect(done.error, isNull);
+        expect(done.filesPending, isFalse);
+        expect(landed.toSet(), written.keys.toSet());
+        for (final MapEntry(:key, :value) in written.entries) {
+          expect(await File(p.join(support.path, key)).readAsBytes(), value);
+        }
+        final progress = states
+            .where((s) => s.activity == BackupActivity.restoringFiles)
+            .toList();
+        expect(progress, isNotEmpty);
+        expect(progress.first.bytesTotal, 4 * 3000);
+        expect(progress.last.bytesDone, 4 * 3000);
+        expect(await e.filesPending(), isFalse);
+      },
+    );
+
+    test('media waits for Wi-Fi when cellular is not allowed', () async {
+      final written = await write(2);
+      expect((await engine(files: [set()]).backUpNow()).error, isNull);
+      final e = await restoredWithout(written.keys);
+      network.unmetered = false;
+      final waiting = await e.restoreFiles();
+      expect(waiting.error?.kind, BackupErrorKind.offline);
+      expect(waiting.filesPending, isTrue);
+      network.unmetered = true;
+      expect((await e.restoreFiles()).error, isNull);
+      expect(await e.filesPending(), isFalse);
+    });
+
+    test('an interrupted restore resumes with the same total', () async {
+      final written = await write(3, size: 40000);
+      expect((await engine(files: [set()]).backUpNow()).error, isNull);
+      final e = await restoredWithout(written.keys);
+      final stop = e.states.listen((s) {
+        if (s.activity == BackupActivity.restoringFiles && s.bytesDone > 0) {
+          e.cancel();
+        }
+      });
+      final failed = await e.restoreFiles();
+      await stop.cancel();
+      expect(failed.error?.kind, BackupErrorKind.cancelled);
+      expect(failed.filesPending, isTrue);
+      final states = <BackupState>[];
+      final sub = e.states.listen(states.add);
+      expect((await e.restoreFiles()).error, isNull);
+      await sub.cancel();
+      final first = states.firstWhere(
+        (s) => s.activity == BackupActivity.restoringFiles,
+      );
+      expect(first.bytesTotal, 3 * 40000);
+      for (final MapEntry(:key, :value) in written.entries) {
+        expect(await File(p.join(support.path, key)).readAsBytes(), value);
+      }
+    });
+
+    test(
+      'a backup restores pending files first and keeps them in the cloud',
+      () async {
+        final written = await write(3);
+        expect((await engine(files: [set()]).backUpNow()).error, isNull);
+        final e = await restoredWithout(written.keys);
+        final result = await e.backUpNow();
+        expect(result.error, isNull);
+        expect(result.filesPending, isFalse);
+        expect(await e.filesPending(), isFalse);
+        for (final key in written.keys) {
+          expect(await File(p.join(support.path, key)).exists(), isTrue);
+        }
+        expect(stored(), hasLength(3));
+      },
+    );
+
+    test('a prioritized file downloads first', () async {
+      final written = await write(6);
+      expect((await engine(files: [set()]).backUpNow()).error, isNull);
+      final e = await restoredWithout(written.keys);
+      e.prioritize('photos/p5.jpg');
+      drive.requests.clear();
+      expect((await e.restoreFiles()).error, isNull);
+      final first = drive.requests.firstWhere((r) {
+        final id = r.split('/').last;
+        return r.startsWith('GET') &&
+            drive.files[id]?.properties['swKind'] == 'file';
+      });
+      expect(
+        drive.files[first.split('/').last]!.properties['swSha256'],
+        '${sha256.convert(written['photos/p5.jpg']!)}',
+      );
+    });
   });
 
   group('settings', () {

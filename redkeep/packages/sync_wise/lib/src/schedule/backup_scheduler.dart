@@ -91,8 +91,14 @@ Future<bool> runScheduledBackup(Future<BackupEngine> Function() build) async {
   try {
     engine = await build();
     await engine.load();
-    if (!await engine.isDue()) return true;
-    final result = await engine.backUpNow(trigger: BackupTrigger.scheduled);
+    // A backup also finishes restored files first; when none is due, the
+    // files still continue in the background.
+    final result = await engine.isDue()
+        ? await engine.backUpNow(trigger: BackupTrigger.scheduled)
+        : await engine.filesPending()
+        ? await engine.restoreFiles(trigger: BackupTrigger.scheduled)
+        : null;
+    if (result == null) return true;
     final error = result.error;
     return error == null || !error.retryable;
   } on Object {

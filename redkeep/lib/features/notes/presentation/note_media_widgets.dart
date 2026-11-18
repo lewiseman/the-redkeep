@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../ai/application/ai_jobs.dart';
+import '../../sync/application/sync_providers.dart';
 import '../data/note_media_store.dart';
 import '../domain/note_details.dart';
 import '../domain/note_colors.dart';
@@ -28,6 +30,14 @@ class NoteAttachmentStrip extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (attachments.isEmpty) return const SizedBox.shrink();
+    // Attachments come back in the background after a restore.
+    ref.listen(restoredMediaProvider, (_, next) {
+      final path = next.value;
+      if (path != null && attachments.any((a) => a.path == path)) {
+        ref.invalidate(_attachmentFileProvider(path));
+      }
+    });
+    final restoring = ref.watch(mediaRestorePendingProvider);
     return SizedBox(
       height: 140 + MediaQuery.textScalerOf(context).scale(14) * 2,
       child: ListView.separated(
@@ -42,6 +52,18 @@ class NoteAttachmentStrip extends ConsumerWidget {
               clipBehavior: Clip.antiAlias,
               child: InkWell(
                 onTap: () async {
+                  if (restoring &&
+                      ref.read(_attachmentFileProvider(a.path)).value == null) {
+                    unawaited(
+                      ref.read(backupActionsProvider).prioritizeMedia(a.path),
+                    );
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Still restoring. This file is next.'),
+                      ),
+                    );
+                    return;
+                  }
                   try {
                     await ref.read(noteMediaStoreProvider).open(a);
                   } catch (e) {
@@ -66,11 +88,14 @@ class NoteAttachmentStrip extends ConsumerWidget {
                           .watch(_attachmentFileProvider(a.path))
                           .when(
                             data: (file) => file == null
-                                ? const Center(
+                                ? Center(
                                     child: Icon(
-                                      Icons.file_present_outlined,
-                                      semanticLabel:
-                                          'File unavailable on this device',
+                                      restoring
+                                          ? Icons.cloud_download_outlined
+                                          : Icons.file_present_outlined,
+                                      semanticLabel: restoring
+                                          ? 'File still restoring'
+                                          : 'File unavailable on this device',
                                     ),
                                   )
                                 : a.isImage

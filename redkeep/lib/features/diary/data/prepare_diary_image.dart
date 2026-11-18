@@ -24,18 +24,25 @@ Future<Uint8List> prepareImageBytes(Uint8List bytes) async {
   );
 }
 
-bool _looksLikeImage(Uint8List b) {
+enum ImageSignature { jpeg, png, gif, webp, heic }
+
+/// Recognises supported image containers from their leading bytes.
+ImageSignature? imageSignature(Uint8List b) {
   bool starts(List<int> sig, [int offset = 0]) =>
       b.length >= offset + sig.length &&
       [for (var i = 0; i < sig.length; i++) b[offset + i] == sig[i]]
           .every((x) => x);
-  return starts([0xff, 0xd8, 0xff]) ||
-      starts([0x89, 0x50, 0x4e, 0x47]) ||
-      starts([0x47, 0x49, 0x46, 0x38]) ||
-      (starts([0x52, 0x49, 0x46, 0x46]) &&
-          starts([0x57, 0x45, 0x42, 0x50], 8)) ||
-      starts([0x66, 0x74, 0x79, 0x70], 4);
+  if (starts([0xff, 0xd8, 0xff])) return ImageSignature.jpeg;
+  if (starts([0x89, 0x50, 0x4e, 0x47])) return ImageSignature.png;
+  if (starts([0x47, 0x49, 0x46, 0x38])) return ImageSignature.gif;
+  if (starts([0x52, 0x49, 0x46, 0x46]) && starts([0x57, 0x45, 0x42, 0x50], 8)) {
+    return ImageSignature.webp;
+  }
+  if (starts([0x66, 0x74, 0x79, 0x70], 4)) return ImageSignature.heic;
+  return null;
 }
+
+bool _looksLikeImage(Uint8List b) => imageSignature(b) != null;
 
 Future<Uint8List> _encode(Uint8List bytes, int side) async {
   final ui.ImmutableBuffer buffer;

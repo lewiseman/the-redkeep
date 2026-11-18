@@ -9,9 +9,7 @@ import 'photos/photo_ui.dart';
 import '../domain/diary_period.dart';
 import '../data/diary_photo_stories.dart';
 
-import 'package:redkeep/features/diary/data/diary_photo_store.dart';
-
-import 'package:path/path.dart' as p;
+import 'package:redkeep/core/media/compress_image.dart';
 import 'package:uuid/uuid.dart';
 
 import 'photos/diary_photo_widgets.dart';
@@ -227,14 +225,10 @@ class _AddDiaryPhotosPageState extends ConsumerState<AddDiaryPhotosPage> {
       final files =
           recovered ??
           await (widget.imagePicker?.call() ??
-              ImagePicker().pickMultiImage(
-                maxWidth: 1800,
-                maxHeight: 1800,
-                imageQuality: 85,
-                requestFullMetadata: false,
-              ));
+              ImagePicker().pickMultiImage(requestFullMetadata: false));
       if (widget.imagePicker == null) await recovery.clear();
       if (!mounted) return;
+      final encoder = ref.read(photoEncoderProvider);
       final paths = _moments.map((moment) => moment.path).toSet();
       final hashes = {
         for (final moment in _moments)
@@ -250,18 +244,12 @@ class _AddDiaryPhotosPageState extends ConsumerState<AddDiaryPhotosPage> {
           }
           final bytes = await file.readAsBytes();
           if (bytes.isEmpty) throw const FormatException('Empty photo');
-          final sha256 = await DiaryPhotoStore.digest(bytes);
-          if (!hashes.add(sha256)) continue;
-          added.add(
-            _PhotoMoment(
-              path: file.path,
-              draft: DiaryPhotoDraft(
-                bytes: bytes,
-                sha256: sha256,
-                sourceExtension: p.extension(file.path),
-              ),
-            ),
+          final draft = await DiaryPhotoDraft.compressed(
+            bytes,
+            encoder: encoder,
           );
+          if (!hashes.add(draft.sha256)) continue;
+          added.add(_PhotoMoment(path: file.path, draft: draft));
         } catch (_) {
           unreadable++;
         }

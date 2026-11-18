@@ -113,6 +113,19 @@ class BackupStateNotifier extends Notifier<BackupState> {
   }
 }
 
+/// A restore's photos and files are still downloading (or waiting to).
+final mediaRestorePendingProvider = Provider<bool>((ref) {
+  final state = ref.watch(backupStateProvider);
+  return state.filesPending || state.activity == BackupActivity.restoringFiles;
+});
+
+/// Media paths (e.g. `diary_photos/…`) as a restore brings them back, so
+/// placeholders can load the file the moment it lands.
+final restoredMediaProvider = StreamProvider<String>((ref) async* {
+  final engine = await ref.watch(backupEngineProvider.future);
+  yield* engine.restoredFiles;
+});
+
 final backupSettingsProvider =
     AsyncNotifierProvider<BackupSettingsController, BackupSettings>(
       BackupSettingsController.new,
@@ -158,6 +171,18 @@ class BackupActions {
   Future<void> pause() async =>
       (await ref.read(backupEngineProvider.future)).cancel();
 
+  /// Downloads photos and files a restore left for later, in the background.
+  Future<void> restoreMedia() async {
+    final engine = await ref.read(backupEngineProvider.future);
+    if (engine.state.busy || !await engine.filesPending()) return;
+    await engine.restoreFiles();
+  }
+
+  /// Downloads [path] (e.g. `diary_photos/…`) next in the running or next
+  /// media restore. Never starts one: widgets call this while building.
+  Future<void> prioritizeMedia(String path) async =>
+      (await ref.read(backupEngineProvider.future)).prioritize(path);
+
   /// Replaces this phone's journal with [backup]. Restores happen only during
   /// onboarding, before any writing exists, so the screen stays in place; the
   /// generation still stops any late write reaching the replaced database.
@@ -168,7 +193,7 @@ class BackupActions {
     db.writingGeneration++;
     var reopened = false;
     try {
-      return await engine.restore(
+      final result = await engine.restore(
         backup,
         closeDatabase: db.closeConnection,
         reopenDatabase: () async {
@@ -179,6 +204,9 @@ class BackupActions {
           ref.invalidate(watchlistRepositoryProvider);
         },
       );
+      // The journal is usable now; media follows with its own progress.
+      if (result.filesPending) unawaited(restoreMedia());
+      return result;
     } finally {
       if (!reopened) db.writingBlocked = false;
       ref.read(aiResumeAfterResetProvider)();
@@ -259,13 +287,22 @@ final backupCoordinatorProvider = FutureProvider<void>((ref) async {
     }
   }
 
+  Future<void> restoreMediaIfPending() async {
+    if (!canRun() || !auth.isSignedIn) return;
+    await ref.read(backupActionsProvider).restoreMedia();
+  }
+
   final accounts = auth.onAuthStateChanged.listen((account) async {
     // Sign-out during a reset must still cancel the overnight job.
     if (ref.mounted) await applySchedule();
-    if (account != null && canRun()) await backUpIfDue();
+    if (account != null && canRun()) {
+      await restoreMediaIfPending();
+      await backUpIfDue();
+    }
   });
   final lifecycle = AppLifecycleListener(
     onPause: () => unawaited(backUpIfDue()),
+    onResume: () => unawaited(restoreMediaIfPending()),
   );
   ref.onDispose(accounts.cancel);
   ref.onDispose(lifecycle.dispose);
@@ -274,5 +311,8 @@ final backupCoordinatorProvider = FutureProvider<void>((ref) async {
   await auth.trySilentSignIn();
   if (!canRun()) return;
   await applySchedule();
-  if (auth.isSignedIn && ref.mounted) await backUpIfDue();
+  if (auth.isSignedIn && ref.mounted) {
+    await restoreMediaIfPending();
+    await backUpIfDue();
+  }
 }, retry: (_, _) => null);

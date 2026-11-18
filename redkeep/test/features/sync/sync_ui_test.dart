@@ -187,6 +187,27 @@ void main() {
       ).label,
       'Waiting for Wi-Fi',
     );
+    final media = describeBackup(
+      const BackupState(
+        activity: BackupActivity.restoringFiles,
+        bytesDone: 40 * 1024 * 1024,
+        bytesTotal: 100 * 1024 * 1024,
+      ),
+      signedIn: true,
+    );
+    expect(media.label, 'Restoring media · 40%');
+    expect(media.detail, '40.0 MB of 100.0 MB');
+    expect(media.inbound, isTrue);
+    expect(
+      describeBackup(
+        const BackupState(
+          filesPending: true,
+          error: BackupException(BackupErrorKind.offline, 'Waiting for Wi-Fi.'),
+        ),
+        signedIn: true,
+      ).label,
+      'Media waiting for Wi-Fi',
+    );
     // A skipped empty backup is not a failure.
     expect(
       describeBackup(

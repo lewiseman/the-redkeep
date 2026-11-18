@@ -110,6 +110,7 @@ void main() {
       h.db,
       support: () async => h.directory,
       android: true,
+      encoder: (bytes, {required longEdge, required quality}) async => bytes,
       retrieve: () async {
         retrieved++;
         return LostDataResponse(files: [XFile(source.path)]);

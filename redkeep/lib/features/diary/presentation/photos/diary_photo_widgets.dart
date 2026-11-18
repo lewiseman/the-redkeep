@@ -1,3 +1,4 @@
+import '../../../sync/application/sync_providers.dart';
 import 'photo_ui.dart';
 import 'diary_ink_action.dart';
 import 'diary_memory_material.dart';
@@ -125,49 +126,55 @@ class DiaryPhotoImage extends StatelessWidget {
         );
 }
 
-/// Shown where a saved photo has no copy here, usually because another
-/// device added it: sync shares the story's words, never the image.
-class DiaryMissingPhoto extends StatelessWidget {
+/// Shown where a saved photo has no copy here: still downloading after a
+/// restore, or not on this device at all.
+class DiaryMissingPhoto extends ConsumerWidget {
   const DiaryMissingPhoto({super.key});
 
   @override
-  Widget build(BuildContext context) => Semantics(
-    label: 'Photo not on this device',
-    child: ColoredBox(
-      color: context.colors.surfaceContainer,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final icon = Icon(
-            Icons.hide_image_outlined,
-            color: context.colors.onSurfaceVariant,
-          );
-          // Small prints keep the icon; the tooltip still names the reason.
-          if (constraints.maxHeight < 90 || constraints.maxWidth < 90) {
-            return Center(
-              child: Tooltip(message: 'Not on this device', child: icon),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final restoring = ref.watch(mediaRestorePendingProvider);
+    final message = restoring ? 'Restoring…' : 'Not on this device';
+    return Semantics(
+      label: restoring ? 'Photo still restoring' : 'Photo not on this device',
+      child: ColoredBox(
+        color: context.colors.surfaceContainer,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final icon = Icon(
+              restoring
+                  ? Icons.cloud_download_outlined
+                  : Icons.hide_image_outlined,
+              color: context.colors.onSurfaceVariant,
             );
-          }
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                icon,
-                const SizedBox(height: 6),
-                Text(
-                  'Not on this device',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: context.colors.onSurfaceVariant,
+            // Small prints keep the icon; the tooltip still names the reason.
+            if (constraints.maxHeight < 90 || constraints.maxWidth < 90) {
+              return Center(
+                child: Tooltip(message: message, child: icon),
+              );
+            }
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  icon,
+                  const SizedBox(height: 6),
+                  Text(
+                    message,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: context.colors.onSurfaceVariant,
+                    ),
                   ),
-                ),
-              ],
-            ),
-          );
-        },
+                ],
+              ),
+            );
+          },
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class DiaryPhotoThumbnail extends StatelessWidget {

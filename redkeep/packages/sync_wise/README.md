@@ -138,8 +138,16 @@ BackupEngine(
 ```
 
 Files are stored once per SHA-256, so unchanged and renamed files upload
-nothing. A small manifest is uploaded with each snapshot, and a restore
-downloads only the files that are missing or different.
+nothing. A small manifest is uploaded with each snapshot. Pass `select` to back
+up only the paths your data still references instead of whole folders.
+
+`restore` brings back the database only and returns `filesPending: true`; the
+app is usable right away. Call `restoreFiles()` to download the missing files
+in the background (three at a time, following the Wi-Fi-only setting), watch
+`BackupActivity.restoringFiles` for one combined byte progress, listen to
+`restoredFiles` to refresh as each one lands, and `prioritize(path)` a file the
+user opens. Interrupted runs resume with the same total. A backup never runs
+while files are pending: it finishes them first, so pruning cannot delete them.
 
 ## Account reset
 

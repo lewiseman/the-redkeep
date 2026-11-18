@@ -107,10 +107,40 @@ BackupStatusView describeBackup(
         active: true,
         inbound: true,
       );
+    case BackupActivity.restoringFiles:
+      return BackupStatusView(
+        label: 'Restoring media$percent',
+        detail: _bytes(state, 'Your photos and files are on their way.'),
+        icon: Icons.photo_library_outlined,
+        active: true,
+        inbound: true,
+        fraction: state.fraction,
+        stamp: stamp,
+      );
     case BackupActivity.idle:
       break;
   }
   final error = state.error;
+  if (state.filesPending && error?.kind != BackupErrorKind.busy) {
+    final offline = error?.kind == BackupErrorKind.offline;
+    final wifi = offline && error!.message.contains('Wi');
+    return BackupStatusView(
+      label: wifi
+          ? 'Media waiting for Wi-Fi'
+          : offline
+          ? 'Media waiting for a connection'
+          : 'Media not restored yet',
+      detail: wifi
+          ? 'Photos and files download on Wi-Fi, or allow mobile data below.'
+          : offline
+          ? 'Photos and files download when you are back online.'
+          : 'Photos and files continue downloading while Redkeep is open.',
+      icon: offline ? Icons.wifi_off_rounded : Icons.photo_library_outlined,
+      waiting: true,
+      inbound: true,
+      stamp: stamp,
+    );
+  }
   if (error != null && error.kind != BackupErrorKind.empty) {
     switch (error.kind) {
       case BackupErrorKind.cancelled:

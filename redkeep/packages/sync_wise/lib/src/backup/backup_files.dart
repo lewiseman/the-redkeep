@@ -21,15 +21,39 @@ class BackupFileSet {
   /// Return false to skip a file (e.g. temporary `.partial` files).
   final bool Function(String relativePath)? filter;
 
+  /// When set, only these relative paths (e.g. the files the database still
+  /// references) are backed up instead of everything under [include].
+  /// Paths outside [include], unsafe paths and missing files are ignored.
+  final Future<Set<String>> Function()? select;
+
   const BackupFileSet({
     required this.name,
     required this.root,
     required this.include,
     this.filter,
+    this.select,
   });
 
   Future<Map<String, BackupFileEntry>> scan(BackupHashCache cache) async {
     final result = <String, BackupFileEntry>{};
+    final select = this.select;
+    if (select != null) {
+      for (final relative in await select()) {
+        if (!isSafeRelativePath(relative) ||
+            !include.any((folder) => p.posix.isWithin(folder, relative)) ||
+            filter?.call(relative) == false) {
+          continue;
+        }
+        final file = File(p.joinAll([root.path, ...p.posix.split(relative)]));
+        if (await FileSystemEntity.type(file.path, followLinks: false) !=
+            FileSystemEntityType.file) {
+          continue;
+        }
+        final entry = await cache.hash(file, relative);
+        if (entry != null) result[relative] = entry;
+      }
+      return result;
+    }
     for (final folder in include) {
       final directory = Directory(p.join(root.path, folder));
       if (!await directory.exists()) continue;

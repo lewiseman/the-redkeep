@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:io';
 
+import '../../../sync/application/sync_providers.dart';
 import 'photo_ui.dart';
 import '../../data/diary_photo_store.dart';
 import 'diary_photo_widgets.dart';
@@ -248,6 +250,16 @@ class _StoredPhotoState extends ConsumerState<_StoredPhoto> {
       _store = current;
       _file = _store.resolve(widget.path, expectedHash: widget.hash);
     }
+    // A restore brings photos back in the background; load this one as soon
+    // as it lands.
+    ref.listen(restoredMediaProvider, (_, next) {
+      if (next.value == widget.path) {
+        setState(
+          () => _file = _store.resolve(widget.path, expectedHash: widget.hash),
+        );
+      }
+    });
+    final restoring = ref.watch(mediaRestorePendingProvider);
     return FutureBuilder<File?>(
       future: _file,
       builder: (context, snapshot) {
@@ -255,7 +267,15 @@ class _StoredPhotoState extends ConsumerState<_StoredPhoto> {
         if (snapshot.connectionState != ConnectionState.done) {
           return ColoredBox(color: context.colors.surfaceContainer);
         }
-        if (file == null) return const DiaryMissingPhoto();
+        if (file == null) {
+          // A photo on screen downloads before the rest.
+          if (restoring) {
+            unawaited(
+              ref.read(backupActionsProvider).prioritizeMedia(widget.path),
+            );
+          }
+          return const DiaryMissingPhoto();
+        }
         return Image(
           image: ResizeImage(
             FileImage(file),

@@ -34,6 +34,7 @@ class BackupNotices {
   final String uploading;
   final String downloading;
   final String restoring;
+  final String restoringFiles;
   final String failedTitle;
   final String failedBody;
 
@@ -44,6 +45,7 @@ class BackupNotices {
     this.uploading = 'Backing up',
     this.downloading = 'Downloading backup',
     this.restoring = 'Restoring backup',
+    this.restoringFiles = 'Restoring files',
     this.failedTitle = "Backup didn't finish",
     this.failedBody = 'Open the app to back up your data.',
     this.failureNoticeAfter = const Duration(days: 3),
@@ -61,7 +63,14 @@ class RestoreResult {
 
   /// Set when the database was restored but some files were not (yet).
   final BackupException? filesError;
-  const RestoreResult({required this.databaseRestored, this.filesError});
+
+  /// The backup has files; [BackupEngine.restoreFiles] downloads them.
+  final bool filesPending;
+  const RestoreResult({
+    required this.databaseRestored,
+    this.filesError,
+    this.filesPending = false,
+  });
 }
 
 /// Backs up one [BackupSource] (and optional [BackupFileSet]s) to a
@@ -94,9 +103,12 @@ class BackupEngine implements BackupLifecycle {
   final DateTime Function() now;
 
   final _states = StreamController<BackupState>.broadcast();
+  final _restoredFiles = StreamController<String>.broadcast();
+  final _priority = <String>[];
   var _state = const BackupState();
   Future<BackupState>? _active;
   Future<RestoreResult>? _restoring;
+  Future<BackupState>? _filesActive;
   var _cancelled = false;
   var _suspended = false;
   DateTime? _lastNotice;
@@ -123,6 +135,15 @@ class BackupEngine implements BackupLifecycle {
 
   File get _journal => File(config.path('job.json'));
   File get _historyFile => File(config.path('history.json'));
+
+  /// Present from a database restore until all of its files are in place.
+  File get _filesJournal => File(config.path('files-restore.json'));
+
+  /// Relative paths (as in [BackupFileSet]) of files as they finish restoring.
+  Stream<String> get restoredFiles => _restoredFiles.stream;
+
+  /// Whether a restore still has files to download.
+  Future<bool> filesPending() => _filesJournal.exists();
   BackupSettingsStore get settingsStore =>
       BackupSettingsStore(File(config.path('settings.json')));
 
@@ -151,6 +172,7 @@ class BackupEngine implements BackupLifecycle {
           error: error,
           suspended: _suspended,
           resumable: job != null,
+          filesPending: await _filesJournal.exists(),
         ),
       );
     }
@@ -190,6 +212,8 @@ class BackupEngine implements BackupLifecycle {
   }
 
   Future<BackupState> _backup(BackupTrigger trigger) async {
+    // A file restore in this isolate holds the lock; let it finish first.
+    await _filesActive;
     _cancelled = false;
     final lock = _lock();
     if (_restoring != null || !await lock.tryAcquire()) {
@@ -227,6 +251,19 @@ class BackupEngine implements BackupLifecycle {
         );
       }
       final remote = session.remote;
+      // A backup made while restored files are still missing would drop
+      // them from the manifest, and pruning would then delete them.
+      if (await _filesJournal.exists()) {
+        await _finishFiles(remote);
+        _emit(
+          _state.copyWith(
+            activity: BackupActivity.preparing,
+            bytesDone: 0,
+            bytesTotal: 0,
+            filesPending: false,
+          ),
+        );
+      }
       job = await _resumableJob();
       if (job == null) {
         if (trigger != BackupTrigger.manual &&
@@ -279,6 +316,7 @@ class BackupEngine implements BackupLifecycle {
         error: failure,
         suspended: _suspended,
         resumable: await _journal.exists(),
+        filesPending: await _filesJournal.exists(),
       );
       _emit(failed);
       return failed;
@@ -735,6 +773,7 @@ class BackupEngine implements BackupLifecycle {
 
   Future<BackupFilesManifest?> _manifest(BackupRemote remote, String id) async {
     final file = File(p.join(config.restoring.path, 'manifest-$id.json'));
+    await config.restoring.create(recursive: true);
     await deleteIfExists(file);
     try {
       await remote.download(id, file);
@@ -886,7 +925,7 @@ class BackupEngine implements BackupLifecycle {
   ) async {
     _cancelled = false;
     final lock = _lock();
-    if (_active != null || !await lock.tryAcquire()) {
+    if (_active != null || _filesActive != null || !await lock.tryAcquire()) {
       throw const BackupException(
         BackupErrorKind.busy,
         'A backup or restore is already running.',
@@ -987,23 +1026,26 @@ class BackupEngine implements BackupLifecycle {
           lastSize: backup.size,
         ).toJson(),
       );
-      BackupException? filesError;
-      if (backup.filesManifestId != null && fileSets.isNotEmpty) {
-        try {
-          await _restoreFiles(session.remote, backup.filesManifestId!);
-        } on Object catch (error) {
-          filesError = classify(error);
-        }
+      // Files download afterwards, in the background (see [restoreFiles]),
+      // so the restored data is usable right away.
+      final filesPending =
+          backup.filesManifestId != null && fileSets.isNotEmpty;
+      if (filesPending) {
+        await writeJsonFile(_filesJournal, {
+          'manifest': backup.filesManifestId,
+        });
+      } else {
+        await deleteIfExists(_filesJournal);
       }
       await notifier?.clear();
       _emit(
         BackupState(
           lastSuccess: backup.createdAt,
           lastSize: backup.size,
-          error: filesError,
+          filesPending: filesPending,
         ),
       );
-      return RestoreResult(databaseRestored: true, filesError: filesError);
+      return RestoreResult(databaseRestored: true, filesPending: filesPending);
     } on Object catch (error) {
       await notifier?.clear();
       final failure = classify(error);
@@ -1024,11 +1066,95 @@ class BackupEngine implements BackupLifecycle {
     }
   }
 
-  /// Downloads files of [manifestId] that are missing or differ locally.
-  /// Safe to call again: files already in place are skipped.
-  Future<void> _restoreFiles(BackupRemote remote, String manifestId) async {
+  // ---- Restored files -------------------------------------------------------
+
+  /// Downloads the files of the last restore that are not on this device yet,
+  /// a few at a time, reporting [BackupActivity.restoringFiles] progress.
+  ///
+  /// Follows the Wi-Fi-only setting unless [trigger] is manual. Interrupted
+  /// runs resume on the next call; scheduled backups also finish it first.
+  /// Never throws: failures are reported in [BackupState.error].
+  Future<BackupState> restoreFiles({
+    BackupTrigger trigger = BackupTrigger.automatic,
+  }) {
+    if (_suspended || _active != null || _restoring != null) {
+      return Future.value(_state);
+    }
+    return _filesActive ??= _restoreFilesNow(trigger)
+        .whenComplete(() => _filesActive = null);
+  }
+
+  /// Downloads [relativePath] next, e.g. a photo the user just opened.
+  void prioritize(String relativePath) {
+    _priority
+      ..remove(relativePath)
+      ..add(relativePath);
+  }
+
+  Future<BackupState> _restoreFilesNow(BackupTrigger trigger) async {
+    if (!await _filesJournal.exists()) return _state;
+    _cancelled = false;
+    final lock = _lock();
+    if (!await lock.tryAcquire()) return _state;
+    BackupSession? session;
+    try {
+      await _checkNetwork(trigger);
+      session = await backend.open();
+      if (session == null) {
+        throw const BackupException(
+          BackupErrorKind.auth,
+          'Sign in to restore your files.',
+        );
+      }
+      final unavailable = await _finishFiles(session.remote);
+      await notifier?.clear();
+      final done = BackupState(
+        lastSuccess: _state.lastSuccess,
+        lastSize: _state.lastSize,
+        error: unavailable == 0
+            ? null
+            : BackupException(
+                BackupErrorKind.remote,
+                '$unavailable ${unavailable == 1 ? 'file' : 'files'} '
+                'could not be restored.',
+              ),
+      );
+      _emit(done);
+      return done;
+    } on Object catch (error) {
+      await notifier?.clear();
+      final failed = BackupState(
+        lastSuccess: _state.lastSuccess,
+        lastSize: _state.lastSize,
+        error: classify(error),
+        suspended: _suspended,
+        resumable: await _journal.exists(),
+        filesPending: await _filesJournal.exists(),
+      );
+      _emit(failed);
+      return failed;
+    } finally {
+      session?.close();
+      await lock.release();
+    }
+  }
+
+  /// Restores the pending files and clears the journal. Returns how many
+  /// files are gone from the cloud or arrived damaged; those are skipped
+  /// because retrying cannot bring them back. Network failures throw and
+  /// keep the journal so the next run resumes.
+  Future<int> _finishFiles(BackupRemote remote) async {
+    final journal = await readJsonFile(_filesJournal);
+    final manifestId = journal?['manifest'];
+    if (manifestId is! String || fileSets.isEmpty) {
+      await deleteIfExists(_filesJournal);
+      return 0;
+    }
     final manifest = await _manifest(remote, manifestId);
-    if (manifest == null) return;
+    if (manifest == null) {
+      await deleteIfExists(_filesJournal);
+      return 0;
+    }
     final objects = <String, RemoteObject>{
       for (final object in await remote.list(kind: BackupProperties.file))
         if (object.properties[BackupProperties.state] ==
@@ -1037,57 +1163,123 @@ class BackupEngine implements BackupLifecycle {
     };
     final cache = BackupHashCache(File(config.path('files-cache.json')));
     await cache.load();
-    var missing = 0;
-    for (final set in fileSets) {
-      for (final entry in (manifest.sets[set.name] ?? const {}).entries) {
-        final target = File(
-          p.joinAll([set.root.path, ...p.posix.split(entry.key)]),
-        );
-        if (!p.isWithin(set.root.path, target.path)) continue;
-        if (await target.exists() &&
-            (await cache.hash(target, entry.key))?.sha256 ==
-                entry.value.sha256) {
-          continue;
+    final queue = <({String path, File target, BackupFileEntry entry})>[];
+    var unavailable = 0;
+    try {
+      for (final set in fileSets) {
+        for (final item in (manifest.sets[set.name] ?? const {}).entries) {
+          final target = File(
+            p.joinAll([set.root.path, ...p.posix.split(item.key)]),
+          );
+          if (!p.isWithin(set.root.path, target.path)) continue;
+          if (await target.exists() &&
+              (await cache.hash(target, item.key))?.sha256 ==
+                  item.value.sha256) {
+            continue;
+          }
+          if (!objects.containsKey(item.value.sha256)) {
+            unavailable++;
+            continue;
+          }
+          queue.add((path: item.key, target: target, entry: item.value));
         }
-        final object = objects[entry.value.sha256];
-        if (object == null) {
-          missing++;
-          continue;
-        }
-        final partial = File('${target.path}.restore-partial');
-        await remote.download(
-          object.id,
-          partial,
-          expectedLength: entry.value.size,
-          isCancelled: () => _cancelled,
-        );
-        if ((await _digests(partial)).sha256 != entry.value.sha256) {
-          await deleteIfExists(partial);
-          missing++;
-          continue;
-        }
-        await partial.rename(target.path);
       }
-    }
-    await cache.save();
-    if (missing > 0) {
-      throw BackupException(
-        BackupErrorKind.remote,
-        '$missing ${missing == 1 ? 'file was' : 'files were'} not restored.',
+      // The first run records the full size, so the bar continues from
+      // where it was after an interruption instead of starting over.
+      final remaining = queue.fold<int>(0, (sum, t) => sum + t.entry.size);
+      final recorded = journal?['total'];
+      final total = recorded is int && recorded >= remaining
+          ? recorded
+          : remaining;
+      if (recorded != total) {
+        await writeJsonFile(_filesJournal, {...?journal, 'total': total});
+      }
+      var done = total - remaining;
+      final receiving = <String, int>{};
+      void report() => _progress(
+        BackupActivity.restoringFiles,
+        done + receiving.values.fold(0, (a, b) => a + b),
+        total,
+        notices.restoringFiles,
       );
+      report();
+      Object? failure;
+      bool stop() => _cancelled || failure != null;
+      Future<void> worker() async {
+        while (queue.isNotEmpty) {
+          if (stop()) {
+            throw const BackupException(
+              BackupErrorKind.cancelled,
+              'Restoring files paused. It will continue from here.',
+            );
+          }
+          var index = 0;
+          for (final wanted in _priority.reversed) {
+            final at = queue.indexWhere((t) => t.path == wanted);
+            if (at >= 0) {
+              index = at;
+              break;
+            }
+          }
+          final task = queue.removeAt(index);
+          _priority.remove(task.path);
+          await task.target.parent.create(recursive: true);
+          final partial = File('${task.target.path}.restore-partial');
+          try {
+            await remote.download(
+              objects[task.entry.sha256]!.id,
+              partial,
+              expectedLength: task.entry.size,
+              onProgress: (received) {
+                receiving[task.path] = received;
+                report();
+              },
+              isCancelled: stop,
+            );
+          } on Object catch (error) {
+            failure ??= error;
+            receiving.remove(task.path);
+            rethrow;
+          }
+          receiving.remove(task.path);
+          if ((await _digests(partial)).sha256 != task.entry.sha256) {
+            await deleteIfExists(partial);
+            unavailable++;
+          } else {
+            await partial.rename(task.target.path);
+            await cache.hash(task.target, task.path);
+            _restoredFiles.add(task.path);
+          }
+          done += task.entry.size;
+          report();
+        }
+      }
+
+      final results = await Future.wait([
+        for (var i = 0; i < 3; i++)
+          worker().then<Object?>((_) => null, onError: (Object e) => e),
+      ]);
+      final error = failure ?? results.whereType<Object>().firstOrNull;
+      if (error != null) throw error;
+    } finally {
+      await cache.save();
     }
+    await deleteIfExists(_filesJournal);
+    return unavailable;
   }
 
   // ---- Reset ----------------------------------------------------------------
 
   @override
   Future<void> suspendForReset({bool requireIdle = false}) async {
-    if (requireIdle && (_active != null || _restoring != null)) {
+    if (requireIdle &&
+        (_active != null || _restoring != null || _filesActive != null)) {
       throw StateError('Wait for the backup to finish, then try again.');
     }
     _suspended = true;
     cancel();
     await _active;
+    await _filesActive;
     _emit(_state.copyWith(suspended: true));
   }
 
@@ -1098,6 +1290,7 @@ class BackupEngine implements BackupLifecycle {
       await deleteIfExists(_historyFile);
       await deleteIfExists(config.staging);
       await deleteIfExists(config.restoring);
+      await deleteIfExists(_filesJournal);
       await deleteIfExists(File(config.path('files-cache.json')));
       _suspended = false;
       _emit(const BackupState());
@@ -1110,6 +1303,7 @@ class BackupEngine implements BackupLifecycle {
   Future<void> dispose() async {
     cancel();
     await _states.close();
+    await _restoredFiles.close();
   }
 }
 

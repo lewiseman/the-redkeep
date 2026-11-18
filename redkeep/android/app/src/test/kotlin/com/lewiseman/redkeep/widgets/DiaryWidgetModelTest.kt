@@ -28,7 +28,7 @@ class DiaryWidgetModelTest {
     }
 
     @Test
-    fun monthIsMondayFirstWithItsMostPickedMood() {
+    fun monthIsMondayFirst() {
         val m = model(
             LocalDate.of(2026, 11, 2) to "😌", LocalDate.of(2026, 11, 3) to "😊",
             LocalDate.of(2026, 11, 4) to "😊", LocalDate.of(2026, 10, 31) to "😌",
@@ -37,8 +37,25 @@ class DiaryWidgetModelTest {
         assertEquals(List(6) { null } + LocalDate.of(2026, 11, 1), m.monthWeeks.first())
         assertEquals(6, m.monthWeeks.size)
         assertTrue(m.monthWeeks.all { it.size == 7 })
-        assertEquals(3, m.monthDays)
-        assertEquals("😊", m.topMood)
         assertEquals(LocalDate.of(2026, 11, 16), m.week.first())
+    }
+
+    @Test
+    fun streakSitsInTheMonthsBlankSquares() {
+        fun slot(date: LocalDate) = DiaryWidgetModel(WidgetSnapshot("system", 0, 0, emptyMap()), date).streakSlot
+        // November 2026 starts on a Sunday: six blanks lead.
+        assertEquals(StreakSlot(0, 0, 6), slot(today))
+        // December 2026 starts on a Tuesday: one blank leads, three trail.
+        assertEquals(StreakSlot(4, 4, 3), slot(LocalDate.of(2026, 12, 9)))
+        // February 2027 starts on a Monday and fills four whole weeks.
+        assertEquals(null, slot(LocalDate.of(2027, 2, 14)))
+    }
+
+    @Test
+    fun twoWeeksEndWithThisOne() {
+        val weeks = model().recentWeeks(2)
+        assertEquals(LocalDate.of(2026, 11, 9), weeks[0].first())
+        assertEquals(LocalDate.of(2026, 11, 22), weeks[1].last())
+        assertEquals(listOf(7, 7), weeks.map { it.size })
     }
 }

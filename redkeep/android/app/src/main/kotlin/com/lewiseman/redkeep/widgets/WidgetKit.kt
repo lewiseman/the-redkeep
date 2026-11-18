@@ -139,7 +139,7 @@ fun sampleSnapshot(today: LocalDate): WidgetSnapshot {
 /** Redraws every widget, and keeps one wake-up armed for the next midnight. */
 object WidgetRefresh {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private const val PREVIEWS_VERSION = 4
+    private const val PREVIEWS_VERSION = 5
 
     fun all(context: Context) {
         val app = context.applicationContext

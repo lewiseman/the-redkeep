@@ -13,6 +13,9 @@ data class WidgetSnapshot(
     val days: Map<LocalDate, String>,
 )
 
+/** Blank squares in the month grid: [count] of them in [week], from [first]. */
+data class StreakSlot(val week: Int, val first: Int, val count: Int)
+
 /**
  * Everything the widgets draw, worked out from the real date so they stay
  * right after midnight even when the app has not run.
@@ -33,13 +36,6 @@ class DiaryWidgetModel(private val snapshot: WidgetSnapshot, val today: LocalDat
     }
 
     val month: YearMonth get() = YearMonth.from(today)
-    val monthDays: Int by lazy { (1..month.lengthOfMonth()).count { written(month.atDay(it)) } }
-
-    /** The month's most picked mood, earliest-picked on a tie. */
-    val topMood: String? by lazy {
-        (1..month.lengthOfMonth()).mapNotNull { mood(month.atDay(it)) }
-            .groupingBy { it }.eachCount().maxByOrNull { it.value }?.key
-    }
 
     /** Monday-first weeks covering the month; null pads the edges. */
     val monthWeeks: List<List<LocalDate?>> by lazy {
@@ -48,8 +44,29 @@ class DiaryWidgetModel(private val snapshot: WidgetSnapshot, val today: LocalDat
         cells.chunked(7).map { it + List(7 - it.size) { null } }
     }
 
-    val week: List<LocalDate> by lazy {
+    /**
+     * Where the month view tucks the streak: the blank squares before the 1st,
+     * else those after the last day. Null when neither run has room for it
+     * (two squares); only a 28-day February starting on a Monday has none.
+     */
+    val streakSlot: StreakSlot? by lazy {
+        val lead = monthWeeks.first().takeWhile { it == null }.size
+        val trail = monthWeeks.last().takeLastWhile { it == null }.size
+        when {
+            lead >= 2 -> StreakSlot(0, 0, lead)
+            trail >= 2 -> StreakSlot(monthWeeks.lastIndex, 7 - trail, trail)
+            else -> null
+        }
+    }
+
+    val week: List<LocalDate> get() = recentWeeks(1).single()
+
+    /** The last [count] Monday-first weeks, oldest first, ending with this one. */
+    fun recentWeeks(count: Int): List<List<LocalDate>> {
         val monday = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-        (0L..6L).map { monday.plusDays(it) }
+        return (count - 1 downTo 0).map { back ->
+            val start = monday.minusWeeks(back.toLong())
+            (0L..6L).map { start.plusDays(it) }
+        }
     }
 }

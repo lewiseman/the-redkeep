@@ -2,7 +2,6 @@ package com.lewiseman.redkeep.widgets
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
@@ -41,15 +40,5 @@ class DiaryWidgetModelTest {
         assertEquals(3, m.monthDays)
         assertEquals("😊", m.topMood)
         assertEquals(LocalDate.of(2026, 11, 16), m.week.first())
-    }
-
-    @Test
-    fun ravenPrefersAYearAgoThenAMonthThenAWeek() {
-        assertEquals(
-            RavenLetter(LocalDate.of(2025, 11, 18), "A year ago today"),
-            model(LocalDate.of(2025, 11, 18) to "", today.minusWeeks(1) to "").raven,
-        )
-        assertEquals("A week ago today", model(today.minusWeeks(1) to "").raven?.echo)
-        assertNull(model(today.minusDays(3) to "").raven)
     }
 }

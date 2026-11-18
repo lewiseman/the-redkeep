@@ -3,5 +3,5 @@
     <string name="widget_diary_month_label">Diary month</string>
     <string name="widget_diary_month_description">Your month of moods, your writing streak, and today\'s page.</string>
     <string name="widget_quick_capture_label">Quick capture</string>
-    <string name="widget_quick_capture_description">Write today\'s page or start a note in one tap, with a daily prompt.</string>
+    <string name="widget_quick_capture_description">One tap to your diary, a new note, or your watchlist.</string>
 </resources>

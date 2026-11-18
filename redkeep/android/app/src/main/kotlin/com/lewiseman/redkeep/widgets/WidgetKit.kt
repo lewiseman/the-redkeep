@@ -84,7 +84,6 @@ object WidgetLinks {
     const val DIARY = "/diary"
     const val NEW_NOTE = "/notes/write"
     const val WATCHLIST = "/watchlist"
-    const val SEARCH = "/diary/search"
     fun day(date: LocalDate) = "/diary/day/$date"
 }
 
@@ -140,7 +139,7 @@ fun sampleSnapshot(today: LocalDate): WidgetSnapshot {
 /** Redraws every widget, and keeps one wake-up armed for the next midnight. */
 object WidgetRefresh {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private const val PREVIEWS_VERSION = 2
+    private const val PREVIEWS_VERSION = 3
 
     fun all(context: Context) {
         val app = context.applicationContext

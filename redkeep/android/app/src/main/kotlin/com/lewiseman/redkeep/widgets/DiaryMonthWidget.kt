@@ -54,7 +54,7 @@ class DiaryMonthWidget : GlanceAppWidget() {
     companion object {
         private val SMALL = DpSize(110.dp, 110.dp)
         private val WIDE = DpSize(220.dp, 110.dp)
-        private val SQUARE = DpSize(170.dp, 170.dp)
+        private val SQUARE = DpSize(170.dp, 250.dp)
         private val LARGE = DpSize(300.dp, 300.dp)
     }
 
@@ -96,8 +96,8 @@ private fun DiaryMonth(snapshot: WidgetSnapshot?, today: LocalDate) {
         val model = DiaryWidgetModel(snapshot, today)
         when {
             size.width < 200.dp -> StreakFace(model, colors)
-            size.height < 160.dp -> WeekFace(model, colors, size, pad)
-            else -> MonthFace(model, colors, size, pad, footer = size.height >= 240.dp)
+            size.height < 240.dp -> WeekFace(model, colors, size, pad)
+            else -> MonthFace(model, colors, size, pad)
         }
     }
 }
@@ -172,7 +172,7 @@ private fun StreakFace(model: DiaryWidgetModel, colors: WidgetColors) {
     }
 }
 
-/** 4×2: this week's days with their moods, and the day's call to write. */
+/** 4×2 (under 240dp tall): this week's days with their moods; tapping today writes. */
 @Composable
 private fun WeekFace(model: DiaryWidgetModel, colors: WidgetColors, size: DpSize, pad: Dp) {
     val context = LocalContext.current
@@ -195,8 +195,6 @@ private fun WeekFace(model: DiaryWidgetModel, colors: WidgetColors, size: DpSize
                     style = sans(11.sp, colors.muted),
                 )
             }
-            Spacer(GlanceModifier.width(8.dp))
-            TodayCall(model, colors, compact = true)
         }
         Spacer(GlanceModifier.height(6.dp))
         val byHeight = size.height - pad * 2 - 58.dp
@@ -221,9 +219,9 @@ private fun WeekFace(model: DiaryWidgetModel, colors: WidgetColors, size: DpSize
     }
 }
 
-/** 4×3 and up: the whole month, a line about it, and today's call. */
+/** 4×3 and up: the whole month; tapping today writes today's page. */
 @Composable
-private fun MonthFace(model: DiaryWidgetModel, colors: WidgetColors, size: DpSize, pad: Dp, footer: Boolean) {
+private fun MonthFace(model: DiaryWidgetModel, colors: WidgetColors, size: DpSize, pad: Dp) {
     val context = LocalContext.current
     val weeks = model.monthWeeks
     Column(GlanceModifier.fillMaxSize()) {
@@ -253,12 +251,12 @@ private fun MonthFace(model: DiaryWidgetModel, colors: WidgetColors, size: DpSiz
             }
         }
         Spacer(GlanceModifier.height(2.dp))
-        val chrome = 48.dp + 20.dp + (if (footer) 48.dp else 0.dp)
+        val chrome = 48.dp + 20.dp
         val byWidth = (size.width - pad * 2) / 7
         val byHeight = (size.height - pad * 2 - chrome) / weeks.size
         val cell = (minOf(byWidth * .86f, byHeight - 4.dp)).coerceIn(16.dp, 44.dp)
         // Glance rows and columns hold at most ten children: the weeks get
-        // a column of their own so the footer is never dropped.
+        // a column of their own.
         Column(GlanceModifier.fillMaxWidth().defaultWeight()) {
             for (week in weeks) {
                 Row(GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
@@ -270,29 +268,6 @@ private fun MonthFace(model: DiaryWidgetModel, colors: WidgetColors, size: DpSiz
                 }
             }
         }
-        if (footer) {
-            Spacer(GlanceModifier.height(8.dp))
-            TodayCall(model, colors, compact = false, modifier = GlanceModifier.fillMaxWidth())
-        }
-    }
-}
-
-/** Write today's page (the seal), or open it once written (the accent). */
-@Composable
-private fun TodayCall(model: DiaryWidgetModel, colors: WidgetColors, compact: Boolean, modifier: GlanceModifier = GlanceModifier) {
-    val context = LocalContext.current
-    if (model.writtenToday) {
-        Pill(
-            "${model.todayMood ?: "📖"}  ${if (compact) "Today" else "Open today's page"}",
-            colors.accentSoft, colors.accent, openApp(context, WidgetLinks.TODAY),
-            modifier = modifier,
-        )
-    } else {
-        Pill(
-            if (compact) "✏️  Write" else "✏️  Write today's page",
-            colors.seal, colors.onSeal, openApp(context, WidgetLinks.WRITE),
-            modifier = modifier,
-        )
     }
 }
 
@@ -306,12 +281,13 @@ private fun Day(day: LocalDate, model: DiaryWidgetModel, colors: WidgetColors, s
     val inner = if (today) size - 6.dp else size
     val described = buildString {
         append(day.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.LONG)))
-        if (today) append(", today")
+        if (today) append(if (written) ", today" else ", today, tap to write")
         if (written) append(", written") else if (!future) append(", not written")
         if (mood != null) append(", mood $mood")
     }
     var outer = GlanceModifier.size(size)
-        .clickable(openApp(context, WidgetLinks.day(day)))
+        // Today writes today's page until it has writing, then opens it.
+        .clickable(openApp(context, if (today && !written) WidgetLinks.WRITE else WidgetLinks.day(day)))
         .semantics { contentDescription = described }
     if (today) outer = outer.shape(R.drawable.widget_ring, colors.seal)
     Box(outer, contentAlignment = Alignment.Center) {

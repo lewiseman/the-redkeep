@@ -117,6 +117,114 @@ class AiTransport {
     ),
   );
 
+  /// One streamed call, as the JSON of each server-sent `data:` line.
+  /// Rate limits and server errors retry until the answer starts; once it
+  /// does, nothing retries. [timeout] is the longest wait for the next piece.
+  /// [fallbackBody] is sent once instead when the provider rejects [body].
+  Stream<Map<String, dynamic>> events(
+    AiCloudSettings settings,
+    String path, {
+    required Map<String, Object?> body,
+    Map<String, Object?> Function()? fallbackBody,
+    Future<void>? abort,
+    Duration? timeout,
+  }) async* {
+    var cancelled = false;
+    unawaited(abort?.then((_) => cancelled = true));
+    var payload = body;
+    var fellBack = false;
+    for (var attempt = 1; ; attempt++) {
+      if (cancelled) {
+        throw const AiProviderFailure(AiProviderFailureKind.cancelled);
+      }
+      if (!await _online()) {
+        throw const AiProviderFailure(AiProviderFailureKind.offline);
+      }
+      final watch = _StreamWatch(timeout ?? this.timeout, abort);
+      Duration? wait;
+      try {
+        final request = _jsonRequest(settings, 'POST', path, payload)(
+          watch.trigger.future,
+        );
+        request.headers['accept'] = 'text/event-stream';
+        final response = await _client.send(request);
+        final status = response.statusCode;
+        if (status < 200 || status >= 300) {
+          final bytes = <int>[];
+          await for (final chunk in response.stream) {
+            if (bytes.length < 65536) bytes.addAll(chunk);
+          }
+          final failed = AiHttpResponse(
+            status,
+            utf8.decode(bytes, allowMalformed: true),
+            response.headers,
+          );
+          if (status == 400 && fallbackBody != null && !fellBack) {
+            fellBack = true;
+            payload = fallbackBody();
+            attempt--;
+            continue;
+          }
+          final retryable =
+              status == 429 || const {500, 502, 503, 504}.contains(status);
+          if (!retryable || attempt >= attempts) _success(failed);
+          wait = _retryAfter(response.headers['retry-after']);
+        } else {
+          var received = 0;
+          final lines = response.stream
+              .map((chunk) {
+                watch.kick();
+                received += chunk.length;
+                if (received > _maxResponseBytes) {
+                  throw const AiProviderFailure(
+                    AiProviderFailureKind.invalidResponse,
+                  );
+                }
+                return chunk;
+              })
+              .transform(const Utf8Decoder(allowMalformed: true))
+              .transform(const LineSplitter());
+          await for (final line in lines) {
+            if (!line.startsWith('data:')) continue;
+            final data = line.substring(5).trim();
+            if (data.isEmpty) continue;
+            if (data == '[DONE]') return;
+            final Object? json;
+            try {
+              json = jsonDecode(data);
+            } on FormatException {
+              throw const AiProviderFailure(
+                AiProviderFailureKind.invalidResponse,
+              );
+            }
+            if (json is Map<String, dynamic>) yield json;
+          }
+          if (watch.cancelled) {
+            throw const AiProviderFailure(AiProviderFailureKind.cancelled);
+          }
+          return;
+        }
+      } on http.RequestAbortedException {
+        throw watch.failure;
+      } on http.ClientException {
+        if (watch.cancelled) {
+          throw const AiProviderFailure(AiProviderFailureKind.cancelled);
+        }
+        throw const AiProviderFailure(AiProviderFailureKind.offline);
+      } on SocketException {
+        throw const AiProviderFailure(AiProviderFailureKind.offline);
+      } on TlsException {
+        throw const AiProviderFailure(AiProviderFailureKind.offline);
+      } finally {
+        watch.close();
+      }
+      wait ??= baseDelay * pow(2, attempt - 1).toInt();
+      if (wait > maxDelay) wait = maxDelay;
+      wait += Duration(milliseconds: _random.nextInt(250));
+      await Future.any([_delay(wait), ?abort]);
+    }
+  }
+
   Uri _uri(AiCloudSettings settings, String path) {
     final base = parseAiProviderBaseUrl(settings.baseUrl);
     return base.replace(path: '${base.path}$path');
@@ -284,6 +392,44 @@ class AiTransport {
   }
 }
 
+/// Ends a streamed call when it is stopped, or when no piece arrives for
+/// [idle].
+class _StreamWatch {
+  _StreamWatch(this.idle, Future<void>? abort) {
+    kick();
+    unawaited(
+      abort?.then((_) {
+        cancelled = true;
+        _fire();
+      }),
+    );
+  }
+  final Duration idle;
+  final trigger = Completer<void>();
+  Timer? _timer;
+  bool timedOut = false, cancelled = false;
+
+  void kick() {
+    _timer?.cancel();
+    _timer = Timer(idle, () {
+      timedOut = true;
+      _fire();
+    });
+  }
+
+  void _fire() {
+    if (!trigger.isCompleted) trigger.complete();
+  }
+
+  void close() => _timer?.cancel();
+
+  AiProviderFailure get failure => AiProviderFailure(
+    cancelled || !timedOut
+        ? AiProviderFailureKind.cancelled
+        : AiProviderFailureKind.timeout,
+  );
+}
+
 int _int(Object? value) => value is num ? value.toInt() : 0;
 
 /// OpenAI API conventions: chat completions, audio transcriptions, image
@@ -356,6 +502,62 @@ class OpenAiCloudClient implements AiCloudClient {
         outputTokens: usage is Map ? _int(usage['completion_tokens']) : 0,
       ),
     );
+  }
+
+  @override
+  Stream<AiStreamPiece> chatStream(
+    AiCloudSettings settings,
+    AiChatRequest request, {
+    Future<void>? abort,
+  }) async* {
+    // The fallback leaves out what some compatible servers reject: a set
+    // temperature and usage reporting.
+    Map<String, Object?> body({required bool full}) => {
+      'model': request.model,
+      settings.preset.tokenLimitParameter: request.outputTokens,
+      'messages': [
+        {'role': 'system', 'content': request.system},
+        {'role': 'user', 'content': request.user},
+      ],
+      'stream': true,
+      if (full) 'stream_options': {'include_usage': true},
+      if (full) 'temperature': request.temperature,
+      if (full && request.topP != 1) 'top_p': request.topP,
+    };
+    AiUsage? usage;
+    await for (final event in transport.events(
+      settings,
+      '/chat/completions',
+      body: body(full: true),
+      fallbackBody: () => body(full: false),
+      abort: abort,
+      timeout: request.timeout,
+    )) {
+      if (event['error'] != null) {
+        throw const AiProviderFailure(AiProviderFailureKind.unavailable);
+      }
+      final used = event['usage'];
+      if (used is Map) {
+        usage = AiUsage(
+          inputTokens: _int(used['prompt_tokens']),
+          outputTokens: _int(used['completion_tokens']),
+        );
+      }
+      final choices = event['choices'];
+      final choice = choices is List && choices.isNotEmpty
+          ? choices.first
+          : null;
+      if (choice is! Map) continue;
+      final delta = choice['delta'];
+      final content = delta is Map ? delta['content'] : null;
+      if (content is String && content.isNotEmpty) {
+        yield AiStreamPiece(content);
+      }
+      if (choice['finish_reason'] == 'length') {
+        throw const AiProviderFailure(AiProviderFailureKind.truncated);
+      }
+    }
+    yield AiStreamPiece('', usage: usage);
   }
 
   @override
@@ -723,6 +925,63 @@ class AnthropicCloudAdapter extends OpenAiCloudClient {
       id.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_');
 
   @override
+  Stream<AiStreamPiece> chatStream(
+    AiCloudSettings settings,
+    AiChatRequest request, {
+    Future<void>? abort,
+  }) async* {
+    Map<String, Object?> body({required bool temperature}) => {
+      'model': request.model,
+      'max_tokens': request.outputTokens,
+      'system': request.system,
+      'messages': [
+        {'role': 'user', 'content': request.user},
+      ],
+      'stream': true,
+      if (temperature) 'temperature': request.temperature,
+    };
+    var input = 0, output = 0;
+    await for (final event in transport.events(
+      settings,
+      '/messages',
+      body: body(temperature: true),
+      fallbackBody: () => body(temperature: false),
+      abort: abort,
+      timeout: request.timeout,
+    )) {
+      switch (event['type']) {
+        case 'message_start':
+          final message = event['message'];
+          final used = message is Map ? message['usage'] : null;
+          if (used is Map) input = _int(used['input_tokens']);
+        case 'content_block_delta':
+          final delta = event['delta'];
+          if (delta is Map &&
+              delta['type'] == 'text_delta' &&
+              delta['text'] is String &&
+              (delta['text'] as String).isNotEmpty) {
+            yield AiStreamPiece(delta['text'] as String);
+          }
+        case 'message_delta':
+          final used = event['usage'];
+          if (used is Map) output = _int(used['output_tokens']);
+          final delta = event['delta'];
+          if (delta is Map && delta['stop_reason'] == 'max_tokens') {
+            throw const AiProviderFailure(AiProviderFailureKind.truncated);
+          }
+        case 'error':
+          throw const AiProviderFailure(AiProviderFailureKind.unavailable);
+      }
+    }
+    yield AiStreamPiece(
+      '',
+      usage: input == 0 && output == 0
+          ? null
+          : AiUsage(inputTokens: input, outputTokens: output),
+    );
+  }
+
+  @override
   Future<AiResult<AiConverseReply>> converse(
     AiCloudSettings settings,
     AiConverseRequest request, {
@@ -863,6 +1122,13 @@ class CloudAiClient implements AiCloudClient {
     AiChatRequest request, {
     Future<void>? abort,
   }) => _for(settings).chat(settings, request, abort: abort);
+
+  @override
+  Stream<AiStreamPiece> chatStream(
+    AiCloudSettings settings,
+    AiChatRequest request, {
+    Future<void>? abort,
+  }) => _for(settings).chatStream(settings, request, abort: abort);
 
   @override
   Future<AiResult<AiConverseReply>> converse(

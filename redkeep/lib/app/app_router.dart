@@ -26,7 +26,6 @@ import '../features/appearance/presentation/appearance_page.dart';
 import '../features/onboarding/application/onboarding_controller.dart';
 import '../features/onboarding/application/onboarding_restore.dart';
 import '../features/onboarding/presentation/onboarding_page.dart';
-import '../features/notes/presentation/note_chat_page.dart';
 import '../features/notes/presentation/note_page.dart';
 import '../features/notes/presentation/note_scan_page.dart';
 import '../features/stock_photos/domain/stock_photo.dart';
@@ -226,18 +225,6 @@ GoRouter createAppRouter(Ref ref) {
                 pageBuilder: (context, state) => _page(
                   state,
                   NoteScanPage(
-                    key: ValueKey(state.uri.path),
-                    id: state.pathParameters['id']!,
-                  ),
-                ),
-              ),
-              // The Maester's conversation about this note. A sibling, so
-              // leaving returns to the note.
-              GoRoute(
-                path: ':id/maester',
-                pageBuilder: (context, state) => _page(
-                  state,
-                  NoteChatPage(
                     key: ValueKey(state.uri.path),
                     id: state.pathParameters['id']!,
                   ),

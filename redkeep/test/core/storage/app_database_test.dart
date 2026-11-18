@@ -13,24 +13,24 @@ import 'package:redkeep/features/onboarding/data/drift_onboarding_repository.dar
 import 'generated/schema.dart';
 
 void main() {
-  test('fresh schema matches the complete version 15 snapshot', () async {
+  test('fresh schema matches the complete version 16 snapshot', () async {
     final database = AppDatabase(NativeDatabase.memory());
     addTearDown(database.close);
 
-    expect(database.schemaVersion, 15);
-    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 15);
+    expect(database.schemaVersion, 16);
+    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 16);
     final version = await database
         .customSelect('PRAGMA user_version')
         .getSingle();
-    expect(version.read<int>('user_version'), 15);
+    expect(version.read<int>('user_version'), 16);
   });
 
-  for (final from in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]) {
+  for (final from in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]) {
     test('the upgrade from version $from matches the snapshot', () async {
       final verifier = SchemaVerifier(GeneratedHelper());
       final database = AppDatabase(await verifier.startAt(from));
       addTearDown(database.close);
-      await verifier.migrateAndValidate(database, 15);
+      await verifier.migrateAndValidate(database, 16);
     });
   }
 
@@ -46,7 +46,7 @@ void main() {
     }
     final old = AppDatabase(schema.newConnection());
     addTearDown(old.close);
-    await verifier.migrateAndValidate(old, 15);
+    await verifier.migrateAndValidate(old, 16);
 
     final gone = await old
         .customSelect(
@@ -88,7 +88,7 @@ void main() {
     }
     final old = AppDatabase(schema.newConnection());
     addTearDown(old.close);
-    await verifier.migrateAndValidate(old, 15);
+    await verifier.migrateAndValidate(old, 16);
 
     final kept = await old.select(old.watchTitles).get();
     expect(kept.map((t) => t.title).toSet(), {'c', 'd', 'e'});
@@ -114,7 +114,7 @@ void main() {
     }
     final old = AppDatabase(schema.newConnection());
     addTearDown(old.close);
-    await verifier.migrateAndValidate(old, 15);
+    await verifier.migrateAndValidate(old, 16);
     final leftovers = await old
         .customSelect("SELECT name FROM sqlite_master WHERE name LIKE 'sync_%'")
         .get();
@@ -127,30 +127,35 @@ void main() {
     );
   });
 
-  test('version 7 adds local note chats outside sync', () async {
+  test('version 16 drops Maester conversations and keeps their notes', () async {
     final verifier = SchemaVerifier(GeneratedHelper());
-    final database = AppDatabase(await verifier.startAt(4));
-    addTearDown(database.close);
-    await verifier.migrateAndValidate(database, 15);
-    final names =
-        (await database
-                .customSelect('SELECT name, type FROM sqlite_master')
-                .get())
-            .map((r) => (r.read<String>('name'), r.read<String>('type')));
-    // No website table, and no sync triggers on the chat.
-    expect(names.where((n) => n.$1 == 'note_websites'), isEmpty);
-    expect(
-      names.where((n) => n.$2 == 'trigger' && n.$1.contains('note_chat')),
-      isEmpty,
-    );
-    expect(await database.select(database.noteChatTurns).get(), isEmpty);
+    final schema = await verifier.schemaAt(15);
+    final id = 'a' * 32;
+    for (final statement in [
+      "INSERT INTO notes (id, title, body, details, revision, created_at, updated_at) VALUES ('$id', 'Kept', 'Words', '{}', 1, 1, 1)",
+      "INSERT INTO note_chat_turns (id, note_id, at, ask, reply, actions) VALUES ('t1', '$id', 1, 'Tidy this', 'Done', '[]')",
+    ]) {
+      schema.rawDatabase.execute(statement);
+    }
+    final old = AppDatabase(schema.newConnection());
+    addTearDown(old.close);
+    await verifier.migrateAndValidate(old, 16);
+
+    final gone = await old
+        .customSelect(
+          "SELECT name FROM sqlite_master WHERE name LIKE 'note_chat%'",
+        )
+        .get();
+    expect(gone, isEmpty);
+    final note = await old.select(old.notes).getSingle();
+    expect((note.title, note.body), ('Kept', 'Words'));
   });
 
   test('version 4 drops stored tasks, daily questions, voices, conversations and recovery copies', () async {
     final verifier = SchemaVerifier(GeneratedHelper());
     final database = AppDatabase(await verifier.startAt(3));
     addTearDown(database.close);
-    await verifier.migrateAndValidate(database, 15);
+    await verifier.migrateAndValidate(database, 16);
     final tables =
         (await database
                 .customSelect(
@@ -192,7 +197,7 @@ void main() {
     final version = await database
         .customSelect('PRAGMA user_version')
         .getSingle();
-    expect(version.read<int>('user_version'), 15);
+    expect(version.read<int>('user_version'), 16);
   });
 
   test('version 9 removes Flow and keeps diary entries as ordinary entries', () async {
@@ -210,7 +215,7 @@ void main() {
       schema.rawDatabase.execute(statement);
     }
     final old = AppDatabase(schema.newConnection());
-    await verifier.migrateAndValidate(old, 15);
+    await verifier.migrateAndValidate(old, 16);
 
     final tables = await old
         .customSelect("SELECT name FROM sqlite_master WHERE name LIKE 'flow_%'")
@@ -244,7 +249,7 @@ void main() {
     }
     final old = AppDatabase(schema.newConnection());
     addTearDown(old.close);
-    await verifier.migrateAndValidate(old, 15);
+    await verifier.migrateAndValidate(old, 16);
 
     final dropped = await old
         .customSelect(
@@ -281,7 +286,7 @@ void main() {
     }
     final old = AppDatabase(schema.newConnection());
     addTearDown(old.close);
-    await verifier.migrateAndValidate(old, 15);
+    await verifier.migrateAndValidate(old, 16);
 
     final left = await old
         .customSelect(
@@ -358,7 +363,7 @@ void main() {
     final version = await database
         .customSelect('PRAGMA user_version')
         .getSingle();
-    expect(version.read<int>('user_version'), 15);
+    expect(version.read<int>('user_version'), 16);
     final retired = await database
         .customSelect(
           "SELECT name FROM sqlite_master WHERE name = 'brain_assignments' "
@@ -459,7 +464,7 @@ void main() {
     final version = await reopened
         .customSelect('PRAGMA user_version')
         .getSingle();
-    expect(version.read<int>('user_version'), 15);
+    expect(version.read<int>('user_version'), 16);
   });
 
   test(

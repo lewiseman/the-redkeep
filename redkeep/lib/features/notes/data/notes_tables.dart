@@ -29,22 +29,3 @@ class NoteMediaOps extends Table {
   @override
   Set<Column> get primaryKey => {path};
 }
-
-/// A note's conversation with the Maester: one row per exchange, only the
-/// latest few, on this device. Never synced.
-@DataClassName('NoteChatTurnRow')
-class NoteChatTurns extends Table {
-  TextColumn get id => text()();
-
-  /// Not a reference: a new note can talk before it is first saved.
-  TextColumn get noteId => text()();
-  IntColumn get at => integer()();
-  TextColumn get ask => text()();
-  TextColumn get reply => text().withDefault(const Constant(''))();
-
-  /// The Maester's tool calls and what came of them, as JSON.
-  TextColumn get actions => text().withDefault(const Constant('[]'))();
-
-  @override
-  Set<Column> get primaryKey => {id};
-}

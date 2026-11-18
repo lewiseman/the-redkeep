@@ -384,9 +384,6 @@ class DriftNotesRepository implements NotesRepository {
         throw const NoteException(NoteFailure.staleRevision);
       }
       await (_db.delete(_db.noteTags)..where((r) => r.noteId.equals(id))).go();
-      await (_db.delete(
-        _db.noteChatTurns,
-      )..where((r) => r.noteId.equals(id))).go();
       await (_db.delete(_db.notes)..where((r) => r.id.equals(id))).go();
     });
   }

@@ -18,8 +18,12 @@ class NoteMarkdownPreview extends ConsumerStatefulWidget {
     required this.text,
     this.selectable = true,
     this.readingNoteId,
+    this.emptyText = 'This note is empty.',
   });
   final String text;
+
+  /// Shown in place of an empty body.
+  final String emptyText;
 
   /// Off where taps and drags mean something else, e.g. AI previews.
   final bool selectable;
@@ -69,7 +73,7 @@ class _NoteMarkdownPreviewState extends ConsumerState<NoteMarkdownPreview> {
           Semantics(liveRegion: true, child: Text(_message!)),
         MarkdownBody(
           key: ValueKey(noteId),
-          data: body.isEmpty ? 'This note is empty.' : body,
+          data: body.isEmpty ? widget.emptyText : body,
           selectable: widget.selectable,
           styleSheet: typography.markdown(context),
           extensionSet: taskList?.extensions,

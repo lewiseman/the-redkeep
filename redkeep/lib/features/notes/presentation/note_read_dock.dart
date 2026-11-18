@@ -16,6 +16,7 @@ class NoteReadDock extends StatelessWidget {
     required this.onAi,
     required this.actions,
     this.color = NoteColorPreset.plain,
+    this.working = false,
   });
 
   /// Room the dock takes over the paper, above the system inset.
@@ -23,6 +24,9 @@ class NoteReadDock extends StatelessWidget {
 
   final VoidCallback? onEdit;
   final VoidCallback? onAi;
+
+  /// The Maester is writing; its mark shows it.
+  final bool working;
 
   /// The note's other actions, e.g. a [NoteActionsMenu].
   final Widget actions;
@@ -101,7 +105,7 @@ class NoteReadDock extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      NoteAiButton(onPressed: onAi),
+                      NoteAiButton(onPressed: onAi, working: working),
                       const SizedBox(width: 8),
                       edit,
                       const SizedBox(width: 8),

@@ -1,12 +1,13 @@
 import 'package:redkeep/features/notes/application/notes_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:redkeep/app/navigation_destination.dart';
-import 'package:redkeep/features/ai/domain/ai_conversation.dart';
 import 'package:redkeep/features/appearance/domain/appearance_preferences.dart';
 import 'package:redkeep/features/notes/domain/note_document.dart';
 
@@ -69,20 +70,26 @@ void main() {
           );
           router.go(noteLocation(notesTestId));
           await tester.pumpAndSettle();
-          await tester.tap(find.byTooltip('AI tools'));
+          await tester.tap(find.byTooltip('Ask the Maester'));
           await tester.pumpAndSettle();
-          // The Maester is a chat on its own page, not a sheet.
-          expect(router.state.uri.path, noteChatLocation(notesTestId));
-          expect(find.byKey(const ValueKey('note-chat-input')), findsOneWidget);
-          expect(find.text('How shall I help?'), findsOneWidget);
+          // The Maester asks on the note itself, in place of the dock, with
+          // the keyboard up.
+          expect(router.state.uri.path, noteLocation(notesTestId));
+          final input = find.byKey(const ValueKey('note-maester-input'));
+          expect(input, findsOneWidget);
+          expect(tester.widget<TextField>(input).focusNode!.hasFocus, isTrue);
+          expect(find.byKey(const ValueKey('note-read-dock')), findsNothing);
           expect(tester.takeException(), isNull);
-          await tester.tap(find.byTooltip('Back'));
+          // Back closes the input and stays on the note.
+          await tester.binding.handlePopRoute();
           await tester.pumpAndSettle();
           expect(router.state.uri.path, noteLocation(notesTestId));
+          expect(input, findsNothing);
+          expect(find.byKey(const ValueKey('note-read-dock')), findsOneWidget);
           await startEditing(tester);
-          // Writing has no Maester button; it is offered while reading.
+          // Writing has no Maester button; it is offered for a selection.
           expect(find.byTooltip('Close editor'), findsOneWidget);
-          expect(find.byTooltip('AI tools'), findsNothing);
+          expect(find.byTooltip('Ask the Maester'), findsNothing);
           expect(tester.takeException(), isNull);
         } finally {
           await tester.pumpWidget(const SizedBox());
@@ -233,58 +240,37 @@ void main() {
     }
   });
 
-  testWidgets('the Maester edits one passage in chat and keeps it on review', (
+  Future<void> settle(WidgetTester tester, Finder until) async {
+    for (var i = 0; i < 50 && until.evaluate().isEmpty; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+      await tester.pump();
+    }
+    await tester.pump();
+  }
+
+  Future<void> ask(WidgetTester tester, String request) async {
+    await tester.enterText(
+      find.byKey(const ValueKey('note-maester-input')),
+      request,
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('note-maester-send')));
+    await tester.pump();
+  }
+
+  testWidgets('the Maester rewrites the note as it streams in; Edit waits', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(320, 760);
     tester.view.devicePixelRatio = 1;
-    tester.platformDispatcher.textScaleFactorTestValue = 3;
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
     addTearDown(tester.view.reset);
     addTearDown(tester.platformDispatcher.clearAllTestValues);
-    const passage = 'Plant tomatoes in the raised bed.';
-    const rest = 'Water them every morning.';
-    const original = '$passage\n\n$rest';
-    const replacement = '- [ ] Plant tomatoes in the raised bed.';
+    const original = 'Plant tomatoes in the raised bed.';
     await h.save(body: original);
-    h.remote.output = replacement;
-    h.aiProvider.turns.addAll([
-      const AiConverseReply(
-        text: 'I made the first line a checklist item.',
-        calls: [
-          AiToolCall(
-            id: 'call_1',
-            name: 'edit_note',
-            arguments: {
-              'operation': 'custom',
-              'instruction': 'Make this a checklist.',
-              'passage': passage,
-            },
-          ),
-        ],
-      ),
-      const AiConverseReply(text: 'Glad it helps.'),
-    ]);
-
-    Future<void> settle(Finder until) async {
-      for (var i = 0; i < 50 && until.evaluate().isEmpty; i++) {
-        await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 20)),
-        );
-        await tester.pump();
-      }
-      await tester.pumpAndSettle();
-    }
-
-    Future<void> send(String text) async {
-      await tester.enterText(
-        find.byKey(const ValueKey('note-chat-input')),
-        text,
-      );
-      await tester.pump();
-      await tester.tap(find.byKey(const ValueKey('note-chat-send')));
-      await tester.pump();
-    }
-
+    final stream = h.aiProvider.stream = StreamController<String>();
     try {
       await pumpApp(
         tester,
@@ -292,47 +278,163 @@ void main() {
         database: h.db,
         aiProvider: h.aiProvider,
         aiSettings: testAiSettings,
-        initialLocation: noteChatLocation(notesTestId),
+        initialLocation: noteLocation(notesTestId),
       );
-      await send('Make the first line a checklist');
-      final keep = find.byKey(const ValueKey('note-chat-keep'));
-      await settle(keep);
+      await tester.tap(find.byTooltip('Ask the Maester'));
+      await tester.pumpAndSettle();
+      await ask(tester, 'Make it a checklist');
+      final working = find.byKey(const ValueKey('note-maester-working'));
+      await settle(tester, working);
 
-      final turn = h.aiProvider.conversations.single;
-      expect(turn.user, 'Make the first line a checklist');
-      expect(turn.system, contains(passage));
-      expect(
-        turn.tools.map((t) => t.name),
-        containsAll(['edit_note', 'offer_choices']),
-      );
-      // Only the named passage is sent to be rewritten.
+      // The note clears while the Maester writes.
+      expect(find.text(original), findsNothing);
+      expect(find.text('The Maester is writing…'), findsOneWidget);
       expect(jsonDecode(h.aiProvider.requests.single.user), {
-        'text': passage,
-        'intent': 'Make this a checklist.',
+        'text': original,
+        'intent': 'Make it a checklist',
       });
-      expect(find.byKey(const ValueKey('note-chat-compare')), findsOneWidget);
+
+      stream.add('- [ ] Plant tomatoes');
+      await settle(tester, find.textContaining('Plant tomatoes'));
+      expect(find.textContaining('Plant tomatoes'), findsOneWidget);
+      // Nothing is saved until the Maester has finished.
       expect(
         (await h.repository.openDocument(notesTestId)).note!.text.body,
         original,
       );
 
-      await tester.ensureVisible(keep);
-      await tester.pumpAndSettle();
-      await tester.tap(keep);
-      await settle(find.text('Kept in your note.'));
+      // Back closes the input; the Maester keeps writing and shows it.
+      await tester.binding.handlePopRoute();
+      await tester.pump();
+      expect(find.byKey(const ValueKey('note-maester-input')), findsNothing);
+      expect(working, findsOneWidget);
+      // Narrow screens and large text keep Edit as an icon.
+      VoidCallback? edit() => tester
+          .widget<IconButton>(
+            find.descendant(
+              of: find.byTooltip('Edit note'),
+              matching: find.byType(IconButton),
+            ),
+          )
+          .onPressed;
+      expect(edit(), isNull);
+
+      stream.add('\n- [ ] Water each morning');
+      await stream.close();
+      for (var i = 0; i < 20 && working.evaluate().isNotEmpty; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        );
+        await tester.pump();
+      }
+      expect(working, findsNothing);
       expect(
         (await h.repository.openDocument(notesTestId)).note!.text.body,
-        '$replacement\n\n$rest',
+        '- [ ] Plant tomatoes\n- [ ] Water each morning',
       );
+      expect(edit(), isNotNull);
+      expect(tester.takeException(), isNull);
+    } finally {
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpAndSettle();
+    }
+  });
 
-      // The next turn tells the Maester what came of its proposal.
-      await send('Thanks');
-      await settle(find.text('Glad it helps.'));
-      final next = h.aiProvider.conversations.last;
-      expect(next.history.single.calls.single.name, 'edit_note');
+  testWidgets('leaving the note while the Maester writes changes nothing', (
+    tester,
+  ) async {
+    const original = 'Plant tomatoes in the raised bed.';
+    await h.save(body: original);
+    final stream = h.aiProvider.stream = StreamController<String>();
+    try {
+      final router = await pumpApp(
+        tester,
+        notes: h.repository,
+        database: h.db,
+        aiProvider: h.aiProvider,
+        aiSettings: testAiSettings,
+        initialLocation: noteLocation(notesTestId),
+      );
+      await tester.tap(find.byTooltip('Ask the Maester'));
+      await tester.pumpAndSettle();
+      await ask(tester, 'Shorten it');
+      await settle(tester, find.byKey(const ValueKey('note-maester-working')));
+      stream.add('Tomatoes.');
+      await settle(tester, find.textContaining('Tomatoes.'));
+
+      router.go('/notes');
+      await tester.pumpAndSettle();
+      stream.add(' More.');
+      await stream.close();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+      expect(h.aiProvider.aborted, isTrue);
       expect(
-        next.history.single.results.single.content,
-        'The person kept this change.',
+        (await h.repository.openDocument(notesTestId)).note!.text.body,
+        original,
+      );
+    } finally {
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpAndSettle();
+    }
+  });
+
+  testWidgets('Ask Maester on a selection rewrites only that part', (
+    tester,
+  ) async {
+    const passage = 'Plant tomatoes in the raised bed.';
+    const rest = 'Water them every morning.';
+    await h.save(body: '$passage\n\n$rest');
+    h.aiProvider.reply = 'Sow basil in pots.';
+    try {
+      await pumpApp(
+        tester,
+        notes: h.repository,
+        database: h.db,
+        aiProvider: h.aiProvider,
+        aiSettings: testAiSettings,
+        initialLocation: noteLocation(notesTestId),
+      );
+      await tester.pumpAndSettle();
+      await startEditing(tester);
+      final quill = tester.widget<QuillEditor>(find.byType(QuillEditor));
+      quill.focusNode.requestFocus();
+      await tester.pump();
+      quill.controller.updateSelection(
+        const TextSelection(baseOffset: 0, extentOffset: passage.length),
+        ChangeSource.local,
+      );
+      await tester.pump();
+      tester
+          .state<QuillRawEditorState>(find.byType(QuillRawEditor))
+          .showToolbar();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Ask Maester'));
+      await tester.pumpAndSettle();
+      expect(find.text('How should this part change?'), findsOneWidget);
+
+      await ask(tester, 'Make it about basil');
+      await settle(tester, find.textContaining('Sow basil'));
+      for (var i = 0; i < 20; i++) {
+        final body = (await h.repository.openDocument(notesTestId))
+            .note!
+            .text
+            .body;
+        if (body.contains('basil')) break;
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        );
+        await tester.pump();
+      }
+      // Only the selection was sent and replaced.
+      expect(jsonDecode(h.aiProvider.requests.single.user), {
+        'text': passage,
+        'intent': 'Make it about basil',
+      });
+      expect(
+        (await h.repository.openDocument(notesTestId)).note!.text.body,
+        'Sow basil in pots.\n\n$rest',
       );
       expect(tester.takeException(), isNull);
     } finally {
@@ -543,7 +645,7 @@ void main() {
         await tester.tap(find.byTooltip('Close editor'));
         await tester.pumpAndSettle();
         expect(find.byKey(const ValueKey('note-body')), findsNothing);
-        expect(find.byTooltip('AI tools'), findsOneWidget);
+        expect(find.byTooltip('Ask the Maester'), findsOneWidget);
         expect(
           (await h.repository.openDocument(notesTestId))
               .note!

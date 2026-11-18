@@ -421,3 +421,69 @@ String _writeInline(List<_Segment> segments, _Block block) {
   }
   return line;
 }
+
+const _passageStart = '', _passageEnd = '';
+
+/// The Markdown of [delta] split at the rich text from [start] to [end]:
+/// what comes before, the passage itself and what follows. Formatting that
+/// runs across the edges stays in [before] and [after], so replacing only
+/// the passage keeps it, e.g. the `**` around part of a bold phrase.
+({String before, String text, String after}) markdownAround(
+  Delta delta,
+  int start,
+  int end,
+) {
+  if (start < 0 || end <= start) {
+    throw const FormatException('Select some writing first.');
+  }
+  Map<String, dynamic>? inline(Map<String, dynamic>? attributes) {
+    final kept = {
+      if (attributes?['bold'] == true) 'bold': true,
+      if (attributes?['italic'] == true) 'italic': true,
+    };
+    return kept.isEmpty ? null : kept;
+  }
+
+  final marked = Delta();
+  var at = 0;
+  for (final op in delta.toList()) {
+    if (!op.isInsert) continue;
+    final data = op.data;
+    if (data is! String) {
+      marked.push(op);
+      at += op.length ?? 1;
+      continue;
+    }
+    final attributes = op.attributes;
+    final from = at, to = at + data.length;
+    var cut = 0;
+    void put(String text) {
+      if (text.isNotEmpty) marked.insert(text, attributes);
+    }
+
+    // Each mark takes the style of the text it touches inside the passage.
+    if (start >= from && start < to) {
+      put(data.substring(cut, start - from));
+      marked.insert(_passageStart, inline(attributes));
+      cut = start - from;
+    }
+    if (end > from && end <= to) {
+      put(data.substring(cut, end - from));
+      marked.insert(_passageEnd, inline(attributes));
+      cut = end - from;
+    }
+    put(data.substring(cut));
+    at = to;
+  }
+  final markdown = markdownFromRich(marked);
+  final open = markdown.indexOf(_passageStart);
+  final close = markdown.indexOf(_passageEnd);
+  if (open < 0 || close < open) {
+    throw const FormatException('That selection could not be read. Try again.');
+  }
+  return (
+    before: markdown.substring(0, open),
+    text: markdown.substring(open + 1, close),
+    after: markdown.substring(close + 1),
+  );
+}

@@ -519,7 +519,7 @@ void main() {
     final screen = tester.getSize(find.byType(MaterialApp));
     final dock = tester.getRect(readDock());
     expect(dock.top, greaterThan(screen.height * .75));
-    for (final tooltip in ['AI tools', 'Edit note', 'Note actions']) {
+    for (final tooltip in ['Ask the Maester', 'Edit note', 'Note actions']) {
       expect(
         find.descendant(of: readDock(), matching: find.byTooltip(tooltip)),
         findsOneWidget,

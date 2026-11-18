@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'note_maester_composer.dart';
 import 'note_scene.dart';
 
 /// The one app bar of [NotePage], shared by reading and editing so switching
@@ -63,30 +64,27 @@ ButtonStyle noteBarButtonStyle(BuildContext context) {
   );
 }
 
-/// Opens the note's AI tools with the Maester mark.
+/// Opens the Maester with its mark, which shows when it is writing.
 class NoteAiButton extends StatelessWidget {
   const NoteAiButton({
     super.key,
     required this.onPressed,
-    this.tooltip = 'AI tools',
+    this.working = false,
+    this.tooltip = 'Ask the Maester',
   });
   final VoidCallback? onPressed;
+  final bool working;
   final String tooltip;
 
   @override
   Widget build(BuildContext context) => IconButton(
-    tooltip: tooltip,
+    tooltip: working ? 'The Maester is writing' : tooltip,
     onPressed: onPressed,
     style: noteBarButtonStyle(context)
-        .copyWith(padding: const WidgetStatePropertyAll(EdgeInsets.all(4))),
+        .copyWith(padding: const WidgetStatePropertyAll(EdgeInsets.zero)),
     icon: Opacity(
       opacity: onPressed == null ? .5 : 1,
-      child: Image.asset(
-        'assets/branding/grand_maestar.png',
-        width: 40,
-        height: 40,
-        excludeFromSemantics: true,
-      ),
+      child: NoteMaesterMark(working: working),
     ),
   );
 }

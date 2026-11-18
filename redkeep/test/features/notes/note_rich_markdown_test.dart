@@ -1,3 +1,4 @@
+import 'package:flutter_quill/flutter_quill.dart' show Document;
 import 'package:flutter_quill/quill_delta.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:markdown/markdown.dart' as md;
@@ -134,5 +135,43 @@ void main() {
         ..insert('\n'),
     );
     expect(written, 'linked\n');
+  });
+
+  group('markdownAround', () {
+    String join(({String before, String text, String after}) split) =>
+        '${split.before}[${split.text}]${split.after}';
+
+    test('splits a selection inside bold text, keeping the bold outside', () {
+      const note = 'Keep **this phrase bold** here';
+      final delta = richFromMarkdown(note)!;
+      // "phrase" sits after "Keep this ".
+      final start = 'Keep this '.length;
+      final split = markdownAround(delta, start, start + 'phrase'.length);
+      expect(split.text, 'phrase');
+      expect(join(split), 'Keep **this [phrase] bold** here');
+      expect(
+        '${split.before}words${split.after}',
+        'Keep **this words bold** here',
+      );
+    });
+
+    test('takes block markup with lines it covers whole', () {
+      const note = '# Plan\n\n- milk\n- bread\n\nAfter';
+      final delta = richFromMarkdown(note)!;
+      final plain = Document.fromDelta(delta).toPlainText();
+      final start = plain.indexOf('milk');
+      final end = plain.indexOf('bread') + 'bread'.length;
+      final split = markdownAround(delta, start, end);
+      expect(split.text, 'milk\n- bread');
+      expect(split.before, '# Plan\n\n- ');
+      expect(split.after, '\n\nAfter');
+    });
+
+    test('refuses an empty selection', () {
+      expect(
+        () => markdownAround(richFromMarkdown('Words')!, 2, 2),
+        throwsFormatException,
+      );
+    });
   });
 }

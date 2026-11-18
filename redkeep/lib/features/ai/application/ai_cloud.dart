@@ -192,6 +192,70 @@ class AiCloud {
     return stripSurroundingCodeFence(text);
   }
 
+  /// [chat] as it is written: yields the answer's text piece by piece. What
+  /// was used is recorded once it ends, including when it is stopped early.
+  Stream<String> chatStream({
+    required String system,
+    required String user,
+    required int outputTokens,
+    double temperature = 0,
+    Future<void>? abort,
+    Duration? timeout,
+  }) async* {
+    final ready = await _ready(AiCapability.chat);
+    final price = ready.settings.priceFor(ready.model);
+    final ledger = ref.read(aiSpendLedgerProvider);
+    await ledger.check(
+      ready.settings.monthlyLimitUsd,
+      AiUsage(
+        inputTokens: _tokens(system) + _tokens(user),
+        outputTokens: outputTokens,
+      ).cost(price),
+    );
+    final request = AiChatRequest(
+      model: ready.model,
+      system: system,
+      user: user,
+      outputTokens: outputTokens,
+      temperature: temperature,
+      timeout: timeout,
+    );
+    final written = StringBuffer();
+    AiUsage? usage;
+    try {
+      await for (final piece
+          in ref
+              .read(aiCloudClientProvider)
+              .chatStream(ready.settings, request, abort: abort)) {
+        if (piece.usage != null) usage = piece.usage;
+        if (piece.text.isEmpty) continue;
+        written.write(piece.text);
+        yield piece.text;
+      }
+    } on AiProviderFailure catch (failure) {
+      if (failure.kind == AiProviderFailureKind.badToken && ref.mounted) {
+        ref.read(aiKeyStatusProvider.notifier).rejected();
+      }
+      rethrow;
+    } finally {
+      // Providers that report nothing, or a stopped answer, are estimated.
+      if (usage != null || written.isNotEmpty) {
+        try {
+          await ledger.record(
+            usage ??
+                AiUsage(
+                  inputTokens: _tokens(system) + _tokens(user),
+                  outputTokens: _tokens(written.toString()),
+                ),
+            price,
+          );
+        } catch (_) {
+          /* The answer stands even if the ledger could not be written. */
+        }
+      }
+    }
+  }
+
   /// One conversation turn with tools. The estimate counts every earlier
   /// exchange, so long conversations stop before the limit, not after.
   Future<AiConverseReply> converse({

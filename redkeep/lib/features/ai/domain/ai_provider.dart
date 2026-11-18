@@ -245,11 +245,28 @@ class AiResult<T> {
   final AiUsage usage;
 }
 
+/// One piece of a streamed answer: more [text], or, last, what it used.
+class AiStreamPiece {
+  const AiStreamPiece(this.text, {this.usage});
+  final String text;
+
+  /// Set on the final piece when the provider reports it.
+  final AiUsage? usage;
+}
+
 /// OpenAI conventions are the baseline. Adapters override what differs and
 /// throw [AiProviderFailureKind.unsupported] for what a provider lacks.
 /// Completing an abort future stops the request with a cancelled failure.
 abstract interface class AiCloudClient {
   Future<AiResult<String>> chat(
+    AiCloudSettings settings,
+    AiChatRequest request, {
+    Future<void>? abort,
+  });
+
+  /// [chat] as it is written: text pieces as they arrive, then the usage.
+  /// Text only; images are not sent.
+  Stream<AiStreamPiece> chatStream(
     AiCloudSettings settings,
     AiChatRequest request, {
     Future<void>? abort,

@@ -117,10 +117,6 @@ String _destination(String location) {
 String noteLocation(String id) =>
     isNoteId(id) ? '/notes/$id' : AppDestination.unavailable.location;
 
-/// The note's conversation with the Maester, on a page of its own.
-String noteChatLocation(String id) =>
-    isNoteId(id) ? '/notes/$id/maester' : AppDestination.unavailable.location;
-
 /// Scanning a page into a note, on a page of its own.
 String noteScanLocation(String id) =>
     isNoteId(id) ? '/notes/$id/scan' : AppDestination.unavailable.location;

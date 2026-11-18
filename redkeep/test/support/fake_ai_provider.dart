@@ -71,6 +71,43 @@ class FakeAiProviderClient implements AiCloudClient {
     return AiResult(replies.isEmpty ? reply : replies.removeAt(0), usage);
   }
 
+  /// When set, streamed answers are exactly what this sends, until it
+  /// closes; otherwise the next reply arrives a few characters at a time.
+  StreamController<String>? stream;
+
+  @override
+  Stream<AiStreamPiece> chatStream(
+    AiCloudSettings settings,
+    AiChatRequest request, {
+    Future<void>? abort,
+  }) async* {
+    requests.add(request);
+    await _wait(abort);
+    var stopped = false;
+    unawaited(abort?.then((_) => stopped = true));
+    final source =
+        stream?.stream ??
+        _pieces(replies.isEmpty ? reply : replies.removeAt(0));
+    await for (final piece in source) {
+      if (stopped) {
+        aborted = true;
+        throw const AiProviderFailure(AiProviderFailureKind.cancelled);
+      }
+      yield AiStreamPiece(piece);
+    }
+    if (stopped) {
+      aborted = true;
+      throw const AiProviderFailure(AiProviderFailureKind.cancelled);
+    }
+    yield AiStreamPiece('', usage: usage);
+  }
+
+  static Stream<String> _pieces(String text) async* {
+    for (var i = 0; i < text.length; i += 6) {
+      yield text.substring(i, i + 6 > text.length ? text.length : i + 6);
+    }
+  }
+
   @override
   Future<AiResult<AiConverseReply>> converse(
     AiCloudSettings settings,

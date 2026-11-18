@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/navigation_destination.dart';
+import '../application/note_maester_controller.dart';
 import '../application/notes_providers.dart';
 import 'note_bottom_morph.dart';
 import 'note_edit_page.dart';
@@ -83,7 +84,14 @@ class _NotePageState extends ConsumerState<NotePage> {
   }
 
   @override
-  Widget build(BuildContext context) => NoteBottomMorphScope(
+  Widget build(BuildContext context) {
+    // The Maester's request belongs to the page: it carries on between
+    // reading and editing, and leaving the note stops it.
+    ref.listen(noteMaesterProvider(widget.id), (_, _) {});
+    return _build(context);
+  }
+
+  Widget _build(BuildContext context) => NoteBottomMorphScope(
     measure: _bottomKey,
     take: _takeBottom,
     child: _editing

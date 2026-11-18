@@ -24,6 +24,10 @@ class MainTabNotification extends Notification {
 /// ([forward]) or the previous one. Read only when a swipe begins.
 typedef MainTabSwipeGate = bool Function(bool forward);
 
+/// Handles the system back on a tab after the first, before the pager
+/// returns to the diary. Returns whether it used the back.
+typedef MainTabBack = bool Function();
+
 /// Placed above each tab's page. A page that has swipes of its own registers
 /// a [MainTabSwipeGate] here, and asks it which way is forward.
 class MainTabScope extends InheritedWidget {
@@ -47,6 +51,9 @@ class MainTabScope extends InheritedWidget {
 
   set gate(MainTabSwipeGate? gate) => _pager._gates[index] = gate;
   MainTabSwipeGate? get gate => _pager._gates[index];
+
+  set back(MainTabBack? back) => _pager._backs[index] = back;
+  MainTabBack? get back => _pager._backs[index];
 
   @override
   bool updateShouldNotify(MainTabScope oldWidget) => false;
@@ -90,6 +97,7 @@ class _MainTabsState extends State<MainTabs>
   )..addListener(_moved);
   late final _built = [for (var i = 0; i < _count; i++) i == widget.index];
   final _gates = List<MainTabSwipeGate?>.filled(_count, null);
+  final _backs = List<MainTabBack?>.filled(_count, null);
   final _hidden = List<bool>.filled(_count, false);
   late final _visible = [
     for (var i = 0; i < _count; i++) ValueNotifier(i == widget.index),
@@ -290,7 +298,8 @@ class _MainTabsState extends State<MainTabs>
     // Back from Notes or More returns to the diary, as it always has.
     canPop: widget.index == 0,
     onPopInvokedWithResult: (didPop, _) {
-      if (!didPop && widget.index != 0) context.go(mainTabLocations.first);
+      if (didPop || (_backs[_current]?.call() ?? false)) return;
+      if (widget.index != 0) context.go(mainTabLocations.first);
     },
     child: DirectionalHorizontalDrag(
       allow: _allows,

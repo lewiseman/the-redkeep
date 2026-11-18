@@ -3,7 +3,11 @@ import 'package:redkeep/features/ai/presentation/ai_settings_page.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:redkeep/features/sync/application/sync_providers.dart';
+import 'package:redkeep/features/sync/presentation/backup_panel.dart';
+import 'package:sync_wise/sync_wise.dart';
 import 'package:redkeep/features/appearance/domain/appearance_preferences.dart';
 import 'package:redkeep/features/appearance/presentation/appearance_page.dart';
 import 'package:redkeep/features/assets/presentation/local_artwork.dart';
@@ -12,8 +16,14 @@ import 'package:redkeep/features/sync/presentation/sync_card.dart';
 import 'package:redkeep/features/watchlist/presentation/watchlist_page.dart';
 
 import '../../support/fake_appearance_repository.dart';
+import '../../support/fake_backup.dart';
 import '../../support/fake_ai_provider.dart';
 import '../../support/pump_app.dart';
+
+class _ResetStorage extends AccountResetStorage {
+  @override
+  Future<bool> canSync() async => true;
+}
 
 void main() {
   Finder appearanceArtwork() => find.byWidgetPredicate(
@@ -62,6 +72,50 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await tester.pumpAndSettle();
   });
+
+  testWidgets(
+    'the journal opens over More without the bar; back shuts it before leaving',
+    (tester) async {
+      final state = Directory.systemTemp.createTempSync('redkeep-more-');
+      addTearDown(() => state.deleteSync(recursive: true));
+      final backend = FakeBackupBackend();
+      final router = await pumpApp(
+        tester,
+        initialLocation: '/more',
+        backups: [
+          syncBackendProvider.overrideWithValue(backend),
+          backupEngineProvider.overrideWithValue(
+            AsyncData(testBackupEngine(state, backend)),
+          ),
+          backupScheduleProvider.overrideWithValue(RecordingSchedule()),
+          networkServiceProvider.overrideWithValue(QuietNetwork()),
+          accountResetStorageProvider.overrideWithValue(_ResetStorage()),
+        ],
+      );
+      final bar = find.byKey(const ValueKey('bottom-navbar-slide'));
+      expect(bar.hitTestable(), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('sync-card-status')));
+      await tester.pumpAndSettle();
+      expect(find.byType(BackupPanel), findsOneWidget);
+      expect(bar.hitTestable(), findsNothing);
+      // A swipe towards Notes belongs to the open book, not the pager.
+      await tester.drag(find.byType(BackupPanel), const Offset(300, 0));
+      await tester.pumpAndSettle();
+      expect(find.byType(BackupPanel), findsOneWidget);
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.byType(BackupPanel), findsNothing);
+      expect(find.text('Appearance'), findsOneWidget);
+      expect(bar.hitTestable(), findsOneWidget);
+      expect(router.routerDelegate.currentConfiguration.uri.path, '/more');
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(router.routerDelegate.currentConfiguration.uri.path, '/diary');
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets(
     'Appearance resolves local downloaded art; Grand Maestar uses bundled branding',

@@ -21,9 +21,9 @@ class WritingShell extends ConsumerStatefulWidget {
   final Widget child;
   final String location;
 
-  /// Tab roots where the floating bar can slide away while reading.
-  /// The app's home is the diary reader too.
-  static const hidingLocations = {'/', '/diary', '/notes'};
+  /// Tab roots where the floating bar can slide away while reading, or
+  /// while More's journal lies open. The app's home is the diary reader too.
+  static const hidingLocations = {'/', '/diary', '/notes', '/more'};
 
   static const _tabRoots = {'/', ...mainTabLocations};
 

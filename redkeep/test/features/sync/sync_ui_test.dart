@@ -5,12 +5,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:redkeep/app/bootstrap/bootstrap_providers.dart';
 import 'package:redkeep/app/more_page.dart';
+import 'package:redkeep/app/writing_shell.dart';
 import 'package:redkeep/core/presentation/redkeep_theme.dart';
 import 'package:redkeep/core/presentation/rendering_policy.dart';
 import 'package:redkeep/features/appearance/domain/appearance_preferences.dart';
 import 'package:redkeep/features/onboarding/application/onboarding_controller.dart';
 import 'package:redkeep/features/sync/application/sync_providers.dart';
-import 'package:redkeep/features/sync/presentation/backup_sheet.dart';
+import 'package:redkeep/features/sync/presentation/backup_panel.dart';
 import 'package:redkeep/features/sync/presentation/backup_status.dart';
 import 'package:redkeep/features/sync/presentation/reset_account_page.dart';
 import 'package:redkeep/features/sync/presentation/sync_card.dart';
@@ -32,7 +33,9 @@ class MemoryResetStorage extends AccountResetStorage {
 
 void main() {
   late Directory state;
+  late List<bool> navbar;
   setUp(() async {
+    navbar = [];
     state = await Directory.systemTemp.createTemp('redkeep-backup-ui-');
   });
   tearDown(() => state.delete(recursive: true));
@@ -84,7 +87,17 @@ void main() {
             body: SafeArea(
               child: Builder(
                 builder: (context) {
-                  if (screen == 'more') return const MorePage();
+                  if (screen == 'more') {
+                    return NotificationListener<
+                      BottomNavbarVisibilityNotification
+                    >(
+                      onNotification: (notification) {
+                        navbar.add(notification.hidden);
+                        return true;
+                      },
+                      child: const MorePage(),
+                    );
+                  }
                   if (screen == 'nested') {
                     return Navigator(
                       key: const ValueKey('nested-navigator'),
@@ -107,7 +120,7 @@ void main() {
                       ),
                     );
                   }
-                  if (screen == 'sheet') return const BackupSheet();
+                  if (screen == 'sheet') return BackupPanel(onClose: () {});
                   if (screen == 'reset') {
                     return const ResetAccountPage(
                       account: FakeBackupAuth.owner,
@@ -248,29 +261,40 @@ void main() {
     );
 
     testWidgets(
-      'backup sheet opens above nested navigators ${brightness.name}',
+      'the backup line opens the book over the page; back closes it ${brightness.name}',
       (tester) async {
-        await pump(tester, brightness: brightness, screen: 'nested');
+        await pump(tester, brightness: brightness, screen: 'more');
+        final panel = find.byType(BackupPanel);
+        expect(panel, findsNothing);
         await tester.tap(find.byKey(const ValueKey('sync-card-status')));
         await tester.pumpAndSettle();
-        final sheet = find.byType(BackupSheet);
-        expect(sheet, findsOneWidget);
+        expect(panel, findsOneWidget);
+        expect(navbar, [true]);
+        // The open book fills the page; the card's page beneath it is inert.
         expect(
-          find.ancestor(
-            of: sheet,
-            matching: find.byKey(const ValueKey('nested-navigator')),
-          ),
+          tester.getSize(panel).width,
+          greaterThan(tester.getSize(find.byType(MorePage)).width - 40),
+        );
+        expect(
+          find.byKey(const ValueKey('sync-card-status')).hitTestable(),
           findsNothing,
         );
-        expect(find.text('Back up to Google Drive'), findsOneWidget);
         expect(find.text('Daily'), findsOneWidget);
-        expect(find.text('Add-only'), findsNothing);
-        await tester.drag(sheet, const Offset(0, -300));
+        expect(find.text('Weekly'), findsOneWidget);
+        await tester.binding.handlePopRoute();
         await tester.pumpAndSettle();
-        expect(sheet, findsOneWidget);
-        await tester.fling(sheet, const Offset(0, 800), 2000);
+        expect(panel, findsNothing);
+        expect(navbar, [true, false]);
+        await tester.tap(find.byKey(const ValueKey('sync-card-status')));
         await tester.pumpAndSettle();
-        expect(sheet, findsNothing);
+        await tester.tap(find.byKey(const ValueKey('backup-close')));
+        await tester.pumpAndSettle();
+        expect(panel, findsNothing);
+        expect(navbar, [true, false, true, false]);
+        expect(
+          find.byKey(const ValueKey('sync-card-status')).hitTestable(),
+          findsOneWidget,
+        );
         await unmount(tester);
       },
     );
@@ -289,7 +313,7 @@ void main() {
           ),
         );
         Finder inSheet(Finder finder) =>
-            find.descendant(of: find.byType(BackupSheet), matching: finder);
+            find.descendant(of: find.byType(BackupPanel), matching: finder);
         expect(find.text('Backing up · 50%'), findsOneWidget);
         final bar = tester.widget<LinearProgressIndicator>(
           find.byKey(const ValueKey('backup-progress')),
@@ -311,26 +335,42 @@ void main() {
         brightness: brightness,
         screen: 'sheet',
       );
-      await tester.tap(find.byKey(const ValueKey('backup-interval')));
-      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('backup-interval-weekly')));
       await tester.pumpAndSettle();
       expect(settings.saved.single.interval, BackupInterval.weekly);
-      expect(find.text('Weekly'), findsOneWidget);
+      expect(
+        tester.getSemantics(
+          find.byKey(const ValueKey('backup-interval-weekly')),
+        ),
+        isSemantics(isSelected: true, isButton: true),
+      );
+      expect(
+        find.text('Backs up to Google Drive once a week, overnight.'),
+        findsOneWidget,
+      );
+      await tester.ensureVisible(find.byKey(const ValueKey('backup-cellular')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('backup-cellular')));
       await tester.pumpAndSettle();
       expect(settings.saved.last.allowCellular, isTrue);
       await unmount(tester);
     });
 
-    for (final screen in ['more', 'expanded', 'collapsed', 'sheet', 'reset']) {
+    for (final screen in [
+      'more',
+      'open',
+      'expanded',
+      'collapsed',
+      'sheet',
+      'reset',
+    ]) {
       testWidgets('backup UI 320px 3x ${brightness.name} $screen', (
         tester,
       ) async {
         await pump(
           tester,
           brightness: brightness,
-          screen: screen,
+          screen: screen == 'open' ? 'more' : screen,
           width: 320,
           scale: 3,
           connected: screen != 'expanded',
@@ -339,6 +379,21 @@ void main() {
             lastSize: 3 * 1024 * 1024,
           ),
         );
+        if (screen == 'open') {
+          await tester.tap(find.byKey(const ValueKey('sync-card-status')));
+          await tester.pumpAndSettle();
+          final reset = find.byKey(const ValueKey('reset-account-data'));
+          await tester.scrollUntilVisible(
+            reset,
+            200,
+            scrollable: find.descendant(
+              of: find.byType(BackupPanel),
+              matching: find.byType(Scrollable),
+            ),
+          );
+          await tester.pumpAndSettle();
+          expect(reset.hitTestable(), findsOneWidget);
+        }
         if (screen == 'reset') {
           expect(
             tester

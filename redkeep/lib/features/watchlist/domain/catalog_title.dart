@@ -58,15 +58,6 @@ class CatalogTitle {
 
   WatchMedia get media => key.media;
 
-  /// Its "photos" for a dating profile: the poster, then scene stills.
-  List<(String path, String size)> get photos {
-    final stills = {?backdropPath, ...backdrops}.take(5);
-    return [
-      if (posterPath != null) (posterPath!, 'w780'),
-      for (final b in stills) (b, 'w1280'),
-    ];
-  }
-
   Map<String, dynamic> toJson() => {
     'key': key.value,
     'title': title,

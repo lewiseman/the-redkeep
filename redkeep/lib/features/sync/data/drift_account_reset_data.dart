@@ -19,10 +19,8 @@ class DriftAccountResetData implements AccountResetLocalData {
       await db.delete(db.diaryMediaOps).go();
       await db.delete(db.diaryDays).go();
       await db.delete(db.diarySearchHistory).go();
-      await db.delete(db.watchChatTurns).go();
       await db.delete(db.watchTitles).go();
       await db.delete(db.watchLists).go();
-      await db.delete(db.watchProfiles).go();
       await db.delete(db.watchCatalog).go();
       await db.delete(db.aiUsageMonths).go();
       // The provider and its key are wiped by aiResetProvider.

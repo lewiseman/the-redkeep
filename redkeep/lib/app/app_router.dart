@@ -8,8 +8,6 @@ import '../features/home_widgets/presentation/home_widget_launch_page.dart';
 import '../features/watchlist/domain/explore.dart';
 import '../features/watchlist/domain/watch_title.dart';
 import '../features/watchlist/presentation/explore_view.dart';
-import '../features/watchlist/presentation/watch_chat_page.dart';
-import '../features/watchlist/presentation/watch_preferences_page.dart';
 import '../features/watchlist/presentation/watch_search_page.dart';
 import '../features/watchlist/presentation/watch_title_page.dart';
 import '../features/watchlist/presentation/watchlist_page.dart';
@@ -324,30 +322,7 @@ GoRouter createAppRouter(Ref ref) {
                       ),
                     ),
                   ),
-                  GoRoute(
-                    path: 'preferences',
-                    parentNavigatorKey: fullPage,
-                    pageBuilder: (context, state) =>
-                        _page(state, const WatchPreferencesPage()),
-                  ),
                   // Validated by navigationRedirect before it gets here.
-                  GoRoute(
-                    path: ':media/:tmdb/chat',
-                    parentNavigatorKey: fullPage,
-                    pageBuilder: (context, state) => _page(
-                      state,
-                      WatchChatPage(
-                        key: ValueKey(state.uri.path),
-                        watchKey: WatchKey.fromRoute(
-                          state.pathParameters['media'],
-                          state.pathParameters['tmdb'],
-                        )!,
-                        opening: state.extra is WatchChatOpening
-                            ? (state.extra as WatchChatOpening).text
-                            : null,
-                      ),
-                    ),
-                  ),
                   GoRoute(
                     path: ':media/:tmdb',
                     parentNavigatorKey: fullPage,

@@ -18,8 +18,6 @@ abstract interface class WatchlistRepository {
 
   Future<WatchTitle> edit(CatalogTitle title, WatchTitleChange change);
   Future<WatchTitle> setStatus(CatalogTitle title, WatchStatus? status);
-  Future<WatchTitle> setRating(CatalogTitle title, int? rating);
-  Future<WatchTitle> setNote(CatalogTitle title, String note);
   Future<WatchTitle> setEpisodes(
     CatalogTitle title, {
     Set<String> watched = const {},
@@ -34,14 +32,7 @@ abstract interface class WatchlistRepository {
   Future<void> deleteList(String id);
   Future<void> setInList(String listId, CatalogTitle title, bool member);
 
-  /// The synced taste document's state, or null before the first swipe.
-  Stream<Map<String, dynamic>?> watchProfile();
-  Future<Map<String, dynamic>?> readProfile();
-  Future<void> saveProfile(Map<String, dynamic> state);
-
   // The local TMDB cache.
-  Future<List<CatalogTitle>> catalog();
-  Future<int> catalogSize();
   Future<CatalogTitle?> cachedTitle(WatchKey key);
   Future<DateTime?> cachedAt(WatchKey key);
   Future<void> cacheTitles(Iterable<CatalogTitle> titles);

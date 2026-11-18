@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 
 import '../../../core/presentation/rendering_policy.dart';
 import '../../sync/presentation/sync_material.dart';
-import '../application/discover_controller.dart';
 import '../application/watchlist_providers.dart';
 import '../domain/catalog_title.dart';
 import '../domain/watch_title.dart';
@@ -233,7 +232,6 @@ Future<void> markEpisodes(
 }) async {
   final messenger = ScaffoldMessenger.of(context);
   final repository = ref.read(watchlistRepositoryProvider);
-  final nights = ref.read(watchNightsProvider);
   final saved = await runWatchAction(
     context,
     () => repository.setEpisodes(title, watched: watched, unwatched: unwatched),
@@ -252,7 +250,7 @@ Future<void> markEpisodes(
         content: Text('You’re caught up on ${title.title}.'),
         action: SnackBarAction(
           label: 'Mark watched',
-          onPressed: () => nights.setStatus(title, WatchStatus.completed),
+          onPressed: () => repository.setStatus(title, WatchStatus.completed),
         ),
       ),
     );

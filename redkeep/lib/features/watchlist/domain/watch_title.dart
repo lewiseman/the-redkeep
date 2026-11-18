@@ -57,7 +57,7 @@ bool isWatchId(String value) => RegExp(r'^[0-9a-f]{32}$').hasMatch(value);
 enum WatchStatus {
   planned('Planned', 'Plan to watch'),
   watching('Watching', 'Watching'),
-  completed('Completed', 'Watched'),
+  completed('Watched', 'Watched'),
   paused('Paused', 'Paused'),
   dropped('Dropped', 'Dropped');
 
@@ -66,38 +66,6 @@ enum WatchStatus {
   final String action;
 
   static WatchStatus? tryParse(String? value) =>
-      values.where((s) => s.name == value).firstOrNull;
-}
-
-/// Left passes, right likes, up says it has already been watched.
-enum SwipeChoice {
-  nope,
-  like,
-  watched;
-
-  static SwipeChoice? tryParse(String? value) =>
-      values.where((s) => s.name == value).firstOrNull;
-}
-
-enum MatchState {
-  active,
-  dated,
-  ghosted,
-  unmatched;
-
-  static MatchState? tryParse(String? value) =>
-      values.where((s) => s.name == value).firstOrNull;
-}
-
-enum NightOutcome {
-  loved('Loved it'),
-  fine('It was fine'),
-  neverAgain('Never again');
-
-  const NightOutcome(this.label);
-  final String label;
-
-  static NightOutcome? tryParse(String? value) =>
       values.where((s) => s.name == value).firstOrNull;
 }
 
@@ -118,15 +86,6 @@ class WatchTitle {
     this.posterPath,
     this.year,
     this.status,
-    this.rating,
-    this.note = '',
-    this.swipe,
-    this.matchState,
-    this.matchedAt,
-    this.expiresAt,
-    this.nightAt,
-    this.outcome,
-    this.checkedInAt,
     this.episodes = const {},
     this.deletedAt,
   });
@@ -137,17 +96,6 @@ class WatchTitle {
   final String? posterPath;
   final int? year;
   final WatchStatus? status;
-
-  /// 1 to 10.
-  final int? rating;
-  final String note;
-  final SwipeChoice? swipe;
-  final MatchState? matchState;
-  final DateTime? matchedAt;
-  final DateTime? expiresAt;
-  final DateTime? nightAt;
-  final NightOutcome? outcome;
-  final DateTime? checkedInAt;
   final Set<String> episodes;
   final int revision;
   final DateTime createdAt;

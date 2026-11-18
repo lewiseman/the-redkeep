@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/drift.dart';
@@ -34,15 +35,13 @@ part 'app_database.g.dart';
     WatchCatalog,
     WatchTitles,
     WatchLists,
-    WatchProfiles,
-    WatchChatTurns,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   /// Also recorded with each backup; newer backups are refused on restore.
-  static const currentSchemaVersion = 13;
+  static const currentSchemaVersion = 14;
 
   @override
   int get schemaVersion => currentSchemaVersion;
@@ -110,8 +109,8 @@ class AppDatabase extends _$AppDatabase {
         await migrator.createTable(noteChatTurns);
       }
       if (from < 8) {
-        // The Watchlist: synced titles, lists and taste, plus a local catalog
-        // and conversations.
+        // The Watchlist: titles and lists, plus a local catalog. Its taste
+        // profile and title conversations were removed in version 14.
         await migrator.createTable(watchCatalog);
         await migrator.createTable(watchTitles);
         await customStatement(
@@ -119,8 +118,6 @@ class AppDatabase extends _$AppDatabase {
           'ON watch_titles (updated_at DESC, id DESC)',
         );
         await migrator.createTable(watchLists);
-        await migrator.createTable(watchProfiles);
-        await migrator.createTable(watchChatTurns);
       }
       if (from < 9) {
         // Flow is gone; its tables take their triggers and index with them.
@@ -130,9 +127,7 @@ class AppDatabase extends _$AppDatabase {
         for (final table in ['sync_operations', 'sync_records']) {
           // Dropped again in version 13; absent when created after it.
           if (await _hasTable(table)) {
-            await customStatement(
-              "DELETE FROM $table WHERE type = 'thought'",
-            );
+            await customStatement("DELETE FROM $table WHERE type = 'thought'");
           }
         }
         if (!await _hasColumn('diary_entries', 'kind')) {
@@ -169,11 +164,58 @@ class AppDatabase extends _$AppDatabase {
         // sync state or device roles. Writing itself is untouched.
         for (final table in _formerlySyncedTables) {
           for (final event in ['insert', 'update', 'delete']) {
-            await customStatement('DROP TRIGGER IF EXISTS sync_${table}_$event');
+            await customStatement(
+              'DROP TRIGGER IF EXISTS sync_${table}_$event',
+            );
           }
         }
-        for (final table in ['sync_operations', 'sync_values', 'sync_records']) {
+        for (final table in [
+          'sync_operations',
+          'sync_values',
+          'sync_records',
+        ]) {
           await customStatement('DROP TABLE IF EXISTS $table');
+        }
+      }
+      if (from < 14) {
+        // The Watchlist is plain lists: no Discover taste, matches, nights,
+        // title conversations, ratings or notes. Titles only swiped in
+        // Discover go with them; anything with episodes ticked or in a list
+        // stays.
+        await customStatement('DROP TABLE IF EXISTS watch_profiles');
+        await customStatement('DROP TABLE IF EXISTS watch_chat_turns');
+        if (await _hasColumn('watch_titles', 'swipe')) {
+          final listed = <String>{};
+          for (final row in await customSelect(
+            'SELECT items FROM watch_lists WHERE deleted_at IS NULL',
+          ).get()) {
+            final items = jsonDecode(row.read<String>('items'));
+            if (items is List) listed.addAll(items.whereType<String>());
+          }
+          final swiped = await customSelect(
+            'SELECT id FROM watch_titles WHERE status IS NULL '
+            "AND swipe IS NOT NULL AND episodes = '[]'",
+          ).get();
+          for (final row in swiped) {
+            final id = row.read<String>('id');
+            if (listed.contains(id)) continue;
+            await customStatement('DELETE FROM watch_titles WHERE id = ?', [
+              id,
+            ]);
+          }
+        }
+        for (final column in [
+          'swipe',
+          'match_state',
+          'matched_at',
+          'expires_at',
+          'night_at',
+          'outcome',
+          'checked_in_at',
+          'rating',
+          'note',
+        ]) {
+          await _dropColumn('watch_titles', column);
         }
       }
     },
@@ -189,11 +231,10 @@ class AppDatabase extends _$AppDatabase {
     'watch_profiles',
   ];
 
-  Future<bool> _hasTable(String table) async =>
-      (await customSelect(
-        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
-        variables: [Variable(table)],
-      ).get()).isNotEmpty;
+  Future<bool> _hasTable(String table) async => (await customSelect(
+    "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+    variables: [Variable(table)],
+  ).get()).isNotEmpty;
 
   Future<bool> _hasColumn(String table, String column) async =>
       (await customSelect(

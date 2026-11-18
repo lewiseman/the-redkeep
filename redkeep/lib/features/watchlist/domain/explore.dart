@@ -1,8 +1,6 @@
-import 'catalog_title.dart';
-import 'recommender/feature_space.dart';
 import 'watch_title.dart';
 
-/// A feeling mapped to genres and limits, browsed on Explore.
+/// A feeling mapped to genres and limits, browsed from search.
 class Mood {
   const Mood(
     this.id,
@@ -22,14 +20,6 @@ class Mood {
   /// Films only: shows have no single runtime or release to limit.
   bool get filmsOnly => maxRuntime != null || releasedBefore != null;
 
-  bool matches(CatalogTitle t) {
-    if (filmsOnly && t.media != WatchMedia.movie) return false;
-    final runtime = t.runtime, year = t.year;
-    return (genres.isEmpty || FeatureSpace.genresOf(t).any(genres.contains)) &&
-        (maxRuntime == null || (runtime != null && runtime <= maxRuntime!)) &&
-        (releasedBefore == null || (year != null && year < releasedBefore!));
-  }
-
   static Mood? byId(String? id) => all.where((m) => m.id == id).firstOrNull;
 
   static const all = [
@@ -48,14 +38,6 @@ class Mood {
     Mood('classic', 'Old classics', releasedBefore: 1980),
   ];
 }
-
-/// A rating trusted in proportion to its votes, 0 to 1.
-double desirability(CatalogTitle t) =>
-    ((t.voteAverage * t.voteCount + 6.5 * 500) / (t.voteCount + 500)) / 10;
-
-/// Well rated by the few who found it.
-bool isHiddenGem(CatalogTitle t) =>
-    t.voteAverage >= 7.2 && t.voteCount >= 150 && t.voteCount <= 2500;
 
 /// TMDB genre ids for each film genre, by media.
 const tmdbGenreIds = <WatchMedia, Map<String, int>>{

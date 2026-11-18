@@ -23,17 +23,17 @@ IconData moodIcon(Mood mood) => switch (mood.id) {
   _ => Icons.movie_outlined,
 };
 
-/// Browsing: search, moods, and rows picked for the reader.
+/// What search shows before anything is typed: moods, then TMDB's trending
+/// and popular titles.
 class ExploreView extends ConsumerWidget {
   const ExploreView({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final palette = MorePalette.of(context);
     final rows = ref.watch(exploreRowsProvider);
-    // Titles saved or swiped since the rows were built drop out at once,
-    // without fetching again.
-    final seen = {
+    // Titles saved since the rows were built drop out at once, without
+    // fetching again.
+    final saved = {
       for (final t in ref.watch(watchTitlesProvider).value ?? const []) t.id,
     };
     // Earlier rows stay up while fresh ones load.
@@ -41,10 +41,9 @@ class ExploreView extends ConsumerWidget {
         ?.map(
           (row) => ExploreRow(
             title: row.title,
-            subtitle: row.subtitle,
             titles: [
               for (final t in row.titles)
-                if (!seen.contains(t.key.id)) t,
+                if (!saved.contains(t.key.id)) t,
             ],
           ),
         )
@@ -53,67 +52,20 @@ class ExploreView extends ConsumerWidget {
     return RefreshIndicator(
       onRefresh: () => ref.refresh(exploreRowsProvider.future),
       child: ListView(
-        // Coming back to Explore returns to the same place.
+        // Coming back from a title returns to the same place.
         key: const PageStorageKey('watch-explore'),
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: const EdgeInsets.only(bottom: 32),
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-            child: Semantics(
-              button: true,
-              label: 'Search films and shows',
-              excludeSemantics: true,
-              child: Material(
-                color: palette.cloth,
-                borderRadius: BorderRadius.circular(28),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(28),
-                  onTap: () => context.push(watchSearchLocation),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 14,
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.search, color: palette.muted),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'Search films and shows',
-                            style: TextStyle(
-                              color: palette.muted,
-                              fontSize: 15,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
           const _Heading('In the mood for'),
           const _Moods(),
           ...switch (shown) {
-            final value? when value.isEmpty => [
-              const Padding(
-                padding: EdgeInsets.only(top: 24),
-                child: WatchMessage(
-                  title: 'Nothing to browse yet',
-                  body:
-                      'Open Discover once to gather films and shows, or '
-                      'add TMDB_API_KEY to env.json.',
-                ),
-              ),
-            ],
             final value? => [for (final row in value) _Row(row: row)],
             _ when rows.hasError => [
               const Padding(
                 padding: EdgeInsets.only(top: 24),
                 child: WatchMessage(
-                  title: 'Explore could not load',
+                  title: 'Trending titles could not load',
                   body: 'Pull down to try again.',
                 ),
               ),
@@ -132,35 +84,24 @@ class ExploreView extends ConsumerWidget {
 }
 
 class _Heading extends StatelessWidget {
-  const _Heading(this.title, [this.subtitle]);
+  const _Heading(this.title);
   final String title;
-  final String? subtitle;
 
   @override
   Widget build(BuildContext context) {
     final palette = MorePalette.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Semantics(
-            header: true,
-            child: Text(
-              title,
-              style: TextStyle(
-                color: palette.ink,
-                fontSize: 17,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+      child: Semantics(
+        header: true,
+        child: Text(
+          title,
+          style: TextStyle(
+            color: palette.ink,
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
           ),
-          if (subtitle != null)
-            Text(
-              subtitle!,
-              style: TextStyle(color: palette.muted, fontSize: 13),
-            ),
-        ],
+        ),
       ),
     );
   }
@@ -238,7 +179,7 @@ class _Row extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _Heading(row.title, row.subtitle),
+        _Heading(row.title),
         SizedBox(
           height: height,
           child: ListView.separated(
@@ -283,7 +224,7 @@ class WatchMoodPage extends ConsumerWidget {
         child: switch (value) {
           final value? when value.isEmpty => const WatchMessage(
             title: 'Nothing for this mood yet',
-            body: 'Open Discover once to gather titles, or try another mood.',
+            body: 'Try another mood.',
           ),
           final value? => PosterGrid(
             itemCount: value.length,
@@ -291,7 +232,7 @@ class WatchMoodPage extends ConsumerWidget {
           ),
           _ when titles.hasError => WatchMessage(
             title: 'This mood could not load',
-            body: 'Try again in a moment.',
+            body: watchErrorText(titles.error!),
             action: TextButton(
               onPressed: () => ref.invalidate(moodTitlesProvider(mood.id)),
               child: const Text('Try again'),

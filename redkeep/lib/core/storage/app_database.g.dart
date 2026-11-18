@@ -4962,100 +4962,6 @@ class $WatchTitlesTable extends WatchTitles
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _ratingMeta = const VerificationMeta('rating');
-  @override
-  late final GeneratedColumn<int> rating = GeneratedColumn<int>(
-    'rating',
-    aliasedName,
-    true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _noteMeta = const VerificationMeta('note');
-  @override
-  late final GeneratedColumn<String> note = GeneratedColumn<String>(
-    'note',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(''),
-  );
-  static const VerificationMeta _swipeMeta = const VerificationMeta('swipe');
-  @override
-  late final GeneratedColumn<String> swipe = GeneratedColumn<String>(
-    'swipe',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _matchStateMeta = const VerificationMeta(
-    'matchState',
-  );
-  @override
-  late final GeneratedColumn<String> matchState = GeneratedColumn<String>(
-    'match_state',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _matchedAtMeta = const VerificationMeta(
-    'matchedAt',
-  );
-  @override
-  late final GeneratedColumn<int> matchedAt = GeneratedColumn<int>(
-    'matched_at',
-    aliasedName,
-    true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _expiresAtMeta = const VerificationMeta(
-    'expiresAt',
-  );
-  @override
-  late final GeneratedColumn<int> expiresAt = GeneratedColumn<int>(
-    'expires_at',
-    aliasedName,
-    true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _nightAtMeta = const VerificationMeta(
-    'nightAt',
-  );
-  @override
-  late final GeneratedColumn<int> nightAt = GeneratedColumn<int>(
-    'night_at',
-    aliasedName,
-    true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _outcomeMeta = const VerificationMeta(
-    'outcome',
-  );
-  @override
-  late final GeneratedColumn<String> outcome = GeneratedColumn<String>(
-    'outcome',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _checkedInAtMeta = const VerificationMeta(
-    'checkedInAt',
-  );
-  @override
-  late final GeneratedColumn<int> checkedInAt = GeneratedColumn<int>(
-    'checked_in_at',
-    aliasedName,
-    true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-  );
   static const VerificationMeta _episodesMeta = const VerificationMeta(
     'episodes',
   );
@@ -5121,15 +5027,6 @@ class $WatchTitlesTable extends WatchTitles
     posterPath,
     year,
     status,
-    rating,
-    note,
-    swipe,
-    matchState,
-    matchedAt,
-    expiresAt,
-    nightAt,
-    outcome,
-    checkedInAt,
     episodes,
     revision,
     createdAt,
@@ -5185,63 +5082,6 @@ class $WatchTitlesTable extends WatchTitles
       context.handle(
         _statusMeta,
         status.isAcceptableOrUnknown(data['status']!, _statusMeta),
-      );
-    }
-    if (data.containsKey('rating')) {
-      context.handle(
-        _ratingMeta,
-        rating.isAcceptableOrUnknown(data['rating']!, _ratingMeta),
-      );
-    }
-    if (data.containsKey('note')) {
-      context.handle(
-        _noteMeta,
-        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
-      );
-    }
-    if (data.containsKey('swipe')) {
-      context.handle(
-        _swipeMeta,
-        swipe.isAcceptableOrUnknown(data['swipe']!, _swipeMeta),
-      );
-    }
-    if (data.containsKey('match_state')) {
-      context.handle(
-        _matchStateMeta,
-        matchState.isAcceptableOrUnknown(data['match_state']!, _matchStateMeta),
-      );
-    }
-    if (data.containsKey('matched_at')) {
-      context.handle(
-        _matchedAtMeta,
-        matchedAt.isAcceptableOrUnknown(data['matched_at']!, _matchedAtMeta),
-      );
-    }
-    if (data.containsKey('expires_at')) {
-      context.handle(
-        _expiresAtMeta,
-        expiresAt.isAcceptableOrUnknown(data['expires_at']!, _expiresAtMeta),
-      );
-    }
-    if (data.containsKey('night_at')) {
-      context.handle(
-        _nightAtMeta,
-        nightAt.isAcceptableOrUnknown(data['night_at']!, _nightAtMeta),
-      );
-    }
-    if (data.containsKey('outcome')) {
-      context.handle(
-        _outcomeMeta,
-        outcome.isAcceptableOrUnknown(data['outcome']!, _outcomeMeta),
-      );
-    }
-    if (data.containsKey('checked_in_at')) {
-      context.handle(
-        _checkedInAtMeta,
-        checkedInAt.isAcceptableOrUnknown(
-          data['checked_in_at']!,
-          _checkedInAtMeta,
-        ),
       );
     }
     if (data.containsKey('episodes')) {
@@ -5313,42 +5153,6 @@ class $WatchTitlesTable extends WatchTitles
         DriftSqlType.string,
         data['${effectivePrefix}status'],
       ),
-      rating: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}rating'],
-      ),
-      note: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}note'],
-      )!,
-      swipe: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}swipe'],
-      ),
-      matchState: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}match_state'],
-      ),
-      matchedAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}matched_at'],
-      ),
-      expiresAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}expires_at'],
-      ),
-      nightAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}night_at'],
-      ),
-      outcome: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}outcome'],
-      ),
-      checkedInAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}checked_in_at'],
-      ),
       episodes: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}episodes'],
@@ -5385,15 +5189,6 @@ class WatchTitleRow extends DataClass implements Insertable<WatchTitleRow> {
   final String? posterPath;
   final int? year;
   final String? status;
-  final int? rating;
-  final String note;
-  final String? swipe;
-  final String? matchState;
-  final int? matchedAt;
-  final int? expiresAt;
-  final int? nightAt;
-  final String? outcome;
-  final int? checkedInAt;
 
   /// Watched episodes as a JSON array of `s1e4` codes.
   final String episodes;
@@ -5408,15 +5203,6 @@ class WatchTitleRow extends DataClass implements Insertable<WatchTitleRow> {
     this.posterPath,
     this.year,
     this.status,
-    this.rating,
-    required this.note,
-    this.swipe,
-    this.matchState,
-    this.matchedAt,
-    this.expiresAt,
-    this.nightAt,
-    this.outcome,
-    this.checkedInAt,
     required this.episodes,
     required this.revision,
     required this.createdAt,
@@ -5437,31 +5223,6 @@ class WatchTitleRow extends DataClass implements Insertable<WatchTitleRow> {
     }
     if (!nullToAbsent || status != null) {
       map['status'] = Variable<String>(status);
-    }
-    if (!nullToAbsent || rating != null) {
-      map['rating'] = Variable<int>(rating);
-    }
-    map['note'] = Variable<String>(note);
-    if (!nullToAbsent || swipe != null) {
-      map['swipe'] = Variable<String>(swipe);
-    }
-    if (!nullToAbsent || matchState != null) {
-      map['match_state'] = Variable<String>(matchState);
-    }
-    if (!nullToAbsent || matchedAt != null) {
-      map['matched_at'] = Variable<int>(matchedAt);
-    }
-    if (!nullToAbsent || expiresAt != null) {
-      map['expires_at'] = Variable<int>(expiresAt);
-    }
-    if (!nullToAbsent || nightAt != null) {
-      map['night_at'] = Variable<int>(nightAt);
-    }
-    if (!nullToAbsent || outcome != null) {
-      map['outcome'] = Variable<String>(outcome);
-    }
-    if (!nullToAbsent || checkedInAt != null) {
-      map['checked_in_at'] = Variable<int>(checkedInAt);
     }
     map['episodes'] = Variable<String>(episodes);
     map['revision'] = Variable<int>(revision);
@@ -5485,31 +5246,6 @@ class WatchTitleRow extends DataClass implements Insertable<WatchTitleRow> {
       status: status == null && nullToAbsent
           ? const Value.absent()
           : Value(status),
-      rating: rating == null && nullToAbsent
-          ? const Value.absent()
-          : Value(rating),
-      note: Value(note),
-      swipe: swipe == null && nullToAbsent
-          ? const Value.absent()
-          : Value(swipe),
-      matchState: matchState == null && nullToAbsent
-          ? const Value.absent()
-          : Value(matchState),
-      matchedAt: matchedAt == null && nullToAbsent
-          ? const Value.absent()
-          : Value(matchedAt),
-      expiresAt: expiresAt == null && nullToAbsent
-          ? const Value.absent()
-          : Value(expiresAt),
-      nightAt: nightAt == null && nullToAbsent
-          ? const Value.absent()
-          : Value(nightAt),
-      outcome: outcome == null && nullToAbsent
-          ? const Value.absent()
-          : Value(outcome),
-      checkedInAt: checkedInAt == null && nullToAbsent
-          ? const Value.absent()
-          : Value(checkedInAt),
       episodes: Value(episodes),
       revision: Value(revision),
       createdAt: Value(createdAt),
@@ -5532,15 +5268,6 @@ class WatchTitleRow extends DataClass implements Insertable<WatchTitleRow> {
       posterPath: serializer.fromJson<String?>(json['posterPath']),
       year: serializer.fromJson<int?>(json['year']),
       status: serializer.fromJson<String?>(json['status']),
-      rating: serializer.fromJson<int?>(json['rating']),
-      note: serializer.fromJson<String>(json['note']),
-      swipe: serializer.fromJson<String?>(json['swipe']),
-      matchState: serializer.fromJson<String?>(json['matchState']),
-      matchedAt: serializer.fromJson<int?>(json['matchedAt']),
-      expiresAt: serializer.fromJson<int?>(json['expiresAt']),
-      nightAt: serializer.fromJson<int?>(json['nightAt']),
-      outcome: serializer.fromJson<String?>(json['outcome']),
-      checkedInAt: serializer.fromJson<int?>(json['checkedInAt']),
       episodes: serializer.fromJson<String>(json['episodes']),
       revision: serializer.fromJson<int>(json['revision']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
@@ -5558,15 +5285,6 @@ class WatchTitleRow extends DataClass implements Insertable<WatchTitleRow> {
       'posterPath': serializer.toJson<String?>(posterPath),
       'year': serializer.toJson<int?>(year),
       'status': serializer.toJson<String?>(status),
-      'rating': serializer.toJson<int?>(rating),
-      'note': serializer.toJson<String>(note),
-      'swipe': serializer.toJson<String?>(swipe),
-      'matchState': serializer.toJson<String?>(matchState),
-      'matchedAt': serializer.toJson<int?>(matchedAt),
-      'expiresAt': serializer.toJson<int?>(expiresAt),
-      'nightAt': serializer.toJson<int?>(nightAt),
-      'outcome': serializer.toJson<String?>(outcome),
-      'checkedInAt': serializer.toJson<int?>(checkedInAt),
       'episodes': serializer.toJson<String>(episodes),
       'revision': serializer.toJson<int>(revision),
       'createdAt': serializer.toJson<int>(createdAt),
@@ -5582,15 +5300,6 @@ class WatchTitleRow extends DataClass implements Insertable<WatchTitleRow> {
     Value<String?> posterPath = const Value.absent(),
     Value<int?> year = const Value.absent(),
     Value<String?> status = const Value.absent(),
-    Value<int?> rating = const Value.absent(),
-    String? note,
-    Value<String?> swipe = const Value.absent(),
-    Value<String?> matchState = const Value.absent(),
-    Value<int?> matchedAt = const Value.absent(),
-    Value<int?> expiresAt = const Value.absent(),
-    Value<int?> nightAt = const Value.absent(),
-    Value<String?> outcome = const Value.absent(),
-    Value<int?> checkedInAt = const Value.absent(),
     String? episodes,
     int? revision,
     int? createdAt,
@@ -5603,15 +5312,6 @@ class WatchTitleRow extends DataClass implements Insertable<WatchTitleRow> {
     posterPath: posterPath.present ? posterPath.value : this.posterPath,
     year: year.present ? year.value : this.year,
     status: status.present ? status.value : this.status,
-    rating: rating.present ? rating.value : this.rating,
-    note: note ?? this.note,
-    swipe: swipe.present ? swipe.value : this.swipe,
-    matchState: matchState.present ? matchState.value : this.matchState,
-    matchedAt: matchedAt.present ? matchedAt.value : this.matchedAt,
-    expiresAt: expiresAt.present ? expiresAt.value : this.expiresAt,
-    nightAt: nightAt.present ? nightAt.value : this.nightAt,
-    outcome: outcome.present ? outcome.value : this.outcome,
-    checkedInAt: checkedInAt.present ? checkedInAt.value : this.checkedInAt,
     episodes: episodes ?? this.episodes,
     revision: revision ?? this.revision,
     createdAt: createdAt ?? this.createdAt,
@@ -5628,19 +5328,6 @@ class WatchTitleRow extends DataClass implements Insertable<WatchTitleRow> {
           : this.posterPath,
       year: data.year.present ? data.year.value : this.year,
       status: data.status.present ? data.status.value : this.status,
-      rating: data.rating.present ? data.rating.value : this.rating,
-      note: data.note.present ? data.note.value : this.note,
-      swipe: data.swipe.present ? data.swipe.value : this.swipe,
-      matchState: data.matchState.present
-          ? data.matchState.value
-          : this.matchState,
-      matchedAt: data.matchedAt.present ? data.matchedAt.value : this.matchedAt,
-      expiresAt: data.expiresAt.present ? data.expiresAt.value : this.expiresAt,
-      nightAt: data.nightAt.present ? data.nightAt.value : this.nightAt,
-      outcome: data.outcome.present ? data.outcome.value : this.outcome,
-      checkedInAt: data.checkedInAt.present
-          ? data.checkedInAt.value
-          : this.checkedInAt,
       episodes: data.episodes.present ? data.episodes.value : this.episodes,
       revision: data.revision.present ? data.revision.value : this.revision,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
@@ -5658,15 +5345,6 @@ class WatchTitleRow extends DataClass implements Insertable<WatchTitleRow> {
           ..write('posterPath: $posterPath, ')
           ..write('year: $year, ')
           ..write('status: $status, ')
-          ..write('rating: $rating, ')
-          ..write('note: $note, ')
-          ..write('swipe: $swipe, ')
-          ..write('matchState: $matchState, ')
-          ..write('matchedAt: $matchedAt, ')
-          ..write('expiresAt: $expiresAt, ')
-          ..write('nightAt: $nightAt, ')
-          ..write('outcome: $outcome, ')
-          ..write('checkedInAt: $checkedInAt, ')
           ..write('episodes: $episodes, ')
           ..write('revision: $revision, ')
           ..write('createdAt: $createdAt, ')
@@ -5684,15 +5362,6 @@ class WatchTitleRow extends DataClass implements Insertable<WatchTitleRow> {
     posterPath,
     year,
     status,
-    rating,
-    note,
-    swipe,
-    matchState,
-    matchedAt,
-    expiresAt,
-    nightAt,
-    outcome,
-    checkedInAt,
     episodes,
     revision,
     createdAt,
@@ -5709,15 +5378,6 @@ class WatchTitleRow extends DataClass implements Insertable<WatchTitleRow> {
           other.posterPath == this.posterPath &&
           other.year == this.year &&
           other.status == this.status &&
-          other.rating == this.rating &&
-          other.note == this.note &&
-          other.swipe == this.swipe &&
-          other.matchState == this.matchState &&
-          other.matchedAt == this.matchedAt &&
-          other.expiresAt == this.expiresAt &&
-          other.nightAt == this.nightAt &&
-          other.outcome == this.outcome &&
-          other.checkedInAt == this.checkedInAt &&
           other.episodes == this.episodes &&
           other.revision == this.revision &&
           other.createdAt == this.createdAt &&
@@ -5732,15 +5392,6 @@ class WatchTitlesCompanion extends UpdateCompanion<WatchTitleRow> {
   final Value<String?> posterPath;
   final Value<int?> year;
   final Value<String?> status;
-  final Value<int?> rating;
-  final Value<String> note;
-  final Value<String?> swipe;
-  final Value<String?> matchState;
-  final Value<int?> matchedAt;
-  final Value<int?> expiresAt;
-  final Value<int?> nightAt;
-  final Value<String?> outcome;
-  final Value<int?> checkedInAt;
   final Value<String> episodes;
   final Value<int> revision;
   final Value<int> createdAt;
@@ -5754,15 +5405,6 @@ class WatchTitlesCompanion extends UpdateCompanion<WatchTitleRow> {
     this.posterPath = const Value.absent(),
     this.year = const Value.absent(),
     this.status = const Value.absent(),
-    this.rating = const Value.absent(),
-    this.note = const Value.absent(),
-    this.swipe = const Value.absent(),
-    this.matchState = const Value.absent(),
-    this.matchedAt = const Value.absent(),
-    this.expiresAt = const Value.absent(),
-    this.nightAt = const Value.absent(),
-    this.outcome = const Value.absent(),
-    this.checkedInAt = const Value.absent(),
     this.episodes = const Value.absent(),
     this.revision = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -5777,15 +5419,6 @@ class WatchTitlesCompanion extends UpdateCompanion<WatchTitleRow> {
     this.posterPath = const Value.absent(),
     this.year = const Value.absent(),
     this.status = const Value.absent(),
-    this.rating = const Value.absent(),
-    this.note = const Value.absent(),
-    this.swipe = const Value.absent(),
-    this.matchState = const Value.absent(),
-    this.matchedAt = const Value.absent(),
-    this.expiresAt = const Value.absent(),
-    this.nightAt = const Value.absent(),
-    this.outcome = const Value.absent(),
-    this.checkedInAt = const Value.absent(),
     this.episodes = const Value.absent(),
     required int revision,
     required int createdAt,
@@ -5805,15 +5438,6 @@ class WatchTitlesCompanion extends UpdateCompanion<WatchTitleRow> {
     Expression<String>? posterPath,
     Expression<int>? year,
     Expression<String>? status,
-    Expression<int>? rating,
-    Expression<String>? note,
-    Expression<String>? swipe,
-    Expression<String>? matchState,
-    Expression<int>? matchedAt,
-    Expression<int>? expiresAt,
-    Expression<int>? nightAt,
-    Expression<String>? outcome,
-    Expression<int>? checkedInAt,
     Expression<String>? episodes,
     Expression<int>? revision,
     Expression<int>? createdAt,
@@ -5828,15 +5452,6 @@ class WatchTitlesCompanion extends UpdateCompanion<WatchTitleRow> {
       if (posterPath != null) 'poster_path': posterPath,
       if (year != null) 'year': year,
       if (status != null) 'status': status,
-      if (rating != null) 'rating': rating,
-      if (note != null) 'note': note,
-      if (swipe != null) 'swipe': swipe,
-      if (matchState != null) 'match_state': matchState,
-      if (matchedAt != null) 'matched_at': matchedAt,
-      if (expiresAt != null) 'expires_at': expiresAt,
-      if (nightAt != null) 'night_at': nightAt,
-      if (outcome != null) 'outcome': outcome,
-      if (checkedInAt != null) 'checked_in_at': checkedInAt,
       if (episodes != null) 'episodes': episodes,
       if (revision != null) 'revision': revision,
       if (createdAt != null) 'created_at': createdAt,
@@ -5853,15 +5468,6 @@ class WatchTitlesCompanion extends UpdateCompanion<WatchTitleRow> {
     Value<String?>? posterPath,
     Value<int?>? year,
     Value<String?>? status,
-    Value<int?>? rating,
-    Value<String>? note,
-    Value<String?>? swipe,
-    Value<String?>? matchState,
-    Value<int?>? matchedAt,
-    Value<int?>? expiresAt,
-    Value<int?>? nightAt,
-    Value<String?>? outcome,
-    Value<int?>? checkedInAt,
     Value<String>? episodes,
     Value<int>? revision,
     Value<int>? createdAt,
@@ -5876,15 +5482,6 @@ class WatchTitlesCompanion extends UpdateCompanion<WatchTitleRow> {
       posterPath: posterPath ?? this.posterPath,
       year: year ?? this.year,
       status: status ?? this.status,
-      rating: rating ?? this.rating,
-      note: note ?? this.note,
-      swipe: swipe ?? this.swipe,
-      matchState: matchState ?? this.matchState,
-      matchedAt: matchedAt ?? this.matchedAt,
-      expiresAt: expiresAt ?? this.expiresAt,
-      nightAt: nightAt ?? this.nightAt,
-      outcome: outcome ?? this.outcome,
-      checkedInAt: checkedInAt ?? this.checkedInAt,
       episodes: episodes ?? this.episodes,
       revision: revision ?? this.revision,
       createdAt: createdAt ?? this.createdAt,
@@ -5914,33 +5511,6 @@ class WatchTitlesCompanion extends UpdateCompanion<WatchTitleRow> {
     }
     if (status.present) {
       map['status'] = Variable<String>(status.value);
-    }
-    if (rating.present) {
-      map['rating'] = Variable<int>(rating.value);
-    }
-    if (note.present) {
-      map['note'] = Variable<String>(note.value);
-    }
-    if (swipe.present) {
-      map['swipe'] = Variable<String>(swipe.value);
-    }
-    if (matchState.present) {
-      map['match_state'] = Variable<String>(matchState.value);
-    }
-    if (matchedAt.present) {
-      map['matched_at'] = Variable<int>(matchedAt.value);
-    }
-    if (expiresAt.present) {
-      map['expires_at'] = Variable<int>(expiresAt.value);
-    }
-    if (nightAt.present) {
-      map['night_at'] = Variable<int>(nightAt.value);
-    }
-    if (outcome.present) {
-      map['outcome'] = Variable<String>(outcome.value);
-    }
-    if (checkedInAt.present) {
-      map['checked_in_at'] = Variable<int>(checkedInAt.value);
     }
     if (episodes.present) {
       map['episodes'] = Variable<String>(episodes.value);
@@ -5972,15 +5542,6 @@ class WatchTitlesCompanion extends UpdateCompanion<WatchTitleRow> {
           ..write('posterPath: $posterPath, ')
           ..write('year: $year, ')
           ..write('status: $status, ')
-          ..write('rating: $rating, ')
-          ..write('note: $note, ')
-          ..write('swipe: $swipe, ')
-          ..write('matchState: $matchState, ')
-          ..write('matchedAt: $matchedAt, ')
-          ..write('expiresAt: $expiresAt, ')
-          ..write('nightAt: $nightAt, ')
-          ..write('outcome: $outcome, ')
-          ..write('checkedInAt: $checkedInAt, ')
           ..write('episodes: $episodes, ')
           ..write('revision: $revision, ')
           ..write('createdAt: $createdAt, ')
@@ -6447,769 +6008,6 @@ class WatchListsCompanion extends UpdateCompanion<WatchListRow> {
   }
 }
 
-class $WatchProfilesTable extends WatchProfiles
-    with TableInfo<$WatchProfilesTable, WatchProfileRow> {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $WatchProfilesTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _idMeta = const VerificationMeta('id');
-  @override
-  late final GeneratedColumn<String> id = GeneratedColumn<String>(
-    'id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _stateMeta = const VerificationMeta('state');
-  @override
-  late final GeneratedColumn<String> state = GeneratedColumn<String>(
-    'state',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-    defaultValue: const Constant('{}'),
-  );
-  static const VerificationMeta _revisionMeta = const VerificationMeta(
-    'revision',
-  );
-  @override
-  late final GeneratedColumn<int> revision = GeneratedColumn<int>(
-    'revision',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-    $customConstraints: 'NOT NULL CHECK (revision > 0)',
-  );
-  static const VerificationMeta _createdAtMeta = const VerificationMeta(
-    'createdAt',
-  );
-  @override
-  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
-    'created_at',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
-    'updatedAt',
-  );
-  @override
-  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
-    'updated_at',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
-    'deletedAt',
-  );
-  @override
-  late final GeneratedColumn<int> deletedAt = GeneratedColumn<int>(
-    'deleted_at',
-    aliasedName,
-    true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-  );
-  @override
-  List<GeneratedColumn> get $columns => [
-    id,
-    state,
-    revision,
-    createdAt,
-    updatedAt,
-    deletedAt,
-  ];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'watch_profiles';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<WatchProfileRow> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('id')) {
-      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
-    } else if (isInserting) {
-      context.missing(_idMeta);
-    }
-    if (data.containsKey('state')) {
-      context.handle(
-        _stateMeta,
-        state.isAcceptableOrUnknown(data['state']!, _stateMeta),
-      );
-    }
-    if (data.containsKey('revision')) {
-      context.handle(
-        _revisionMeta,
-        revision.isAcceptableOrUnknown(data['revision']!, _revisionMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_revisionMeta);
-    }
-    if (data.containsKey('created_at')) {
-      context.handle(
-        _createdAtMeta,
-        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_createdAtMeta);
-    }
-    if (data.containsKey('updated_at')) {
-      context.handle(
-        _updatedAtMeta,
-        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_updatedAtMeta);
-    }
-    if (data.containsKey('deleted_at')) {
-      context.handle(
-        _deletedAtMeta,
-        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
-      );
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {id};
-  @override
-  WatchProfileRow map(Map<String, dynamic> data, {String? tablePrefix}) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return WatchProfileRow(
-      id: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}id'],
-      )!,
-      state: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}state'],
-      )!,
-      revision: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}revision'],
-      )!,
-      createdAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}created_at'],
-      )!,
-      updatedAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}updated_at'],
-      )!,
-      deletedAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}deleted_at'],
-      ),
-    );
-  }
-
-  @override
-  $WatchProfilesTable createAlias(String alias) {
-    return $WatchProfilesTable(attachedDatabase, alias);
-  }
-}
-
-class WatchProfileRow extends DataClass implements Insertable<WatchProfileRow> {
-  final String id;
-  final String state;
-  final int revision;
-  final int createdAt;
-  final int updatedAt;
-  final int? deletedAt;
-  const WatchProfileRow({
-    required this.id,
-    required this.state,
-    required this.revision,
-    required this.createdAt,
-    required this.updatedAt,
-    this.deletedAt,
-  });
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['id'] = Variable<String>(id);
-    map['state'] = Variable<String>(state);
-    map['revision'] = Variable<int>(revision);
-    map['created_at'] = Variable<int>(createdAt);
-    map['updated_at'] = Variable<int>(updatedAt);
-    if (!nullToAbsent || deletedAt != null) {
-      map['deleted_at'] = Variable<int>(deletedAt);
-    }
-    return map;
-  }
-
-  WatchProfilesCompanion toCompanion(bool nullToAbsent) {
-    return WatchProfilesCompanion(
-      id: Value(id),
-      state: Value(state),
-      revision: Value(revision),
-      createdAt: Value(createdAt),
-      updatedAt: Value(updatedAt),
-      deletedAt: deletedAt == null && nullToAbsent
-          ? const Value.absent()
-          : Value(deletedAt),
-    );
-  }
-
-  factory WatchProfileRow.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return WatchProfileRow(
-      id: serializer.fromJson<String>(json['id']),
-      state: serializer.fromJson<String>(json['state']),
-      revision: serializer.fromJson<int>(json['revision']),
-      createdAt: serializer.fromJson<int>(json['createdAt']),
-      updatedAt: serializer.fromJson<int>(json['updatedAt']),
-      deletedAt: serializer.fromJson<int?>(json['deletedAt']),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'id': serializer.toJson<String>(id),
-      'state': serializer.toJson<String>(state),
-      'revision': serializer.toJson<int>(revision),
-      'createdAt': serializer.toJson<int>(createdAt),
-      'updatedAt': serializer.toJson<int>(updatedAt),
-      'deletedAt': serializer.toJson<int?>(deletedAt),
-    };
-  }
-
-  WatchProfileRow copyWith({
-    String? id,
-    String? state,
-    int? revision,
-    int? createdAt,
-    int? updatedAt,
-    Value<int?> deletedAt = const Value.absent(),
-  }) => WatchProfileRow(
-    id: id ?? this.id,
-    state: state ?? this.state,
-    revision: revision ?? this.revision,
-    createdAt: createdAt ?? this.createdAt,
-    updatedAt: updatedAt ?? this.updatedAt,
-    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
-  );
-  WatchProfileRow copyWithCompanion(WatchProfilesCompanion data) {
-    return WatchProfileRow(
-      id: data.id.present ? data.id.value : this.id,
-      state: data.state.present ? data.state.value : this.state,
-      revision: data.revision.present ? data.revision.value : this.revision,
-      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
-      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
-      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('WatchProfileRow(')
-          ..write('id: $id, ')
-          ..write('state: $state, ')
-          ..write('revision: $revision, ')
-          ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt, ')
-          ..write('deletedAt: $deletedAt')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode =>
-      Object.hash(id, state, revision, createdAt, updatedAt, deletedAt);
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is WatchProfileRow &&
-          other.id == this.id &&
-          other.state == this.state &&
-          other.revision == this.revision &&
-          other.createdAt == this.createdAt &&
-          other.updatedAt == this.updatedAt &&
-          other.deletedAt == this.deletedAt);
-}
-
-class WatchProfilesCompanion extends UpdateCompanion<WatchProfileRow> {
-  final Value<String> id;
-  final Value<String> state;
-  final Value<int> revision;
-  final Value<int> createdAt;
-  final Value<int> updatedAt;
-  final Value<int?> deletedAt;
-  final Value<int> rowid;
-  const WatchProfilesCompanion({
-    this.id = const Value.absent(),
-    this.state = const Value.absent(),
-    this.revision = const Value.absent(),
-    this.createdAt = const Value.absent(),
-    this.updatedAt = const Value.absent(),
-    this.deletedAt = const Value.absent(),
-    this.rowid = const Value.absent(),
-  });
-  WatchProfilesCompanion.insert({
-    required String id,
-    this.state = const Value.absent(),
-    required int revision,
-    required int createdAt,
-    required int updatedAt,
-    this.deletedAt = const Value.absent(),
-    this.rowid = const Value.absent(),
-  }) : id = Value(id),
-       revision = Value(revision),
-       createdAt = Value(createdAt),
-       updatedAt = Value(updatedAt);
-  static Insertable<WatchProfileRow> custom({
-    Expression<String>? id,
-    Expression<String>? state,
-    Expression<int>? revision,
-    Expression<int>? createdAt,
-    Expression<int>? updatedAt,
-    Expression<int>? deletedAt,
-    Expression<int>? rowid,
-  }) {
-    return RawValuesInsertable({
-      if (id != null) 'id': id,
-      if (state != null) 'state': state,
-      if (revision != null) 'revision': revision,
-      if (createdAt != null) 'created_at': createdAt,
-      if (updatedAt != null) 'updated_at': updatedAt,
-      if (deletedAt != null) 'deleted_at': deletedAt,
-      if (rowid != null) 'rowid': rowid,
-    });
-  }
-
-  WatchProfilesCompanion copyWith({
-    Value<String>? id,
-    Value<String>? state,
-    Value<int>? revision,
-    Value<int>? createdAt,
-    Value<int>? updatedAt,
-    Value<int?>? deletedAt,
-    Value<int>? rowid,
-  }) {
-    return WatchProfilesCompanion(
-      id: id ?? this.id,
-      state: state ?? this.state,
-      revision: revision ?? this.revision,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
-      deletedAt: deletedAt ?? this.deletedAt,
-      rowid: rowid ?? this.rowid,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (id.present) {
-      map['id'] = Variable<String>(id.value);
-    }
-    if (state.present) {
-      map['state'] = Variable<String>(state.value);
-    }
-    if (revision.present) {
-      map['revision'] = Variable<int>(revision.value);
-    }
-    if (createdAt.present) {
-      map['created_at'] = Variable<int>(createdAt.value);
-    }
-    if (updatedAt.present) {
-      map['updated_at'] = Variable<int>(updatedAt.value);
-    }
-    if (deletedAt.present) {
-      map['deleted_at'] = Variable<int>(deletedAt.value);
-    }
-    if (rowid.present) {
-      map['rowid'] = Variable<int>(rowid.value);
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('WatchProfilesCompanion(')
-          ..write('id: $id, ')
-          ..write('state: $state, ')
-          ..write('revision: $revision, ')
-          ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt, ')
-          ..write('deletedAt: $deletedAt, ')
-          ..write('rowid: $rowid')
-          ..write(')'))
-        .toString();
-  }
-}
-
-class $WatchChatTurnsTable extends WatchChatTurns
-    with TableInfo<$WatchChatTurnsTable, WatchChatTurnRow> {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $WatchChatTurnsTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _idMeta = const VerificationMeta('id');
-  @override
-  late final GeneratedColumn<String> id = GeneratedColumn<String>(
-    'id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _titleIdMeta = const VerificationMeta(
-    'titleId',
-  );
-  @override
-  late final GeneratedColumn<String> titleId = GeneratedColumn<String>(
-    'title_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _atMeta = const VerificationMeta('at');
-  @override
-  late final GeneratedColumn<int> at = GeneratedColumn<int>(
-    'at',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _fromReaderMeta = const VerificationMeta(
-    'fromReader',
-  );
-  @override
-  late final GeneratedColumn<bool> fromReader = GeneratedColumn<bool>(
-    'from_reader',
-    aliasedName,
-    false,
-    type: DriftSqlType.bool,
-    requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("from_reader" IN (0, 1))',
-    ),
-  );
-  static const VerificationMeta _bodyMeta = const VerificationMeta('body');
-  @override
-  late final GeneratedColumn<String> body = GeneratedColumn<String>(
-    'body',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  @override
-  List<GeneratedColumn> get $columns => [id, titleId, at, fromReader, body];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'watch_chat_turns';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<WatchChatTurnRow> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('id')) {
-      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
-    } else if (isInserting) {
-      context.missing(_idMeta);
-    }
-    if (data.containsKey('title_id')) {
-      context.handle(
-        _titleIdMeta,
-        titleId.isAcceptableOrUnknown(data['title_id']!, _titleIdMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_titleIdMeta);
-    }
-    if (data.containsKey('at')) {
-      context.handle(_atMeta, at.isAcceptableOrUnknown(data['at']!, _atMeta));
-    } else if (isInserting) {
-      context.missing(_atMeta);
-    }
-    if (data.containsKey('from_reader')) {
-      context.handle(
-        _fromReaderMeta,
-        fromReader.isAcceptableOrUnknown(data['from_reader']!, _fromReaderMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_fromReaderMeta);
-    }
-    if (data.containsKey('body')) {
-      context.handle(
-        _bodyMeta,
-        body.isAcceptableOrUnknown(data['body']!, _bodyMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_bodyMeta);
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {id};
-  @override
-  WatchChatTurnRow map(Map<String, dynamic> data, {String? tablePrefix}) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return WatchChatTurnRow(
-      id: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}id'],
-      )!,
-      titleId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}title_id'],
-      )!,
-      at: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}at'],
-      )!,
-      fromReader: attachedDatabase.typeMapping.read(
-        DriftSqlType.bool,
-        data['${effectivePrefix}from_reader'],
-      )!,
-      body: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}body'],
-      )!,
-    );
-  }
-
-  @override
-  $WatchChatTurnsTable createAlias(String alias) {
-    return $WatchChatTurnsTable(attachedDatabase, alias);
-  }
-}
-
-class WatchChatTurnRow extends DataClass
-    implements Insertable<WatchChatTurnRow> {
-  final String id;
-  final String titleId;
-  final int at;
-  final bool fromReader;
-  final String body;
-  const WatchChatTurnRow({
-    required this.id,
-    required this.titleId,
-    required this.at,
-    required this.fromReader,
-    required this.body,
-  });
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['id'] = Variable<String>(id);
-    map['title_id'] = Variable<String>(titleId);
-    map['at'] = Variable<int>(at);
-    map['from_reader'] = Variable<bool>(fromReader);
-    map['body'] = Variable<String>(body);
-    return map;
-  }
-
-  WatchChatTurnsCompanion toCompanion(bool nullToAbsent) {
-    return WatchChatTurnsCompanion(
-      id: Value(id),
-      titleId: Value(titleId),
-      at: Value(at),
-      fromReader: Value(fromReader),
-      body: Value(body),
-    );
-  }
-
-  factory WatchChatTurnRow.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return WatchChatTurnRow(
-      id: serializer.fromJson<String>(json['id']),
-      titleId: serializer.fromJson<String>(json['titleId']),
-      at: serializer.fromJson<int>(json['at']),
-      fromReader: serializer.fromJson<bool>(json['fromReader']),
-      body: serializer.fromJson<String>(json['body']),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'id': serializer.toJson<String>(id),
-      'titleId': serializer.toJson<String>(titleId),
-      'at': serializer.toJson<int>(at),
-      'fromReader': serializer.toJson<bool>(fromReader),
-      'body': serializer.toJson<String>(body),
-    };
-  }
-
-  WatchChatTurnRow copyWith({
-    String? id,
-    String? titleId,
-    int? at,
-    bool? fromReader,
-    String? body,
-  }) => WatchChatTurnRow(
-    id: id ?? this.id,
-    titleId: titleId ?? this.titleId,
-    at: at ?? this.at,
-    fromReader: fromReader ?? this.fromReader,
-    body: body ?? this.body,
-  );
-  WatchChatTurnRow copyWithCompanion(WatchChatTurnsCompanion data) {
-    return WatchChatTurnRow(
-      id: data.id.present ? data.id.value : this.id,
-      titleId: data.titleId.present ? data.titleId.value : this.titleId,
-      at: data.at.present ? data.at.value : this.at,
-      fromReader: data.fromReader.present
-          ? data.fromReader.value
-          : this.fromReader,
-      body: data.body.present ? data.body.value : this.body,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('WatchChatTurnRow(')
-          ..write('id: $id, ')
-          ..write('titleId: $titleId, ')
-          ..write('at: $at, ')
-          ..write('fromReader: $fromReader, ')
-          ..write('body: $body')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode => Object.hash(id, titleId, at, fromReader, body);
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is WatchChatTurnRow &&
-          other.id == this.id &&
-          other.titleId == this.titleId &&
-          other.at == this.at &&
-          other.fromReader == this.fromReader &&
-          other.body == this.body);
-}
-
-class WatchChatTurnsCompanion extends UpdateCompanion<WatchChatTurnRow> {
-  final Value<String> id;
-  final Value<String> titleId;
-  final Value<int> at;
-  final Value<bool> fromReader;
-  final Value<String> body;
-  final Value<int> rowid;
-  const WatchChatTurnsCompanion({
-    this.id = const Value.absent(),
-    this.titleId = const Value.absent(),
-    this.at = const Value.absent(),
-    this.fromReader = const Value.absent(),
-    this.body = const Value.absent(),
-    this.rowid = const Value.absent(),
-  });
-  WatchChatTurnsCompanion.insert({
-    required String id,
-    required String titleId,
-    required int at,
-    required bool fromReader,
-    required String body,
-    this.rowid = const Value.absent(),
-  }) : id = Value(id),
-       titleId = Value(titleId),
-       at = Value(at),
-       fromReader = Value(fromReader),
-       body = Value(body);
-  static Insertable<WatchChatTurnRow> custom({
-    Expression<String>? id,
-    Expression<String>? titleId,
-    Expression<int>? at,
-    Expression<bool>? fromReader,
-    Expression<String>? body,
-    Expression<int>? rowid,
-  }) {
-    return RawValuesInsertable({
-      if (id != null) 'id': id,
-      if (titleId != null) 'title_id': titleId,
-      if (at != null) 'at': at,
-      if (fromReader != null) 'from_reader': fromReader,
-      if (body != null) 'body': body,
-      if (rowid != null) 'rowid': rowid,
-    });
-  }
-
-  WatchChatTurnsCompanion copyWith({
-    Value<String>? id,
-    Value<String>? titleId,
-    Value<int>? at,
-    Value<bool>? fromReader,
-    Value<String>? body,
-    Value<int>? rowid,
-  }) {
-    return WatchChatTurnsCompanion(
-      id: id ?? this.id,
-      titleId: titleId ?? this.titleId,
-      at: at ?? this.at,
-      fromReader: fromReader ?? this.fromReader,
-      body: body ?? this.body,
-      rowid: rowid ?? this.rowid,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (id.present) {
-      map['id'] = Variable<String>(id.value);
-    }
-    if (titleId.present) {
-      map['title_id'] = Variable<String>(titleId.value);
-    }
-    if (at.present) {
-      map['at'] = Variable<int>(at.value);
-    }
-    if (fromReader.present) {
-      map['from_reader'] = Variable<bool>(fromReader.value);
-    }
-    if (body.present) {
-      map['body'] = Variable<String>(body.value);
-    }
-    if (rowid.present) {
-      map['rowid'] = Variable<int>(rowid.value);
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('WatchChatTurnsCompanion(')
-          ..write('id: $id, ')
-          ..write('titleId: $titleId, ')
-          ..write('at: $at, ')
-          ..write('fromReader: $fromReader, ')
-          ..write('body: $body, ')
-          ..write('rowid: $rowid')
-          ..write(')'))
-        .toString();
-  }
-}
-
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -7231,8 +6029,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $WatchCatalogTable watchCatalog = $WatchCatalogTable(this);
   late final $WatchTitlesTable watchTitles = $WatchTitlesTable(this);
   late final $WatchListsTable watchLists = $WatchListsTable(this);
-  late final $WatchProfilesTable watchProfiles = $WatchProfilesTable(this);
-  late final $WatchChatTurnsTable watchChatTurns = $WatchChatTurnsTable(this);
   late final Index diaryEntriesDayOrder = Index(
     'diary_entries_day_order',
     'CREATE INDEX diary_entries_day_order ON diary_entries (period_key, created_at, id)',
@@ -7261,8 +6057,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     watchCatalog,
     watchTitles,
     watchLists,
-    watchProfiles,
-    watchChatTurns,
     diaryEntriesDayOrder,
     watchTitlesOrder,
   ];
@@ -10502,15 +9296,6 @@ typedef $$WatchTitlesTableCreateCompanionBuilder =
       Value<String?> posterPath,
       Value<int?> year,
       Value<String?> status,
-      Value<int?> rating,
-      Value<String> note,
-      Value<String?> swipe,
-      Value<String?> matchState,
-      Value<int?> matchedAt,
-      Value<int?> expiresAt,
-      Value<int?> nightAt,
-      Value<String?> outcome,
-      Value<int?> checkedInAt,
       Value<String> episodes,
       required int revision,
       required int createdAt,
@@ -10526,15 +9311,6 @@ typedef $$WatchTitlesTableUpdateCompanionBuilder =
       Value<String?> posterPath,
       Value<int?> year,
       Value<String?> status,
-      Value<int?> rating,
-      Value<String> note,
-      Value<String?> swipe,
-      Value<String?> matchState,
-      Value<int?> matchedAt,
-      Value<int?> expiresAt,
-      Value<int?> nightAt,
-      Value<String?> outcome,
-      Value<int?> checkedInAt,
       Value<String> episodes,
       Value<int> revision,
       Value<int> createdAt,
@@ -10579,51 +9355,6 @@ class $$WatchTitlesTableFilterComposer
 
   ColumnFilters<String> get status => $composableBuilder(
     column: $table.status,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get rating => $composableBuilder(
-    column: $table.rating,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get note => $composableBuilder(
-    column: $table.note,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get swipe => $composableBuilder(
-    column: $table.swipe,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get matchState => $composableBuilder(
-    column: $table.matchState,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get matchedAt => $composableBuilder(
-    column: $table.matchedAt,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get expiresAt => $composableBuilder(
-    column: $table.expiresAt,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get nightAt => $composableBuilder(
-    column: $table.nightAt,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get outcome => $composableBuilder(
-    column: $table.outcome,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get checkedInAt => $composableBuilder(
-    column: $table.checkedInAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -10692,51 +9423,6 @@ class $$WatchTitlesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get rating => $composableBuilder(
-    column: $table.rating,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get note => $composableBuilder(
-    column: $table.note,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get swipe => $composableBuilder(
-    column: $table.swipe,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get matchState => $composableBuilder(
-    column: $table.matchState,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get matchedAt => $composableBuilder(
-    column: $table.matchedAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get expiresAt => $composableBuilder(
-    column: $table.expiresAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get nightAt => $composableBuilder(
-    column: $table.nightAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get outcome => $composableBuilder(
-    column: $table.outcome,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get checkedInAt => $composableBuilder(
-    column: $table.checkedInAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<String> get episodes => $composableBuilder(
     column: $table.episodes,
     builder: (column) => ColumnOrderings(column),
@@ -10792,37 +9478,6 @@ class $$WatchTitlesTableAnnotationComposer
   GeneratedColumn<String> get status =>
       $composableBuilder(column: $table.status, builder: (column) => column);
 
-  GeneratedColumn<int> get rating =>
-      $composableBuilder(column: $table.rating, builder: (column) => column);
-
-  GeneratedColumn<String> get note =>
-      $composableBuilder(column: $table.note, builder: (column) => column);
-
-  GeneratedColumn<String> get swipe =>
-      $composableBuilder(column: $table.swipe, builder: (column) => column);
-
-  GeneratedColumn<String> get matchState => $composableBuilder(
-    column: $table.matchState,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<int> get matchedAt =>
-      $composableBuilder(column: $table.matchedAt, builder: (column) => column);
-
-  GeneratedColumn<int> get expiresAt =>
-      $composableBuilder(column: $table.expiresAt, builder: (column) => column);
-
-  GeneratedColumn<int> get nightAt =>
-      $composableBuilder(column: $table.nightAt, builder: (column) => column);
-
-  GeneratedColumn<String> get outcome =>
-      $composableBuilder(column: $table.outcome, builder: (column) => column);
-
-  GeneratedColumn<int> get checkedInAt => $composableBuilder(
-    column: $table.checkedInAt,
-    builder: (column) => column,
-  );
-
   GeneratedColumn<String> get episodes =>
       $composableBuilder(column: $table.episodes, builder: (column) => column);
 
@@ -10876,15 +9531,6 @@ class $$WatchTitlesTableTableManager
                 Value<String?> posterPath = const Value.absent(),
                 Value<int?> year = const Value.absent(),
                 Value<String?> status = const Value.absent(),
-                Value<int?> rating = const Value.absent(),
-                Value<String> note = const Value.absent(),
-                Value<String?> swipe = const Value.absent(),
-                Value<String?> matchState = const Value.absent(),
-                Value<int?> matchedAt = const Value.absent(),
-                Value<int?> expiresAt = const Value.absent(),
-                Value<int?> nightAt = const Value.absent(),
-                Value<String?> outcome = const Value.absent(),
-                Value<int?> checkedInAt = const Value.absent(),
                 Value<String> episodes = const Value.absent(),
                 Value<int> revision = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
@@ -10898,15 +9544,6 @@ class $$WatchTitlesTableTableManager
                 posterPath: posterPath,
                 year: year,
                 status: status,
-                rating: rating,
-                note: note,
-                swipe: swipe,
-                matchState: matchState,
-                matchedAt: matchedAt,
-                expiresAt: expiresAt,
-                nightAt: nightAt,
-                outcome: outcome,
-                checkedInAt: checkedInAt,
                 episodes: episodes,
                 revision: revision,
                 createdAt: createdAt,
@@ -10922,15 +9559,6 @@ class $$WatchTitlesTableTableManager
                 Value<String?> posterPath = const Value.absent(),
                 Value<int?> year = const Value.absent(),
                 Value<String?> status = const Value.absent(),
-                Value<int?> rating = const Value.absent(),
-                Value<String> note = const Value.absent(),
-                Value<String?> swipe = const Value.absent(),
-                Value<String?> matchState = const Value.absent(),
-                Value<int?> matchedAt = const Value.absent(),
-                Value<int?> expiresAt = const Value.absent(),
-                Value<int?> nightAt = const Value.absent(),
-                Value<String?> outcome = const Value.absent(),
-                Value<int?> checkedInAt = const Value.absent(),
                 Value<String> episodes = const Value.absent(),
                 required int revision,
                 required int createdAt,
@@ -10944,15 +9572,6 @@ class $$WatchTitlesTableTableManager
                 posterPath: posterPath,
                 year: year,
                 status: status,
-                rating: rating,
-                note: note,
-                swipe: swipe,
-                matchState: matchState,
-                matchedAt: matchedAt,
-                expiresAt: expiresAt,
-                nightAt: nightAt,
-                outcome: outcome,
-                checkedInAt: checkedInAt,
                 episodes: episodes,
                 revision: revision,
                 createdAt: createdAt,
@@ -11239,451 +9858,6 @@ typedef $$WatchListsTableProcessedTableManager =
       WatchListRow,
       PrefetchHooks Function()
     >;
-typedef $$WatchProfilesTableCreateCompanionBuilder =
-    WatchProfilesCompanion Function({
-      required String id,
-      Value<String> state,
-      required int revision,
-      required int createdAt,
-      required int updatedAt,
-      Value<int?> deletedAt,
-      Value<int> rowid,
-    });
-typedef $$WatchProfilesTableUpdateCompanionBuilder =
-    WatchProfilesCompanion Function({
-      Value<String> id,
-      Value<String> state,
-      Value<int> revision,
-      Value<int> createdAt,
-      Value<int> updatedAt,
-      Value<int?> deletedAt,
-      Value<int> rowid,
-    });
-
-class $$WatchProfilesTableFilterComposer
-    extends Composer<_$AppDatabase, $WatchProfilesTable> {
-  $$WatchProfilesTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnFilters<String> get id => $composableBuilder(
-    column: $table.id,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get state => $composableBuilder(
-    column: $table.state,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get revision => $composableBuilder(
-    column: $table.revision,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get createdAt => $composableBuilder(
-    column: $table.createdAt,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get updatedAt => $composableBuilder(
-    column: $table.updatedAt,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get deletedAt => $composableBuilder(
-    column: $table.deletedAt,
-    builder: (column) => ColumnFilters(column),
-  );
-}
-
-class $$WatchProfilesTableOrderingComposer
-    extends Composer<_$AppDatabase, $WatchProfilesTable> {
-  $$WatchProfilesTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<String> get id => $composableBuilder(
-    column: $table.id,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get state => $composableBuilder(
-    column: $table.state,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get revision => $composableBuilder(
-    column: $table.revision,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get createdAt => $composableBuilder(
-    column: $table.createdAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get updatedAt => $composableBuilder(
-    column: $table.updatedAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get deletedAt => $composableBuilder(
-    column: $table.deletedAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-}
-
-class $$WatchProfilesTableAnnotationComposer
-    extends Composer<_$AppDatabase, $WatchProfilesTable> {
-  $$WatchProfilesTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumn<String> get id =>
-      $composableBuilder(column: $table.id, builder: (column) => column);
-
-  GeneratedColumn<String> get state =>
-      $composableBuilder(column: $table.state, builder: (column) => column);
-
-  GeneratedColumn<int> get revision =>
-      $composableBuilder(column: $table.revision, builder: (column) => column);
-
-  GeneratedColumn<int> get createdAt =>
-      $composableBuilder(column: $table.createdAt, builder: (column) => column);
-
-  GeneratedColumn<int> get updatedAt =>
-      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
-
-  GeneratedColumn<int> get deletedAt =>
-      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
-}
-
-class $$WatchProfilesTableTableManager
-    extends
-        RootTableManager<
-          _$AppDatabase,
-          $WatchProfilesTable,
-          WatchProfileRow,
-          $$WatchProfilesTableFilterComposer,
-          $$WatchProfilesTableOrderingComposer,
-          $$WatchProfilesTableAnnotationComposer,
-          $$WatchProfilesTableCreateCompanionBuilder,
-          $$WatchProfilesTableUpdateCompanionBuilder,
-          (
-            WatchProfileRow,
-            BaseReferences<_$AppDatabase, $WatchProfilesTable, WatchProfileRow>,
-          ),
-          WatchProfileRow,
-          PrefetchHooks Function()
-        > {
-  $$WatchProfilesTableTableManager(_$AppDatabase db, $WatchProfilesTable table)
-    : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$WatchProfilesTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () =>
-              $$WatchProfilesTableOrderingComposer($db: db, $table: table),
-          createComputedFieldComposer: () =>
-              $$WatchProfilesTableAnnotationComposer($db: db, $table: table),
-          updateCompanionCallback:
-              ({
-                Value<String> id = const Value.absent(),
-                Value<String> state = const Value.absent(),
-                Value<int> revision = const Value.absent(),
-                Value<int> createdAt = const Value.absent(),
-                Value<int> updatedAt = const Value.absent(),
-                Value<int?> deletedAt = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => WatchProfilesCompanion(
-                id: id,
-                state: state,
-                revision: revision,
-                createdAt: createdAt,
-                updatedAt: updatedAt,
-                deletedAt: deletedAt,
-                rowid: rowid,
-              ),
-          createCompanionCallback:
-              ({
-                required String id,
-                Value<String> state = const Value.absent(),
-                required int revision,
-                required int createdAt,
-                required int updatedAt,
-                Value<int?> deletedAt = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => WatchProfilesCompanion.insert(
-                id: id,
-                state: state,
-                revision: revision,
-                createdAt: createdAt,
-                updatedAt: updatedAt,
-                deletedAt: deletedAt,
-                rowid: rowid,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable<$WatchProfilesTable, WatchProfileRow>(table),
-                  BaseReferences<
-                    _$AppDatabase,
-                    $WatchProfilesTable,
-                    WatchProfileRow
-                  >(db, table, e),
-                ),
-              )
-              .toList(),
-          prefetchHooksCallback: null,
-        ),
-      );
-}
-
-typedef $$WatchProfilesTableProcessedTableManager =
-    ProcessedTableManager<
-      _$AppDatabase,
-      $WatchProfilesTable,
-      WatchProfileRow,
-      $$WatchProfilesTableFilterComposer,
-      $$WatchProfilesTableOrderingComposer,
-      $$WatchProfilesTableAnnotationComposer,
-      $$WatchProfilesTableCreateCompanionBuilder,
-      $$WatchProfilesTableUpdateCompanionBuilder,
-      (
-        WatchProfileRow,
-        BaseReferences<_$AppDatabase, $WatchProfilesTable, WatchProfileRow>,
-      ),
-      WatchProfileRow,
-      PrefetchHooks Function()
-    >;
-typedef $$WatchChatTurnsTableCreateCompanionBuilder =
-    WatchChatTurnsCompanion Function({
-      required String id,
-      required String titleId,
-      required int at,
-      required bool fromReader,
-      required String body,
-      Value<int> rowid,
-    });
-typedef $$WatchChatTurnsTableUpdateCompanionBuilder =
-    WatchChatTurnsCompanion Function({
-      Value<String> id,
-      Value<String> titleId,
-      Value<int> at,
-      Value<bool> fromReader,
-      Value<String> body,
-      Value<int> rowid,
-    });
-
-class $$WatchChatTurnsTableFilterComposer
-    extends Composer<_$AppDatabase, $WatchChatTurnsTable> {
-  $$WatchChatTurnsTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnFilters<String> get id => $composableBuilder(
-    column: $table.id,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get titleId => $composableBuilder(
-    column: $table.titleId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get at => $composableBuilder(
-    column: $table.at,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<bool> get fromReader => $composableBuilder(
-    column: $table.fromReader,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get body => $composableBuilder(
-    column: $table.body,
-    builder: (column) => ColumnFilters(column),
-  );
-}
-
-class $$WatchChatTurnsTableOrderingComposer
-    extends Composer<_$AppDatabase, $WatchChatTurnsTable> {
-  $$WatchChatTurnsTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<String> get id => $composableBuilder(
-    column: $table.id,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get titleId => $composableBuilder(
-    column: $table.titleId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get at => $composableBuilder(
-    column: $table.at,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<bool> get fromReader => $composableBuilder(
-    column: $table.fromReader,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get body => $composableBuilder(
-    column: $table.body,
-    builder: (column) => ColumnOrderings(column),
-  );
-}
-
-class $$WatchChatTurnsTableAnnotationComposer
-    extends Composer<_$AppDatabase, $WatchChatTurnsTable> {
-  $$WatchChatTurnsTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumn<String> get id =>
-      $composableBuilder(column: $table.id, builder: (column) => column);
-
-  GeneratedColumn<String> get titleId =>
-      $composableBuilder(column: $table.titleId, builder: (column) => column);
-
-  GeneratedColumn<int> get at =>
-      $composableBuilder(column: $table.at, builder: (column) => column);
-
-  GeneratedColumn<bool> get fromReader => $composableBuilder(
-    column: $table.fromReader,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<String> get body =>
-      $composableBuilder(column: $table.body, builder: (column) => column);
-}
-
-class $$WatchChatTurnsTableTableManager
-    extends
-        RootTableManager<
-          _$AppDatabase,
-          $WatchChatTurnsTable,
-          WatchChatTurnRow,
-          $$WatchChatTurnsTableFilterComposer,
-          $$WatchChatTurnsTableOrderingComposer,
-          $$WatchChatTurnsTableAnnotationComposer,
-          $$WatchChatTurnsTableCreateCompanionBuilder,
-          $$WatchChatTurnsTableUpdateCompanionBuilder,
-          (
-            WatchChatTurnRow,
-            BaseReferences<
-              _$AppDatabase,
-              $WatchChatTurnsTable,
-              WatchChatTurnRow
-            >,
-          ),
-          WatchChatTurnRow,
-          PrefetchHooks Function()
-        > {
-  $$WatchChatTurnsTableTableManager(
-    _$AppDatabase db,
-    $WatchChatTurnsTable table,
-  ) : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$WatchChatTurnsTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () =>
-              $$WatchChatTurnsTableOrderingComposer($db: db, $table: table),
-          createComputedFieldComposer: () =>
-              $$WatchChatTurnsTableAnnotationComposer($db: db, $table: table),
-          updateCompanionCallback:
-              ({
-                Value<String> id = const Value.absent(),
-                Value<String> titleId = const Value.absent(),
-                Value<int> at = const Value.absent(),
-                Value<bool> fromReader = const Value.absent(),
-                Value<String> body = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => WatchChatTurnsCompanion(
-                id: id,
-                titleId: titleId,
-                at: at,
-                fromReader: fromReader,
-                body: body,
-                rowid: rowid,
-              ),
-          createCompanionCallback:
-              ({
-                required String id,
-                required String titleId,
-                required int at,
-                required bool fromReader,
-                required String body,
-                Value<int> rowid = const Value.absent(),
-              }) => WatchChatTurnsCompanion.insert(
-                id: id,
-                titleId: titleId,
-                at: at,
-                fromReader: fromReader,
-                body: body,
-                rowid: rowid,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable<$WatchChatTurnsTable, WatchChatTurnRow>(table),
-                  BaseReferences<
-                    _$AppDatabase,
-                    $WatchChatTurnsTable,
-                    WatchChatTurnRow
-                  >(db, table, e),
-                ),
-              )
-              .toList(),
-          prefetchHooksCallback: null,
-        ),
-      );
-}
-
-typedef $$WatchChatTurnsTableProcessedTableManager =
-    ProcessedTableManager<
-      _$AppDatabase,
-      $WatchChatTurnsTable,
-      WatchChatTurnRow,
-      $$WatchChatTurnsTableFilterComposer,
-      $$WatchChatTurnsTableOrderingComposer,
-      $$WatchChatTurnsTableAnnotationComposer,
-      $$WatchChatTurnsTableCreateCompanionBuilder,
-      $$WatchChatTurnsTableUpdateCompanionBuilder,
-      (
-        WatchChatTurnRow,
-        BaseReferences<_$AppDatabase, $WatchChatTurnsTable, WatchChatTurnRow>,
-      ),
-      WatchChatTurnRow,
-      PrefetchHooks Function()
-    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -11718,8 +9892,4 @@ class $AppDatabaseManager {
       $$WatchTitlesTableTableManager(_db, _db.watchTitles);
   $$WatchListsTableTableManager get watchLists =>
       $$WatchListsTableTableManager(_db, _db.watchLists);
-  $$WatchProfilesTableTableManager get watchProfiles =>
-      $$WatchProfilesTableTableManager(_db, _db.watchProfiles);
-  $$WatchChatTurnsTableTableManager get watchChatTurns =>
-      $$WatchChatTurnsTableTableManager(_db, _db.watchChatTurns);
 }

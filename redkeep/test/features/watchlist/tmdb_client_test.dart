@@ -30,96 +30,102 @@ void main() {
     expect(requests[1].headers['Authorization'], 'Bearer eyJhbGciOi.token');
   });
 
-  test('multi search keeps films and shows, drops people and duplicates', () async {
-    final client = TmdbClient(
-      MockClient(
-        (_) async => json({
-          'results': [
-            {
-              'media_type': 'movie',
-              'id': 603,
-              'title': 'The Matrix',
-              'release_date': '1999-03-30',
-              'poster_path': '/m.jpg',
-              'genre_ids': [28, 878],
-              'vote_average': 8.2,
-              'vote_count': 26000,
-            },
-            {'media_type': 'person', 'id': 6384, 'name': 'Keanu Reeves'},
-            {
-              'media_type': 'tv',
-              'id': 1399,
-              'name': 'Game of Thrones',
-              'first_air_date': '2011-04-17',
-              'genre_ids': [10765],
-            },
-            {'media_type': 'movie', 'id': 603, 'title': 'The Matrix'},
-            {'media_type': 'movie', 'id': 9, 'title': '  '},
+  test(
+    'multi search keeps films and shows, drops people and duplicates',
+    () async {
+      final client = TmdbClient(
+        MockClient(
+          (_) async => json({
+            'results': [
+              {
+                'media_type': 'movie',
+                'id': 603,
+                'title': 'The Matrix',
+                'release_date': '1999-03-30',
+                'poster_path': '/m.jpg',
+                'genre_ids': [28, 878],
+                'vote_average': 8.2,
+                'vote_count': 26000,
+              },
+              {'media_type': 'person', 'id': 6384, 'name': 'Keanu Reeves'},
+              {
+                'media_type': 'tv',
+                'id': 1399,
+                'name': 'Game of Thrones',
+                'first_air_date': '2011-04-17',
+                'genre_ids': [10765],
+              },
+              {'media_type': 'movie', 'id': 603, 'title': 'The Matrix'},
+              {'media_type': 'movie', 'id': 9, 'title': '  '},
+            ],
+          }),
+        ),
+        apiKey: 'k',
+      );
+      final results = await client.search('matrix');
+
+      expect(results.map((r) => r.key.value), ['movie:603', 'tv:1399']);
+      expect(results.first.year, 1999);
+      expect(results.first.genres, ['Action', 'Science Fiction']);
+      expect(results.first.posterPath, '/m.jpg');
+      expect(results.last.media, WatchMedia.tv);
+      expect(results.last.genres, ['Sci-Fi & Fantasy']);
+      expect(results.every((r) => !r.detailed), isTrue);
+    },
+  );
+
+  test(
+    'film details read the director, cast, keywords and regional providers',
+    () {
+      final title = TmdbClient.detailsFromJson(WatchMedia.movie, {
+        'id': 603,
+        'title': 'The Matrix',
+        'tagline': 'Welcome to the Real World.',
+        'release_date': '1999-03-30',
+        'runtime': 136,
+        'genres': [
+          {'id': 28, 'name': 'Action'},
+        ],
+        'keywords': {
+          'keywords': [
+            {'name': 'simulated reality'},
           ],
-        }),
-      ),
-      apiKey: 'k',
-    );
-    final results = await client.search('matrix');
-
-    expect(results.map((r) => r.key.value), ['movie:603', 'tv:1399']);
-    expect(results.first.year, 1999);
-    expect(results.first.genres, ['Action', 'Science Fiction']);
-    expect(results.first.posterPath, '/m.jpg');
-    expect(results.last.media, WatchMedia.tv);
-    expect(results.last.genres, ['Sci-Fi & Fantasy']);
-    expect(results.every((r) => !r.detailed), isTrue);
-  });
-
-  test('film details read the director, cast, keywords and regional providers', () {
-    final title = TmdbClient.detailsFromJson(WatchMedia.movie, {
-      'id': 603,
-      'title': 'The Matrix',
-      'tagline': 'Welcome to the Real World.',
-      'release_date': '1999-03-30',
-      'runtime': 136,
-      'genres': [
-        {'id': 28, 'name': 'Action'},
-      ],
-      'keywords': {
-        'keywords': [
-          {'name': 'simulated reality'},
-        ],
-      },
-      'credits': {
-        'cast': [
-          {'name': 'Keanu Reeves'},
-          {'name': 'Carrie-Anne Moss'},
-        ],
-        'crew': [
-          {'job': 'Producer', 'name': 'Joel Silver'},
-          {'job': 'Director', 'name': 'Lana Wachowski'},
-        ],
-      },
-      'watch/providers': {
-        'results': {
-          'US': {
-            'flatrate': [
-              {'provider_name': 'Max'},
-            ],
-          },
-          'GB': {
-            'flatrate': [
-              {'provider_name': 'Netflix'},
-            ],
+        },
+        'credits': {
+          'cast': [
+            {'name': 'Keanu Reeves'},
+            {'name': 'Carrie-Anne Moss'},
+          ],
+          'crew': [
+            {'job': 'Producer', 'name': 'Joel Silver'},
+            {'job': 'Director', 'name': 'Lana Wachowski'},
+          ],
+        },
+        'watch/providers': {
+          'results': {
+            'US': {
+              'flatrate': [
+                {'provider_name': 'Max'},
+              ],
+            },
+            'GB': {
+              'flatrate': [
+                {'provider_name': 'Netflix'},
+              ],
+            },
           },
         },
-      },
-    }, region: 'GB');
+      }, region: 'GB');
 
-    expect(title.detailed, isTrue);
-    expect(title.director, 'Lana Wachowski');
-    expect(title.cast, ['Keanu Reeves', 'Carrie-Anne Moss']);
-    expect(title.keywords, ['simulated reality']);
-    expect(title.providers, ['Netflix']);
-    expect(title.runtime, 136);
-    expect(title.tagline, 'Welcome to the Real World.');
-  });
+      expect(title.detailed, isTrue);
+      expect(title.director, 'Lana Wachowski');
+      expect(title.cast, ['Keanu Reeves', 'Carrie-Anne Moss']);
+      expect(title.keywords, ['simulated reality']);
+      expect(title.providers, ['Netflix']);
+      expect(title.runtime, 136);
+      expect(title.tagline, 'Welcome to the Real World.');
+    },
+  );
 
   test('show details read creators, aggregate cast and real seasons', () {
     final title = TmdbClient.detailsFromJson(WatchMedia.tv, {
@@ -166,7 +172,11 @@ void main() {
         expect(request.url.path, '/3/tv/1399/season/1');
         return json({
           'episodes': [
-            {'episode_number': 1, 'name': 'Winter Is Coming', 'air_date': '2011-04-17'},
+            {
+              'episode_number': 1,
+              'name': 'Winter Is Coming',
+              'air_date': '2011-04-17',
+            },
             {'episode_number': 2, 'name': 'The Kingsroad', 'air_date': null},
           ],
         });

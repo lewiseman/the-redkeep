@@ -7,10 +7,12 @@ import 'package:go_router/go_router.dart';
 import '../../../app/navigation_destination.dart';
 import '../../sync/presentation/sync_material.dart';
 import '../application/watchlist_providers.dart';
+import 'explore_view.dart';
 import 'watch_list_sheet.dart';
 import 'watch_widgets.dart';
 
-/// Films and shows from TMDB, searched as the reader pauses typing.
+/// Films and shows from TMDB, searched as the reader pauses typing. Before
+/// anything is typed it is for browsing: moods, trending and popular titles.
 class WatchSearchPage extends ConsumerStatefulWidget {
   const WatchSearchPage({super.key});
 
@@ -56,7 +58,6 @@ class _WatchSearchPageState extends ConsumerState<WatchSearchPage> {
         titleSpacing: 0,
         title: TextField(
           controller: _query,
-          autofocus: configured,
           enabled: configured,
           textInputAction: TextInputAction.search,
           onChanged: _changed,
@@ -90,11 +91,7 @@ class _WatchSearchPageState extends ConsumerState<WatchSearchPage> {
                 body: const WatchlistSetupException().toString(),
               )
             : switch (results) {
-                null => const WatchMessage(
-                  title: 'Find a film or show',
-                  body:
-                      'Search by title. Tap one to see it, or hold it to save.',
-                ),
+                null => const ExploreView(),
                 AsyncData(:final value) when value.isEmpty =>
                   const WatchMessage(
                     title: 'Nothing found',

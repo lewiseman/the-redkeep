@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../sync/presentation/sync_material.dart';
-import '../application/discover_controller.dart';
 import '../application/watchlist_providers.dart';
 import '../domain/catalog_title.dart';
 import '../domain/watch_title.dart';
@@ -115,8 +114,7 @@ class WatchListSheet extends ConsumerWidget {
   }
 }
 
-/// One status at a time; choosing the current one clears it. A liked title
-/// moved to a status leaves Likes.
+/// One status at a time; choosing the current one clears it.
 class WatchStatusChips extends ConsumerWidget {
   const WatchStatusChips({super.key, required this.title, this.status});
   final CatalogTitle title;
@@ -134,7 +132,7 @@ class WatchStatusChips extends ConsumerWidget {
           onSelected: (selected) => runWatchAction(
             context,
             () => ref
-                .read(watchNightsProvider)
+                .read(watchlistRepositoryProvider)
                 .setStatus(title, selected ? s : null),
           ),
         ),

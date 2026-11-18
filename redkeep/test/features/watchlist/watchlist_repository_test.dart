@@ -35,34 +35,39 @@ void main() {
   });
   tearDown(() => db.close());
 
-  test('ids are deterministic per title, and films and shows never collide', () {
-    expect(const WatchKey(WatchMedia.movie, 1).id, isNot(const WatchKey(WatchMedia.tv, 1).id));
-    expect(matrix.key.id, WatchKey.tryParse('movie:603')!.id);
-    expect(isWatchId(matrix.key.id), isTrue);
-    expect(WatchKey.tryParse('movie:0'), isNull);
-    expect(WatchKey.tryParse('person:5'), isNull);
-    expect(WatchKey.fromRoute('tv', '1399'), thrones.key);
-  });
+  test(
+    'ids are deterministic per title, and films and shows never collide',
+    () {
+      expect(
+        const WatchKey(WatchMedia.movie, 1).id,
+        isNot(const WatchKey(WatchMedia.tv, 1).id),
+      );
+      expect(matrix.key.id, WatchKey.tryParse('movie:603')!.id);
+      expect(isWatchId(matrix.key.id), isTrue);
+      expect(WatchKey.tryParse('movie:0'), isNull);
+      expect(WatchKey.tryParse('person:5'), isNull);
+      expect(WatchKey.fromRoute('tv', '1399'), thrones.key);
+    },
+  );
 
-  test('status, rating and note live on one row with a snapshot of the title', () async {
-    await repository.setStatus(matrix, WatchStatus.planned);
-    clock = clock.add(const Duration(minutes: 1));
-    await repository.setRating(matrix, 9);
-    final saved = await repository.setNote(matrix, 'Rewatch with Sam');
+  test(
+    'a status lives on one row with a snapshot of the title',
+    () async {
+      await repository.setStatus(matrix, WatchStatus.planned);
+      clock = clock.add(const Duration(minutes: 1));
+      final saved = await repository.setStatus(matrix, WatchStatus.watching);
 
-    expect(saved.id, matrix.key.id);
-    expect(saved.status, WatchStatus.planned);
-    expect(saved.rating, 9);
-    expect(saved.note, 'Rewatch with Sam');
-    expect(saved.posterPath, '/m.jpg');
-    expect(saved.revision, 4);
-    expect(saved.updatedAt, clock);
-    expect(() => repository.setRating(matrix, 11), throwsArgumentError);
+      expect(saved.id, matrix.key.id);
+      expect(saved.status, WatchStatus.watching);
+      expect(saved.posterPath, '/m.jpg');
+      expect(saved.revision, 3);
+      expect(saved.updatedAt, clock);
 
-    final cleared = await repository.setStatus(matrix, null);
-    expect(cleared.status, isNull);
-    expect(cleared.rating, 9, reason: 'clearing status keeps everything else');
-  });
+      final cleared = await repository.setStatus(matrix, null);
+      expect(cleared.status, isNull);
+      expect(cleared.removed, isFalse, reason: 'clearing is not removing');
+    },
+  );
 
   test('episodes are stored sorted and toggled without duplicates', () async {
     await repository.setEpisodes(thrones, watched: {'s2e1', 's1e10', 's1e2'});
@@ -74,7 +79,10 @@ void main() {
     expect(saved.episodes, {'s1e2', 's1e10'});
     final row = await (db.select(db.watchTitles)).getSingle();
     expect(row.episodes, '["s1e2","s1e10"]');
-    expect(() => repository.setEpisodes(thrones, watched: {'e1'}), throwsArgumentError);
+    expect(
+      () => repository.setEpisodes(thrones, watched: {'e1'}),
+      throwsArgumentError,
+    );
   });
 
   test('ticking an episode starts a planned show, but never reopens a finished one', () async {
@@ -88,67 +96,81 @@ void main() {
     expect(saved.status, isNull, reason: 'unticking starts nothing');
   });
 
-  test('lists hold titles newest first; deleting a list keeps its titles', () async {
-    final id = await repository.createList(' Date night ', first: matrix);
-    await repository.setInList(id, thrones, true);
-    await repository.setInList(id, thrones, true);
-    var lists = await repository.watchLists().first;
-    expect(lists.single.name, 'Date night');
-    expect(lists.single.items, [thrones.key.id, matrix.key.id]);
-    expect(await repository.watchTitles().first, hasLength(2));
+  test(
+    'lists hold titles newest first; deleting a list keeps its titles',
+    () async {
+      final id = await repository.createList(' Date night ', first: matrix);
+      await repository.setInList(id, thrones, true);
+      await repository.setInList(id, thrones, true);
+      var lists = await repository.watchLists().first;
+      expect(lists.single.name, 'Date night');
+      expect(lists.single.items, [thrones.key.id, matrix.key.id]);
+      expect(await repository.watchTitles().first, hasLength(2));
 
-    await repository.renameList(id, 'Film club');
-    await repository.setInList(id, matrix, false);
-    lists = await repository.watchLists().first;
-    expect(lists.single.name, 'Film club');
-    expect(lists.single.items, [thrones.key.id]);
+      await repository.renameList(id, 'Film club');
+      await repository.setInList(id, matrix, false);
+      lists = await repository.watchLists().first;
+      expect(lists.single.name, 'Film club');
+      expect(lists.single.items, [thrones.key.id]);
 
-    await repository.deleteList(id);
-    expect(await repository.watchLists().first, isEmpty);
-    expect(await repository.watchTitles().first, hasLength(2));
-    expect(
-      () => repository.createList('   '),
-      throwsA(isA<WatchlistException>()),
-    );
-  });
+      await repository.deleteList(id);
+      expect(await repository.watchLists().first, isEmpty);
+      expect(await repository.watchTitles().first, hasLength(2));
+      expect(
+        () => repository.createList('   '),
+        throwsA(isA<WatchlistException>()),
+      );
+    },
+  );
 
-  test('removing a title clears it, leaves its lists and can be added again', () async {
-    final list = await repository.createList('Later', first: matrix);
-    await repository.setStatus(matrix, WatchStatus.completed);
-    await repository.setRating(matrix, 7);
-    await repository.removeTitle(matrix.key.id);
+  test(
+    'removing a title clears it, leaves its lists and can be added again',
+    () async {
+      final list = await repository.createList('Later', first: matrix);
+      await repository.setStatus(matrix, WatchStatus.completed);
+      await repository.removeTitle(matrix.key.id);
 
-    expect(await repository.watchTitles().first, isEmpty);
-    expect(await repository.watchTitle(matrix.key.id).first, isNull);
-    expect((await repository.watchLists().first).single.items, isEmpty);
-    final row = await db.select(db.watchTitles).getSingle();
-    expect(row.deletedAt, isNotNull);
-    expect(row.rating, isNull);
+      expect(await repository.watchTitles().first, isEmpty);
+      expect(await repository.watchTitle(matrix.key.id).first, isNull);
+      expect((await repository.watchLists().first).single.items, isEmpty);
+      final row = await db.select(db.watchTitles).getSingle();
+      expect(row.deletedAt, isNotNull);
+      expect(row.status, isNull);
 
-    final again = await repository.setStatus(matrix, WatchStatus.planned);
-    expect(again.removed, isFalse);
-    expect(again.rating, isNull, reason: 'returns blank, not as it was');
-    expect(again.status, WatchStatus.planned);
-    expect(list, isNotEmpty);
-  });
+      final again = await repository.setEpisodes(matrix, watched: {'s1e1'});
+      expect(again.removed, isFalse);
+      expect(
+        again.status,
+        WatchStatus.watching,
+        reason: 'returns blank, not as it was, so ticking starts it again',
+      );
+      expect(list, isNotEmpty);
+    },
+  );
 
-  test('the catalog never lets a search summary replace fetched details', () async {
-    final details = CatalogTitle(
-      key: matrix.key,
-      title: 'The Matrix',
-      runtime: 136,
-      seasons: const [],
-      detailed: true,
-    );
-    await repository.cacheTitles([details]);
-    await repository.cacheTitles([matrix]);
-    expect((await repository.cachedTitle(matrix.key))!.runtime, 136);
+  test(
+    'the catalog never lets a search summary replace fetched details',
+    () async {
+      final details = CatalogTitle(
+        key: matrix.key,
+        title: 'The Matrix',
+        runtime: 136,
+        seasons: const [],
+        detailed: true,
+      );
+      await repository.cacheTitles([details]);
+      await repository.cacheTitles([matrix]);
+      expect((await repository.cachedTitle(matrix.key))!.runtime, 136);
 
-    await repository.cacheTitles([thrones]);
-    await repository.cacheSeason(thrones.key, 1, const [
-      EpisodeSummary(season: 1, number: 1, name: 'Winter Is Coming'),
-    ]);
-    expect((await repository.cachedSeason(thrones.key, 1))!.single.code, 's1e1');
-    expect(await repository.cachedSeason(thrones.key, 2), isNull);
-  });
+      await repository.cacheTitles([thrones]);
+      await repository.cacheSeason(thrones.key, 1, const [
+        EpisodeSummary(season: 1, number: 1, name: 'Winter Is Coming'),
+      ]);
+      expect(
+        (await repository.cachedSeason(thrones.key, 1))!.single.code,
+        's1e1',
+      );
+      expect(await repository.cachedSeason(thrones.key, 2), isNull);
+    },
+  );
 }

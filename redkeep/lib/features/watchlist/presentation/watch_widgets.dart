@@ -132,38 +132,6 @@ class _Sweep extends GradientTransform {
       Matrix4.translationValues(bounds.width * (t * 3 - 1.5), 0, 0);
 }
 
-/// Warms the image cache for photos about to be shown, once each.
-void preloadWatchPhotos(
-  BuildContext context,
-  WidgetRef ref,
-  Iterable<(String, String)> photos,
-) {
-  if (!ref.read(watchPostersEnabledProvider)) return;
-  if (_preloaded.length > 400) _preloaded.clear();
-  for (final (path, size) in photos) {
-    final url = TmdbClient.image(path, size: size);
-    if (!_preloaded.add(url)) continue;
-    precacheImage(
-      CachedNetworkImageProvider(url),
-      context,
-      onError: (_, _) => _preloaded.remove(url),
-    );
-  }
-}
-
-/// URLs already asked for this run; the image cache keeps the pictures.
-final _preloaded = <String>{};
-
-/// Photos worth loading ahead: the next [ahead] after [index] on this card,
-/// and the first [nextCard] of the card after it.
-List<(String, String)> photosToPreload({
-  required List<(String, String)> current,
-  required int index,
-  List<(String, String)> upNext = const [],
-  int ahead = 3,
-  int nextCard = 2,
-}) => [...current.skip(index + 1).take(ahead), ...upNext.take(nextCard)];
-
 /// Columns for a poster grid: fewer when space is narrow or text is large.
 int posterColumns(BuildContext context, double width) {
   final scale = (MediaQuery.textScalerOf(context).scale(14) / 14).clamp(
@@ -460,34 +428,56 @@ Future<String?> askListName(
   String title = 'New list',
   String initial = '',
 }) async {
-  final controller = TextEditingController(text: initial);
   final name = await showDialog<String>(
     context: context,
-    builder: (context) => AlertDialog(
-      title: Text(title),
-      content: TextField(
-        controller: controller,
-        autofocus: true,
-        maxLength: 80,
-        textCapitalization: TextCapitalization.sentences,
-        decoration: const InputDecoration(hintText: 'Name'),
-        onSubmitted: (value) => Navigator.pop(context, value),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(context, controller.text),
-          child: const Text('Save'),
-        ),
-      ],
-    ),
+    builder: (context) => _ListNameDialog(title: title, initial: initial),
   );
-  controller.dispose();
   final trimmed = name?.trim() ?? '';
   return trimmed.isEmpty ? null : trimmed;
+}
+
+/// Owns its text controller, so the field keeps it through the closing
+/// animation and lets it go only when the dialog itself is gone.
+class _ListNameDialog extends StatefulWidget {
+  const _ListNameDialog({required this.title, required this.initial});
+  final String title;
+  final String initial;
+
+  @override
+  State<_ListNameDialog> createState() => _ListNameDialogState();
+}
+
+class _ListNameDialogState extends State<_ListNameDialog> {
+  late final _controller = TextEditingController(text: widget.initial);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text(widget.title),
+    content: TextField(
+      controller: _controller,
+      autofocus: true,
+      maxLength: 80,
+      textCapitalization: TextCapitalization.sentences,
+      decoration: const InputDecoration(hintText: 'Name'),
+      onSubmitted: (value) => Navigator.pop(context, value),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
+      TextButton(
+        onPressed: () => Navigator.pop(context, _controller.text),
+        child: const Text('Save'),
+      ),
+    ],
+  );
 }
 
 /// A spinner, or still words when motion is reduced.

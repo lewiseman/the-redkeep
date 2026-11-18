@@ -6,9 +6,6 @@ import 'package:redkeep/features/voice/application/voice_capture.dart';
 import 'package:drift/native.dart';
 import 'package:redkeep/core/storage/app_database.dart';
 
-import 'fake_watch_reminders.dart';
-
-import 'package:redkeep/features/watchlist/application/discover_controller.dart';
 import 'package:redkeep/features/watchlist/presentation/watch_widgets.dart';
 
 import 'package:redkeep/features/ai/application/ai_lifecycle.dart';
@@ -64,7 +61,6 @@ Future<GoRouter> pumpApp(
   AppDatabase? database,
   AiCloudSettings? aiSettings = testAiSettings,
   VoiceCapture Function(String)? voiceCapture,
-  FakeWatchReminders? watchReminders,
 
   /// Overrides for backups; when given, backups are enabled.
   List<Override> backups = const [],
@@ -88,9 +84,6 @@ Future<GoRouter> pumpApp(
         stockPhotoImagesEnabledProvider.overrideWithValue(false),
         stockPhotoSourceProvider.overrideWithValue(stockPhotos),
         ...overrides,
-        watchRemindersProvider.overrideWithValue(
-          watchReminders ?? FakeWatchReminders(),
-        ),
         syncEnabledProvider.overrideWithValue(backups.isNotEmpty),
         ...backups,
         aiEnabledProvider.overrideWithValue(aiEnabled),

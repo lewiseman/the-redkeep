@@ -13,26 +13,70 @@ import 'package:redkeep/features/onboarding/data/drift_onboarding_repository.dar
 import 'generated/schema.dart';
 
 void main() {
-  test('fresh schema matches the complete version 13 snapshot', () async {
+  test('fresh schema matches the complete version 14 snapshot', () async {
     final database = AppDatabase(NativeDatabase.memory());
     addTearDown(database.close);
 
-    expect(database.schemaVersion, 13);
-    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 13);
+    expect(database.schemaVersion, 14);
+    await SchemaVerifier(GeneratedHelper()).migrateAndValidate(database, 14);
     final version = await database
         .customSelect('PRAGMA user_version')
         .getSingle();
-    expect(version.read<int>('user_version'), 13);
+    expect(version.read<int>('user_version'), 14);
   });
 
-  for (final from in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]) {
+  for (final from in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]) {
     test('the upgrade from version $from matches the snapshot', () async {
       final verifier = SchemaVerifier(GeneratedHelper());
       final database = AppDatabase(await verifier.startAt(from));
       addTearDown(database.close);
-      await verifier.migrateAndValidate(database, 13);
+      await verifier.migrateAndValidate(database, 14);
     });
   }
+
+  test('version 14 drops Discover and keeps what the reader saved', () async {
+    final verifier = SchemaVerifier(GeneratedHelper());
+    final schema = await verifier.schemaAt(13);
+    String id(String c) => c * 32;
+    String title(
+      String c,
+      String status,
+      String swipe, {
+      String note = '',
+      String episodes = '[]',
+    }) =>
+        "INSERT INTO watch_titles (id, media_key, title, status, note, "
+        "episodes, swipe, revision, created_at, updated_at) VALUES "
+        "('${id(c)}', 'movie:${c.codeUnitAt(0)}', '$c', $status, '$note', "
+        "'$episodes', $swipe, 1, 1, 1)";
+    for (final statement in [
+      title('a', 'NULL', "'like'"), // Liked only: dropped.
+      title('b', 'NULL', "'nope'"), // Passed only: dropped.
+      title('c', "'planned'", "'like'"), // Liked, then planned: kept.
+      title('d', 'NULL', "'like'", episodes: '["s1e1"]'), // Ticked: kept.
+      title('g', 'NULL', "'like'", note: 'Ask Sam'), // Notes go: dropped.
+      title('e', 'NULL', "'like'"), // In a list: kept.
+      "INSERT INTO watch_lists (id, name, items, revision, created_at, updated_at) VALUES ('${id('f')}', 'Later', '[\"${id('e')}\"]', 1, 1, 1)",
+      "INSERT INTO watch_profiles (id, state, revision, created_at, updated_at) VALUES ('${id('9')}', '{}', 1, 1, 1)",
+      "INSERT INTO watch_chat_turns VALUES ('${id('8')}', '${id('a')}', 1, 1, 'Hi')",
+    ]) {
+      schema.rawDatabase.execute(statement);
+    }
+    final old = AppDatabase(schema.newConnection());
+    addTearDown(old.close);
+    await verifier.migrateAndValidate(old, 14);
+
+    final kept = await old.select(old.watchTitles).get();
+    expect(kept.map((t) => t.title).toSet(), {'c', 'd', 'e'});
+    expect(kept.firstWhere((t) => t.title == 'c').status, 'planned');
+    final gone = await old
+        .customSelect(
+          "SELECT name FROM sqlite_master WHERE name IN "
+          "('watch_profiles', 'watch_chat_turns')",
+        )
+        .get();
+    expect(gone, isEmpty);
+  });
 
   test('version 13 drops the sync outbox, sync state and triggers but keeps writing', () async {
     final verifier = SchemaVerifier(GeneratedHelper());
@@ -46,7 +90,7 @@ void main() {
     }
     final old = AppDatabase(schema.newConnection());
     addTearDown(old.close);
-    await verifier.migrateAndValidate(old, 13);
+    await verifier.migrateAndValidate(old, 14);
     final leftovers = await old
         .customSelect("SELECT name FROM sqlite_master WHERE name LIKE 'sync_%'")
         .get();
@@ -65,7 +109,7 @@ void main() {
       final verifier = SchemaVerifier(GeneratedHelper());
       final database = AppDatabase(await verifier.startAt(4));
       addTearDown(database.close);
-      await verifier.migrateAndValidate(database, 13);
+      await verifier.migrateAndValidate(database, 14);
       final triggers =
           (await database
                   .customSelect(
@@ -84,7 +128,7 @@ void main() {
     final verifier = SchemaVerifier(GeneratedHelper());
     final database = AppDatabase(await verifier.startAt(3));
     addTearDown(database.close);
-    await verifier.migrateAndValidate(database, 13);
+    await verifier.migrateAndValidate(database, 14);
     final tables =
         (await database
                 .customSelect(
@@ -126,7 +170,7 @@ void main() {
     final version = await database
         .customSelect('PRAGMA user_version')
         .getSingle();
-    expect(version.read<int>('user_version'), 13);
+    expect(version.read<int>('user_version'), 14);
   });
 
   test('version 9 removes Flow and keeps diary entries as ordinary entries', () async {
@@ -144,7 +188,7 @@ void main() {
       schema.rawDatabase.execute(statement);
     }
     final old = AppDatabase(schema.newConnection());
-    await verifier.migrateAndValidate(old, 13);
+    await verifier.migrateAndValidate(old, 14);
 
     final tables = await old
         .customSelect("SELECT name FROM sqlite_master WHERE name LIKE 'flow_%'")
@@ -178,7 +222,7 @@ void main() {
     }
     final old = AppDatabase(schema.newConnection());
     addTearDown(old.close);
-    await verifier.migrateAndValidate(old, 13);
+    await verifier.migrateAndValidate(old, 14);
 
     final dropped = await old
         .customSelect(
@@ -215,7 +259,7 @@ void main() {
     }
     final old = AppDatabase(schema.newConnection());
     addTearDown(old.close);
-    await verifier.migrateAndValidate(old, 13);
+    await verifier.migrateAndValidate(old, 14);
 
     final left = await old
         .customSelect(
@@ -292,7 +336,7 @@ void main() {
     final version = await database
         .customSelect('PRAGMA user_version')
         .getSingle();
-    expect(version.read<int>('user_version'), 13);
+    expect(version.read<int>('user_version'), 14);
     final retired = await database
         .customSelect(
           "SELECT name FROM sqlite_master WHERE name = 'brain_assignments' "
@@ -339,70 +383,62 @@ void main() {
     },
   );
 
-  test(
-    'a saved database reopens writing intact',
-    () async {
-      final directory = await Directory.systemTemp.createTemp(
-        'redkeep-schema-',
-      );
-      addTearDown(() => directory.delete(recursive: true));
-      final file = File.fromUri(directory.uri.resolve('redkeep.sqlite'));
-      final database = AppDatabase(NativeDatabase(file));
-      const id = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
-      final now = DateTime.utc(2026, 11, 5);
-      const preferences = AppearancePreferences(
-        theme: AppTheme.dark,
-        accent: AppAccent.teal,
-        reduceMotion: true,
-        simplerEffects: true,
-      );
-      try {
-        await DriftAppearanceRepository(database).save(preferences);
-        await DriftOnboardingRepository(database).complete('  Léa 王  ');
-        final repository = DriftNotesRepository(database, clock: () => now);
+  test('a saved database reopens writing intact', () async {
+    final directory = await Directory.systemTemp.createTemp('redkeep-schema-');
+    addTearDown(() => directory.delete(recursive: true));
+    final file = File.fromUri(directory.uri.resolve('redkeep.sqlite'));
+    final database = AppDatabase(NativeDatabase(file));
+    const id = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+    final now = DateTime.utc(2026, 11, 5);
+    const preferences = AppearancePreferences(
+      theme: AppTheme.dark,
+      accent: AppAccent.teal,
+      reduceMotion: true,
+      simplerEffects: true,
+    );
+    try {
+      await DriftAppearanceRepository(database).save(preferences);
+      await DriftOnboardingRepository(database).complete('  Léa 王  ');
+      final repository = DriftNotesRepository(database, clock: () => now);
 
-        final saved = await repository.saveNote(
-          id: id,
-          text: const PlainTextDocument(
-            title: 'Saved',
-            body: 'Exact words 👩🏽‍💻',
-          ),
-          expectedRevision: 0,
-          details: const NoteDetails(),
-        );
-        expect(saved.revision, 1);
-      } finally {
-        await database.close();
-      }
-
-      final reopened = AppDatabase(NativeDatabase(file));
-      addTearDown(reopened.close);
-      expect(
-        await DriftAppearanceRepository(reopened).watch().first,
-        preferences,
-      );
-      expect(await DriftOnboardingRepository(reopened).readName(), 'Léa 王');
-      final repository = DriftNotesRepository(reopened, clock: () => now);
-      final restored = await repository.openDocument(id);
-      expect(restored.note!.text.body, 'Exact words 👩🏽‍💻');
-      expect(restored.note!.revision, 1);
-
-      await repository.saveNote(
+      final saved = await repository.saveNote(
         id: id,
-        text: const PlainTextDocument(title: 'Saved', body: 'Later words'),
-        expectedRevision: 1,
+        text: const PlainTextDocument(
+          title: 'Saved',
+          body: 'Exact words 👩🏽‍💻',
+        ),
+        expectedRevision: 0,
         details: const NoteDetails(),
       );
-      expect(
-        (await repository.openDocument(id)).note!.text.body,
-        'Later words',
-      );
-      final version = await reopened
-          .customSelect('PRAGMA user_version')
-          .getSingle();
-      expect(version.read<int>('user_version'), 13);
-    },
-  );
+      expect(saved.revision, 1);
+    } finally {
+      await database.close();
+    }
+
+    final reopened = AppDatabase(NativeDatabase(file));
+    addTearDown(reopened.close);
+    expect(
+      await DriftAppearanceRepository(reopened).watch().first,
+      preferences,
+    );
+    expect(await DriftOnboardingRepository(reopened).readName(), 'Léa 王');
+    final repository = DriftNotesRepository(reopened, clock: () => now);
+    final restored = await repository.openDocument(id);
+    expect(restored.note!.text.body, 'Exact words 👩🏽‍💻');
+    expect(restored.note!.revision, 1);
+
+    await repository.saveNote(
+      id: id,
+      text: const PlainTextDocument(title: 'Saved', body: 'Later words'),
+      expectedRevision: 1,
+      details: const NoteDetails(),
+    );
+    expect((await repository.openDocument(id)).note!.text.body, 'Later words');
+    final version = await reopened
+        .customSelect('PRAGMA user_version')
+        .getSingle();
+    expect(version.read<int>('user_version'), 14);
+  });
 
   test(
     'schema rejects invalid theme values and non-singleton settings',

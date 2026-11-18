@@ -36,17 +36,13 @@ final tmdbClientProvider = Provider<TmdbClient?>((ref) {
   );
 });
 
-/// Keeps a provider alive for [duration] after nothing watches it, so moving
-/// between Watchlist sections, or into a title and back, keeps its state.
-/// [onReturn] runs when something watches it again within that time.
-void keepWhileAway(Ref ref, Duration duration, {void Function()? onReturn}) {
+/// Keeps a provider alive for [duration] after nothing watches it, so opening
+/// a title and coming back keeps its state.
+void keepWhileAway(Ref ref, Duration duration) {
   final link = ref.keepAlive();
   Timer? release;
   ref.onCancel(() => release = Timer(duration, link.close));
-  ref.onResume(() {
-    release?.cancel();
-    onReturn?.call();
-  });
+  ref.onResume(() => release?.cancel());
   ref.onDispose(() => release?.cancel());
 }
 
@@ -164,7 +160,7 @@ class WatchlistSetupException implements Exception {
       'Add TMDB_API_KEY to env.json to search films and shows.';
 }
 
-/// Library tabs: everything, likes, each status, then each named list.
+/// Library tabs: everything, each status, then each named list.
 sealed class LibraryTab {
   const LibraryTab();
   String get label;
@@ -174,13 +170,6 @@ class AllTab extends LibraryTab {
   const AllTab();
   @override
   String get label => 'All';
-}
-
-/// Live matches not yet moved to a status.
-class LikesTab extends LibraryTab {
-  const LikesTab();
-  @override
-  String get label => 'Likes';
 }
 
 class StatusTab extends LibraryTab {
@@ -205,29 +194,19 @@ class Library {
 
   List<LibraryTab> get tabs => [
     const AllTab(),
-    const LikesTab(),
     for (final s in WatchStatus.values) StatusTab(s),
     for (final l in lists) ListTab(l),
   ];
 
   Set<String> get _listed => {for (final l in lists) ...l.items};
 
-  /// A live match not yet moved to a status. Kept in step with
-  /// `LikesGroups.isLiked`.
-  static bool _liked(WatchTitle t) =>
-      t.matchState == MatchState.active && t.status == null;
-
-  /// Titles saved by like, status or list. Discover's passes stay out.
+  /// Titles saved by status or list.
   List<WatchTitle> titlesFor(LibraryTab tab) {
     final listed = _listed;
     return switch (tab) {
       AllTab() => [
         for (final t in titles)
-          if (t.status != null || _liked(t) || listed.contains(t.id)) t,
-      ],
-      LikesTab() => [
-        for (final t in titles)
-          if (_liked(t)) t,
+          if (t.status != null || listed.contains(t.id)) t,
       ],
       StatusTab(:final status) => [
         for (final t in titles)

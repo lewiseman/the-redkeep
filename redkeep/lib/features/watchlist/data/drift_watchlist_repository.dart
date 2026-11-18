@@ -8,9 +8,6 @@ import '../domain/catalog_title.dart';
 import '../domain/watch_title.dart';
 import '../domain/watchlist_repository.dart';
 
-/// The single taste profile row's id.
-final watchProfileId = watchTitleId('profile');
-
 class DriftWatchlistRepository implements WatchlistRepository {
   DriftWatchlistRepository(
     this._db, {
@@ -136,37 +133,12 @@ class DriftWatchlistRepository implements WatchlistRepository {
     year: snapshot.year,
     updatedAt: snapshot.updatedAt,
     status: changes.status,
-    rating: changes.rating,
-    note: changes.note,
-    swipe: changes.swipe,
-    matchState: changes.matchState,
-    matchedAt: changes.matchedAt,
-    expiresAt: changes.expiresAt,
-    nightAt: changes.nightAt,
-    outcome: changes.outcome,
-    checkedInAt: changes.checkedInAt,
     episodes: changes.episodes,
   );
 
   @override
   Future<WatchTitle> setStatus(CatalogTitle title, WatchStatus? status) =>
       edit(title, (_) => WatchTitlesCompanion(status: Value(status?.name)));
-
-  @override
-  Future<WatchTitle> setRating(CatalogTitle title, int? rating) {
-    if (rating != null && (rating < 1 || rating > 10)) {
-      throw ArgumentError.value(rating, 'rating');
-    }
-    return edit(title, (_) => WatchTitlesCompanion(rating: Value(rating)));
-  }
-
-  @override
-  Future<WatchTitle> setNote(CatalogTitle title, String note) => edit(
-    title,
-    (_) => WatchTitlesCompanion(
-      note: Value(note.length > 4000 ? note.substring(0, 4000) : note),
-    ),
-  );
 
   @override
   Future<WatchTitle> setEpisodes(
@@ -209,9 +181,6 @@ class DriftWatchlistRepository implements WatchlistRepository {
       final items = _ids(list.items);
       if (items.remove(id)) await _writeItems(list, items, now);
     }
-    await (_db.delete(
-      _db.watchChatTurns,
-    )..where((r) => r.titleId.equals(id))).go();
   });
 
   Future<void> _clear(
@@ -222,15 +191,6 @@ class DriftWatchlistRepository implements WatchlistRepository {
   }) => (_db.update(_db.watchTitles)..where((r) => r.id.equals(id))).write(
     WatchTitlesCompanion(
       status: const Value(null),
-      rating: const Value(null),
-      note: const Value(''),
-      swipe: const Value(null),
-      matchState: const Value(null),
-      matchedAt: const Value(null),
-      expiresAt: const Value(null),
-      nightAt: const Value(null),
-      outcome: const Value(null),
-      checkedInAt: const Value(null),
       episodes: const Value('[]'),
       revision: Value(revision),
       updatedAt: Value(now),
@@ -338,74 +298,6 @@ class DriftWatchlistRepository implements WatchlistRepository {
   )..where((r) => r.id.equals(id))).getSingleOrNull();
 
   @override
-  Stream<Map<String, dynamic>?> watchProfile() =>
-      (_db.select(
-        _db.watchProfiles,
-      )..where((r) => r.id.equals(watchProfileId))).watchSingleOrNull().map(
-        (row) =>
-            row == null ? null : jsonDecode(row.state) as Map<String, dynamic>,
-      );
-
-  @override
-  Future<Map<String, dynamic>?> readProfile() async {
-    final row = await (_db.select(
-      _db.watchProfiles,
-    )..where((r) => r.id.equals(watchProfileId))).getSingleOrNull();
-    return row == null ? null : jsonDecode(row.state) as Map<String, dynamic>;
-  }
-
-  @override
-  Future<void> saveProfile(Map<String, dynamic> state) =>
-      _db.transaction(() async {
-        final row = await (_db.select(
-          _db.watchProfiles,
-        )..where((r) => r.id.equals(watchProfileId))).getSingleOrNull();
-        await checkWritingSession(_db, _generation);
-        final now = _now;
-        final encoded = jsonEncode(state);
-        if (row == null) {
-          await _db
-              .into(_db.watchProfiles)
-              .insert(
-                WatchProfilesCompanion.insert(
-                  id: watchProfileId,
-                  state: Value(encoded),
-                  revision: 1,
-                  createdAt: now,
-                  updatedAt: now,
-                ),
-              );
-        } else if (row.state != encoded) {
-          await (_db.update(
-            _db.watchProfiles,
-          )..where((r) => r.id.equals(watchProfileId))).write(
-            WatchProfilesCompanion(
-              state: Value(encoded),
-              revision: Value(row.revision + 1),
-              updatedAt: Value(now),
-            ),
-          );
-        }
-      });
-
-  @override
-  Future<List<CatalogTitle>> catalog() async => [
-    for (final row in await (_db.select(
-      _db.watchCatalog,
-    )..orderBy([(r) => OrderingTerm.desc(r.popularity)])).get())
-      ?CatalogTitle.fromJson(jsonDecode(row.data) as Map<String, dynamic>),
-  ];
-
-  @override
-  Future<int> catalogSize() async {
-    final count = _db.watchCatalog.mediaKey.count();
-    return (await (_db.selectOnly(
-          _db.watchCatalog,
-        )..addColumns([count])).getSingle()).read(count) ??
-        0;
-  }
-
-  @override
   Future<CatalogTitle?> cachedTitle(WatchKey key) async {
     final row = await _catalogRow(key);
     if (row == null) return null;
@@ -478,15 +370,6 @@ WatchTitle watchTitleFromRow(WatchTitleRow r) => WatchTitle(
   posterPath: r.posterPath,
   year: r.year,
   status: WatchStatus.tryParse(r.status),
-  rating: r.rating,
-  note: r.note,
-  swipe: SwipeChoice.tryParse(r.swipe),
-  matchState: MatchState.tryParse(r.matchState),
-  matchedAt: _time(r.matchedAt),
-  expiresAt: _time(r.expiresAt),
-  nightAt: _time(r.nightAt),
-  outcome: NightOutcome.tryParse(r.outcome),
-  checkedInAt: _time(r.checkedInAt),
   episodes: _ids(r.episodes).toSet(),
   revision: r.revision,
   createdAt: _time(r.createdAt)!,

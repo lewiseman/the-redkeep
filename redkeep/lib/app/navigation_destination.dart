@@ -79,7 +79,6 @@ String _destination(String location) {
     diaryTodayLocation,
     newNoteLocation,
     watchSearchLocation,
-    watchPreferencesLocation,
   }.contains(location)) {
     return location;
   }
@@ -101,8 +100,7 @@ String _destination(String location) {
   }
   final mood = RegExp(r'^/watchlist/mood/([a-z]+)$').firstMatch(location);
   if (mood != null && Mood.byId(mood[1]) != null) return location;
-  final watch = RegExp(r'^/watchlist/([a-z]+)/([0-9]+)(?:/chat)?$')
-      .firstMatch(location);
+  final watch = RegExp(r'^/watchlist/([a-z]+)/([0-9]+)$').firstMatch(location);
   if (watch != null && WatchKey.fromRoute(watch[1], watch[2]) != null) {
     return location;
   }
@@ -178,16 +176,12 @@ String diaryEntryLocation(DiaryPeriod date, String id, {bool edit = false}) =>
     : AppDestination.unavailable.location;
 
 const watchSearchLocation = '/watchlist/search';
-const watchPreferencesLocation = '/watchlist/preferences';
 
 /// A film or show, by its TMDB identity.
 String watchTitleLocation(WatchKey key) =>
     '/watchlist/${key.media.name}/${key.tmdbId}';
 
-/// A conversation with a film or show, in character.
-String watchChatLocation(WatchKey key) => '${watchTitleLocation(key)}/chat';
-
-/// Every title for one Explore mood.
+/// Every title for one mood, browsed from search.
 String watchMoodLocation(String id) => Mood.byId(id) == null
     ? AppDestination.unavailable.location
     : '/watchlist/mood/$id';

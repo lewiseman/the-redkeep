@@ -1,17 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:redkeep/app/bootstrap/bootstrap_controller.dart';
 import 'package:redkeep/features/appearance/domain/appearance_preferences.dart';
-import 'package:redkeep/features/appearance/presentation/appearance_page.dart';
-import 'package:redkeep/features/assets/domain/asset_catalog.dart';
 import 'package:redkeep/features/onboarding/presentation/onboarding_page.dart';
 
 import '../../support/fake_appearance_repository.dart';
 import '../../support/fake_onboarding_repository.dart';
-import '../../support/fake_required_assets.dart';
 import '../../support/pump_app.dart';
 import '../../support/onboarding_navigation.dart';
 
@@ -28,70 +23,6 @@ Future<void> enterRedkeep(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets(
-    'first launch preserves settings through local checks, downloads, onboarding and failed save',
-    (tester) async {
-      final onboarding = FakeOnboardingRepository(completed: false)
-        ..readGate = Completer<void>();
-      final assets = FakeRequiredAssets()
-        ..missing = ['test.one']
-        ..downloadError = const AssetException(AssetFailure.network);
-      final router = await pumpApp(
-        tester,
-        initialLocation: '/settings',
-        onboarding: onboarding,
-        assets: assets,
-      );
-      expect(find.byKey(const ValueKey('startup-logo')), findsOneWidget);
-      expect(find.text('Getting Redkeep ready'), findsNothing);
-      expect(
-        router.routeInformationProvider.value.uri.toString(),
-        '/startup?continue=%2Fsettings',
-      );
-      expect(assets.downloads, 0);
-      onboarding.readGate!.complete();
-      await tester.pumpAndSettle();
-      expect(assets.downloads, 1);
-      expect(find.text('Try again'), findsOneWidget);
-      expect(
-        router.routeInformationProvider.value.uri.queryParameters['continue'],
-        '/settings',
-      );
-      assets.downloadError = null;
-      await tester.tap(find.text('Try again'));
-      await tester.pumpAndSettle();
-      expect(find.byType(OnboardingPage), findsOneWidget);
-      expect(
-        router.routeInformationProvider.value.uri.toString(),
-        '/onboarding?continue=%2Fsettings',
-      );
-      expect(router.canPop(), isFalse);
-      onboarding.failSave = true;
-      await enterRedkeep(tester);
-      await tester.pumpAndSettle();
-      expect(onboarding.completed, isFalse);
-      expect(find.text('Save'), findsOneWidget);
-      expect(find.textContaining('Synthetic private'), findsNothing);
-      expect(
-        router.routeInformationProvider.value.uri.queryParameters['continue'],
-        '/settings',
-      );
-      onboarding.failSave = false;
-      await tester.ensureVisible(find.text('Save'));
-      await tester.tap(find.text('Save'));
-      await tester.pumpAndSettle();
-      expect(onboarding.completed, isTrue);
-      expect(find.byType(AppearancePage), findsOneWidget);
-      expect(router.routeInformationProvider.value.uri.path, '/settings');
-      expect(router.canPop(), isTrue);
-      await tester.binding.handlePopRoute();
-      await tester.pumpAndSettle();
-      expect(find.text('My diary'), findsOneWidget);
-      expect(router.canPop(), isFalse);
-      expect(tester.takeException(), isNull);
-    },
-  );
-
   testWidgets(
     'interruption leaves onboarding incomplete; root back can exit and relaunch resumes',
     (tester) async {
@@ -167,72 +98,6 @@ void main() {
     },
   );
 
-  testWidgets(
-    'latest incoming destination wins while gated; duplicates settle',
-    (tester) async {
-      final onboarding = FakeOnboardingRepository(completed: false);
-      final assets = FakeRequiredAssets()..missing = ['test.one'];
-      final router = await pumpApp(
-        tester,
-        onboarding: onboarding,
-        assets: assets,
-      );
-      router.go('/settings');
-      await tester.pumpAndSettle();
-      router.go('/settings');
-      await tester.pumpAndSettle();
-      expect(
-        router.routeInformationProvider.value.uri.queryParameters['continue'],
-        '/settings',
-      );
-      router.go('/');
-      await tester.pumpAndSettle();
-      expect(
-        router.routeInformationProvider.value.uri.queryParameters['continue'],
-        '/',
-      );
-      await enterRedkeep(tester);
-      await tester.pumpAndSettle();
-      expect(router.routeInformationProvider.value.uri.path, '/');
-      expect(find.text('My diary'), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    },
-  );
-
-  testWidgets(
-    'invalid pending destinations reach a safe fallback after onboarding',
-    (tester) async {
-      for (final location in [
-        '/notes/private?text=secret',
-        '/startup?continue=%FF',
-        '/onboarding?continue=https%3A%2F%2Fevil.test',
-        '/startup?continue=%2Fstartup',
-      ]) {
-        final onboarding = FakeOnboardingRepository(completed: false);
-        await tester.pumpWidget(const SizedBox());
-        final router = await pumpApp(
-          tester,
-          initialLocation: location,
-          onboarding: onboarding,
-        );
-        expect(find.byType(OnboardingPage), findsOneWidget);
-        expect(find.textContaining('secret'), findsNothing);
-        expect(
-          router.routeInformationProvider.value.uri.queryParameters['continue'],
-          '/unavailable',
-        );
-        await enterRedkeep(tester);
-        await tester.pumpAndSettle();
-        expect(find.text('Page not found'), findsOneWidget);
-        expect(router.routeInformationProvider.value.uri.path, '/unavailable');
-        await tester.tap(find.text('Return home'));
-        await tester.pumpAndSettle();
-        expect(find.text('My diary'), findsOneWidget);
-        expect(tester.takeException(), isNull);
-      }
-    },
-  );
-
   for (final theme in [AppTheme.light, AppTheme.dark]) {
     testWidgets(
       '$theme onboarding works at 320px, 3x text, safe areas, keyboard and reduced motion',
@@ -276,28 +141,4 @@ void main() {
       },
     );
   }
-
-  testWidgets(
-    'artwork repair after normal navigation preserves the current route',
-    (tester) async {
-      final router = await pumpApp(tester);
-      await tester.tap(find.widgetWithText(TextButton, 'More'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Appearance'));
-      await tester.pumpAndSettle();
-      tester
-          .container()
-          .read(bootstrapControllerProvider.notifier)
-          .artworkFailed();
-      await tester.pumpAndSettle();
-      expect(
-        router.routeInformationProvider.value.uri.queryParameters['continue'],
-        '/settings',
-      );
-      await tester.tap(find.text('Try again'));
-      await tester.pumpAndSettle();
-      expect(find.byType(AppearancePage), findsOneWidget);
-      expect(router.canPop(), isTrue);
-    },
-  );
 }

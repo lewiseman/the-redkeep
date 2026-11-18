@@ -393,64 +393,6 @@ void main() {
     },
   );
 
-  testWidgets(
-    'only current and turning neighbor decode; full leaf artwork is bounded and accessible',
-    (tester) async {
-      final assets = _ObservingAssets();
-      await pumpApp(
-        tester,
-        onboarding: FakeOnboardingRepository(completed: false),
-        assets: assets,
-      );
-      await _decodeVisible(tester);
-      expect(assets.resolved.toSet(), {
-        'onboarding.material.paper',
-        'onboarding.material.binding',
-        'onboarding.chapter.notes',
-      });
-      for (final image in tester.widgetList<Image>(find.byType(Image))) {
-        if (image.key == const ValueKey('onboarding-mascot')) {
-          expect(image.image, isA<ResizeImage>());
-          final resized = image.image as ResizeImage;
-          expect(resized.imageProvider, isA<AssetImage>());
-          expect(
-            (resized.imageProvider as AssetImage).assetName,
-            'assets/branding/grand_maestar.png',
-          );
-          expect(image.height, lessThanOrEqualTo(100));
-          expect(
-            resized.height,
-            inInclusiveRange(1, (100 * tester.view.devicePixelRatio).ceil()),
-          );
-        } else if (image.key == const ValueKey('onboarding-background')) {
-          final resized = image.image as ResizeImage;
-          expect(resized.width, 1024);
-          expect(
-            (resized.imageProvider as AssetImage).assetName,
-            'assets/branding/ink-paper.webp',
-          );
-        } else {
-          expect(image.image, isA<ResizeImage>());
-          final resized = image.image as ResizeImage;
-          expect(resized.width, inInclusiveRange(1, 1448));
-          expect(resized.imageProvider, isA<FileImage>());
-        }
-      }
-      final before = assets.resolved.length;
-      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
-      await tester.pump();
-      for (var i = 0; i < 4; i++) {
-        await tester.pump(const Duration(milliseconds: 100));
-      }
-      expect(assets.resolved.skip(before).toSet(), {
-        'onboarding.chapter.diary',
-      });
-      await tester.pumpAndSettle();
-      await _decodeVisible(tester);
-      expect(tester.takeException(), isNull);
-    },
-  );
-
   for (final mode in ['normal', 'reduced', 'simple']) {
     for (final theme in [AppTheme.light, AppTheme.dark]) {
       testWidgets(

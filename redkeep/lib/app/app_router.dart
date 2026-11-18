@@ -3,6 +3,8 @@ import '../features/diary/presentation/diary_photos_page.dart';
 import '../features/ai/application/ai_lifecycle.dart';
 import '../features/sync/application/sync_providers.dart';
 import 'writing_shell.dart';
+import '../features/home_widgets/application/home_widget_sync.dart';
+import '../features/home_widgets/presentation/home_widget_launch_page.dart';
 import '../features/watchlist/domain/explore.dart';
 import '../features/watchlist/domain/watch_title.dart';
 import '../features/watchlist/presentation/explore_view.dart';
@@ -82,7 +84,9 @@ GoRouter createAppRouter(Ref ref) {
     routes: [
       ShellRoute(
         builder: (context, state, child) => AiLifecycleHost(
-          child: WritingShell(location: state.uri.path, child: child),
+          child: HomeWidgetSync(
+            child: WritingShell(location: state.uri.path, child: child),
+          ),
         ),
         routes: [
           // The tab roots share one page, so moving between them keeps it
@@ -95,6 +99,33 @@ GoRouter createAppRouter(Ref ref) {
                 path: 'search',
                 pageBuilder: (context, state) =>
                     _page(state, const DiarySearchPage()),
+              ),
+              // Home screen widget launches; each replaces itself.
+              GoRoute(
+                path: 'write',
+                pageBuilder: (context, state) => _page(
+                  state,
+                  const HomeWidgetLaunchPage(launch: WriteTodayLaunch()),
+                ),
+              ),
+              GoRoute(
+                path: 'today',
+                pageBuilder: (context, state) => _page(
+                  state,
+                  const HomeWidgetLaunchPage(launch: DiaryDayLaunch()),
+                ),
+              ),
+              GoRoute(
+                path: 'day/:date',
+                pageBuilder: (context, state) => _page(
+                  state,
+                  HomeWidgetLaunchPage(
+                    key: ValueKey(state.uri.path),
+                    launch: DiaryDayLaunch(
+                      DiaryPeriod.tryParse(state.pathParameters['date']!),
+                    ),
+                  ),
+                ),
               ),
               GoRoute(
                 path: 'calendar/:date',
@@ -173,6 +204,14 @@ GoRouter createAppRouter(Ref ref) {
             path: '/notes',
             pageBuilder: (context, state) => _tabs(1),
             routes: [
+              // Before `:id`: a home screen widget's new note. Opens one, then leaves.
+              GoRoute(
+                path: 'write',
+                pageBuilder: (context, state) => _page(
+                  state,
+                  const HomeWidgetLaunchPage(launch: NewNoteLaunch()),
+                ),
+              ),
               // Editing is a state of this page, not a route of its own.
               // It can be opened straight into editing, e.g. from the
               // note's website.

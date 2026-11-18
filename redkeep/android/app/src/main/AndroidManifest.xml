@@ -22,6 +22,36 @@
                 <action android:name="android.intent.action.QUICKBOOT_POWERON" />
             </intent-filter>
         </receiver>
+        <!-- Home screen widgets. -->
+        <receiver
+            android:name=".widgets.DiaryMonthWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_diary_month_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_diary_month" />
+        </receiver>
+        <receiver
+            android:name=".widgets.QuickCaptureWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_quick_capture_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_quick_capture" />
+        </receiver>
+        <!-- Turns the widgets to a new day at midnight or after a clock change. -->
+        <receiver android:name=".widgets.WidgetClockReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+        </receiver>
         <activity
             android:name=".MainActivity"
             android:exported="true"

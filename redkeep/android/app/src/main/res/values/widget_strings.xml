@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_diary_month_label">Diary month</string>
+    <string name="widget_diary_month_description">Your month of moods, your writing streak, and today\'s page.</string>
+    <string name="widget_quick_capture_label">Quick capture</string>
+    <string name="widget_quick_capture_description">Write today\'s page or start a note in one tap, with a daily prompt.</string>
+</resources>

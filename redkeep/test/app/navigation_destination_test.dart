@@ -308,4 +308,38 @@ void main() {
       expect(redirect('/startup'), '/');
     },
   );
+
+  test('home screen widget launches are addressable; bad days are not', () {
+    for (final path in [
+      diaryWriteTodayLocation,
+      diaryTodayLocation,
+      newNoteLocation,
+      '/diary/day/2026-11-18',
+    ]) {
+      expect(validatedNavigationLocation(path), path);
+      final gated = navigationRedirect(
+        Uri.parse(path),
+        startupReady: false,
+        onboardingComplete: true,
+      )!;
+      expect(
+        navigationRedirect(
+          Uri.parse(gated),
+          startupReady: true,
+          onboardingComplete: true,
+        ),
+        path,
+      );
+    }
+    for (final path in [
+      '/diary/day/2026-02-30',
+      '/diary/day/month-2026-11',
+      '/diary/day/week-2026-11-16',
+      '/diary/day/',
+      '/notes/write/scan',
+      '/diary/write/now',
+    ]) {
+      expect(validatedNavigationLocation(path), '/unavailable');
+    }
+  });
 }

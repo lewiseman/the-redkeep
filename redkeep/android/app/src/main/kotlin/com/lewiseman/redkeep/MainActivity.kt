@@ -16,6 +16,8 @@ import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
+import com.lewiseman.redkeep.widgets.WidgetRefresh
+import com.lewiseman.redkeep.widgets.WidgetStore
 import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.atomic.AtomicBoolean
@@ -32,8 +34,39 @@ class MainActivity : FlutterActivity() {
     private val running = AtomicBoolean(false)
     private var captureGeneration = 0
 
+    // Home screen widgets open `redkeep://app/<route>`. Flutter would pass the
+    // whole link on as the route, so hand it only the path it should open.
+    override fun onCreate(savedInstanceState: Bundle?) {
+        widgetRoute(intent)
+        super.onCreate(savedInstanceState)
+    }
+    override fun onNewIntent(intent: Intent) {
+        widgetRoute(intent)
+        super.onNewIntent(intent)
+    }
+    private fun widgetRoute(intent: Intent?) {
+        val data = intent?.data ?: return
+        if (data.scheme == "redkeep" && data.host == "app") {
+            intent.data = Uri.Builder().path(data.path ?: "/").build()
+        }
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        // Home screen widgets: Dart publishes written days and moods.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "redkeep/home_widgets").setMethodCallHandler { call, result ->
+            when (call.method) {
+                "publish" -> {
+                    val json = call.arguments as? String
+                    if (json != null && WidgetStore.save(this, json)) {
+                        WidgetRefresh.all(this)
+                        result.success(null)
+                    } else result.error("SNAPSHOT", "The widget snapshot could not be read.", null)
+                }
+                else -> result.notImplemented()
+            }
+        }
+        WidgetRefresh.publishPreviews(this)
         EventChannel(flutterEngine.dartExecutor.binaryMessenger, "redkeep/pcm_events").setStreamHandler(object : EventChannel.StreamHandler {
             override fun onListen(arguments: Any?, events: EventChannel.EventSink) { sink = events }
             override fun onCancel(arguments: Any?) { stopCapture(); sink = null }

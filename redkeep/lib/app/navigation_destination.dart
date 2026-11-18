@@ -75,9 +75,16 @@ String _destination(String location) {
   }
   if (const {
     '/diary/search',
+    diaryWriteTodayLocation,
+    diaryTodayLocation,
+    newNoteLocation,
     watchSearchLocation,
     watchPreferencesLocation,
   }.contains(location)) {
+    return location;
+  }
+  final diaryDay = RegExp(r'^/diary/day/([0-9-]+)$').firstMatch(location);
+  if (diaryDay != null && DiaryPeriod.tryParse(diaryDay[1]!)?.isDay == true) {
     return location;
   }
   final diaryTitle = RegExp(r'^/diary/([a-z0-9-]+)/title$')
@@ -155,6 +162,13 @@ String _requestedDestination(Uri requested) {
 
 String _gate(String path, String destination) =>
     Uri(path: path, queryParameters: {'continue': destination}).toString();
+
+/// Home screen widget launches: each opens its page, then leaves history.
+const diaryWriteTodayLocation = '/diary/write';
+const diaryTodayLocation = '/diary/today';
+const newNoteLocation = '/notes/write';
+String diaryDayLocation(DiaryPeriod date) =>
+    date.isDay ? '/diary/day/${date.key}' : AppDestination.unavailable.location;
 
 String diaryTitleLocation(DiaryPeriod date) => '/diary/${date.key}/title';
 String diaryCalendarLocation(DiaryPeriod date) => '/diary/calendar/${date.key}';

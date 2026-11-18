@@ -180,6 +180,11 @@ class TomeBinding extends StatelessWidget {
   /// Width of the corded spine on the cover's left.
   static const spine = 16.0;
 
+  /// How far the innermost tooled fillet sits inside the cover's edges (and
+  /// past the spine on the left), on a full-size cover. Contents that sit
+  /// inside it read as set into the panel.
+  static const panelInset = 20.0;
+
   final bool clasp;
   final bool shadow;
   final Widget? child;

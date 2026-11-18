@@ -16,6 +16,7 @@ class MoreShelfItem {
     required this.tint,
     this.status,
     this.ready = false,
+    this.artScale = 1,
   });
 
   final String title;
@@ -28,6 +29,10 @@ class MoreShelfItem {
   /// Live state, spoken to assistive tech and shown as a glass rivet.
   final String? status;
   final bool ready;
+
+  /// Grows artwork drawn with more empty margin than the rest, so every
+  /// character fills its cushion alike. It grows mostly into the pocket.
+  final double artScale;
 }
 
 /// The More page's destinations as stuffed cushions sitting low on the page,
@@ -413,7 +418,13 @@ class _CushionState extends State<_Cushion>
                         child: RepaintBoundary(
                           child: SizedBox.square(
                             dimension: art,
-                            child: item.artworkBuilder(art),
+                            child: Transform.scale(
+                              scale: item.artScale,
+                              // Grows mostly down into the pocket, so the
+                              // head stays level with its neighbours.
+                              alignment: const Alignment(0, -.45),
+                              child: item.artworkBuilder(art),
+                            ),
                           ),
                         ),
                       ),

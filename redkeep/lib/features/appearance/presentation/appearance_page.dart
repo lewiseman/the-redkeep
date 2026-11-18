@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/presentation/cushion.dart';
 import '../../../core/presentation/diary_typography.dart';
 import '../../../core/presentation/rendering_policy.dart';
 import '../../sync/presentation/sync_material.dart';
 import '../application/appearance_controller.dart';
 import '../application/appearance_typography.dart';
 import '../domain/appearance_preferences.dart';
+import 'appearance_controls.dart';
 import 'appearance_sky.dart';
 import 'font_picker.dart';
 
@@ -34,7 +36,6 @@ class _AppearancePageState extends ConsumerState<AppearancePage> {
   Widget build(BuildContext context) {
     final state = ref.watch(appearanceControllerProvider);
     final controller = ref.read(appearanceControllerProvider.notifier);
-    final palette = MorePalette.of(context);
     final sceneHeight =
         MediaQuery.sizeOf(context).height >= _roomySceneMinHeight
         ? 256.0
@@ -49,14 +50,6 @@ class _AppearancePageState extends ConsumerState<AppearancePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  'Make this space yours. Changes save automatically.',
-                  style: TextStyle(
-                    color: palette.muted,
-                    fontSize: 14,
-                    height: 1.5,
-                  ),
-                ),
                 if (state.loadError) ...[
                   const SizedBox(height: 16),
                   const Text(
@@ -164,6 +157,14 @@ class _SkyAppBar extends StatelessWidget {
             pinned: true,
             expandedHeight: sceneHeight,
             centerTitle: false,
+            leadingWidth: 68,
+            leading: const Padding(
+              padding: EdgeInsetsDirectional.only(start: 12),
+              child: Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: GlassBackButton(),
+              ),
+            ),
             backgroundColor: colors.surface,
             foregroundColor: foreground,
             surfaceTintColor: Colors.transparent,
@@ -229,124 +230,29 @@ class _ThemeSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final controller = ref.read(appearanceControllerProvider.notifier);
-    final palette = MorePalette.of(context);
-    final selected = state.preferences.theme;
-    final stacked = MediaQuery.textScalerOf(context).scale(14) > 20;
-    final options = [
-      for (final theme in const [
-        AppTheme.system,
-        AppTheme.light,
-        AppTheme.dark,
-      ])
-        _ThemeOption(
-          theme: theme,
-          selected: selected == theme,
-          onTap: state.canEdit ? () => controller.setTheme(theme) : null,
-        ),
-    ];
-    final deviceMode = Theme.of(context).brightness == Brightness.dark
-        ? 'dark'
-        : 'light';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const _SectionTitle('Theme'),
         const SizedBox(height: 14),
-        if (stacked)
-          for (final (index, option) in options.indexed) ...[
-            if (index > 0) const SizedBox(height: 8),
-            option,
-          ]
-        else
-          Row(
-            children: [
-              for (final (index, option) in options.indexed) ...[
-                if (index > 0) const SizedBox(width: 8),
-                Expanded(child: option),
-              ],
-            ],
-          ),
-        const SizedBox(height: 10),
-        Text(switch (selected) {
-          AppTheme.system => 'Follows your device, $deviceMode right now.',
-          AppTheme.light => 'Bright and clear, all day.',
-          AppTheme.dark => 'Low light for late nights.',
-        }, style: TextStyle(color: palette.muted, fontSize: 13, height: 1.5)),
+        GlassSegments<AppTheme>(
+          values: const [AppTheme.system, AppTheme.light, AppTheme.dark],
+          selected: state.preferences.theme,
+          labelOf: (theme) => switch (theme) {
+            AppTheme.system => 'Device',
+            AppTheme.light => 'Light',
+            AppTheme.dark => 'Dark',
+          },
+          iconOf: (theme) => switch (theme) {
+            AppTheme.system => Icons.brightness_auto_rounded,
+            AppTheme.light => Icons.wb_sunny_rounded,
+            AppTheme.dark => Icons.dark_mode_rounded,
+          },
+          semanticLabelOf: (theme) =>
+              theme == AppTheme.system ? 'Use device theme' : null,
+          onSelected: state.canEdit ? controller.setTheme : null,
+        ),
       ],
-    );
-  }
-}
-
-class _ThemeOption extends StatelessWidget {
-  const _ThemeOption({
-    required this.theme,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final AppTheme theme;
-  final bool selected;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = MorePalette.of(context);
-    final policy = RenderingPolicyScope.of(context);
-    const shape = StadiumBorder();
-    return Semantics(
-      container: true,
-      button: true,
-      inMutuallyExclusiveGroup: true,
-      checked: selected,
-      enabled: onTap != null,
-      label: theme == AppTheme.system ? 'Use device theme' : null,
-      excludeSemantics: theme == AppTheme.system,
-      child: AnimatedContainer(
-        duration: policy.duration,
-        decoration: ShapeDecoration(
-          color: selected
-              ? palette.accent.withValues(alpha: .12)
-              : Colors.transparent,
-          shape: StadiumBorder(
-            side: BorderSide(
-              color: selected ? palette.accent : palette.rule,
-              width: selected ? 1.6 : 1,
-            ),
-          ),
-        ),
-        child: Material(
-          type: MaterialType.transparency,
-          child: InkWell(
-            onTap: onTap,
-            customBorder: shape,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 48),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 8,
-                ),
-                child: Center(
-                  child: Text(
-                    switch (theme) {
-                      AppTheme.system => 'Device',
-                      AppTheme.light => 'Light',
-                      AppTheme.dark => 'Dark',
-                    },
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: selected ? palette.accent : palette.ink,
-                      fontSize: 14,
-                      height: 1.2,
-                      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
@@ -358,188 +264,18 @@ class _AccentSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final controller = ref.read(appearanceControllerProvider.notifier);
-    final palette = MorePalette.of(context);
-    final policy = RenderingPolicyScope.of(context);
-    final selected = state.preferences.accent;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const _SectionTitle('Accent color'),
-        const SizedBox(height: 16),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            // Every banner stays in view: the rack folds rather than scrolls.
-            final label = MediaQuery.textScalerOf(context).scale(12) * 5.6;
-            final columns = [AppAccent.values.length, 3].firstWhere(
-              (c) => constraints.maxWidth / c >= label,
-              orElse: () => 2,
-            );
-            final cell = constraints.maxWidth / columns;
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (
-                  var start = 0;
-                  start < AppAccent.values.length;
-                  start += columns
-                )
-                  Padding(
-                    padding: EdgeInsets.only(top: start == 0 ? 0 : 12),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        for (final accent
-                            in AppAccent.values.skip(start).take(columns))
-                          SizedBox(
-                            width: cell,
-                            child: _AccentBanner(
-                              accent: accent,
-                              selected: selected == accent,
-                              width: (cell * .5).clamp(34.0, 56.0),
-                              onTap: state.canEdit
-                                  ? () => controller.setAccent(accent)
-                                  : null,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-              ],
-            );
-          },
-        ),
-        const SizedBox(height: 10),
-        AnimatedSwitcher(
-          duration: policy.duration,
-          layoutBuilder: (current, previous) => Stack(
-            alignment: Alignment.centerLeft,
-            children: [...previous, ?current],
-          ),
-          child: Text(
-            selected.description,
-            key: ValueKey(selected),
-            style: TextStyle(color: palette.muted, fontSize: 13, height: 1.5),
-          ),
+        const SizedBox(height: 14),
+        AccentTray(
+          selected: state.preferences.accent,
+          onSelected: state.canEdit ? controller.setAccent : null,
         ),
       ],
     );
   }
-}
-
-/// Banners hang from one rail; the chosen one is let down further.
-class _AccentBanner extends StatelessWidget {
-  const _AccentBanner({
-    required this.accent,
-    required this.selected,
-    required this.width,
-    required this.onTap,
-  });
-
-  final AppAccent accent;
-  final bool selected;
-  final double width;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = MorePalette.of(context);
-    final policy = RenderingPolicyScope.of(context);
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final color = dark ? accent.darkPrimary : accent.seed;
-    final mark = ThemeData.estimateBrightnessForColor(color) == Brightness.dark
-        ? Colors.white
-        : const Color(0xFF1B1B2B);
-    return Semantics(
-      button: true,
-      selected: selected,
-      label: '${accent.label}: ${accent.description}',
-      excludeSemantics: true,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: Column(
-          children: [
-            Container(height: 2, color: palette.rule),
-            AnimatedContainer(
-              duration: policy.animate
-                  ? const Duration(milliseconds: 280)
-                  : Duration.zero,
-              curve: Curves.easeOutBack,
-              width: width,
-              height: selected ? 92 : 62,
-              child: CustomPaint(
-                painter: _BannerPainter(
-                  color: color,
-                  shaded: !policy.simplerEffects,
-                ),
-                child: selected
-                    ? Align(
-                        alignment: const Alignment(0, -.45),
-                        child: Icon(Icons.check_rounded, color: mark, size: 20),
-                      )
-                    : null,
-              ),
-            ),
-            const SizedBox(height: 8),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                accent.label,
-                maxLines: 1,
-                softWrap: false,
-                style: TextStyle(
-                  color: selected ? palette.accent : palette.muted,
-                  fontSize: 12,
-                  height: 1.3,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                ),
-              ),
-            ),
-            const SizedBox(height: 6),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _BannerPainter extends CustomPainter {
-  const _BannerPainter({required this.color, required this.shaded});
-
-  final Color color;
-  final bool shaded;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final notch = size.height - 12;
-    final path = Path()
-      ..lineTo(size.width, 0)
-      ..lineTo(size.width, size.height)
-      ..lineTo(size.width / 2, notch)
-      ..lineTo(0, size.height)
-      ..close();
-    if (shaded) canvas.drawShadow(path, Colors.black, 2.5, false);
-    canvas.drawPath(path, Paint()..color = color);
-    if (!shaded) return;
-    // Soft folds, so the cloth reads as hanging rather than as a flat chip.
-    canvas.drawPath(
-      path,
-      Paint()
-        ..shader = LinearGradient(
-          colors: [
-            Colors.black.withValues(alpha: .14),
-            Colors.white.withValues(alpha: .10),
-            Colors.black.withValues(alpha: .04),
-            Colors.white.withValues(alpha: .06),
-            Colors.black.withValues(alpha: .16),
-          ],
-        ).createShader(Offset.zero & size),
-    );
-  }
-
-  @override
-  bool shouldRepaint(_BannerPainter oldDelegate) =>
-      color != oldDelegate.color || shaded != oldDelegate.shaded;
 }
 
 /// A block of cards rather than rows: the journal font sets the whole app, so
@@ -552,18 +288,12 @@ class _TypographySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final palette = MorePalette.of(context);
     final scaler = MediaQuery.textScalerOf(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const _SectionTitle('Typography'),
-        const SizedBox(height: 6),
-        Text(
-          'One font for the app, and a pair of its own for your diary.',
-          style: TextStyle(color: palette.muted, fontSize: 13, height: 1.5),
-        ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
         _FontCard(role: FontRole.journal, state: state),
         const SizedBox(height: _gap),
         LayoutBuilder(
@@ -621,10 +351,11 @@ class _FontCard extends ConsumerWidget {
   /// Set when a row gives this card its height, to pin its name to the bottom.
   final bool fillHeight;
 
+  static const _radius = 26.0;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = MorePalette.of(context);
-    final dark = Theme.of(context).brightness == Brightness.dark;
     final text = Theme.of(context).textTheme;
     final diary = DiaryTypography.of(context);
     final fontState = ref.watch(appearanceFontProvider(role));
@@ -650,15 +381,16 @@ class _FontCard extends ConsumerWidget {
       ),
     };
 
-    final background = featured
-        ? palette.accent
-        : Color.lerp(palette.ground, palette.accent, dark ? .13 : .08)!;
-    final onAccent =
-        ThemeData.estimateBrightnessForColor(palette.accent) == Brightness.dark
-        ? Colors.white
-        : const Color(0xFF1B1B2B);
+    // The journal font sits on a slab of accent glass; the diary pair on
+    // cushions washed with it.
+    final cushion = CushionColors.of(
+      context,
+      tint: palette.accent,
+      strength: featured ? 1 : 0,
+    );
+    final onAccent = cushion.onPaper;
     final ink = featured ? onAccent : palette.ink;
-    final soft = featured ? onAccent.withValues(alpha: .82) : palette.muted;
+    final soft = featured ? onAccent.withValues(alpha: .8) : palette.muted;
     final highlight = featured ? onAccent : palette.accent;
 
     // Large text keeps what the card is for and drops the decoration.
@@ -670,14 +402,15 @@ class _FontCard extends ConsumerWidget {
       label,
       style: TextStyle(color: soft, fontSize: 12, height: 1.4),
     );
-    final arrow = Container(
-      width: 28,
-      height: 28,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: highlight.withValues(alpha: featured ? .18 : .14),
+    final arrow = SizedBox.square(
+      dimension: 32,
+      child: CustomPaint(
+        painter: _GlassDotPainter(
+          colors: cushion,
+          tint: featured ? onAccent : palette.accent,
+        ),
+        child: Icon(Icons.arrow_outward_rounded, size: 15, color: highlight),
       ),
-      child: Icon(Icons.arrow_outward_rounded, size: 15, color: highlight),
     );
     final sampleText = !showSample
         ? null
@@ -790,102 +523,148 @@ class _FontCard extends ConsumerWidget {
                     .setFontFamily(font, role),
               )
             : null,
-        child: Padding(padding: const EdgeInsets.all(16), child: body),
+        child: Padding(padding: const EdgeInsets.all(18), child: body),
       ),
     );
 
-    return Material(
-      color: background,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Stack(
-        children: [
-          if (featured && decorated)
-            Positioned(
-              right: -4,
-              bottom: -26,
-              child: IgnorePointer(
-                child: ExcludeSemantics(
-                  child: Text(
-                    'Aa',
-                    style: font.copyWith(
-                      color: onAccent.withValues(alpha: .16),
-                      fontSize: 96,
-                      height: 1.1,
-                      fontWeight: FontWeight.w600,
+    return Springy(
+      enabled: state.canEdit,
+      depth: .03,
+      child: CustomPaint(
+        painter: CushionPainter(
+          colors: cushion,
+          radius: _radius,
+          stitched: !featured,
+          glow: featured ? null : Alignment.topLeft,
+        ),
+        child: Material(
+          type: MaterialType.transparency,
+          clipBehavior: Clip.antiAlias,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(_radius),
+          ),
+          child: Stack(
+            children: [
+              if (featured && decorated)
+                Positioned(
+                  right: -4,
+                  bottom: -26,
+                  child: IgnorePointer(
+                    child: ExcludeSemantics(
+                      child: Text(
+                        'Aa',
+                        style: font.copyWith(
+                          color: onAccent.withValues(alpha: .16),
+                          fontSize: 96,
+                          height: 1.1,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
                 ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (fillHeight) Expanded(child: tappable) else tappable,
+                  if (fontState.hasError)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton(
+                        style: TextButton.styleFrom(foregroundColor: highlight),
+                        onPressed: () =>
+                            ref.invalidate(appearanceFontProvider(role)),
+                        child: const Text('Font unavailable. Retry loading'),
+                      ),
+                    ),
+                ],
               ),
-            ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (fillHeight) Expanded(child: tappable) else tappable,
-              if (fontState.hasError)
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton(
-                    style: TextButton.styleFrom(foregroundColor: highlight),
-                    onPressed: () =>
-                        ref.invalidate(appearanceFontProvider(role)),
-                    child: const Text('Font unavailable. Retry loading'),
-                  ),
-                ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
+}
+
+/// A small bead of glass behind an icon.
+class _GlassDotPainter extends CustomPainter {
+  const _GlassDotPainter({required this.colors, required this.tint});
+
+  final CushionColors colors;
+  final Color tint;
+
+  @override
+  void paint(Canvas canvas, Size size) => paintGlass(
+    canvas,
+    RRect.fromRectAndRadius(
+      Offset.zero & size,
+      Radius.circular(size.shortestSide / 2),
+    ),
+    colors: colors,
+    tint: tint,
+    fill: .22,
+    lift: .6,
+  );
+
+  @override
+  bool shouldRepaint(_GlassDotPainter old) =>
+      colors != old.colors || tint != old.tint;
 }
 
 class _MotionSection extends ConsumerWidget {
   const _MotionSection({required this.state});
   final AppearanceState state;
 
+  static const _gap = 10.0;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final controller = ref.read(appearanceControllerProvider.notifier);
     final policy = RenderingPolicyScope.of(context);
-    final palette = MorePalette.of(context);
-    final titleStyle = TextStyle(
-      color: palette.ink,
-      fontSize: 16,
-      height: 1.3,
-      fontWeight: FontWeight.w500,
+    final scaler = MediaQuery.textScalerOf(context);
+    final motion = CushionToggle(
+      title: 'Reduce motion',
+      icon: Icons.slow_motion_video_rounded,
+      switchKey: const ValueKey('appearance-reduce-motion'),
+      value: state.preferences.reduceMotion,
+      onChanged: state.canEdit ? controller.setReduceMotion : null,
     );
-    final detailStyle = TextStyle(
-      color: palette.muted,
-      fontSize: 13,
-      height: 1.45,
+    final effects = CushionToggle(
+      title: 'Simpler effects',
+      icon: Icons.auto_awesome_rounded,
+      switchKey: const ValueKey('appearance-simpler-effects'),
+      value: state.preferences.simplerEffects,
+      onChanged: state.canEdit ? controller.setSimplerEffects : null,
     );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const _SectionTitle('Motion and effects'),
-        const SizedBox(height: 6),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: Text('Reduce motion', style: titleStyle),
-          subtitle: Text(
-            'Use immediate transitions. Device motion reduction always applies.',
-            style: detailStyle,
-          ),
-          value: state.preferences.reduceMotion,
-          onChanged: state.canEdit ? controller.setReduceMotion : null,
+        const SizedBox(height: 14),
+        LayoutBuilder(
+          builder: (context, constraints) =>
+              constraints.maxWidth < 300 || scaler.scale(14) > 18
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    motion,
+                    const SizedBox(height: _gap),
+                    effects,
+                  ],
+                )
+              : IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(child: motion),
+                      const SizedBox(width: _gap),
+                      Expanded(child: effects),
+                    ],
+                  ),
+                ),
         ),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: Text('Simpler effects', style: titleStyle),
-          subtitle: Text(
-            'Use flat colors without shadows or textures. Reduced motion also enables this.',
-            style: detailStyle,
-          ),
-          value: state.preferences.simplerEffects,
-          onChanged: state.canEdit ? controller.setSimplerEffects : null,
-        ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
         _StatusLine(
           policy.osReducedMotion
               ? 'Motion is reduced by your device.'

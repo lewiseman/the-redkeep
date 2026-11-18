@@ -49,8 +49,8 @@ void main() {
     final watchlist = tester.getCenter(find.text('Watchlist'));
     final appearance = tester.getCenter(find.text('Appearance'));
     final maestar = tester.getCenter(find.text('Grand Maestar'));
-    expect(watchlist.dx, lessThan(appearance.dx));
-    expect(appearance.dx, lessThan(maestar.dx));
+    expect(maestar.dx, lessThan(appearance.dx));
+    expect(appearance.dx, lessThan(watchlist.dx));
     final height =
         tester.view.physicalSize.height / tester.view.devicePixelRatio;
     expect(watchlist.dy, greaterThan(height / 2));

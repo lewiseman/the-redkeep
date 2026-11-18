@@ -28,7 +28,6 @@ class MorePage extends ConsumerStatefulWidget {
 
 class _MorePageState extends ConsumerState<MorePage>
     with SingleTickerProviderStateMixin {
-  final _scroll = ScrollController();
   final _stackKey = GlobalKey();
   final _cardKey = GlobalKey();
 
@@ -61,7 +60,6 @@ class _MorePageState extends ConsumerState<MorePage>
     if (_tabScope?.gate == _allowsTabSwipe) _tabScope!.gate = null;
     if (_tabScope?.back == _back) _tabScope!.back = null;
     _book.dispose();
-    _scroll.dispose();
     super.dispose();
   }
 
@@ -71,18 +69,6 @@ class _MorePageState extends ConsumerState<MorePage>
     if (!_open) return false;
     _close();
     return true;
-  }
-
-  void _expand() {
-    if (RenderingPolicyScope.of(context).reducedMotion) {
-      _scroll.jumpTo(0);
-    } else {
-      _scroll.animateTo(
-        0,
-        duration: const Duration(milliseconds: 380),
-        curve: Curves.easeOutCubic,
-      );
-    }
   }
 
   Rect? _cardRect() {
@@ -126,6 +112,15 @@ class _MorePageState extends ConsumerState<MorePage>
   Widget build(BuildContext context) {
     final maestar = ref.watch(maestarStatusProvider);
     final colors = Theme.of(context).colorScheme;
+    // With the shelf down by the thumb, tall screens let the book stand taller.
+    final height = MediaQuery.sizeOf(context).height;
+    final headroom = MediaQuery.textScalerOf(context).scale(14) > 18
+        ? 0.0
+        : height >= 760
+        ? 56.0
+        : height >= 680
+        ? 28.0
+        : 0.0;
     final enabled = ref.watch(syncEnabledProvider);
     final ready = enabled && ref.watch(backupEngineProvider).hasValue;
     final signedIn = ready && ref.watch(syncAccountProvider) != null;
@@ -135,98 +130,83 @@ class _MorePageState extends ConsumerState<MorePage>
         if (mounted) _close();
       });
     }
+    // A fixed page: the book at the top, the shelf at the foot under the
+    // thumb. It only scrolls when large text needs more than the screen.
     final page = SafeArea(
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: MoreSurface.contentWidth),
           child: LayoutBuilder(
-            builder: (context, constraints) => CustomScrollView(
+            builder: (context, constraints) => SingleChildScrollView(
               key: const PageStorageKey('more-scroll'),
-              controller: _scroll,
-              slivers: [
-                if (ready)
-                  SliverPersistentHeader(
-                    pinned: true,
-                    delegate: _AccountHeader(
-                      minHeight: SyncAccountCard.compactHeight(context) + 24,
-                      maxHeight:
-                          SyncAccountCard.expandedHeight(
-                            context,
-                            isSignedIn: signedIn,
-                          ) +
-                          44,
-                      onExpand: _expand,
-                      onOpen: _openBook,
-                      cardKey: _cardKey,
-                    ),
-                  ),
-                SliverToBoxAdapter(
-                  // The shelf sits at the foot of the first screen, under the
-                  // thumb. When it does not fit, the account card folds away.
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minHeight:
-                          (constraints.maxHeight -
-                                  (ready
-                                      ? SyncAccountCard.expandedHeight(
-                                              context,
-                                              isSignedIn: signedIn,
-                                            ) +
-                                            44
-                                      : 0))
-                              .clamp(0.0, double.infinity),
-                    ),
-                    child: Align(
-                      alignment: Alignment.bottomCenter,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 22),
-                        child: MoreShelf(
-                          items: [
-                            MoreShelfItem(
-                              title: 'Watchlist',
-                              tint: colors.primary,
-                              artworkBuilder: (dimension) => LocalArtwork(
-                                assetKey: 'more.watchlist',
-                                dimension: dimension,
-                                highResolution: true,
-                              ),
-                              onTap: () => context.push('/watchlist'),
-                            ),
-                            MoreShelfItem(
-                              title: 'Appearance',
-                              tint: colors.tertiary,
-                              artworkBuilder: (dimension) => LocalArtwork(
-                                assetKey: 'more.appearance',
-                                dimension: dimension,
-                              ),
-                              onTap: () => context.push('/settings'),
-                            ),
-                            MoreShelfItem(
-                              title: 'Grand Maestar',
-                              tint: colors.secondary,
-                              status: maestar.label,
-                              ready: maestar.ready,
-                              artworkBuilder: (dimension) => Image.asset(
-                                'assets/branding/grand_maestar.png',
-                                fit: BoxFit.contain,
-                                filterQuality: FilterQuality.medium,
-                                excludeFromSemantics: true,
-                                cacheHeight:
-                                    (dimension *
-                                            MediaQuery.devicePixelRatioOf(
-                                              context,
-                                            ))
-                                        .ceil(),
-                              ),
-                              onTap: () => context.push('/settings/brain'),
-                            ),
-                          ],
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Without the book, the shelf still sits at the foot.
+                    if (!ready)
+                      const SizedBox.shrink()
+                    else
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
+                        child: SyncAccountCard(
+                          key: _cardKey,
+                          headroom: headroom,
+                          onOpen: _openBook,
                         ),
                       ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 24, 16, 22),
+                      child: MoreShelf(
+                        items: [
+                          MoreShelfItem(
+                            title: 'Grand Maestar',
+                            tint: colors.secondary,
+                            status: maestar.label,
+                            ready: maestar.ready,
+                            artworkBuilder: (dimension) => Image.asset(
+                              'assets/branding/grand_maestar.png',
+                              fit: BoxFit.contain,
+                              filterQuality: FilterQuality.medium,
+                              excludeFromSemantics: true,
+                              cacheHeight:
+                                  (dimension *
+                                          MediaQuery.devicePixelRatioOf(
+                                            context,
+                                          ))
+                                      .ceil(),
+                            ),
+                            onTap: () => context.push('/settings/brain'),
+                          ),
+                          MoreShelfItem(
+                            title: 'Appearance',
+                            tint: colors.tertiary,
+                            artworkBuilder: (dimension) => LocalArtwork(
+                              assetKey: 'more.appearance',
+                              dimension: dimension,
+                            ),
+                            onTap: () => context.push('/settings'),
+                          ),
+                          MoreShelfItem(
+                            title: 'Watchlist',
+                            // The portrait has more margin than the others.
+                            artScale: 1.2,
+                            tint: colors.primary,
+                            artworkBuilder: (dimension) => LocalArtwork(
+                              assetKey: 'more.watchlist',
+                              dimension: dimension,
+                              highResolution: true,
+                            ),
+                            onTap: () => context.push('/watchlist'),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
@@ -493,7 +473,7 @@ class _Cover extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tome = TomePalette.of(context);
-    final medallion = lerpDouble(84, 128, grow)!;
+    final medallion = lerpDouble(SyncAccountCard.medallionSize, 128, grow)!;
     final face = Stack(
       fit: StackFit.expand,
       children: [
@@ -565,61 +545,4 @@ class _Cover extends StatelessWidget {
       child: RepaintBoundary(child: face),
     );
   }
-}
-
-class _AccountHeader extends SliverPersistentHeaderDelegate {
-  const _AccountHeader({
-    required this.minHeight,
-    required this.maxHeight,
-    required this.onExpand,
-    required this.onOpen,
-    required this.cardKey,
-  });
-
-  final double minHeight, maxHeight;
-  final VoidCallback onExpand;
-  final VoidCallback onOpen;
-  final GlobalKey cardKey;
-
-  @override
-  double get minExtent => minHeight;
-  @override
-  double get maxExtent => maxHeight;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    final progress = (shrinkOffset / (maxExtent - minExtent)).clamp(0.0, 1.0);
-    // Fill the sliver's exact allocation. Shrink-wrapping fractional padding
-    // can otherwise make paintExtent a fraction smaller than layoutExtent.
-    return SizedBox.expand(
-      child: MoreSurface(
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(
-            20,
-            lerpDouble(28, 12, progress)!,
-            20,
-            lerpDouble(16, 12, progress)!,
-          ),
-          child: SyncAccountCard(
-            key: cardKey,
-            collapseProgress: progress,
-            onExpand: onExpand,
-            onOpen: onOpen,
-          ),
-        ),
-      ),
-    );
-  }
-
-  @override
-  bool shouldRebuild(_AccountHeader oldDelegate) =>
-      minHeight != oldDelegate.minHeight ||
-      maxHeight != oldDelegate.maxHeight ||
-      onExpand != oldDelegate.onExpand ||
-      onOpen != oldDelegate.onOpen ||
-      cardKey != oldDelegate.cardKey;
 }

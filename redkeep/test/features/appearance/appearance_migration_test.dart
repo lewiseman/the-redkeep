@@ -115,8 +115,10 @@ void main() {
         initialLocation: '/settings',
         repository: repository,
       );
-      await revealBelowAppBar(tester, find.text('Teal'));
-      await tester.tap(find.text('Teal'));
+      // Only the chosen accent is named; each bead speaks its own name.
+      final teal = find.bySemanticsLabel(RegExp(r'^Teal: '));
+      await revealBelowAppBar(tester, teal);
+      await tester.tap(teal);
       await tester.pumpAndSettle();
       expect(repository.value.accent, AppAccent.teal);
       await revealBelowAppBar(tester, find.text('Journal font'));

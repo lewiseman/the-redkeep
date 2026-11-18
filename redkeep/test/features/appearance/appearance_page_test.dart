@@ -5,6 +5,7 @@ import 'package:redkeep/features/diary/presentation/diary_paper_material.dart';
 import 'package:redkeep/core/presentation/redkeep_theme.dart';
 import 'package:redkeep/core/presentation/rendering_policy.dart';
 import 'package:redkeep/features/appearance/domain/appearance_preferences.dart';
+import 'package:redkeep/features/appearance/presentation/appearance_controls.dart';
 import 'package:redkeep/features/appearance/presentation/appearance_page.dart';
 import 'package:redkeep/features/appearance/presentation/appearance_sky.dart';
 
@@ -63,7 +64,7 @@ void main() {
       expect(Theme.of(context).brightness, Brightness.dark);
       expect(repository.value.theme, AppTheme.dark);
 
-      final motion = find.widgetWithText(SwitchListTile, 'Reduce motion');
+      final motion = find.byKey(const ValueKey('appearance-reduce-motion'));
       await revealBelowAppBar(tester, motion);
       await tester.tap(motion);
       await tester.pumpAndSettle();
@@ -134,12 +135,8 @@ void main() {
           repository: repository,
         );
         expect(tester.takeException(), isNull);
-        final effects = find.widgetWithText(SwitchListTile, 'Simpler effects');
         // Scroll the actual switch into the keyboard-constrained viewport.
-        final toggle = find.descendant(
-          of: effects,
-          matching: find.byType(Switch),
-        );
+        final toggle = find.byKey(const ValueKey('appearance-simpler-effects'));
         await revealBelowAppBar(tester, toggle);
         await tester.tap(toggle);
         await tester.pumpAndSettle();
@@ -294,4 +291,53 @@ void main() {
       expect(theme.textTheme.bodyLarge!.fontSize, 18);
     }
   });
+
+  testWidgets(
+    'accent beads and the theme drop choose live; settings speak as toggles',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final repository = FakeAppearanceRepository();
+      addTearDown(repository.close);
+      await pumpApp(
+        tester,
+        initialLocation: '/settings',
+        repository: repository,
+      );
+      // No subtitles: the controls carry what they mean.
+      expect(find.text('Low light for late nights.'), findsNothing);
+      expect(find.byType(AccentTray), findsOneWidget);
+
+      await tester.tap(find.bySemanticsLabel(RegExp(r'^Plum: ')));
+      await tester.pumpAndSettle();
+      expect(repository.value.accent, AppAccent.plum);
+      expect(find.text('Plum'), findsOneWidget);
+
+      await tester.tap(find.bySemanticsLabel('Use device theme'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Light'));
+      await tester.pumpAndSettle();
+      expect(repository.value.theme, AppTheme.light);
+
+      final effects = find.byKey(const ValueKey('appearance-simpler-effects'));
+      await revealBelowAppBar(tester, effects);
+      expect(
+        tester.getSemantics(
+          find.ancestor(of: effects, matching: find.byType(CushionToggle)),
+        ),
+        matchesSemantics(
+          label: 'Simpler effects',
+          hasToggledState: true,
+          isToggled: false,
+          hasEnabledState: true,
+          isEnabled: true,
+          hasTapAction: true,
+        ),
+      );
+      await tester.tap(find.text('Simpler effects'));
+      await tester.pumpAndSettle();
+      expect(repository.value.simplerEffects, isTrue);
+      expect(tester.takeException(), isNull);
+      semantics.dispose();
+    },
+  );
 }

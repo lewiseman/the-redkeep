@@ -105,16 +105,7 @@ void main() {
                         builder: (context) => Material(
                           child: Align(
                             alignment: Alignment.topCenter,
-                            child: SizedBox(
-                              height: SyncAccountCard.expandedHeight(
-                                context,
-                                isSignedIn: true,
-                              ),
-                              child: SyncAccountCard(
-                                collapseProgress: 0,
-                                onExpand: () {},
-                              ),
-                            ),
+                            child: const SyncAccountCard(),
                           ),
                         ),
                       ),
@@ -126,23 +117,11 @@ void main() {
                       account: FakeBackupAuth.owner,
                     );
                   }
-                  final collapsed = screen == 'collapsed';
-                  return Align(
+                  return const Align(
                     alignment: Alignment.topCenter,
                     child: Padding(
-                      padding: const EdgeInsets.all(28),
-                      child: SizedBox(
-                        height: collapsed
-                            ? SyncAccountCard.compactHeight(context)
-                            : SyncAccountCard.expandedHeight(
-                                context,
-                                isSignedIn: connected,
-                              ),
-                        child: SyncAccountCard(
-                          collapseProgress: collapsed ? 1 : 0,
-                          onExpand: () {},
-                        ),
-                      ),
+                      padding: EdgeInsets.all(28),
+                      child: SyncAccountCard(),
                     ),
                   );
                 },
@@ -236,26 +215,30 @@ void main() {
 
   for (final brightness in Brightness.values) {
     testWidgets(
-      'scrolling collapses the backup card; tapping expands it ${brightness.name}',
+      'More holds still: the book stays open above the shelf ${brightness.name}',
       (tester) async {
         await pump(tester, brightness: brightness, screen: 'more');
-        expect(find.text('Appearance'), findsOneWidget);
-        expect(
-          tester.getSize(find.byKey(const ValueKey('sync-avatar'))).width,
-          84,
+        final avatar = find.byKey(const ValueKey('sync-avatar'));
+        final plate = find.byKey(const ValueKey('sync-card-status'));
+        expect(tester.getSize(avatar).width, SyncAccountCard.medallionSize);
+        // The backup bookplate sits inside the book, below the name.
+        final card = tester.getRect(
+          find.byKey(const ValueKey('sync-account-card')),
         );
-        await tester.drag(find.byType(CustomScrollView), const Offset(0, -600));
+        expect(card.contains(tester.getCenter(plate)), isTrue);
+        expect(
+          tester.getTopLeft(plate).dy,
+          greaterThan(tester.getBottomLeft(avatar).dy),
+        );
+        expect(
+          tester.getTopLeft(find.text('Appearance')).dy,
+          greaterThan(card.bottom),
+        );
+        final before = tester.getTopLeft(avatar);
+        await tester.drag(find.text('Appearance'), const Offset(0, -400));
         await tester.pumpAndSettle();
-        expect(
-          tester.getSize(find.byKey(const ValueKey('sync-avatar'))).width,
-          32,
-        );
-        await tester.tap(find.byKey(const ValueKey('sync-avatar')));
-        await tester.pumpAndSettle();
-        expect(
-          tester.getSize(find.byKey(const ValueKey('sync-avatar'))).width,
-          84,
-        );
+        expect(tester.getTopLeft(avatar), before);
+        expect(tester.getSize(avatar).width, SyncAccountCard.medallionSize);
         await unmount(tester);
       },
     );
@@ -356,14 +339,7 @@ void main() {
       await unmount(tester);
     });
 
-    for (final screen in [
-      'more',
-      'open',
-      'expanded',
-      'collapsed',
-      'sheet',
-      'reset',
-    ]) {
+    for (final screen in ['more', 'open', 'expanded', 'sheet', 'reset']) {
       testWidgets('backup UI 320px 3x ${brightness.name} $screen', (
         tester,
       ) async {

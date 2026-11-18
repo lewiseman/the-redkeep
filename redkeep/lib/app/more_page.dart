@@ -17,6 +17,7 @@ import '../features/sync/presentation/backup_panel.dart';
 import '../features/sync/presentation/sync_card.dart';
 import '../features/sync/presentation/sync_material.dart';
 import '../features/sync/presentation/tome_material.dart';
+import '../features/watchlist/presentation/watch_host.dart';
 import 'main_tabs.dart';
 import 'writing_shell.dart';
 
@@ -194,11 +195,9 @@ class _MorePageState extends ConsumerState<MorePage>
                             // The portrait has more margin than the others.
                             artScale: 1.2,
                             tint: colors.primary,
-                            artworkBuilder: (dimension) => LocalArtwork(
-                              assetKey: 'more.watchlist',
-                              dimension: dimension,
-                              highResolution: true,
-                            ),
+                            // Flies out of the pocket onto the Watchlist.
+                            artworkBuilder: (dimension) =>
+                                WatchlistMascot(dimension: dimension),
                             onTap: () => context.push('/watchlist'),
                           ),
                         ],

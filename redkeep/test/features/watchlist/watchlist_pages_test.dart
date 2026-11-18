@@ -1,13 +1,18 @@
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:redkeep/core/presentation/cushion.dart';
 import 'package:redkeep/core/storage/app_database.dart';
 import 'package:redkeep/features/watchlist/data/drift_watchlist_repository.dart';
 import 'package:redkeep/features/watchlist/domain/catalog_title.dart';
 import 'package:redkeep/features/watchlist/domain/watch_title.dart';
 import 'package:redkeep/features/watchlist/presentation/watch_seasons.dart';
 import 'package:redkeep/features/watchlist/presentation/watch_title_extras.dart';
+import 'package:redkeep/features/watchlist/presentation/watch_host.dart';
+import 'package:redkeep/features/watchlist/presentation/watch_spin.dart';
+import 'package:redkeep/features/watchlist/presentation/watch_wall.dart';
 import 'package:redkeep/features/watchlist/presentation/watch_widgets.dart';
+import 'package:redkeep/features/watchlist/presentation/watchlist_page.dart';
 
 import '../../support/pump_app.dart';
 import 'watchlist_repository_test.dart' show thrones;
@@ -44,7 +49,7 @@ void main() {
     });
   }
 
-  pageTest('the Library groups saved titles by status and list', (
+  pageTest('the wall filters from the dock and hides empty statuses', (
     tester,
   ) async {
     await repository.setStatus(matrix, WatchStatus.planned);
@@ -53,32 +58,188 @@ void main() {
 
     expect(find.text('The Matrix'), findsOneWidget);
     expect(find.text('Game of Thrones'), findsOneWidget);
-    expect(find.text('Planned'), findsWidgets, reason: 'tab and badge');
+    expect(
+      find.textContaining('to see'),
+      findsNothing,
+      reason: 'no tally under the title',
+    );
+    expect(find.widgetWithText(WatchFilterPill, 'Planned'), findsOneWidget);
+    expect(
+      find.widgetWithText(WatchFilterPill, 'Watching'),
+      findsNothing,
+      reason: 'empty statuses stay out of the dock',
+    );
 
-    await tester.tap(find.widgetWithText(Tab, 'Watching'));
-    await tester.pumpAndSettle();
-    expect(find.text('Nothing on the go'), findsOneWidget);
-
-    await tester.ensureVisible(find.widgetWithText(Tab, 'Weekends'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(Tab, 'Weekends'));
+    await tester.tap(find.widgetWithText(WatchFilterPill, 'Weekends'));
     await tester.pumpAndSettle();
     expect(find.text('Game of Thrones'), findsOneWidget);
-    expect(find.text('1 title'), findsOneWidget);
+    expect(find.text('The Matrix'), findsNothing);
   });
 
-  pageTest('a new list is named in a dialog and gets its own tab', (
+  pageTest('a double tap stamps a poster watched, and undo lifts it', (
     tester,
   ) async {
+    await repository.setStatus(matrix, WatchStatus.planned);
     await pumpApp(tester, initialLocation: '/watchlist', database: db);
-    await tester.tap(find.byTooltip('New list'));
+    expect(find.text('WATCHED'), findsNothing);
+
+    final poster = find.byType(WallPolaroid);
+    await tester.tap(poster);
+    await tester.pump(const Duration(milliseconds: 60));
+    await tester.tap(poster);
+    await tester.pumpAndSettle();
+    expect((await db.select(db.watchTitles).getSingle()).status, 'completed');
+    expect(find.text('WATCHED'), findsOneWidget);
+
+    await tester.tap(find.text('Undo'));
+    await tester.pumpAndSettle();
+    expect((await db.select(db.watchTitles).getSingle()).status, 'planned');
+    expect(find.text('WATCHED'), findsNothing);
+  });
+
+  pageTest('spinning the reel lands on a title and can open it', (
+    tester,
+  ) async {
+    await repository.setStatus(matrix, WatchStatus.planned);
+    await repository.setStatus(thrones, WatchStatus.watching);
+    await pumpApp(tester, initialLocation: '/watchlist', database: db);
+
+    await tester.tap(find.text('Can’t choose? Tap me and I’ll pick one.'));
+    await tester.pumpAndSettle();
+    expect(find.byType(WatchSpinStage), findsOneWidget);
+    expect(find.text('How about…'), findsOneWidget);
+    final landed = ['The Matrix', 'Game of Thrones'].where(
+      (t) => find
+          .descendant(of: find.byType(WatchSpinStage), matching: find.text(t))
+          .evaluate()
+          .isNotEmpty,
+    );
+    expect(landed, hasLength(1));
+
+    await tester.tap(find.text('Spin again'));
+    await tester.pumpAndSettle();
+    expect(find.text('How about…'), findsOneWidget);
+    await tester.tap(find.byTooltip('Close'));
+    await tester.pumpAndSettle();
+    expect(find.byType(WatchSpinStage), findsNothing);
+  });
+
+  pageTest('Tyrion flies from More and is on the wall from its first frame', (
+    tester,
+  ) async {
+    await pumpApp(tester, initialLocation: '/more', database: db);
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.byType(WatchlistMascot), findsOneWidget);
+
+    await tester.tap(find.text('Watchlist'));
+    await tester.pump();
+    // Before the wall's titles arrive, the header is already there for him
+    // to land on, so the flight has both ends.
+    expect(find.byType(WatchlistMascot, skipOffstage: false), findsNWidgets(2));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.byType(WatchlistPage), findsOneWidget);
+    expect(find.text('Nothing on your watchlist yet'), findsOneWidget);
+    expect(
+      find.byType(SpeechBubble),
+      findsNothing,
+      reason: 'nothing to pick between',
+    );
+  });
+
+  pageTest('Tyrion only ever offers to pick something to watch', (
+    tester,
+  ) async {
+    await repository.setStatus(matrix, WatchStatus.planned);
+    await pumpApp(tester, initialLocation: '/watchlist', database: db);
+    expect(
+      find.byType(SpeechBubble),
+      findsNothing,
+      reason: 'one title is no choice',
+    );
+
+    await repository.setStatus(thrones, WatchStatus.planned);
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Can’t choose? Tap me and I’ll pick one.'),
+      findsOneWidget,
+    );
+    expect(
+      find.bySemanticsLabel('Spin the reel'),
+      findsNothing,
+      reason: 'Tyrion is the one way to pick',
+    );
+    await tester.tap(find.byType(WatchlistMascot));
+    await tester.pumpAndSettle();
+    expect(find.byType(WatchSpinStage), findsOneWidget);
+    await tester.tap(find.byTooltip('Close'));
+    await tester.pumpAndSettle();
+
+    await repository.setStatus(matrix, WatchStatus.completed);
+    await repository.setStatus(thrones, WatchStatus.completed);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Fancy a rewatch? Tap me and I’ll pick one.'));
+    await tester.pumpAndSettle();
+    expect(find.byType(WatchSpinStage), findsOneWidget);
+    await tester.tap(find.byTooltip('Close'));
+    await tester.pumpAndSettle();
+  });
+
+  pageTest('the header collapses into a bar and never rests halfway', (
+    tester,
+  ) async {
+    for (var id = 1; id <= 8; id++) {
+      await repository.setStatus(
+        CatalogTitle(key: WatchKey(WatchMedia.movie, id), title: 'Film $id'),
+        WatchStatus.planned,
+      );
+    }
+    await pumpApp(tester, initialLocation: '/watchlist', database: db);
+    final wall = find.byType(CustomScrollView);
+    double offset() => tester
+        .state<ScrollableState>(find.byType(Scrollable).first)
+        .position
+        .pixels;
+    final header = tester.widget<SliverPersistentHeader>(
+      find.byType(SliverPersistentHeader),
+    );
+    final travel = header.delegate.maxExtent - header.delegate.minExtent;
+    expect(find.byType(SpeechBubble), findsOneWidget);
+
+    // Let go a little way in: it eases back open.
+    await tester.drag(wall, Offset(0, -travel * .3));
+    await tester.pumpAndSettle();
+    expect(offset(), 0);
+
+    // Past halfway: it closes into the bar, and the bubble is gone.
+    await tester.drag(wall, Offset(0, -travel * .7));
+    await tester.pumpAndSettle();
+    expect(offset(), moreOrLessEquals(travel));
+    expect(find.byType(SpeechBubble), findsNothing);
+    expect(find.text('Watchlist'), findsWidgets);
+    expect(find.byType(GlassBackButton), findsOneWidget);
+
+    // Tyrion still picks from his porthole.
+    await tester.tap(find.byType(WatchlistMascot));
+    await tester.pumpAndSettle();
+    expect(find.byType(WatchSpinStage), findsOneWidget);
+    await tester.tap(find.byTooltip('Close'));
+    await tester.pumpAndSettle();
+  });
+
+  pageTest('a new list is named in a dialog and gets its own pill', (
+    tester,
+  ) async {
+    await repository.setStatus(matrix, WatchStatus.planned);
+    await pumpApp(tester, initialLocation: '/watchlist', database: db);
+    await tester.tap(find.bySemanticsLabel('New list'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'Weekends');
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
-    expect(find.widgetWithText(Tab, 'Weekends'), findsOneWidget);
+    expect(find.widgetWithText(WatchFilterPill, 'Weekends'), findsOneWidget);
+    expect(find.text('This list is empty'), findsOneWidget);
     expect((await db.select(db.watchLists).getSingle()).name, 'Weekends');
   });
 

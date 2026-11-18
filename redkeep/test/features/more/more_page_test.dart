@@ -11,7 +11,6 @@ import 'package:sync_wise/sync_wise.dart';
 import 'package:redkeep/features/appearance/domain/appearance_preferences.dart';
 import 'package:redkeep/features/appearance/presentation/appearance_page.dart';
 import 'package:redkeep/features/assets/presentation/local_artwork.dart';
-import 'package:redkeep/features/more/presentation/more_index_entry.dart';
 import 'package:redkeep/features/sync/presentation/sync_card.dart';
 import 'package:redkeep/features/watchlist/presentation/watchlist_page.dart';
 
@@ -42,10 +41,22 @@ void main() {
     expect(find.text('Friends'), findsNothing);
     expect(find.text('Local QVAC'), findsNothing);
     expect(find.text('Brain'), findsNothing);
-    expect(find.text('Colors, theme and fonts'), findsOneWidget);
+    // Titles only: the cushions carry no subtitles.
+    expect(find.text('Colors, theme and fonts'), findsNothing);
+    expect(find.text('Films and shows to watch'), findsNothing);
+    expect(find.byKey(const ValueKey('more-shelf-pockets')), findsOneWidget);
+    // Side by side, in reading order, low on the page within thumb reach.
+    final watchlist = tester.getCenter(find.text('Watchlist'));
+    final appearance = tester.getCenter(find.text('Appearance'));
+    final maestar = tester.getCenter(find.text('Grand Maestar'));
+    expect(watchlist.dx, lessThan(appearance.dx));
+    expect(appearance.dx, lessThan(maestar.dx));
+    final height =
+        tester.view.physicalSize.height / tester.view.devicePixelRatio;
+    expect(watchlist.dy, greaterThan(height / 2));
     expect(
-      tester.getTopLeft(find.text('Watchlist')).dy,
-      lessThan(tester.getTopLeft(find.text('Appearance')).dy),
+      find.bySemanticsLabel(RegExp(r'^Grand Maestar, .+')),
+      findsOneWidget,
     );
     expect(find.byType(SyncAccountCard), findsNothing);
     expect(aiProvider.requests, isEmpty);
@@ -191,20 +202,22 @@ void main() {
           initialLocation: '/more',
           repository: preferences,
         );
-        final showArtwork = layout.width - 56 >= 250 && layout.scale * 14 <= 20;
+        // Three cushions side by side when they fit; otherwise one per row.
+        final pockets =
+            (layout.width - 32 - 20) / 3 >= 84 && layout.scale <= 1.3;
+        expect(
+          find.byKey(const ValueKey('more-shelf-pockets')),
+          pockets ? findsOneWidget : findsNothing,
+        );
+        expect(
+          find.byKey(const ValueKey('more-shelf-rows')),
+          pockets ? findsNothing : findsOneWidget,
+        );
+        final showArtwork =
+            pockets || (layout.width - 32 >= 250 && layout.scale * 14 <= 20);
         expect(
           appearanceArtwork(),
           showArtwork ? findsOneWidget : findsNothing,
-        );
-        final paints = tester.widgetList<CustomPaint>(
-          find.descendant(
-            of: find.byType(MoreIndexEntry),
-            matching: find.byType(CustomPaint),
-          ),
-        );
-        expect(
-          paints.where((paint) => paint.painter != null).length,
-          showArtwork && !layout.simple && !layout.reduced ? 3 : 0,
         );
         for (final label in ['Watchlist', 'Appearance', 'Grand Maestar']) {
           final entry = find.text(label);

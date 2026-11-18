@@ -10,7 +10,7 @@ import 'package:go_router/go_router.dart';
 
 import '../features/assets/presentation/local_artwork.dart';
 import '../features/more/application/maestar_status.dart';
-import '../features/more/presentation/more_index_entry.dart';
+import '../features/more/presentation/more_shelf.dart';
 import '../features/onboarding/application/onboarding_controller.dart';
 import '../features/sync/application/sync_providers.dart';
 import '../features/sync/presentation/backup_panel.dart';
@@ -125,6 +125,7 @@ class _MorePageState extends ConsumerState<MorePage>
   @override
   Widget build(BuildContext context) {
     final maestar = ref.watch(maestarStatusProvider);
+    final colors = Theme.of(context).colorScheme;
     final enabled = ref.watch(syncEnabledProvider);
     final ready = enabled && ref.watch(backupEngineProvider).hasValue;
     final signedIn = ready && ref.watch(syncAccountProvider) != null;
@@ -160,59 +161,67 @@ class _MorePageState extends ConsumerState<MorePage>
                     ),
                   ),
                 SliverToBoxAdapter(
+                  // The shelf sits at the foot of the first screen, under the
+                  // thumb. When it does not fit, the account card folds away.
                   child: ConstrainedBox(
                     constraints: BoxConstraints(
-                      minHeight: ready
-                          ? (constraints.maxHeight -
-                                    SyncAccountCard.compactHeight(context) -
-                                    24)
-                                .clamp(240.0, double.infinity)
-                          : 0,
+                      minHeight:
+                          (constraints.maxHeight -
+                                  (ready
+                                      ? SyncAccountCard.expandedHeight(
+                                              context,
+                                              isSignedIn: signedIn,
+                                            ) +
+                                            44
+                                      : 0))
+                              .clamp(0.0, double.infinity),
                     ),
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(28, 4, 28, 32),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          MoreIndexEntry(
-                            title: 'Watchlist',
-                            description: 'Films and shows to watch',
-                            artworkBuilder: (dimension) => LocalArtwork(
-                              assetKey: 'more.watchlist',
-                              dimension: dimension,
-                              highResolution: true,
+                    child: Align(
+                      alignment: Alignment.bottomCenter,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 22),
+                        child: MoreShelf(
+                          items: [
+                            MoreShelfItem(
+                              title: 'Watchlist',
+                              tint: colors.primary,
+                              artworkBuilder: (dimension) => LocalArtwork(
+                                assetKey: 'more.watchlist',
+                                dimension: dimension,
+                                highResolution: true,
+                              ),
+                              onTap: () => context.push('/watchlist'),
                             ),
-                            onTap: () => context.push('/watchlist'),
-                          ),
-                          MoreIndexEntry(
-                            title: 'Appearance',
-                            description: 'Colors, theme and fonts',
-                            artworkBuilder: (dimension) => LocalArtwork(
-                              assetKey: 'more.appearance',
-                              dimension: dimension,
+                            MoreShelfItem(
+                              title: 'Appearance',
+                              tint: colors.tertiary,
+                              artworkBuilder: (dimension) => LocalArtwork(
+                                assetKey: 'more.appearance',
+                                dimension: dimension,
+                              ),
+                              onTap: () => context.push('/settings'),
                             ),
-                            onTap: () => context.push('/settings'),
-                          ),
-                          MoreIndexEntry(
-                            title: 'Grand Maestar',
-                            status: maestar.label,
-                            ready: maestar.ready,
-                            showDivider: false,
-                            artworkBuilder: (dimension) => Image.asset(
-                              'assets/branding/grand_maestar.png',
-                              fit: BoxFit.contain,
-                              filterQuality: FilterQuality.medium,
-                              excludeFromSemantics: true,
-                              cacheHeight:
-                                  (dimension *
-                                          MediaQuery.devicePixelRatioOf(
-                                            context,
-                                          ))
-                                      .ceil(),
+                            MoreShelfItem(
+                              title: 'Grand Maestar',
+                              tint: colors.secondary,
+                              status: maestar.label,
+                              ready: maestar.ready,
+                              artworkBuilder: (dimension) => Image.asset(
+                                'assets/branding/grand_maestar.png',
+                                fit: BoxFit.contain,
+                                filterQuality: FilterQuality.medium,
+                                excludeFromSemantics: true,
+                                cacheHeight:
+                                    (dimension *
+                                            MediaQuery.devicePixelRatioOf(
+                                              context,
+                                            ))
+                                        .ceil(),
+                              ),
+                              onTap: () => context.push('/settings/brain'),
                             ),
-                            onTap: () => context.push('/settings/brain'),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),

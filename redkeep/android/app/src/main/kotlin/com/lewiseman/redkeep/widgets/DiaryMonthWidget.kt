@@ -342,7 +342,17 @@ private fun Day(
     }
     var outer = GlanceModifier.size(size)
         // Today writes today's page until it has writing, then opens it.
-        .clickable(openApp(context, if (today && !written) WidgetLinks.WRITE else WidgetLinks.day(day)))
+        // Days still to come can't be written, so they just open the diary.
+        .clickable(
+            openApp(
+                context,
+                when {
+                    future -> WidgetLinks.DIARY
+                    today && !written -> WidgetLinks.WRITE
+                    else -> WidgetLinks.day(day)
+                },
+            ),
+        )
         .semantics { contentDescription = described }
     if (today) outer = outer.shape(R.drawable.widget_ring, colors.seal)
     Box(outer, contentAlignment = Alignment.Center) {

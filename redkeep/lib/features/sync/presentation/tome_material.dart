@@ -12,7 +12,13 @@ class TomePalette {
   TomePalette.of(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final dark = colors.brightness == Brightness.dark;
-    leather = Color.lerp(const Color(0xff3b2619), colors.primary, .06)!;
+    // Dark mode binds the journal in deep brown leather; light mode in a
+    // mid saddle tan, still dark enough for its gilt and lettering to read.
+    leather = Color.lerp(
+      dark ? const Color(0xff3b2619) : const Color(0xff6e4a2e),
+      colors.primary,
+      .06,
+    )!;
     leatherLight = Color.lerp(leather, const Color(0xff8b6647), .34)!;
     leatherDeep = Color.lerp(leather, const Color(0xff0a0604), .55)!;
     board = Color.lerp(leather, const Color(0xff0a0604), .76)!;
@@ -23,7 +29,7 @@ class TomePalette {
     gilt = dark ? const Color(0xffbfa36b) : const Color(0xffc8aa6c);
     giltDeep = const Color(0xff6b5128);
     onLeather = const Color(0xffe6d5b0);
-    onLeatherMuted = onLeather.withValues(alpha: .62);
+    onLeatherMuted = onLeather.withValues(alpha: dark ? .62 : .84);
     warning = const Color(0xffffa493);
     pages = dark ? const Color(0xffa69170) : const Color(0xffc9b48c);
     pageLine = const Color(0xff4f3c22).withValues(alpha: .5);

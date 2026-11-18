@@ -536,6 +536,52 @@ void main() {
     expect(stamp.bottom, lessThanOrEqualTo(writing.top));
   });
 
+  for (final reduced in [false, true]) {
+    noteTest('the dock reshapes into the writing tools; reduced=$reduced', (
+      tester,
+    ) async {
+      await seed();
+      final appearance = FakeAppearanceRepository(
+        AppearancePreferences(reduceMotion: reduced),
+      );
+      addTearDown(appearance.close);
+      await pumpApp(
+        tester,
+        initialLocation: noteLocation(id),
+        notes: repo,
+        database: db,
+        repository: appearance,
+      );
+      final capsule = find.byKey(const ValueKey('note-format-capsule'));
+      Finder pill(Finder of) =>
+          find.descendant(of: of, matching: find.byType(DecoratedBox)).first;
+      final dockWidth = tester.getSize(readDock()).width;
+
+      await tester.tap(find.byTooltip('Edit note'));
+      await tester.pump();
+      // The tools appear at once, in the dock's shape.
+      expect(capsule, findsOneWidget);
+      final start = tester.getSize(pill(capsule)).width;
+      await tester.pumpAndSettle();
+      final end = tester.getSize(pill(capsule)).width;
+      expect(end, lessThan(dockWidth));
+      if (!reduced) {
+        // Its contents start at the dock's; only the pill's padding differs.
+        expect(start, closeTo(dockWidth, 6));
+      }
+
+      // And back: the dock grows out of the tools.
+      await tester.tap(find.byTooltip('Close editor'));
+      await tester.pump();
+      if (!reduced) {
+        expect(tester.getSize(readDock()).width, closeTo(end, 6));
+      }
+      await tester.pumpAndSettle();
+      expect(tester.getSize(readDock()).width, closeTo(dockWidth, .5));
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   noteTest('create, read, edit and confirmed deletion on one page', (
     tester,
   ) async {

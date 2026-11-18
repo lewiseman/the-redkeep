@@ -223,19 +223,8 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
               backTooltip: 'Close editor',
               onBack: () => _finish(widget.onBack),
               actions: [
-                // Reading and editing show the same AI and more buttons, so
-                // switching modes leaves the bar still: no fade-in, and no
-                // dimmed AI while the editor loads (a tap before then does nothing).
-                NoteAiButton(
-                  onPressed: () async {
-                    if (ref.read(noteEditorProvider(widget.id)).value == null) {
-                      return;
-                    }
-                    // The chat reads the open writing and saves it before
-                    // any change is made.
-                    await context.push(noteChatLocation(widget.id));
-                  },
-                ),
+                // Writing keeps the bar to Back and the note's actions; the
+                // Maester is offered while reading.
                 // The same note actions reading offers; tags and background
                 // join the draft, pin and delete act on the saved note.
                 KeyedSubtree(
@@ -484,37 +473,42 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
                       ),
                     ),
                   ),
-                  if (value != null)
+                  // Shown from the first frame, so it can grow straight out
+                  // of the reading dock; its tools wake once the note loads.
+                  // Neutral like the dock; only the paper takes the
+                  // note's color.
+                  if (!editor.hasError)
                     Positioned(
                       left: 0,
                       right: 0,
                       bottom: 0,
-                      child: NoteBarEntrance(
-                        // Neutral like the reading dock; only the paper
-                        // takes the note's color.
-                        child: NoteChromeTheme(
-                          child: NoteFormatBar(
-                            keyboardOpen: keyboardOpen,
-                            controller: _richFocus.hasFocus ? _rich : null,
-                            onAttach: _attach,
-                            onDictate: _dictating ? null : _dictate,
-                            showDictate: ref
-                                .watch(aiCapabilitiesProvider)
-                                .contains(AiCapability.transcription),
-                            onFormat: _rich == null
-                                ? null
-                                : _richFocus.requestFocus,
-                            onHideKeyboard: () =>
-                                FocusScope.of(context).unfocus(),
-                            suggestingTitle: _suggestingTitle,
-                            onSuggestTitle:
-                                _titleFocus.hasFocus &&
-                                    ref
-                                        .watch(aiCapabilitiesProvider)
-                                        .contains(AiCapability.chat)
-                                ? _suggestTitle
-                                : null,
-                          ),
+                      child: NoteChromeTheme(
+                        child: NoteFormatBar(
+                          keyboardOpen: keyboardOpen,
+                          controller: _richFocus.hasFocus ? _rich : null,
+                          onAttach: value == null ? null : _attach,
+                          onDictate: value == null || _dictating
+                              ? null
+                              : _dictate,
+                          showDictate: ref
+                              .watch(aiCapabilitiesProvider)
+                              .contains(AiCapability.transcription),
+                          // Keeps its place while the note loads.
+                          onFormat: value == null
+                              ? () {}
+                              : _rich == null
+                              ? null
+                              : _richFocus.requestFocus,
+                          onHideKeyboard: () =>
+                              FocusScope.of(context).unfocus(),
+                          suggestingTitle: _suggestingTitle,
+                          onSuggestTitle:
+                              _titleFocus.hasFocus &&
+                                  ref
+                                      .watch(aiCapabilitiesProvider)
+                                      .contains(AiCapability.chat)
+                              ? _suggestTitle
+                              : null,
                         ),
                       ),
                     ),

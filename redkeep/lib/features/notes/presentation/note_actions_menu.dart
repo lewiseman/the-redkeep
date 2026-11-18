@@ -4,6 +4,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import 'note_scene.dart';
+
 enum _NoteAction { pin, background, tags, scan, delete }
 
 /// An anchored menu that dismisses before dispatching a note action.
@@ -35,8 +37,13 @@ class NoteActionsMenu extends StatelessWidget {
   /// Where the menu opens: under a top bar, or over a bottom dock.
   final PopupMenuPosition position;
 
+  /// The menu keeps the app's neutral colors on any paper: in the note's
+  /// own color it would sink into the page and Delete would lose its red.
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      NoteChromeTheme(child: Builder(builder: _menu));
+
+  Widget _menu(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final media = MediaQuery.of(context);
     final width = math.min(
@@ -163,8 +170,13 @@ class _ActionRow extends StatelessWidget {
   final bool highlighted;
   final bool destructive;
 
+  /// The menu keeps the app's neutral colors on any paper: in the note's
+  /// own color it would sink into the page and Delete would lose its red.
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      NoteChromeTheme(child: Builder(builder: _menu));
+
+  Widget _menu(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     final foreground = destructive

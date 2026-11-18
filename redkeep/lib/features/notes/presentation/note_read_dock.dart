@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../domain/note_colors.dart';
 import 'note_app_bar.dart';
+import 'note_bottom_morph.dart';
 import 'note_scene.dart';
 
 /// The reading page's actions, floating at the bottom within thumb reach:
@@ -75,7 +76,7 @@ class NoteReadDock extends StatelessWidget {
               16,
               0,
               16,
-              MediaQuery.paddingOf(context).bottom + 12,
+              MediaQuery.paddingOf(context).bottom + 8,
             ),
             child: DecoratedBox(
               key: const ValueKey('note-read-dock'),
@@ -96,15 +97,17 @@ class NoteReadDock extends StatelessWidget {
               ),
               child: Padding(
                 padding: const EdgeInsets.all(6),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    NoteAiButton(onPressed: onAi),
-                    const SizedBox(width: 8),
-                    edit,
-                    const SizedBox(width: 8),
-                    actions,
-                  ],
+                child: NoteBottomMorph(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      NoteAiButton(onPressed: onAi),
+                      const SizedBox(width: 8),
+                      edit,
+                      const SizedBox(width: 8),
+                      actions,
+                    ],
+                  ),
                 ),
               ),
             ),

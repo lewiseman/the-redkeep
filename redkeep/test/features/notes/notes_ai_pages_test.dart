@@ -80,13 +80,9 @@ void main() {
           await tester.pumpAndSettle();
           expect(router.state.uri.path, noteLocation(notesTestId));
           await startEditing(tester);
-          await tester.tap(find.byTooltip('AI tools'));
-          await tester.pumpAndSettle();
-          expect(router.state.uri.path, noteChatLocation(notesTestId));
-          await tester.tap(find.byTooltip('Back'));
-          await tester.pumpAndSettle();
-          // Back in the editor, still editing.
+          // Writing has no Maester button; it is offered while reading.
           expect(find.byTooltip('Close editor'), findsOneWidget);
+          expect(find.byTooltip('AI tools'), findsNothing);
           expect(tester.takeException(), isNull);
         } finally {
           await tester.pumpWidget(const SizedBox());

@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/presentation/rendering_policy.dart';
-
 import 'note_scene.dart';
 
 /// The one app bar of [NotePage], shared by reading and editing so switching
@@ -91,28 +89,4 @@ class NoteAiButton extends StatelessWidget {
       ),
     ),
   );
-}
-
-/// Eases an editing-only action into the bar when editing starts, instead of
-/// it popping in. Appears at once with reduced motion.
-class NoteBarEntrance extends StatelessWidget {
-  const NoteBarEntrance({super.key, required this.child});
-  final Widget child;
-
-  static const _duration = Duration(milliseconds: 280);
-
-  @override
-  Widget build(BuildContext context) {
-    if (!RenderingPolicyScope.of(context).animate) return child;
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: 1),
-      duration: _duration,
-      curve: Curves.easeOutCubic,
-      child: child,
-      builder: (context, t, child) => Opacity(
-        opacity: t,
-        child: Transform.scale(scale: .9 + .1 * t, child: child),
-      ),
-    );
-  }
 }

@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import 'note_bottom_morph.dart';
+
 import 'package:flutter_quill/flutter_quill.dart';
 
 import '../../../core/presentation/rendering_policy.dart';
@@ -99,32 +102,39 @@ class NoteFormatBar extends StatelessWidget {
           MediaQuery.paddingOf(context).bottom + 8,
         ),
         child: DecoratedBox(
+          // The same pill as the reading dock, which it grows out of.
           decoration: ShapeDecoration(
             color: colors.surface,
-            shape: const StadiumBorder(),
+            shape: StadiumBorder(
+              side: BorderSide(
+                color: colors.outlineVariant.withValues(alpha: .5),
+              ),
+            ),
             shadows: [
               BoxShadow(
-                color: colors.shadow.withValues(alpha: .12),
-                blurRadius: 18,
+                color: colors.shadow.withValues(alpha: .14),
+                blurRadius: 20,
                 offset: const Offset(0, 6),
               ),
             ],
           ),
           child: Padding(
             padding: const EdgeInsets.all(4),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (onFormat != null)
-                    _Tool(
-                      tooltip: 'Format text',
-                      icon: Icons.text_format_rounded,
-                      onPressed: onFormat,
-                    ),
-                  ..._noteTools(),
-                ],
+            child: NoteBottomMorph(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (onFormat != null)
+                      _Tool(
+                        tooltip: 'Format text',
+                        icon: Icons.text_format_rounded,
+                        onPressed: onFormat,
+                      ),
+                    ..._noteTools(),
+                  ],
+                ),
               ),
             ),
           ),

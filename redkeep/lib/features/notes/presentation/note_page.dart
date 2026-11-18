@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/navigation_destination.dart';
 import '../application/notes_providers.dart';
+import 'note_bottom_morph.dart';
 import 'note_edit_page.dart';
 import 'note_read_page.dart';
 
@@ -21,6 +22,22 @@ class _NotePageState extends ConsumerState<NotePage> {
 
   /// Entering editing keeps the paper in place, including its scroll position.
   GlobalKey _paperKey = GlobalKey(debugLabel: 'note-paper');
+
+  /// The bottom pill's contents, measured so the next pill grows from them.
+  GlobalKey _bottomKey = GlobalKey(debugLabel: 'note-bottom');
+  Size? _bottomFrom;
+
+  /// Remembers the pill being left and gives the next one a fresh key.
+  void _leaveBottom() {
+    _bottomFrom = _bottomKey.currentContext?.size;
+    _bottomKey = GlobalKey(debugLabel: 'note-bottom');
+  }
+
+  Size? _takeBottom() {
+    final from = _bottomFrom;
+    _bottomFrom = null;
+    return from;
+  }
 
   @override
   void initState() {
@@ -46,6 +63,7 @@ class _NotePageState extends ConsumerState<NotePage> {
     if (await _hasSavedNote()) {
       if (mounted) {
         setState(() {
+          _leaveBottom();
           _editing = false;
           // Give the preview a fresh fold and scroll position.
           _paperKey = GlobalKey(debugLabel: 'note-paper');
@@ -65,17 +83,24 @@ class _NotePageState extends ConsumerState<NotePage> {
   }
 
   @override
-  Widget build(BuildContext context) => _editing
-      ? NoteEditView(
-          key: const ValueKey('note-editing'),
-          id: widget.id,
-          paperKey: _paperKey,
-          onBack: _back,
-        )
-      : NoteReadView(
-          key: const ValueKey('note-reading'),
-          id: widget.id,
-          paperKey: _paperKey,
-          onEdit: () => setState(() => _editing = true),
-        );
+  Widget build(BuildContext context) => NoteBottomMorphScope(
+    measure: _bottomKey,
+    take: _takeBottom,
+    child: _editing
+        ? NoteEditView(
+            key: const ValueKey('note-editing'),
+            id: widget.id,
+            paperKey: _paperKey,
+            onBack: _back,
+          )
+        : NoteReadView(
+            key: const ValueKey('note-reading'),
+            id: widget.id,
+            paperKey: _paperKey,
+            onEdit: () => setState(() {
+              _leaveBottom();
+              _editing = true;
+            }),
+          ),
+  );
 }

@@ -18,7 +18,7 @@ import 'onboarding_controls.dart';
 import 'onboarding_content.dart';
 import 'onboarding_terms.dart';
 
-/// `backup`: the book shrinks to make room for signing in and restoring.
+/// `backup`: signing in and restoring, with the panel under the book.
 enum _Stage { touring, closing, naming, opening, backup }
 
 class OnboardingPage extends ConsumerStatefulWidget {
@@ -37,20 +37,14 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
     vsync: this,
     duration: const Duration(milliseconds: 1100),
   );
-  late final _shrink = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 450),
-  );
   final _name = TextEditingController();
   final _nameFocus = FocusNode();
   final _tourFocus = FocusNode();
   final _scroll = ScrollController();
-  Timer? _autoplay;
   _Stage _stage = _Stage.touring;
   int _page = 0, _direction = 1;
   bool _turning = false, _motion = false;
   bool _dragging = false, _finishingTurn = false;
-  bool _autoplayPaused = false;
 
   /// The name on the cover came from a restored backup and is final.
   bool _restored = false;
@@ -95,22 +89,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
         });
       }
       if (_close.isAnimating) _close.value = _stage == _Stage.opening ? 0 : 1;
-      if (_shrink.isAnimating) _shrink.value = _stage == _Stage.backup ? 1 : 0;
     }
-    _scheduleAutoplay();
-  }
-
-  void _scheduleAutoplay() {
-    _autoplay?.cancel();
-    if (!_motion ||
-        _autoplayPaused ||
-        _stage != _Stage.touring ||
-        _turning ||
-        _dragging ||
-        _page == onboardingFeatures.length - 1) {
-      return;
-    }
-    _autoplay = Timer(const Duration(seconds: 5), () => _flip(1));
   }
 
   Future<void> _flip(int direction) async {
@@ -121,7 +100,6 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
         _page + direction >= onboardingFeatures.length) {
       return;
     }
-    _autoplay?.cancel();
     setState(() {
       _turning = true;
       _direction = direction;
@@ -151,11 +129,9 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
       _turn.value = 0;
     });
     if (_scroll.hasClients) _scroll.jumpTo(0);
-    _scheduleAutoplay();
   }
 
   void _startDrag() {
-    _autoplay?.cancel();
     _dragging = true;
   }
 
@@ -187,14 +163,11 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
           !canceled && (_turn.value > .25 || velocity * _direction < -350),
         ),
       );
-    } else {
-      _scheduleAutoplay();
-    }
+    } else {}
   }
 
   Future<void> _begin() async {
     if (_turning || _stage != _Stage.touring) return;
-    _autoplay?.cancel();
     setState(() => _stage = _Stage.closing);
     // Warm just the chosen cover before it is revealed halfway through the
     // fold. The destination-sized provider stays stable as the keyboard opens.
@@ -237,28 +210,12 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
     });
   }
 
-  Future<void> _animate(AnimationController controller, double target) async {
-    try {
-      if (_motion) {
-        await controller
-            .animateTo(target, curve: Curves.easeInOutCubic)
-            .orCancel;
-      } else {
-        controller.value = target;
-      }
-    } on TickerCanceled {
-      /* Motion was reduced; the target is set by didChangeDependencies. */
-    }
-  }
-
-  /// Continue with the sign-in provider: shrink the book and look for a
-  /// backup. No name is written until this step is over.
+  /// Continue with the sign-in provider and look for a backup. No name is
+  /// written until this step is over.
   Future<void> _startBackup() async {
     if (_turning || _stage != _Stage.touring) return;
-    _autoplay?.cancel();
     setState(() => _stage = _Stage.backup);
-    unawaited(ref.read(onboardingRestoreProvider.notifier).connect());
-    await _animate(_shrink, 1);
+    await ref.read(onboardingRestoreProvider.notifier).connect();
   }
 
   /// Leaves the backup step: back to the last page, or on to the name.
@@ -270,10 +227,8 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
     }
     _leavingBackup = true;
     ref.read(onboardingRestoreProvider.notifier).dismiss();
-    await _animate(_shrink, 0);
     _leavingBackup = false;
     if (!mounted) return;
-    _autoplayPaused = true;
     setState(() => _stage = _Stage.touring);
     if (toName) {
       await _begin();
@@ -282,12 +237,11 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
     }
   }
 
-  /// The backup is restored: the book returns and closes on its name.
+  /// The backup is restored: the book closes on its name.
   Future<void> _finishRestore(String? name) async {
     if (_stage != _Stage.backup) return;
     _name.text = name ?? '';
     _restored = name != null;
-    await _animate(_shrink, 0);
     if (!mounted) return;
     setState(() => _stage = _Stage.touring);
     await _begin();
@@ -308,7 +262,6 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
     _nameFocus.unfocus();
     // Returning to the chapters leaves the reader in control, as in the
     // original tour, rather than restarting the automatic page turns.
-    _autoplayPaused = true;
     setState(() => _stage = _Stage.opening);
     try {
       if (_motion) {
@@ -334,10 +287,8 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
 
   @override
   void dispose() {
-    _autoplay?.cancel();
     _turn.dispose();
     _close.dispose();
-    _shrink.dispose();
     _name.dispose();
     _nameFocus.dispose();
     _tourFocus.dispose();
@@ -629,7 +580,6 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
           nameController: _name,
           nameFocus: _nameFocus,
           nameEditable: !_restored,
-          shrink: _shrink,
           backup: backupStage,
           actions: actions(),
           onSave: _save,

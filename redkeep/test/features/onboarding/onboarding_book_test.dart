@@ -75,214 +75,81 @@ void main() {
     cache.clear();
     cache.clearLiveImages();
   });
-  testWidgets(
-    'original open spread and manual boundaries/swipes before autoplay',
-    (tester) async {
-      final semantics = tester.ensureSemantics();
-      try {
-        final repository = FakeOnboardingRepository(completed: false);
-        await pumpApp(tester, onboarding: repository);
-        expect(
-          find.bySemanticsLabel(RegExp(r'Notes\. Catch a thought')),
-          findsOneWidget,
-        );
-        expect(
-          tester
-              .widget<Semantics>(
-                find.byKey(const ValueKey('onboarding-book-semantics')),
-              )
-              .properties
-              .onDecrease,
-          isNull,
-        );
-        await tester.pump(const Duration(seconds: 4));
-        expect(chapterPosition(1), findsOneWidget);
-        final drag = await tester.startGesture(
-          tester.getCenter(find.byKey(const ValueKey('onboarding-book'))),
-        );
-        await drag.moveBy(const Offset(-15, 0));
-        await drag.cancel();
-        await tester.pumpAndSettle();
-        expect(chapterPosition(1), findsOneWidget);
-        for (var chapter = 2; chapter <= 3; chapter++) {
-          await navigateChapter(tester, 1);
-          expect(chapterPosition(chapter), findsOneWidget);
-        }
-        expect(
-          tester
-              .widget<Semantics>(
-                find.byKey(const ValueKey('onboarding-book-semantics')),
-              )
-              .properties
-              .onIncrease,
-          isNull,
-        );
-        await tester.drag(
-          find.byKey(const ValueKey('onboarding-book')),
-          const Offset(180, 0),
-        );
-        await tester.pumpAndSettle();
-        expect(
-          find.bySemanticsLabel(RegExp(r'Diary\. Keep the moments')),
-          findsOneWidget,
-        );
-        await tester.drag(
-          find.byKey(const ValueKey('onboarding-book')),
-          const Offset(-180, 0),
-        );
-        await tester.pumpAndSettle();
-        expect(chapterPosition(3), findsOneWidget);
-        expect(repository.saves, 0);
-        expect(tester.takeException(), isNull);
-      } finally {
-        semantics.dispose();
-      }
-    },
-  );
-
-  testWidgets(
-    'idle tour advances every five seconds and stops at the last chapter',
-    (tester) async {
+  testWidgets('original open spread and manual boundaries/swipes', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    try {
       final repository = FakeOnboardingRepository(completed: false);
       await pumpApp(tester, onboarding: repository);
+      expect(
+        find.bySemanticsLabel(RegExp(r'Notes\. Catch a thought')),
+        findsOneWidget,
+      );
+      expect(
+        tester
+            .widget<Semantics>(
+              find.byKey(const ValueKey('onboarding-book-semantics')),
+            )
+            .properties
+            .onDecrease,
+        isNull,
+      );
       await tester.pump(const Duration(seconds: 4));
       expect(chapterPosition(1), findsOneWidget);
+      final drag = await tester.startGesture(
+        tester.getCenter(find.byKey(const ValueKey('onboarding-book'))),
+      );
+      await drag.moveBy(const Offset(-15, 0));
+      await drag.cancel();
+      await tester.pumpAndSettle();
+      expect(chapterPosition(1), findsOneWidget);
       for (var chapter = 2; chapter <= 3; chapter++) {
-        await tester.pump(Duration(seconds: chapter == 2 ? 1 : 5));
-        await tester.pumpAndSettle();
+        await navigateChapter(tester, 1);
         expect(chapterPosition(chapter), findsOneWidget);
       }
-      await tester.pump(const Duration(seconds: 20));
+      expect(
+        tester
+            .widget<Semantics>(
+              find.byKey(const ValueKey('onboarding-book-semantics')),
+            )
+            .properties
+            .onIncrease,
+        isNull,
+      );
+      await tester.drag(
+        find.byKey(const ValueKey('onboarding-book')),
+        const Offset(180, 0),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.bySemanticsLabel(RegExp(r'Diary\. Keep the moments')),
+        findsOneWidget,
+      );
+      await tester.drag(
+        find.byKey(const ValueKey('onboarding-book')),
+        const Offset(-180, 0),
+      );
+      await tester.pumpAndSettle();
       expect(chapterPosition(3), findsOneWidget);
       expect(repository.saves, 0);
       expect(tester.takeException(), isNull);
-    },
-  );
+    } finally {
+      semantics.dispose();
+    }
+  });
 
-  testWidgets(
-    'manual navigation and a held or canceled drag reset the idle delay',
-    (tester) async {
-      await pumpApp(
-        tester,
-        onboarding: FakeOnboardingRepository(completed: false),
-      );
-      await tester.pump(const Duration(seconds: 4));
-      await navigateChapter(tester, 1);
-      await tester.pump(const Duration(seconds: 4));
-      expect(chapterPosition(2), findsOneWidget);
-
-      final gesture = await tester.startGesture(
-        tester.getCenter(find.byKey(const ValueKey('onboarding-book'))),
-      );
-      await gesture.moveBy(const Offset(-30, 0));
-      await tester.pump();
-      await gesture.moveBy(const Offset(-40, 0));
-      await tester.pump(const Duration(seconds: 10));
-      expect(chapterPosition(2), findsOneWidget);
-      await gesture.cancel();
-      await tester.pumpAndSettle();
-      await tester.pump(const Duration(seconds: 4));
-      expect(chapterPosition(2), findsOneWidget);
-      await tester.pump(const Duration(seconds: 1));
-      await tester.pumpAndSettle();
-      expect(chapterPosition(3), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    },
-  );
-
-  for (final pause in [
-    'reduceMotion',
-    'simplerEffects',
-    'OS',
-    'inactive',
-    'offscreen',
-  ]) {
-    testWidgets(
-      'idle autoplay pauses for $pause and resumes with a fresh delay',
-      (tester) async {
-        final preferences = FakeAppearanceRepository();
-        addTearDown(preferences.close);
-        addTearDown(tester.platformDispatcher.clearAllTestValues);
-        await pumpApp(
-          tester,
-          repository: preferences,
-          onboarding: FakeOnboardingRepository(completed: false),
-        );
-        await tester.pump(const Duration(seconds: 4));
-        NavigatorState? navigator;
-        if (pause == 'OS') {
-          tester.platformDispatcher.accessibilityFeaturesTestValue =
-              FakeAccessibilityFeatures(reduceMotion: true);
-        } else if (pause == 'inactive') {
-          tester.binding.handleAppLifecycleStateChanged(
-            AppLifecycleState.inactive,
-          );
-        } else if (pause == 'offscreen') {
-          navigator = Navigator.of(tester.element(find.byType(OnboardingPage)));
-          unawaited(
-            navigator.push(
-              MaterialPageRoute<void>(
-                builder: (_) => const Scaffold(body: Text('Covered route')),
-              ),
-            ),
-          );
-        } else {
-          preferences.emit(
-            AppearancePreferences(
-              reduceMotion: pause == 'reduceMotion',
-              simplerEffects: pause == 'simplerEffects',
-            ),
-          );
-        }
-        await tester.pumpAndSettle();
-        await tester.pump(const Duration(seconds: 20));
-        final book = find.byType(OnboardingBook, skipOffstage: false);
-        expect(tester.widget<OnboardingBook>(book).page, 0);
-        expect(tester.widget<OnboardingBook>(book).turn, 0);
-        if (pause == 'OS') {
-          tester.platformDispatcher.accessibilityFeaturesTestValue =
-              FakeAccessibilityFeatures();
-        } else if (pause == 'inactive') {
-          tester.binding.handleAppLifecycleStateChanged(
-            AppLifecycleState.resumed,
-          );
-        } else if (pause == 'offscreen') {
-          navigator!.pop();
-        } else {
-          preferences.emit(const AppearancePreferences());
-        }
-        await tester.pumpAndSettle();
-        await tester.pump(const Duration(seconds: 4));
-        expect(chapterPosition(1), findsOneWidget);
-        await tester.pump(const Duration(seconds: 1));
-        await tester.pumpAndSettle();
-        expect(chapterPosition(2), findsOneWidget);
-        // Disposal must cancel the next automatic turn as well as its ticker.
-        await tester.pumpWidget(const SizedBox());
-        await tester.pump(const Duration(seconds: 10));
-        expect(tester.binding.transientCallbackCount, 0);
-        expect(tester.takeException(), isNull);
-      },
-    );
-  }
-
-  testWidgets('naming stops autoplay and reopening leaves the tour paused', (
-    tester,
-  ) async {
-    await pumpApp(
-      tester,
-      onboarding: FakeOnboardingRepository(completed: false),
-    );
-    await tester.pump(const Duration(seconds: 4));
-    await _tap(tester, "Let's begin");
-    await tester.pump(const Duration(seconds: 20));
-    expect(tester.widget<OnboardingBook>(find.byType(OnboardingBook)).page, 0);
-    await reopenOnboardingBook(tester);
-    await tester.pump(const Duration(seconds: 20));
+  testWidgets('the tour never turns a page by itself', (tester) async {
+    final repository = FakeOnboardingRepository(completed: false);
+    await pumpApp(tester, onboarding: repository);
+    await tester.pump(const Duration(seconds: 30));
+    await tester.pumpAndSettle();
     expect(chapterPosition(1), findsOneWidget);
     await navigateChapter(tester, 1);
-    await tester.pump(const Duration(seconds: 20));
+    await tester.pump(const Duration(seconds: 30));
+    await tester.pumpAndSettle();
     expect(chapterPosition(2), findsOneWidget);
+    expect(repository.saves, 0);
     expect(tester.takeException(), isNull);
   });
 

@@ -364,3 +364,18 @@ The download catalog no longer lists `navigation.flow.active`, `flow.reflect`
 or `onboarding.chapter.flow`, so the app stops downloading them; the website
 keeps its own copies of that art. Images already installed on a device are
 left in place.
+
+## Onboarding offline and backup spread — 18 November 2026
+
+The Backup onboarding chapter used the old AI spread (`ai.webp`), which said
+"Find your next thought." The user generated a replacement spread about offline
+use and backups, styled after `ai.webp`, and supplied it in chat.
+`website/public/art/backup.webp` is a byte-for-byte copy of that file:
+1448×1086 WebP, 309,084 bytes, SHA-256
+`e3977ccbb3ecbac2988c66380c544711a1b4f5c295c6d08e24710fe7695eab86`.
+It is registered as `onboarding.chapter.backup`, revision `v2`, installed at
+`onboarding/backup-v1.webp` through the existing verified download flow. It is
+not added to the Flutter bundle. The website keeps `ai.webp` for its own pages.
+
+Release order: publish `backup.webp` through the website hosting process before
+releasing the updated mobile catalog.

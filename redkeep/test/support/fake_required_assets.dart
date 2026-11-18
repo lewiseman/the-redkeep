@@ -46,7 +46,7 @@ class FakeRequiredAssets implements RequiredAssets {
     'onboarding.cover' => 'cover-redkeep-castle-v1.jpg',
     'onboarding.material.paper' => 'paper-edge.webp',
     'onboarding.material.binding' => 'binding-cloth.webp',
-    'onboarding.chapter.backup' => 'ai.webp',
+    'onboarding.chapter.backup' => 'backup.webp',
     'onboarding.chapter.appearance' => 'appearance.jpg',
     _ when key.startsWith('appearance.theme.') =>
       'theme_${key.split('.').last}.png',

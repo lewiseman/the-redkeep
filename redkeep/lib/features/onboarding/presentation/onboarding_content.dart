@@ -29,7 +29,6 @@ class OnboardingContent extends StatefulWidget {
     required this.onDragUpdate,
     required this.onDragEnd,
     required this.onDragCancel,
-    required this.shrink,
     required this.backup,
     required this.actions,
     this.nameEditable = true,
@@ -47,8 +46,6 @@ class OnboardingContent extends StatefulWidget {
   final FocusNode nameFocus;
   final VoidCallback onSave;
 
-  /// 0 to 1 while the book makes room for the backup step.
-  final Animation<double> shrink;
   final bool backup;
 
   /// False once the name comes from a restored backup.
@@ -123,13 +120,11 @@ class _OnboardingContentState extends State<OnboardingContent> {
     required bool naming,
     required bool touring,
   }) => AnimatedBuilder(
-    animation: Listenable.merge([widget.close, widget.shrink]),
+    animation: widget.close,
     builder: (context, _) => LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxHeight < 260;
-        // The backup step needs the room the Grand Maestar takes.
-        final showMascot =
-            !naming && !widget.backup && constraints.maxHeight >= 200;
+        final showMascot = !naming && constraints.maxHeight >= 200;
         final mascotHeight = math.min(125.0, constraints.maxHeight * .25);
         return Center(
           child: Padding(
@@ -165,14 +160,12 @@ class _OnboardingContentState extends State<OnboardingContent> {
                           (bookConstraints.maxHeight - 12) /
                           (1 + .12 * framing);
                       if (maxHeight < 48) return const SizedBox.shrink();
-                      final openWidth =
-                          math.min(
-                            math.min(bookConstraints.maxWidth - 24, 720.0),
-                            ((bookConstraints.maxHeight - 12) / 1.12 - 20) *
-                                    onboardingSpreadAspectRatio +
-                                12,
-                          ) *
-                          (1 - .3 * widget.shrink.value);
+                      final openWidth = math.min(
+                        math.min(bookConstraints.maxWidth - 24, 720.0),
+                        ((bookConstraints.maxHeight - 12) / 1.12 - 20) *
+                                onboardingSpreadAspectRatio +
+                            12,
+                      );
                       // A closed journal occupies one leaf, so it can use twice
                       // the spread width. Grow only after the cover has folded,
                       // matching the book's final settling phase.

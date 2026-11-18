@@ -123,8 +123,8 @@ void main() {
     await _toBackupPage(tester);
     expect(find.byKey(const ValueKey('onboarding-mascot')), findsOneWidget);
     await _tapKey(tester, 'onboarding-primary');
-    // The book makes room: no Grand Maestar, no page dots.
-    expect(find.byKey(const ValueKey('onboarding-mascot')), findsNothing);
+    // The book and the Grand Maestar stay; the page hints give way.
+    expect(find.byKey(const ValueKey('onboarding-mascot')), findsOneWidget);
     expect(find.byKey(const ValueKey('onboarding-page-hints')), findsNothing);
     expect(find.text('Backup found'), findsOneWidget);
     expect(find.textContaining('3.0 MB'), findsOneWidget);

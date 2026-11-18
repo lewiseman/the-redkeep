@@ -13,6 +13,8 @@ import 'package:redkeep/features/watchlist/domain/catalog_title.dart';
 import 'package:redkeep/features/watchlist/domain/explore.dart';
 import 'package:redkeep/features/watchlist/domain/watch_title.dart';
 import 'package:redkeep/features/watchlist/presentation/explore_view.dart';
+import 'package:redkeep/features/watchlist/presentation/watch_explore_parts.dart';
+import 'package:redkeep/features/watchlist/presentation/watch_wall.dart';
 
 import '../../support/pump_app.dart';
 
@@ -130,7 +132,8 @@ void main() {
       await openSearch(tester);
 
       expect(find.byType(ExploreView), findsOneWidget);
-      expect(find.text('In the mood for'), findsOneWidget);
+      expect(find.text('In the mood for'), findsNothing);
+      expect(find.text('🍿'), findsOneWidget, reason: 'each mood its emoji');
       // The page's own list, not a row of posters inside it.
       final page = find
           .descendant(
@@ -143,7 +146,7 @@ void main() {
         200,
         scrollable: page,
       );
-      expect(find.text('Trending this week'), findsOneWidget);
+      expect(find.textContaining('Now showing'), findsNothing);
       expect(find.text('Saved Already'), findsNothing, reason: 'already saved');
       await tester.scrollUntilVisible(
         find.text('Severance'),
@@ -170,6 +173,59 @@ void main() {
       );
       final mood = requests.lastWhere((u) => u.path == '/3/discover/movie');
       expect(mood.queryParameters['with_runtime.lte'], '115');
+    });
+
+    pageTest('pinning a loose photo tapes it to the wall, and undo peels it', (
+      tester,
+    ) async {
+      await openSearch(tester);
+      final page = find
+          .descendant(
+            of: find.byType(ExploreView),
+            matching: find.byType(Scrollable),
+          )
+          .first;
+      await tester.scrollUntilVisible(
+        find.text('Paddington 2'),
+        200,
+        scrollable: page,
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(WashiTape), findsNothing, reason: 'all loose');
+
+      final paddington = find.ancestor(
+        of: find.text('Paddington 2'),
+        matching: find.byType(LoosePolaroid),
+      );
+      final pin = find.descendant(
+        of: paddington,
+        matching: find.byType(GlassBead),
+      );
+      // Clear of the search dock at the foot of the page.
+      await Scrollable.ensureVisible(tester.element(pin), alignment: .5);
+      await tester.pumpAndSettle();
+      await tester.tap(pin);
+      await tester.pumpAndSettle();
+      final row = await db.select(db.watchTitles).getSingle();
+      expect(row.status, 'planned');
+      expect(row.title, 'Paddington 2');
+      expect(
+        find.descendant(of: paddington, matching: find.byType(WashiTape)),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Paddington 2'),
+        findsOneWidget,
+        reason: 'pinned here, so it stays to be seen taped',
+      );
+
+      await tester.tap(find.text('Undo'));
+      await tester.pumpAndSettle();
+      expect(
+        await repository.titles(),
+        isEmpty,
+        reason: 'taken back off the wall',
+      );
     });
 
     pageTest('typing replaces browsing with results', (tester) async {

@@ -269,7 +269,7 @@ class _WallPolaroidState extends State<WallPolaroid>
                     child: Center(
                       child: mark == WallMark.pin
                           ? _GlassPin(colors: cushion)
-                          : _Tape(seed: seed, colors: cushion),
+                          : WashiTape(seed: seed, colors: cushion),
                     ),
                   ),
                 ],
@@ -417,8 +417,8 @@ class _Speckle extends CustomPainter {
 }
 
 /// A strip of washi tape in a colour of the title's own, a little askew.
-class _Tape extends StatelessWidget {
-  const _Tape({required this.seed, required this.colors});
+class WashiTape extends StatelessWidget {
+  const WashiTape({super.key, required this.seed, required this.colors});
   final int seed;
   final CushionColors colors;
 

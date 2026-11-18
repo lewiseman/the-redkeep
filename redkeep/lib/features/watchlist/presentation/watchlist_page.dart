@@ -10,6 +10,7 @@ import '../../../core/presentation/rendering_policy.dart';
 import '../../sync/presentation/sync_material.dart';
 import '../application/watchlist_providers.dart';
 import '../domain/watch_title.dart';
+import 'watch_explore_parts.dart';
 import 'watch_header.dart';
 import 'watch_list_sheet.dart';
 import 'watch_spin.dart';
@@ -507,12 +508,16 @@ class _DockState extends ConsumerState<_Dock> {
                     ),
                   ),
                   const SizedBox(width: 6),
-                  _Bead(
-                    size: bead,
-                    icon: Icons.search_rounded,
-                    label: 'Search films and shows',
-                    fill: .92,
-                    onTap: () => context.push(watchSearchLocation),
+                  // Flies to the search page's own bead.
+                  Hero(
+                    tag: searchBeadTag,
+                    child: _Bead(
+                      size: bead,
+                      icon: Icons.search_rounded,
+                      label: 'Search films and shows',
+                      fill: .92,
+                      onTap: () => context.push(watchSearchLocation),
+                    ),
                   ),
                 ],
               ),

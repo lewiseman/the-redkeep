@@ -289,7 +289,7 @@ class _CollapsingHeader extends StatelessWidget {
                         156 / math.max(m.openScale, .01),
                         WallHeaderMetrics._squiggle,
                       ),
-                      painter: _Squiggle(palette.accent, drawn),
+                      painter: PenSquiggle(palette.accent, drawn),
                     ),
                   ),
               ],
@@ -434,8 +434,8 @@ class _EdgeFade extends StatelessWidget {
 }
 
 /// The pen underline, drawn out to [drawn] of its length.
-class _Squiggle extends CustomPainter {
-  const _Squiggle(this.colour, this.drawn);
+class PenSquiggle extends CustomPainter {
+  const PenSquiggle(this.colour, this.drawn);
   final Color colour;
   final double drawn;
 
@@ -459,6 +459,6 @@ class _Squiggle extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_Squiggle old) =>
+  bool shouldRepaint(PenSquiggle old) =>
       old.colour != colour || old.drawn != drawn;
 }

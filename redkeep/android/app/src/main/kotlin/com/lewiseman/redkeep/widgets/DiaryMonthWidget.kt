@@ -21,6 +21,7 @@ import androidx.glance.appwidget.appWidgetBackground
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
+import androidx.glance.layout.ContentScale
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.Column
@@ -86,7 +87,7 @@ private fun DiaryMonth(snapshot: WidgetSnapshot?, today: LocalDate) {
         GlanceModifier.fillMaxSize()
             .appWidgetBackground()
             .cornerRadius(24.dp)
-            .background(ImageProvider(colors.paper))
+            .background(ImageProvider(colors.paper), contentScale = ContentScale.Crop)
             .padding(pad),
     ) {
         if (snapshot == null) {
@@ -271,7 +272,7 @@ private fun MonthFace(model: DiaryWidgetModel, colors: WidgetColors, size: DpSiz
     }
 }
 
-/** One day: its mood on a soft disc, an inked disc if written without one. */
+/** One day: its mood emoji on bare paper, an inked disc if written without one. */
 @Composable
 private fun Day(day: LocalDate, model: DiaryWidgetModel, colors: WidgetColors, size: Dp, context: Context) {
     val today = day == model.today
@@ -292,14 +293,14 @@ private fun Day(day: LocalDate, model: DiaryWidgetModel, colors: WidgetColors, s
     if (today) outer = outer.shape(R.drawable.widget_ring, colors.seal)
     Box(outer, contentAlignment = Alignment.Center) {
         val disc = when {
-            mood != null -> GlanceModifier.size(inner).shape(R.drawable.widget_circle, colors.accentSoft)
+            mood != null -> GlanceModifier.size(inner)
             written -> GlanceModifier.size(inner).shape(R.drawable.widget_circle, colors.accent)
             today -> GlanceModifier.size(inner).shape(R.drawable.widget_circle, colors.sealSoft)
             else -> GlanceModifier.size(inner)
         }
         Box(disc, contentAlignment = Alignment.Center) {
             if (mood != null) {
-                Text(mood, maxLines = 1, style = TextStyle(fontSize = fitSp(context, inner.value * .56f), textAlign = TextAlign.Center))
+                Text(mood, maxLines = 1, style = TextStyle(fontSize = fitSp(context, inner.value * .78f), textAlign = TextAlign.Center))
             } else {
                 Text(
                     "${day.dayOfMonth}",

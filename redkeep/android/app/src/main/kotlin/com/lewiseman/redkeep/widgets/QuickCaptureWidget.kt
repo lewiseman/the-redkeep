@@ -20,6 +20,7 @@ import androidx.glance.appwidget.appWidgetBackground
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
+import androidx.glance.layout.ContentScale
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.Column
@@ -82,7 +83,7 @@ private fun QuickCapture(snapshot: WidgetSnapshot?) {
         GlanceModifier.fillMaxSize()
             .appWidgetBackground()
             .cornerRadius(24.dp)
-            .background(ImageProvider(colors.paper))
+            .background(ImageProvider(colors.paper), contentScale = ContentScale.Crop)
             .padding(if (stacked) 10.dp else 6.dp),
     ) {
         Row(GlanceModifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {

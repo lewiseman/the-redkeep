@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Follows the system: night paper lives in drawable-night. -->
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="@drawable/widget_paper_light" />
-</layer-list>
+<!-- Home screen widget paper: the app's ink-paper parchment, turned to
+     landscape. Widgets crop it to their shape; night paper is in drawable-night. -->
+<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
+    android:src="@drawable/widget_paper_ink"
+    android:filter="true" />

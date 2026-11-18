@@ -45,7 +45,9 @@ class Phone {
     this.backend, {
     RecordingSchedule? schedule,
     this.onboarded = true,
+    this.mediaRetryDelay,
   }) : schedule = schedule ?? RecordingSchedule();
+  final Duration? mediaRetryDelay;
   final Directory root;
 
   /// A fresh install is still in onboarding.
@@ -77,6 +79,8 @@ class Phone {
       backupEngineProvider.overrideWithValue(AsyncData(engine)),
       backupScheduleProvider.overrideWithValue(schedule),
       if (onboarded) onboardingControllerProvider.overrideWith(_Onboarded.new),
+      if (mediaRetryDelay != null)
+        mediaRestoreRetryDelayProvider.overrideWithValue(mediaRetryDelay!),
     ],
   );
   AppDatabase get db => container.read(appDatabaseProvider);
@@ -127,6 +131,33 @@ void main() {
       );
       expect(snapshots, hasLength(1));
       expect(phone.container.read(backupStateProvider).lastSuccess, isNotNull);
+    },
+  );
+
+  test(
+    'media left by a closed app resumes once the old lock is released',
+    () async {
+      final phone = Phone(
+        dir('media'),
+        FakeDriveBackend(FakeDrive(), appId: 'redkeep'),
+        mediaRetryDelay: const Duration(milliseconds: 20),
+      );
+      addTearDown(phone.dispose);
+      final state = Directory(p.join(phone.root.path, 'state'))
+        ..createSync(recursive: true);
+      // A restore that still owes media, and the lock of the killed run.
+      File(p.join(state.path, 'files-restore.json')).writeAsStringSync('{}');
+      final lock = BackupLock(File(p.join(state.path, 'lock.json')));
+      expect(await lock.tryAcquire(), isTrue);
+
+      await phone.container.read(backupCoordinatorProvider.future);
+      expect(await phone.engine.filesPending(), isTrue);
+
+      await lock.release();
+      for (var i = 0; i < 100 && await phone.engine.filesPending(); i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+      expect(await phone.engine.filesPending(), isFalse);
     },
   );
 

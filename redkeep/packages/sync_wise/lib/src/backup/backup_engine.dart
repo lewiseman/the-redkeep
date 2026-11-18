@@ -1073,7 +1073,9 @@ class BackupEngine implements BackupLifecycle {
   ///
   /// Follows the Wi-Fi-only setting unless [trigger] is manual. Interrupted
   /// runs resume on the next call; scheduled backups also finish it first.
-  /// Never throws: failures are reported in [BackupState.error].
+  /// Never throws: failures are reported in [BackupState.error]. While another
+  /// process holds the lock it returns a [BackupErrorKind.busy] error (without
+  /// emitting it), so callers can retry once that run ends or goes stale.
   Future<BackupState> restoreFiles({
     BackupTrigger trigger = BackupTrigger.automatic,
   }) {
@@ -1095,7 +1097,17 @@ class BackupEngine implements BackupLifecycle {
     if (!await _filesJournal.exists()) return _state;
     _cancelled = false;
     final lock = _lock();
-    if (!await lock.tryAcquire()) return _state;
+    if (!await lock.tryAcquire()) {
+      // Another isolate's run, or a killed one whose lock has not gone stale
+      // yet. Not emitted: nothing failed, the caller should simply try later.
+      return _state.copyWith(
+        filesPending: true,
+        error: const BackupException(
+          BackupErrorKind.busy,
+          'A backup or restore is already running.',
+        ),
+      );
+    }
     BackupSession? session;
     try {
       await _checkNetwork(trigger);

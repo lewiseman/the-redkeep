@@ -172,10 +172,12 @@ class BackupActions {
       (await ref.read(backupEngineProvider.future)).cancel();
 
   /// Downloads photos and files a restore left for later, in the background.
-  Future<void> restoreMedia() async {
+  /// Returns null when nothing ran because nothing is pending or a run in
+  /// this app is already busy (backups finish pending media first).
+  Future<BackupState?> restoreMedia() async {
     final engine = await ref.read(backupEngineProvider.future);
-    if (engine.state.busy || !await engine.filesPending()) return;
-    await engine.restoreFiles();
+    if (engine.state.busy || !await engine.filesPending()) return null;
+    return engine.restoreFiles();
   }
 
   /// Downloads [path] (e.g. `diary_photos/…`) next in the running or next
@@ -213,6 +215,13 @@ class BackupActions {
     }
   }
 }
+
+/// How long to wait before retrying a media restore that found another run
+/// holding the backup lock (e.g. one the app was closed during, whose lock
+/// goes stale after two minutes).
+final mediaRestoreRetryDelayProvider = Provider<Duration>(
+  (_) => const Duration(seconds: 30),
+);
 
 final accountResetProvider =
     NotifierProvider<AccountResetController, AccountResetState>(
@@ -287,9 +296,23 @@ final backupCoordinatorProvider = FutureProvider<void>((ref) async {
     }
   }
 
+  Timer? mediaRetry;
   Future<void> restoreMediaIfPending() async {
+    mediaRetry?.cancel();
+    mediaRetry = null;
     if (!canRun() || !auth.isSignedIn) return;
-    await ref.read(backupActionsProvider).restoreMedia();
+    final result = await ref.read(backupActionsProvider).restoreMedia();
+    // Another run holds the lock, often one killed when the app was closed.
+    // Try again rather than leaving media waiting until the next resume.
+    if (ref.mounted &&
+        result != null &&
+        result.filesPending &&
+        result.error?.kind == BackupErrorKind.busy) {
+      mediaRetry = Timer(
+        ref.read(mediaRestoreRetryDelayProvider),
+        () => unawaited(restoreMediaIfPending()),
+      );
+    }
   }
 
   final accounts = auth.onAuthStateChanged.listen((account) async {
@@ -306,6 +329,7 @@ final backupCoordinatorProvider = FutureProvider<void>((ref) async {
   );
   ref.onDispose(accounts.cancel);
   ref.onDispose(lifecycle.dispose);
+  ref.onDispose(() => mediaRetry?.cancel());
   await reset.ready;
   if (!canRun()) return;
   await auth.trySilentSignIn();

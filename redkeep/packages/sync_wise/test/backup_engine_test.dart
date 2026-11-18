@@ -494,6 +494,21 @@ void main() {
       expect(await e.filesPending(), isFalse);
     });
 
+    test('media reports busy while another process holds the lock', () async {
+      final written = await write(2);
+      expect((await engine(files: [set()]).backUpNow()).error, isNull);
+      final e = await restoredWithout(written.keys);
+      final lock = BackupLock(File(p.join(root.path, 'state', 'lock.json')));
+      expect(await lock.tryAcquire(), isTrue);
+      final blocked = await e.restoreFiles();
+      expect(blocked.error?.kind, BackupErrorKind.busy);
+      expect(blocked.filesPending, isTrue);
+      expect(e.state.error, isNull);
+      await lock.release();
+      expect((await e.restoreFiles()).error, isNull);
+      expect(await e.filesPending(), isFalse);
+    });
+
     test('an interrupted restore resumes with the same total', () async {
       final written = await write(3, size: 40000);
       expect((await engine(files: [set()]).backUpNow()).error, isNull);

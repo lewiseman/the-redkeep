@@ -366,7 +366,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 460),
                 child: const Text(
-                  'Your space for notes, diary and passing thoughts, with AI support.',
+                  'A quiet place for your notes, your days and the thoughts in between.',
                   key: ValueKey('onboarding-description'),
                   textAlign: TextAlign.center,
                   style: TextStyle(
@@ -411,16 +411,36 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
                 simple: policy.simplerEffects,
               ),
             ),
-            if (touring && backupsAvailable && backupPage)
-              TextButton(
-                key: const ValueKey('onboarding-skip-backup'),
-                onPressed: enabled ? _begin : null,
-                style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFF715B83),
-                  minimumSize: const Size(0, 48),
+            // Grow into place so the book eases up rather than jumping.
+            AnimatedSwitcher(
+              duration: _motion
+                  ? const Duration(milliseconds: 280)
+                  : Duration.zero,
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              transitionBuilder: (child, animation) => FadeTransition(
+                opacity: animation,
+                child: SizeTransition(
+                  sizeFactor: animation,
+                  alignment: Alignment.topCenter,
+                  child: child,
                 ),
-                child: const Text('Skip', style: TextStyle(fontSize: 16)),
               ),
+              child: touring && backupsAvailable && backupPage
+                  ? TextButton(
+                      key: const ValueKey('onboarding-skip-backup'),
+                      onPressed: enabled ? _begin : null,
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFF715B83),
+                        minimumSize: const Size(0, 48),
+                      ),
+                      child: const Text(
+                        'Skip',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    )
+                  : const SizedBox.shrink(key: ValueKey('no-skip')),
+            ),
           ],
         ),
       );

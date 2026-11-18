@@ -10,15 +10,8 @@ void main() {
     madeAt: DateTime.utc(2026, 3, 1),
     outdated: true,
   );
-  NoteChatContext context({
-    String text = body,
-    NoteChatWebsite? site,
-  }) => NoteChatContext(
-    title: 'Garden',
-    body: text,
-    saved: true,
-    website: site,
-  );
+  NoteChatContext context({String text = body, NoteChatWebsite? site}) =>
+      NoteChatContext(title: 'Garden', body: text, saved: true, website: site);
   AiToolCall call(String name, Map<String, Object?> arguments) =>
       AiToolCall(id: 'c', name: name, arguments: arguments);
   Set<String> tools(NoteChatContext c) =>

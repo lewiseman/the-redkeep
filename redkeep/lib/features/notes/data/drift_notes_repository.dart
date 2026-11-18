@@ -3,6 +3,7 @@ import '../../sync/data/writing_session.dart';
 import 'package:drift/drift.dart';
 
 import '../../../core/storage/app_database.dart';
+import '../domain/note_counts.dart';
 import '../domain/note_document.dart';
 import '../domain/note_collection_entry.dart';
 import '../domain/notes_repository.dart';
@@ -125,6 +126,40 @@ class DriftNotesRepository implements NotesRepository {
       )
       .watch()
       .map((rows) => rows.map((r) => r.read<String>('tag')).toList());
+
+  @override
+  Stream<NoteCounts> watchCounts() => _db
+      .customSelect(
+        "SELECT 'all' AS kind, NULL AS tag, COUNT(*) AS total FROM notes "
+        'WHERE deleted_at IS NULL '
+        "UNION ALL SELECT 'pinned', NULL, COUNT(*) FROM notes "
+        'WHERE deleted_at IS NULL AND pinned = 1 '
+        "UNION ALL SELECT 'trash', NULL, COUNT(*) FROM notes "
+        'WHERE deleted_at IS NOT NULL '
+        "UNION ALL SELECT 'tag', tag, COUNT(*) FROM note_tags "
+        'JOIN notes ON notes.id = note_id WHERE deleted_at IS NULL '
+        'GROUP BY tag',
+        readsFrom: {_db.notes, _db.noteTags},
+      )
+      .watch()
+      .map((rows) {
+        var all = 0, pinned = 0, trash = 0;
+        final tags = <String, int>{};
+        for (final row in rows) {
+          final total = row.read<int>('total');
+          switch (row.read<String>('kind')) {
+            case 'all':
+              all = total;
+            case 'pinned':
+              pinned = total;
+            case 'trash':
+              trash = total;
+            default:
+              tags[row.read<String>('tag')] = total;
+          }
+        }
+        return NoteCounts(all: all, pinned: pinned, trash: trash, tags: tags);
+      });
 
   NoteListing _listing(QueryRow row, String revision) => NoteListing(
     id: row.read<String>('id'),

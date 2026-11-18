@@ -79,12 +79,7 @@ void main() {
       await tester.pumpAndSettle();
       return;
     }
-    final noteActions = {
-      'Pin note',
-      'Unpin note',
-      'Edit tags',
-      'Delete note',
-    };
+    final noteActions = {'Pin note', 'Unpin note', 'Edit tags', 'Delete note'};
     if (noteActions.contains(text) && find.text(text).evaluate().isEmpty) {
       await tester.tap(find.byTooltip('Note actions'));
       await tester.pumpAndSettle();
@@ -383,6 +378,47 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.container().read(notesFilterProvider), const NotesQuery());
       expect(find.byType(NoteCard), findsNWidgets(2));
+    },
+  );
+
+  noteTest(
+    'collections fan out as a hand of cards; a swipe turns it to Trash',
+    (tester) async {
+      await seed();
+      await repo.organize(
+        id,
+        1,
+        pinned: false,
+        tags: ['💡#ideas', '✈️#travel', '🍳#recipes', '📚#reading'],
+      );
+      await pumpApp(tester, initialLocation: '/notes', notes: repo);
+      await tester.tap(find.byKey(const ValueKey('notes-collections')));
+      await tester.pumpAndSettle();
+      final width =
+          tester.view.physicalSize.width / tester.view.devicePixelRatio;
+      // The current collection faces you at the crown of the hand.
+      final all = find.byKey(const ValueKey('notes-all'));
+      expect(
+        tester.getSemantics(all),
+        isSemantics(isSelected: true, label: 'All notes, 1 note'),
+      );
+      expect(find.text('1 note', findRichText: true), findsWidgets);
+      expect(tester.getCenter(all).dx, closeTo(width / 2, 2));
+      // Trash waits at the far end of the hand, off screen and not built.
+      final trash = find.byKey(const ValueKey('notes-trash'));
+      expect(trash, findsNothing);
+
+      await tester.fling(
+        find.text('Show notes from'),
+        const Offset(-600, 0),
+        2000,
+      );
+      await tester.pumpAndSettle();
+      // Trash is the last card, so the fan comes to rest on it.
+      expect(tester.getCenter(trash).dx, closeTo(width / 2, 2));
+      await tester.tap(trash);
+      await tester.pumpAndSettle();
+      expect(tester.container().read(notesFilterProvider).trash, isTrue);
     },
   );
 

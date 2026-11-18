@@ -249,9 +249,7 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
                     onBackground: value == null ? null : _background,
                     onTags: value == null ? null : _tags,
                     onScan: value == null ? null : _scan,
-                    onDelete: value == null || saved == null
-                        ? null
-                        : _delete,
+                    onDelete: value == null || saved == null ? null : _delete,
                   ),
                 ),
               ],

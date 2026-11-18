@@ -1,3 +1,4 @@
+import 'note_counts.dart';
 import 'note_document.dart';
 import 'note_collection_entry.dart';
 import 'notes_query.dart';
@@ -8,6 +9,9 @@ abstract interface class NotesRepository {
   });
   Stream<List<NoteListing>> watchNotes({NotesQuery query = const NotesQuery()});
   Stream<List<String>> watchTags({bool trash = false});
+
+  /// Notes in every collection at once, kept current.
+  Stream<NoteCounts> watchCounts();
   Stream<OpenNote> watchDocument(String id);
   Future<OpenNote> openDocument(String id);
 

@@ -134,7 +134,11 @@ void main() {
   testWidgets('long content is still shown formatted, never as plain text', (
     tester,
   ) async {
-    await preview(tester, List.filled(1200, 'Some **writing**.').join('\n'), _Launcher());
+    await preview(
+      tester,
+      List.filled(1200, 'Some **writing**.').join('\n'),
+      _Launcher(),
+    );
     expect(find.byType(MarkdownBody), findsOneWidget);
     expect(find.textContaining('plain text'), findsNothing);
     expect(tester.takeException(), isNull);

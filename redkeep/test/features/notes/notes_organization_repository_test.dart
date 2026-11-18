@@ -39,6 +39,22 @@ void main() {
   Future<List<String>> ids(NotesQuery query) async =>
       (await repo.watchNotes(query: query).first).map((v) => v.id).toList();
 
+  test(
+    'counts every collection at once, leaving Trash out of the rest',
+    () async {
+      await seed(1, pinned: true, tags: ['travel', 'work']);
+      await seed(2, tags: ['travel']);
+      await seed(3);
+      final trashed = await seed(4, pinned: true, tags: ['travel', 'gone']);
+      await repo.deleteNote(trashed.id, trashed.revision);
+      final counts = await repo.watchCounts().first;
+      expect(counts.all, 3);
+      expect(counts.pinned, 1);
+      expect(counts.trash, 1);
+      expect(counts.tags, {'travel': 2, 'work': 1});
+    },
+  );
+
   test('keyword, tag, pin and trash filters compose; literal tokens and stable pin ordering', () async {
     await seed(1, pinned: true, tags: [' Travel ', 'TRAVEL', '工作']);
     await seed(2, body: 'green hill', tags: ['travel']);

@@ -343,8 +343,7 @@ class _Welcome extends StatelessWidget {
         ('Tidy and organise this note', Icons.format_list_bulleted_rounded),
         ('Fix grammar and clarity', Icons.spellcheck_rounded),
         ('Make it warmer and friendlier', Icons.sentiment_satisfied_rounded),
-        if (!hasWebsite)
-          ('Turn this note into a website', Icons.web_rounded),
+        if (!hasWebsite) ('Turn this note into a website', Icons.web_rounded),
       ],
       if (hasWebsite) ...[
         ('Give the website a darker look', Icons.dark_mode_outlined),

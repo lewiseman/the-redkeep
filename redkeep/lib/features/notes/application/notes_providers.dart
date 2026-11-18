@@ -6,6 +6,7 @@ import '../../../app/storage_providers.dart';
 import '../data/drift_note_websites.dart';
 import '../data/drift_notes_repository.dart';
 import '../data/platform_note_link_launcher.dart';
+import '../domain/note_counts.dart';
 import '../domain/note_link_launcher.dart';
 import '../domain/note_document.dart';
 import '../domain/note_collection_entry.dart';
@@ -130,6 +131,11 @@ final noteTagsProvider = StreamProvider.autoDispose<List<String>>(
       .watch(notesRepositoryProvider)
       .watchTags(trash: ref.watch(notesFilterProvider.select((q) => q.trash))),
   retry: (_, _) => null,
+);
+
+/// Notes in each collection, for the collection picker's cards.
+final noteCountsProvider = StreamProvider.autoDispose<NoteCounts>(
+  (ref) => ref.watch(notesRepositoryProvider).watchCounts(),
 );
 
 final noteLinkLauncherProvider = Provider<NoteLinkLauncher>(

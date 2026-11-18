@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:redkeep/features/notes/domain/note_counts.dart';
 import 'package:redkeep/features/notes/domain/note_document.dart';
 import 'package:redkeep/features/notes/domain/note_collection_entry.dart';
 import 'package:redkeep/features/notes/domain/notes_repository.dart';
@@ -62,6 +63,10 @@ class ControlledNotesRepository implements NotesRepository {
   Stream<List<String>> watchTags({bool trash = false}) => failRead
       ? Stream.error(StateError('synthetic read failure'))
       : inner.watchTags(trash: trash);
+  @override
+  Stream<NoteCounts> watchCounts() => failRead
+      ? Stream.error(StateError('synthetic read failure'))
+      : inner.watchCounts();
   @override
   Future<void> organize(
     String id,

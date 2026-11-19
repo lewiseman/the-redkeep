@@ -1,3 +1,5 @@
+import 'photos/diary_ink_action.dart';
+import 'photos/diary_memory_material.dart';
 import 'photos/diary_photo_story_strip.dart';
 import '../application/diary_media_providers.dart';
 
@@ -190,15 +192,10 @@ class _DiaryDayContentState extends ConsumerState<DiaryDayContent> {
     );
   }
 
-  Widget _buildContent(
-    BuildContext context,
-    bool busy,
-    DateTime today,
-  ) {
+  Widget _buildContent(BuildContext context, bool busy, DateTime today) {
     final day = widget.day;
     final interactive = widget.interactive;
-    final canEditEntries =
-        interactive && widget.enableEntryEditing && !busy;
+    final canEditEntries = interactive && widget.enableEntryEditing && !busy;
     final colors = diaryPaperColors(context);
     final typography = DiaryTypography.of(context);
     final details = day.mood?.display ?? '';
@@ -223,6 +220,25 @@ class _DiaryDayContentState extends ConsumerState<DiaryDayContent> {
       }
     }
 
+    Future<void> addPhotos() async {
+      if (_openingEditor) return;
+      _openingEditor = true;
+      try {
+        final id = await ref
+            .read(diaryActionsProvider.notifier)
+            .create(day.date);
+        if (context.mounted) {
+          await context.push('${diaryEntryLocation(day.date, id)}/photos');
+        }
+      } catch (_) {
+        if (context.mounted) {
+          diaryMessage(context, 'Could not open photos. Retry.');
+        }
+      } finally {
+        _openingEditor = false;
+      }
+    }
+
     final actions = canCreate
         ? Padding(
             padding: EdgeInsets.only(
@@ -237,7 +253,15 @@ class _DiaryDayContentState extends ConsumerState<DiaryDayContent> {
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: AbsorbPointer(
                     absorbing: busy || !interactive,
-                    child: DiaryWritingPrompt(onTap: write),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        DiaryWritingPrompt(onTap: write),
+                        const SizedBox(height: 4),
+                        Center(child: _AddPhotosNote(onPressed: addPhotos)),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -374,6 +398,48 @@ class _DiaryDayContentState extends ConsumerState<DiaryDayContent> {
         if (!actionsAtTop) actions,
         if (day.entries.isEmpty) const SizedBox.shrink(),
       ],
+    );
+  }
+}
+
+/// A pencilled album and note under the ruled lines, in the same faded ink,
+/// so starting a photo story reads as part of the paper rather than a button.
+class _AddPhotosNote extends StatelessWidget {
+  const _AddPhotosNote({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final ink = colors.onSurfaceVariant.withValues(
+      alpha: colors.brightness == Brightness.dark ? .62 : .55,
+    );
+    return DiaryInkAction(
+      key: const ValueKey('diary-add-photos'),
+      label: 'Add photos',
+      onPressed: onPressed,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            DiaryInkGlyph(symbol: DiaryInkSymbol.album, color: ink, size: 22),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                'Add photos',
+                style: TextStyle(
+                  color: ink,
+                  fontSize: 13,
+                  letterSpacing: .4,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -3,14 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../app/navigation_destination.dart';
 import '../../../core/presentation/diary_typography.dart';
+import '../../../core/presentation/rendering_policy.dart';
 import '../../assets/presentation/local_artwork.dart';
 import '../application/diary_editor_controller.dart';
 import '../application/diary_providers.dart';
 import '../domain/diary_document.dart';
 import 'diary_discard_dialog.dart';
 import 'diary_entry_page.dart';
+import 'diary_paper_stamp.dart';
+import 'photos/diary_ink_action.dart';
 import 'diary_writing_paper.dart';
 import 'diary_day_page.dart';
 
@@ -35,7 +37,6 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
   final _scroll = ScrollController();
   bool _loaded = false;
   bool _leaving = false;
-  bool _openingMedia = false;
 
   @override
   void dispose() {
@@ -78,16 +79,9 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
             ),
           ),
           forceMaterialTransparency: true,
+          // Saving lives in the tray at the foot of the page, under the
+          // thumb; up here only the rare, careful choice remains.
           actions: [
-            if (!saved) ...[
-              IconButton(
-                tooltip: 'Add photos',
-                icon: const Icon(Icons.add_photo_alternate_outlined),
-                onPressed: _canAddMedia(value) ? () => _media('photos') : null,
-              ),
-            ],
-            if (!saved && _isToday) _thoughtButton(value, controller),
-            _saveButton(value, controller),
             if (saved && !value.sourceUnavailable)
               PopupMenuButton<void>(
                 tooltip: 'Entry options',
@@ -137,45 +131,77 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
       widget.address.date.isCurrent(ref.read(diaryClockProvider)());
 
   /// Saves today's new writing as a quick, text-only thought, marked with the
-  /// old Flow artwork.
-  Widget _thoughtButton(
-    DiaryEditorState? value,
+  /// old Flow artwork: a plain slip of paper, the paper boat and its name.
+  Widget _thoughtSlip(
+    DiaryEditorState value,
     DiaryEditorController controller,
   ) {
     final blocked =
-        value == null ||
         value.saving ||
         value.text.isEmpty ||
         value.sourceUnavailable ||
-        !value.changed ||
-        _openingMedia;
-    return IconButton(
+        !value.changed;
+    final colors = Theme.of(context).colorScheme;
+    final simple = RenderingPolicyScope.of(context).simplerEffects;
+    return DiaryInkAction(
       key: const ValueKey('diary-save-thought'),
-      tooltip: 'Save as thought',
+      label: 'Save as thought',
+      tooltip: 'Save as a quick thought, words only',
       onPressed: blocked ? null : () => _saveThought(controller),
-      icon: Opacity(
-        opacity: blocked ? .45 : 1,
-        child: const LocalArtwork(
-          assetKey: 'navigation.flow.inactive',
-          dimension: 32,
+      child: CustomPaint(
+        painter: DiaryPaperStamp(
+          paper: Color.lerp(colors.surface, colors.onSurface, .035)!,
+          ink: colors.onSurface,
+          shadowColor: colors.shadow,
+          variant: 3,
+          edgeScale: simple ? 0 : .4,
+          shadow: !simple && !blocked,
+        ),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 56),
+          child: Opacity(
+            opacity: blocked ? .5 : 1,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(10, 8, 12, 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const LocalArtwork(
+                    assetKey: 'navigation.flow.inactive',
+                    dimension: 30,
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: MediaQuery.withClampedTextScaling(
+                      maxScaleFactor: 1.6,
+                      child: Text(
+                        'As a thought',
+                        maxLines: 2,
+                        style: DiaryTypography.of(context).title.copyWith(
+                          color: colors.onSurface,
+                          fontSize: 21,
+                          height: 1.1,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
   }
 
-  /// One primary action. Once the original is gone, saving means keeping a copy.
-  Widget _saveButton(
-    DiaryEditorState? value,
-    DiaryEditorController controller,
-  ) {
-    final copy = value?.sourceUnavailable == true;
+  /// One primary action, soaked in ink. Once the original is gone, saving
+  /// means keeping a copy.
+  Widget _saveSlip(DiaryEditorState value, DiaryEditorController controller) {
+    final copy = value.sourceUnavailable;
     final blocked =
-        value == null ||
-        value.saving ||
-        value.text.isEmpty ||
-        (!copy && !value.changed);
-    return DiaryPaperSaveButton(
-      label: value?.saving == true
+        value.saving || value.text.isEmpty || (!copy && !value.changed);
+    return DiaryInkSlip(
+      label: value.saving
           ? 'Saving…'
           : copy
           ? 'Save a copy'
@@ -185,6 +211,49 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
           : copy
           ? () => _saveCopy(controller)
           : () => _save(controller),
+    );
+  }
+
+  /// The foot of the page, under the thumb and riding just above the
+  /// keyboard: a pen stroke, then the ways to keep the writing.
+  Widget _tray(DiaryEditorState value, DiaryEditorController controller) {
+    final colors = Theme.of(context).colorScheme;
+    final thought = value.baseRevision == 0 && _isToday;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          RepaintBoundary(
+            child: DiaryPenLine(
+              color: colors.onSurface.withValues(alpha: .16),
+              stroke: 5,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Each on its own layer: typing repaints the count, never
+              // the paper of the slips.
+              Expanded(
+                flex: 5,
+                child: RepaintBoundary(
+                  child: thought
+                      ? _thoughtSlip(value, controller)
+                      : _WordCount(text: value.text.body),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                flex: 4,
+                child: RepaintBoundary(child: _saveSlip(value, controller)),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -289,6 +358,27 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
                   ),
                 ),
               ),
+              // And slips away into the tray at the foot.
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: 18,
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.bottomCenter,
+                        end: Alignment.topCenter,
+                        colors: [
+                          colors.surface,
+                          colors.surface.withValues(alpha: 0),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
               // Writing slips away under the date rather than being cut off.
               // A flat gradient, so no layer or mask has to be composited.
               Positioned(
@@ -317,6 +407,7 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
             ],
           ),
         ),
+        _tray(state, controller),
       ],
     );
   }
@@ -340,31 +431,6 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
       ],
     ),
   );
-
-  bool _canAddMedia(DiaryEditorState? value) {
-    return !_openingMedia &&
-        value != null &&
-        value.baseRevision == 0 &&
-        !value.saving &&
-        value.text.isEmpty &&
-        widget.address.date.hasStarted(ref.read(diaryClockProvider)());
-  }
-
-  Future<void> _media(String kind) async {
-    if (_openingMedia) return;
-    setState(() => _openingMedia = true);
-    try {
-      FocusScope.of(context).unfocus();
-      final saved = await context.push<bool>(
-        '${diaryEntryLocation(widget.address.date, widget.address.id)}/photos',
-      );
-      if (!mounted || saved != true) return;
-      await ref.read(diaryEditorProvider(widget.address).notifier).discard();
-      if (mounted) await _leave();
-    } finally {
-      if (mounted) setState(() => _openingMedia = false);
-    }
-  }
 
   void _edit(DiaryEditorController controller) =>
       controller.edit(DiaryText(body: _body.text));
@@ -465,6 +531,41 @@ class _CompactDateTitle extends StatelessWidget {
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       style: Theme.of(context).textTheme.titleMedium,
+    );
+  }
+}
+
+/// How much is on the page, pencilled at the foot of it.
+class _WordCount extends StatelessWidget {
+  const _WordCount({required this.text});
+
+  final String text;
+
+  static final _words = RegExp(r"[\p{L}\p{N}][\p{L}\p{N}'’-]*", unicode: true);
+
+  @override
+  Widget build(BuildContext context) {
+    final count = _words.allMatches(text).length;
+    final colors = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(left: 6),
+      child: MediaQuery.withClampedTextScaling(
+        maxScaleFactor: 1.6,
+        child: Text(
+          switch (count) {
+            0 => 'A blank page',
+            1 => '1 word',
+            _ => '$count words',
+          },
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: DiaryTypography.of(context).title.copyWith(
+            color: colors.onSurfaceVariant.withValues(alpha: .8),
+            fontSize: 20,
+            height: 1.1,
+          ),
+        ),
+      ),
     );
   }
 }

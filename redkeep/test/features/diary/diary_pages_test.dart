@@ -566,7 +566,14 @@ void main() {
     await tap(tester, 'Write an entry');
     final thought = find.byKey(const ValueKey('diary-save-thought'));
     expect(thought, findsOneWidget);
-    expect(tester.widget<IconButton>(thought).onPressed, isNull);
+    expect(tester.widget<DiaryInkAction>(thought).onPressed, isNull);
+    // Both ways to keep the writing sit at the foot of the page.
+    final screen = tester.getSize(find.byType(DiaryEditPage));
+    expect(tester.getCenter(thought).dy, greaterThan(screen.height / 2));
+    expect(
+      tester.getCenter(find.text('Save')).dy,
+      greaterThan(screen.height / 2),
+    );
     await tester.enterText(
       find.byKey(const ValueKey('diary-body')),
       'A passing thought',
@@ -615,6 +622,14 @@ void main() {
     await tap(tester, 'Write an entry');
     expect(find.byType(DiaryEditPage), findsOneWidget);
     expect(find.byKey(const ValueKey('diary-save-thought')), findsNothing);
+    // Its place in the tray tells how much is written instead.
+    expect(find.text('A blank page'), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const ValueKey('diary-body')),
+      'Rainy and slow',
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('3 words'), findsOneWidget);
   });
 
   diaryTest('back with unsaved writing asks before leaving', (tester) async {

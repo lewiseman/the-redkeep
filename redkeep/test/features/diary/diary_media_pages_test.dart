@@ -1,5 +1,4 @@
 import 'package:redkeep/features/sync/application/sync_providers.dart';
-import 'package:redkeep/app/app_router.dart';
 
 import 'dart:async';
 import 'dart:io';
@@ -24,7 +23,7 @@ import 'package:redkeep/features/diary/presentation/add_diary_photos_page.dart';
 import '../../support/pump_app.dart';
 
 void main() {
-  testWidgets('new editor media actions follow trimmed body emptiness', (
+  testWidgets('the diary card opens a new photo story directly', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(390, 844);
@@ -33,8 +32,6 @@ void main() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
     });
-    final scale = ValueNotifier<double>(1);
-    addTearDown(scale.dispose);
     final db = AppDatabase(NativeDatabase.memory());
     final repo = DriftDiaryRepository(db, clock: () => DateTime(2026, 11, 4));
     await pumpApp(
@@ -45,34 +42,12 @@ void main() {
       diaryId: () => 'a' * 32,
     );
     await tester.pumpAndSettle();
-    final scope = ProviderScope.containerOf(
-      tester.element(find.byType(Scaffold).first),
-    );
-    final date = DateTime(2026, 11, 2);
-    scope.read(diaryNewIdsProvider.notifier).add('a' * 32);
-    final router = await Future.value(scope.read(appRouterProvider));
-    router.go(
-      '/diary/${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}/entries/${'a' * 32}/edit',
-    );
+    final button = find.byKey(const ValueKey('diary-add-photos')).hitTestable();
+    await tester.ensureVisible(button);
+    await tester.tap(button);
     await tester.pumpAndSettle();
-    bool enabled(String name) =>
-        tester
-            .widget<IconButton>(
-              find.byWidgetPredicate(
-                (w) => w is IconButton && w.tooltip == name,
-              ),
-            )
-            .onPressed !=
-        null;
-    expect(enabled('Add photos'), isTrue);
-    expect(find.byTooltip('Dictate'), findsNothing);
-    expect(find.byKey(const ValueKey('diary-title')), findsNothing);
-    await tester.enterText(find.byKey(const ValueKey('diary-body')), 'Words');
-    await tester.pump();
-    expect(enabled('Add photos'), isFalse);
-    await tester.enterText(find.byKey(const ValueKey('diary-body')), ' \t\n');
-    await tester.pump();
-    expect(enabled('Add photos'), isTrue);
+    expect(find.byType(AddDiaryPhotosPage), findsOneWidget);
+    expect(find.byKey(const ValueKey('diary-body')), findsNothing);
     await tester.pumpWidget(const SizedBox());
     await tester.pumpAndSettle();
     await db.close();

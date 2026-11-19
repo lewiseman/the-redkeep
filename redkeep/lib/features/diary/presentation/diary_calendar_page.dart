@@ -30,8 +30,8 @@ String _dateKey(DateTime date) => date.toIso8601String();
 ///
 /// Its lenses (year, months, weeks, days) are depths of one zoom: pinching
 /// out dives from the year into its months, weeks and days around the
-/// fingers, pinching in rises back out. The dial beside search follows the
-/// zoom and offers the same moves to a single finger or a screen reader.
+/// fingers, pinching in rises back out. The dial floating at its foot follows
+/// the zoom and offers the same moves to a single finger or a screen reader.
 class DiaryCalendarPage extends ConsumerStatefulWidget {
   const DiaryCalendarPage({super.key, this.selected, this.onSelected});
   final DiaryPeriod? selected;
@@ -74,8 +74,7 @@ class _DiaryCalendarPageState extends ConsumerState<DiaryCalendarPage>
     DiaryCalendarLens.week: GlobalKey<_CalendarYearState>(),
   };
   bool _returning = false;
-  (Set<DiaryPeriod>?, Map<DiaryPeriod, DiaryMood>?, Map<DiaryPeriod, String>?)?
-  _marksSource;
+  (Set<DiaryPeriod>?, Map<DiaryPeriod, DiaryMood>?)? _marksSource;
   DiaryCalendarMarks _marks = DiaryCalendarMarks.empty;
 
   DateTime get _firstDate => DateTime(1);
@@ -274,19 +273,13 @@ class _DiaryCalendarPageState extends ConsumerState<DiaryCalendarPage>
   DiaryCalendarMarks _marksFor(
     Set<DiaryPeriod>? saved,
     Map<DiaryPeriod, DiaryMood>? moods,
-    Map<DiaryPeriod, String>? headings,
   ) {
     final source = _marksSource;
     if (source == null ||
         !identical(source.$1, saved) ||
-        !identical(source.$2, moods) ||
-        !identical(source.$3, headings)) {
-      _marksSource = (saved, moods, headings);
-      _marks = DiaryCalendarMarks(
-        saved ?? const {},
-        moods ?? const {},
-        headings ?? const {},
-      );
+        !identical(source.$2, moods)) {
+      _marksSource = (saved, moods);
+      _marks = DiaryCalendarMarks(saved ?? const {}, moods ?? const {});
     }
     return _marks;
   }
@@ -302,8 +295,7 @@ class _DiaryCalendarPageState extends ConsumerState<DiaryCalendarPage>
   Widget build(BuildContext context) {
     final dates = ref.watch(diaryCalendarDatesProvider);
     final moods = ref.watch(diaryCalendarMoodsProvider);
-    final headings = ref.watch(diaryCalendarHeadingsProvider);
-    final marks = _marksFor(dates.value, moods.value, headings.value);
+    final marks = _marksFor(dates.value, moods.value);
     final colors = context.colors;
     return Scaffold(
       backgroundColor: colors.surface,
@@ -339,9 +331,7 @@ class _DiaryCalendarPageState extends ConsumerState<DiaryCalendarPage>
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 _header(context, inset),
-                                if (dates.hasError ||
-                                    moods.hasError ||
-                                    headings.hasError)
+                                if (dates.hasError || moods.hasError)
                                   TextButton(
                                     onPressed: () {
                                       ref.invalidate(
@@ -349,9 +339,6 @@ class _DiaryCalendarPageState extends ConsumerState<DiaryCalendarPage>
                                       );
                                       ref.invalidate(
                                         diaryCalendarMoodsProvider,
-                                      );
-                                      ref.invalidate(
-                                        diaryCalendarHeadingsProvider,
                                       );
                                     },
                                     child: const Text(
@@ -363,35 +350,21 @@ class _DiaryCalendarPageState extends ConsumerState<DiaryCalendarPage>
                           ),
                         ),
                         Expanded(
-                          child: PageView.builder(
-                            key: const ValueKey('calendar-year-pages'),
-                            controller: _pages,
-                            itemCount: _lastDate.year - _firstDate.year + 1,
-                            onPageChanged: (index) =>
-                                setState(() => _year = _firstDate.year + index),
-                            itemBuilder: (context, index) {
-                              final year = _firstDate.year + index;
-                              return DiaryCalendarZoomStage(
-                                key: ValueKey('calendar-zoom-$year'),
-                                zoom: _zoom,
-                                origin: () => _origin,
-                                builder: (lens) =>
-                                    _lensView(year, lens, inset, marks),
-                                onStart: (focus) => _zoomBegin(year, focus),
-                                onUpdate: (scale, time) => _zoomTo(
-                                  DiaryZoom.pinch(_zoomFrom, scale),
-                                  time,
-                                ),
-                                onEnd: _zoomEnd,
-                                onAttach: (stage, attached) {
-                                  if (attached) {
-                                    _stages[year] = stage;
-                                  } else if (identical(_stages[year], stage)) {
-                                    _stages.remove(year);
-                                  }
-                                },
-                              );
-                            },
+                          child: Stack(
+                            children: [
+                              Positioned.fill(child: _yearPages(inset, marks)),
+                              // The dial floats over the lenses' foot,
+                              // outside the zoom, so it holds still while
+                              // the calendar swells and settles behind it.
+                              // Embedded, that foot is just above the
+                              // resting thread, so it unrolls with the page.
+                              PositionedDirectional(
+                                start: 0,
+                                end: 0,
+                                bottom: diaryCalendarDialMargin,
+                                child: Center(child: _dial()),
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -405,6 +378,47 @@ class _DiaryCalendarPageState extends ConsumerState<DiaryCalendarPage>
       ),
     );
   }
+
+  Widget _yearPages(double inset, DiaryCalendarMarks marks) => PageView.builder(
+    key: const ValueKey('calendar-year-pages'),
+    controller: _pages,
+    itemCount: _lastDate.year - _firstDate.year + 1,
+    onPageChanged: (index) => setState(() => _year = _firstDate.year + index),
+    itemBuilder: (context, index) {
+      final year = _firstDate.year + index;
+      return DiaryCalendarZoomStage(
+        key: ValueKey('calendar-zoom-$year'),
+        zoom: _zoom,
+        origin: () => _origin,
+        builder: (lens) => _lensView(year, lens, inset, marks),
+        onStart: (focus) => _zoomBegin(year, focus),
+        onUpdate: (scale, time) =>
+            _zoomTo(DiaryZoom.pinch(_zoomFrom, scale), time),
+        onEnd: _zoomEnd,
+        onAttach: (stage, attached) {
+          if (attached) {
+            _stages[year] = stage;
+          } else if (identical(_stages[year], stage)) {
+            _stages.remove(year);
+          }
+        },
+      );
+    },
+  );
+
+  Widget _dial() => DiaryCalendarZoomDial(
+    zoom: _zoom,
+    lens: _lens,
+    onStep: _step,
+    onTap: _dialTap,
+    onScrubStart: _dialBegin,
+    onScrub: (dx) =>
+        _zoomTo(DiaryZoom.rubber(_zoomAt + dx / DiaryZoom.dialPerLevel), null),
+    onScrubEnd: (velocity) {
+      _zoomVelocity = velocity / DiaryZoom.dialPerLevel;
+      _zoomEnd();
+    },
+  );
 
   Widget _lensView(
     int year,
@@ -498,8 +512,8 @@ class _DiaryCalendarPageState extends ConsumerState<DiaryCalendarPage>
     );
   }
 
-  /// The year strip is the app bar: the current year sits beside the zoom
-  /// dial and search at the trailing edge, and earlier years fade away
+  /// The year strip is the app bar: the current year sits beside search at
+  /// the trailing edge, and earlier years fade away
   /// towards the leading one, under the back button when this is its own
   /// route.
   Widget _header(BuildContext context, double inset) {
@@ -510,22 +524,6 @@ class _DiaryCalendarPageState extends ConsumerState<DiaryCalendarPage>
       child: Row(
         children: [
           Expanded(child: _years(context, colors, direction)),
-          const SizedBox(width: 4),
-          DiaryCalendarZoomDial(
-            zoom: _zoom,
-            lens: _lens,
-            onStep: _step,
-            onTap: _dialTap,
-            onScrubStart: _dialBegin,
-            onScrub: (dx) => _zoomTo(
-              DiaryZoom.rubber(_zoomAt + dx / DiaryZoom.dialPerLevel),
-              null,
-            ),
-            onScrubEnd: (velocity) {
-              _zoomVelocity = velocity / DiaryZoom.dialPerLevel;
-              _zoomEnd();
-            },
-          ),
           const SizedBox(width: 4),
           DecoratedBox(
             decoration: BoxDecoration(
@@ -817,7 +815,10 @@ class _CalendarYearState extends State<_CalendarYear> {
           itemBuilder: (context, index) =>
               _buildMonth(DateTime(_anchor.year, _anchor.month + index)),
         ),
-        const SliverToBoxAdapter(child: SizedBox(height: 24)),
+        // Room to scroll the last month clear of the floating dial.
+        const SliverToBoxAdapter(
+          child: SizedBox(height: diaryCalendarDialClearance),
+        ),
       ],
     );
   }

@@ -198,7 +198,6 @@ class _DiaryDayContentState extends ConsumerState<DiaryDayContent> {
     final canEditEntries = interactive && widget.enableEntryEditing && !busy;
     final colors = diaryPaperColors(context);
     final typography = DiaryTypography.of(context);
-    final details = day.mood?.display ?? '';
     final canCreate = day.date.hasStarted(today);
     Future<void> write() async {
       if (_openingEditor) return;
@@ -290,36 +289,6 @@ class _DiaryDayContentState extends ConsumerState<DiaryDayContent> {
                 ),
               ),
               const SizedBox(height: 16),
-            ],
-            ...[
-              DiaryTitlePrompt(
-                title: day.heading,
-                periodName: day.date.kind.name,
-                onTap: interactive && !busy
-                    ? () async {
-                        if (_openingEditor) return;
-                        _openingEditor = true;
-                        try {
-                          await context.push(diaryTitleLocation(day.date));
-                        } finally {
-                          _openingEditor = false;
-                        }
-                      }
-                    : null,
-              ),
-              SizedBox(height: details.isEmpty ? 26 : 10),
-            ],
-            if (details.isNotEmpty) ...[
-              Text(
-                details,
-                key: const ValueKey('diary-day-details'),
-                style: TextStyle(
-                  color: colors.secondary,
-                  fontSize: 13,
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 26),
             ],
             if (day.loading)
               const Padding(

@@ -15,7 +15,6 @@ import 'package:redkeep/features/diary/presentation/diary_artwork.dart';
 import 'package:redkeep/features/diary/presentation/diary_day_page.dart';
 import 'package:redkeep/features/diary/presentation/diary_edit_page.dart';
 import 'package:redkeep/features/diary/presentation/diary_paper_stamp.dart';
-import 'package:redkeep/features/diary/presentation/diary_title_page.dart';
 import 'package:redkeep/features/diary/presentation/photos/diary_ink_action.dart';
 import 'package:redkeep/features/diary/presentation/diary_writing_paper.dart';
 import 'package:redkeep/features/diary/presentation/diary_entry_page.dart';
@@ -73,12 +72,23 @@ void main() {
       await tester.pumpAndSettle();
       return;
     }
-    if (label == 'Name this day') {
-      await tester.ensureVisible(
-        find.byKey(const ValueKey('diary-day-title')).hitTestable(),
-      );
+    if (label == 'Choose mood') {
+      // The selected day's own tab on the thread asks for its mood.
+      FocusManager.instance.primaryFocus?.unfocus();
+      tester
+          .state<NestedScrollViewState>(find.byType(NestedScrollView).last)
+          .outerController
+          .jumpTo(0);
+      await tester.pumpAndSettle();
       await tester.tap(
-        find.byKey(const ValueKey('diary-day-title')).hitTestable(),
+        find
+            .byKey(
+              ValueKey(
+                'diary-calendar-date-${date.calendarDate.toIso8601String()}',
+              ),
+            )
+            .hitTestable()
+            .first,
       );
       await tester.pumpAndSettle();
       return;
@@ -120,6 +130,15 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// Picks a face in the open mood sheet and lets the save reach the database.
+  Future<void> chooseMood(WidgetTester tester, String name) async {
+    await pickMood(tester, name);
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 50)),
+    );
+    await tester.pumpAndSettle();
+  }
+
   bool? moodSelected(WidgetTester tester, String name) => tester
       .widget<DiaryInkAction>(
         find.descendant(
@@ -146,7 +165,7 @@ void main() {
   }
 
   diaryTest(
-    'only the day has a title; entry readers and editors use the body font',
+    'saved day titles stay hidden; entry readers and editors use the body font',
     (tester) async {
       await seed(body: 'Exact writing stays unchanged');
       await repo.renameDay(DiaryDay(date: date), 'A quiet day');
@@ -193,10 +212,7 @@ void main() {
       );
       goDiaryDay(tester, router, date);
       await tester.pumpAndSettle();
-      expect(
-        tester.widget<Text>(liveText('A quiet day')).style!.fontFamily,
-        'Poppins',
-      );
+      expect(liveText('A quiet day'), findsNothing);
       expect(
         tester
             .widget<Text>(liveText('Exact writing stays unchanged'))
@@ -264,9 +280,12 @@ void main() {
   );
 
   diaryTest(
-    'card title opens its own page, saves and clears without changing entries',
+    "the selected day's tab sets and clears its mood, keeping title and entries",
     (tester) async {
       await seed();
+      await repo.saveDay(
+        DiaryDay(date: date, heading: 'A kept title', themes: ['Work']),
+      );
       final original = (await repo.openDocument(id)).entry!;
       final router = await pumpApp(
         tester,
@@ -274,118 +293,46 @@ void main() {
         diaryDay: date,
         diary: repo,
       );
-      await tap(tester, 'Name this day');
-      expect(find.byType(DiaryTitlePage), findsOneWidget);
-      expect(find.byType(Dialog), findsNothing);
-      await tester.enterText(
-        find.byKey(const ValueKey('diary-day-title-field')),
-        'A day to remember',
-      );
-      await pickMood(tester, 'calm');
-      expect(
-        find.byKey(const ValueKey('diary-day-themes-field')),
-        findsNothing,
-      );
-      await tap(tester, 'Save day');
-      expectDiaryDay(tester, router, date);
-      expect(liveText('A day to remember'), findsOneWidget);
-      expect((await storedDay(tester)).heading, 'A day to remember');
-      expect((await storedDay(tester)).mood, DiaryMood.calm);
-      expect(liveText('😌 Calm'), findsOneWidget);
+      // Titles stay in the database but no longer show on the page.
+      expect(liveText('A kept title'), findsNothing);
+      expect(find.byKey(const ValueKey('diary-calendar-mood')), findsNothing);
 
-      await tap(tester, 'Name this day');
-      expect(moodSelected(tester, 'calm'), isTrue);
+      await tap(tester, 'Choose mood');
+      expect(find.byKey(const ValueKey('diary-mood-sheet')), findsOneWidget);
+      expect(moodSelected(tester, 'calm'), isFalse);
+      await chooseMood(tester, 'calm');
+      expect(find.byKey(const ValueKey('diary-mood-sheet')), findsNothing);
+      expectDiaryDay(tester, router, date);
+      final saved = await storedDay(tester);
+      expect(saved.mood, DiaryMood.calm);
+      expect(saved.heading, 'A kept title');
+      expect(saved.themes, ['Work']);
       expect(
-        tester
-            .widget<TextField>(
-              find.byKey(const ValueKey('diary-day-title-field')),
-            )
-            .controller!
-            .text,
-        'A day to remember',
+        find.descendant(
+          of: find.byKey(const ValueKey('diary-calendar-mood')),
+          matching: find.text('😌'),
+        ),
+        findsOneWidget,
       );
-      await tester.enterText(
-        find.byKey(const ValueKey('diary-day-title-field')),
-        '',
-      );
-      await tap(tester, 'Clear');
-      await tap(tester, 'Save day');
-      expect((await storedDay(tester)).heading, '');
+      // The mood lives on the tab only, not as a line on the page.
+      expect(liveText('😌 Calm'), findsNothing);
+
+      // Dismissing the sheet changes nothing.
+      await tap(tester, 'Choose mood');
+      expect(moodSelected(tester, 'calm'), isTrue);
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pumpAndSettle();
+      expect((await storedDay(tester)).mood, DiaryMood.calm);
+
+      // Tapping the circled face again rubs it out.
+      await tap(tester, 'Choose mood');
+      await chooseMood(tester, 'calm');
       expect((await storedDay(tester)).mood, isNull);
-      expect(find.byType(DiaryTitlePrompt).hitTestable(), findsOneWidget);
+      expect((await storedDay(tester)).heading, 'A kept title');
+      expect(find.byKey(const ValueKey('diary-calendar-mood')), findsNothing);
       final unchanged = (await repo.openDocument(id)).entry!;
       expect(unchanged.revision, original.revision);
       expect(unchanged.text.body, original.text.body);
-    },
-  );
-
-  diaryTest(
-    'mood-only changes are protected on back; saved themes stay hidden and kept',
-    (tester) async {
-      await repo.saveDay(DiaryDay(date: date, heading: '', themes: ['Work']));
-      final router = await pumpApp(
-        tester,
-        initialLocation: diaryTitleLocation(date),
-        diary: repo,
-      );
-      expect(find.text('What was it about?'), findsNothing);
-      expect(find.text('Work'), findsNothing);
-      await pickMood(tester, 'happy');
-      await tester.pageBack();
-      await tester.pumpAndSettle();
-      expect(find.text('Discard these changes?'), findsOneWidget);
-      await tap(tester, 'Keep editing');
-      expect(moodSelected(tester, 'happy'), isTrue);
-      await tap(tester, 'Save day');
-      expectDiaryDay(tester, router, date);
-      expect((await storedDay(tester)).mood, DiaryMood.happy);
-      expect((await storedDay(tester)).themes, ['Work']);
-      expect(liveText('😊 Happy'), findsOneWidget);
-      expect(find.textContaining('Work'), findsNothing);
-    },
-  );
-
-  diaryTest(
-    'title editor protects unsaved changes and keeps the draft after a stale save',
-    (tester) async {
-      final router = await pumpApp(
-        tester,
-        initialLocation: '/diary',
-        diaryDay: date,
-        diary: repo,
-      );
-      await tap(tester, 'Name this day');
-      await tester.enterText(
-        find.byKey(const ValueKey('diary-day-title-field')),
-        'Draft title',
-      );
-      await tester.pumpAndSettle();
-      await tester.pageBack();
-      await tester.pumpAndSettle();
-      await tap(tester, 'Keep editing');
-      expect(find.byType(DiaryTitlePage), findsOneWidget);
-      await repo.renameDay(await storedDay(tester), 'Newer title');
-      await tester.pumpAndSettle();
-      await tap(tester, 'Save day');
-      expect(
-        find.text('Day details could not be saved. Reopen the day and retry.'),
-        findsOneWidget,
-      );
-      expect(
-        tester
-            .widget<TextField>(
-              find.byKey(const ValueKey('diary-day-title-field')),
-            )
-            .controller!
-            .text,
-        'Draft title',
-      );
-      expect((await storedDay(tester)).heading, 'Newer title');
-      await tester.pageBack();
-      await tester.pumpAndSettle();
-      await tap(tester, 'Discard');
-      expectDiaryDay(tester, router, date);
-      expect(liveText('Newer title'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );
@@ -416,13 +363,6 @@ void main() {
       await tap(tester, 'Next day');
       expectDiaryDay(tester, router, DiaryPeriod(2024, 3, 1));
       await tap(tester, 'Previous day');
-      await tap(tester, 'Name this day');
-      await tester.enterText(
-        find.byKey(const ValueKey('diary-day-title-field')),
-        'Leap day notebook',
-      );
-      await tap(tester, 'Save day');
-      expect(liveText('Leap day notebook'), findsOneWidget);
       await tap(tester, 'Calendar for this month');
       expect(find.byType(DiaryCalendarPage), findsOneWidget);
       expect(find.text('February'), findsOneWidget);
@@ -761,62 +701,6 @@ void main() {
     expectDiaryDay(tester, router, date);
   });
 
-  diaryTest('back from day details returns to the diary it came from', (
-    tester,
-  ) async {
-    await pumpApp(
-      tester,
-      initialLocation: '/diary',
-      diaryDay: date,
-      diary: repo,
-    );
-    final diary = tester.state(find.byType(DiaryDayPage));
-    await tap(tester, 'Name this day');
-    expect(find.byType(DiaryTitlePage), findsOneWidget);
-    await tester.pageBack();
-    await tester.pumpAndSettle();
-    expect(find.byType(DiaryTitlePage), findsNothing);
-    expect(tester.state(find.byType(DiaryDayPage)), same(diary));
-    expect(find.text('Discard these changes?'), findsNothing);
-  });
-
-  diaryTest('a mood is circled, tapped again or cleared to remove it', (
-    tester,
-  ) async {
-    await pumpApp(
-      tester,
-      initialLocation: diaryTitleLocation(date),
-      diary: repo,
-    );
-    expect(find.text('Clear'), findsNothing);
-    await pickMood(tester, 'tired');
-    expect(moodSelected(tester, 'tired'), isTrue);
-    await pickMood(tester, 'low');
-    expect(moodSelected(tester, 'tired'), isFalse);
-    expect(moodSelected(tester, 'low'), isTrue);
-    await pickMood(tester, 'low');
-    expect(moodSelected(tester, 'low'), isFalse);
-    await pickMood(tester, 'calm');
-    await tap(tester, 'Clear');
-    expect(moodSelected(tester, 'calm'), isFalse);
-    expect(tester.takeException(), isNull);
-  });
-
-  diaryTest('day details offer no AI suggestions, even with AI on', (
-    tester,
-  ) async {
-    await pumpApp(
-      tester,
-      initialLocation: diaryTitleLocation(date),
-      diary: repo,
-      aiEnabled: true,
-    );
-    expect(find.byKey(const ValueKey('diary-day-title-field')), findsOneWidget);
-    expect(find.byKey(const ValueKey('diary-day-ai')), findsNothing);
-    expect(find.byKey(const ValueKey('diary-day-maestar')), findsNothing);
-    expect(tester.takeException(), isNull);
-  });
-
   diaryTest('the writing rules match the text lines and scroll with them', (
     tester,
   ) async {
@@ -1124,13 +1008,9 @@ void main() {
           expect(tester.takeException(), isNull);
           goDiaryDay(tester, router, date);
           await tester.pumpAndSettle();
-          await tap(tester, 'Name this day');
-          await tester.enterText(
-            find.byKey(const ValueKey('diary-day-title-field')),
-            'Large text heading',
-          );
-          await tap(tester, 'Save day');
-          expect(liveText('Large text heading'), findsOneWidget);
+          await tap(tester, 'Choose mood');
+          await chooseMood(tester, 'happy');
+          expect((await storedDay(tester)).mood, DiaryMood.happy);
           expect(tester.takeException(), isNull);
           router.go(diaryEntryLocation(date, id));
           await tester.pumpAndSettle();

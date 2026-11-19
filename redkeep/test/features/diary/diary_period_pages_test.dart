@@ -38,7 +38,7 @@ Future<void> _tap(WidgetTester tester, Finder target) async {
 void main() {
   for (final period in _periods) {
     testWidgets(
-      'calendar opens an empty ${period.kind.name}; saved title marks it and clearing hides it',
+      'calendar opens an empty ${period.kind.name}; saved mood marks it and clearing hides it',
       (tester) async {
         final db = AppDatabase(NativeDatabase.memory());
         final repo = DriftDiaryRepository(
@@ -60,16 +60,29 @@ void main() {
           expect(_selected(tester), period);
           expectDiaryDay(tester, router, period);
           expect(await repo.watchSavedPeriods().first, isEmpty);
-          final title = find
-              .byKey(const ValueKey('diary-day-title'))
-              .hitTestable();
-          await _tap(tester, title);
-          await tester.enterText(
-            find.byKey(const ValueKey('diary-day-title-field')),
-            'My ${period.kind.name}',
+          // The period's own tab on the thread asks for its mood.
+          final tab = find
+              .byKey(ValueKey('diary-calendar-date-${period.key}'))
+              .hitTestable()
+              .first;
+          await _tap(tester, tab);
+          await _tap(
+            tester,
+            find.byKey(const ValueKey('diary-day-mood-happy')),
           );
-          await _tap(tester, find.text('Save ${period.kind.name}'));
+          // Let the save reach the database.
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 50)),
+          );
+          await tester.pumpAndSettle();
           expect(await repo.watchSavedPeriods().first, contains(period));
+          expect(
+            find.descendant(
+              of: find.byKey(const ValueKey('diary-calendar-mood')),
+              matching: find.text('😊'),
+            ),
+            findsOneWidget,
+          );
           await _tap(tester, find.byKey(const ValueKey('diary-date-control')));
           final savedButton = find
               .byKey(ValueKey('calendar-period-${period.key}'))

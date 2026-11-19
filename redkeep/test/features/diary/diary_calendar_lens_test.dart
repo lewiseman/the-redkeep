@@ -184,13 +184,40 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  lensTest('the dial floats at the foot and holds still while zooming', (
+    tester,
+  ) async {
+    await pumpApp(
+      tester,
+      initialLocation: diaryCalendarLocation(_today),
+      diary: repo,
+      database: db,
+    );
+    final stage = tester.getRect(_key('calendar-zoom-2026'));
+    final dial = tester.getRect(calendarZoomDial);
+    // Over the lenses' foot, centred, rather than up among the years.
+    expect(dial.top, greaterThan(stage.center.dy));
+    expect(dial.bottom, lessThanOrEqualTo(stage.bottom));
+    expect(dial.center.dx, moreOrLessEquals(stage.center.dx, epsilon: 1));
+    expect(calendarZoomDial.hitTestable(), findsOneWidget);
+
+    // Mid-zoom the lenses swell behind it, but the dial stays put.
+    await tester.tap(calendarZoomDial);
+    await tester.pump(const Duration(milliseconds: 60));
+    expect(tester.getRect(calendarZoomDial), dial);
+    await tester.pumpAndSettle();
+    expect(calendarLens(tester), 'Week');
+    expect(tester.getRect(calendarZoomDial).bottom, dial.bottom);
+    expect(tester.takeException(), isNull);
+  });
+
   test('ISO week numbers follow the Thursday rule', () {
     expect(isoWeekNumber(DateTime(2026, 11, 2)), 45);
     expect(isoWeekNumber(DateTime(2025, 12, 29)), 1);
     expect(isoWeekNumber(DateTime(2020, 12, 28)), 53);
   });
 
-  lensTest('a week spanning two months appears once, with its title', (
+  lensTest('a week spanning two months appears once, without its saved title', (
     tester,
   ) async {
     // Sep 28 – Oct 4 2026: its Thursday is Oct 1, so it belongs to October.
@@ -219,9 +246,10 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(card, findsOneWidget);
+    // Titles stay saved but are no longer shown.
     expect(
       find.descendant(of: card, matching: find.text('Moving week')),
-      findsOneWidget,
+      findsNothing,
     );
     expect(
       find.descendant(of: card, matching: find.text('Open week')),
@@ -235,7 +263,7 @@ void main() {
         .label;
     expect(label, contains('Week 40'));
     expect(label, contains('1 day written'));
-    expect(label, contains('titled Moving week'));
+    expect(label, isNot(contains('Moving week')));
     // The current week is listed even before its Thursday arrives.
     final current = DiaryPeriod.week(_today.start);
     await tester.tap(find.byKey(const ValueKey('calendar-year-tab-2026')));

@@ -20,9 +20,11 @@ import '../domain/diary_timeline.dart';
 import 'diary_style.dart';
 import 'diary_calendar_curtain.dart';
 import 'diary_calendar_page.dart';
+import 'diary_day_details_widgets.dart';
 import 'diary_header.dart';
 import 'diary_scene.dart';
 import 'diary_sky.dart';
+import 'diary_widgets.dart';
 
 export '../application/diary_reader_day.dart' show DiaryDaySelection;
 
@@ -269,6 +271,28 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
       _settle(commit: true);
     } else {
       _replaceDate(date, fade: true);
+    }
+  }
+
+  bool _choosingMood = false;
+
+  /// The selected day's tab asks how that day felt.
+  Future<void> _chooseMood() async {
+    if (_busy || _calendarShown || _choosingMood) return;
+    final date = _selectedDate;
+    _choosingMood = true;
+    try {
+      final choice = await showDiaryMoodSheet(
+        context,
+        dateLabel: date.label(Localizations.localeOf(context).toString()),
+        current: ref.read(diaryCalendarMoodsProvider).value?[date],
+      );
+      if (choice == null || !mounted) return;
+      await ref.read(diaryActionsProvider.notifier).setMood(date, choice.mood);
+    } catch (_) {
+      if (mounted) diaryMessage(context, 'Could not save the mood. Retry.');
+    } finally {
+      _choosingMood = false;
     }
   }
 
@@ -594,6 +618,7 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
     );
     final calendarActive = _calendarShown || _pullPointer != null;
     final written = saved.value ?? const <DiaryPeriod>{};
+    final moods = ref.watch(diaryCalendarMoodsProvider).value ?? const {};
     final ravenLetter = diaryRavenLetter(_selectedDate, written);
     final page = Stack(
       children: [
@@ -667,7 +692,8 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
                                 ? () => _settle(commit: false)
                                 : null,
                             allowDayDrag: _allowsDayDrag,
-                            written: written,
+                            onSelectedTap: _chooseMood,
+                            moods: moods,
                             ravenLetter: ravenLetter,
                           ),
                         ),
@@ -746,7 +772,7 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
               onLiftCancel: () {
                 if (_lifting) _settlePull(open: true);
               },
-              written: written,
+              moods: moods,
               ravenLetter: ravenLetter,
               selectedDate: _selectedDate,
               timeline: _timeline,

@@ -2,6 +2,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/presentation/directional_drag.dart';
 import '../../../core/presentation/rendering_policy.dart';
+import '../domain/diary_day_details.dart';
 import '../domain/diary_period.dart';
 import '../domain/diary_raven.dart';
 import '../domain/diary_timeline.dart';
@@ -32,7 +33,8 @@ class DiaryCalendar extends StatelessWidget {
     this.edgeDrop = 0,
     this.midDrop = 0,
     this.onSelectedTap,
-    this.written = const {},
+    this.selectedTapHint,
+    this.moods = const {},
     this.raven = false,
     this.ravenLetter,
     this.onDayDragStart,
@@ -62,8 +64,11 @@ class DiaryCalendar extends StatelessWidget {
   /// Tapping the selected day's own tab; other tabs choose their day.
   final VoidCallback? onSelectedTap;
 
-  /// Days with writing: their tabs are sealed in red wax.
-  final Set<DiaryPeriod> written;
+  /// What tapping the selected day's tab does, for screen readers.
+  final String? selectedTapHint;
+
+  /// Each day's mood, shown as its emoji on the corner of the day's tab.
+  final Map<DiaryPeriod, DiaryMood> moods;
 
   /// Whether the raven perches on the cord, and the letter it holds, if any.
   /// Tapping a raven with a letter opens the day the letter came from.
@@ -338,6 +343,7 @@ class DiaryCalendar extends StatelessWidget {
       return const Positioned(left: 0, top: 0, child: SizedBox.shrink());
     }
     final isToday = date.isDay && date.isCurrent(today);
+    final mood = moods[date];
     const hang = _tabHang;
     final expandedPointY = _CalendarThreadPainter.heightAt(expandedX, width);
     final drop = _pulled ? _dropAt(x, width) : 0.0;
@@ -395,7 +401,11 @@ class DiaryCalendar extends StatelessWidget {
             button: true,
             enabled: canSelect,
             selected: day == 0,
-            label: date.label(Localizations.localeOf(context).toString()),
+            label: [
+              date.label(Localizations.localeOf(context).toString()),
+              if (mood != null) '${mood.label} mood',
+            ].join(', '),
+            hint: day == 0 ? selectedTapHint : null,
             onTap: canSelect ? () => _selectDay(day) : null,
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
@@ -415,10 +425,17 @@ class DiaryCalendar extends StatelessWidget {
                           cordY: drop + expandedPointY,
                           prominence: prominence,
                           collapse: collapse,
-                          sealed: written.contains(date),
                         ),
                       ),
                     ),
+                    if (mood != null && collapse < 1)
+                      _moodSticker(
+                        emoji: mood.emoji,
+                        tabWidth: targetWidth,
+                        centerY: centerY,
+                        prominence: prominence,
+                        collapse: collapse,
+                      ),
                     // Today's date is circled in ink, as by hand.
                     if (isToday)
                       Positioned.fill(
@@ -483,6 +500,46 @@ class DiaryCalendar extends StatelessWidget {
                   ],
                 ),
               ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// The day's mood emoji, stuck over the bottom-right corner of its tab.
+  Widget _moodSticker({
+    required String emoji,
+    required double tabWidth,
+    required double centerY,
+    required double prominence,
+    required double collapse,
+  }) {
+    final paper = _DatePaperPainter.sizeFor(tabWidth, prominence, collapse);
+    final size = ui.lerpDouble(12, 16, prominence)!;
+    final box = size * 1.6;
+    final center = Offset(
+      tabWidth / 2 + paper.width / 2 - size * .3,
+      centerY + paper.height / 2 - size * .35,
+    );
+    return Positioned(
+      key: const ValueKey('diary-calendar-mood'),
+      left: center.dx - box / 2,
+      top: center.dy - box / 2,
+      width: box,
+      height: box,
+      child: IgnorePointer(
+        child: Opacity(
+          opacity: 1 - collapse,
+          child: Center(
+            child: Text(
+              emoji,
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.visible,
+              // Fixed size: the tab itself only grows a little with text.
+              textScaler: TextScaler.noScaling,
+              style: TextStyle(fontSize: size, height: 1),
             ),
           ),
         ),
@@ -712,14 +769,11 @@ class _DatePaperPainter extends CustomPainter {
     required this.cordY,
     required this.prominence,
     required this.collapse,
-    this.sealed = false,
   });
 
   final ColorScheme colors;
   final DateTime date;
 
-  /// Whether the day has writing, shown by a wax seal on the tab's corner.
-  final bool sealed;
   final double centerY, prominence, collapse;
 
   /// Where the cord crosses this tab's column, in the tab's own coordinates.
@@ -732,18 +786,24 @@ class _DatePaperPainter extends CustomPainter {
   static double heightFor(double prominence, double collapse) =>
       ui.lerpDouble(ui.lerpDouble(50, 80, prominence), 52, collapse)!;
 
+  /// The paper's size inside a tab's box [boxWidth] wide.
+  static Size sizeFor(double boxWidth, double prominence, double collapse) =>
+      Size(
+        ui.lerpDouble(
+          ui.lerpDouble(44, 64, prominence),
+          math.min(46, boxWidth - 4),
+          collapse,
+        )!,
+        heightFor(prominence, collapse),
+      );
+
   @override
   void paint(Canvas canvas, Size size) {
-    final width = ui.lerpDouble(
-      ui.lerpDouble(44, 64, prominence),
-      math.min(46, size.width - 4),
-      collapse,
-    )!;
-    final height = heightFor(prominence, collapse);
+    final paper = sizeFor(size.width, prominence, collapse);
     final bounds = Rect.fromCenter(
       center: Offset(size.width / 2, centerY),
-      width: width,
-      height: height,
+      width: paper.width,
+      height: paper.height,
     );
     final visibility = 1 - collapse;
     if (visibility > 0) {
@@ -799,16 +859,6 @@ class _DatePaperPainter extends CustomPainter {
         );
       }
     }
-    // A day with writing carries a small seal of red wax on its corner.
-    if (sealed && visibility > 0) {
-      final radius = ui.lerpDouble(4.2, 5.4, prominence)!;
-      diaryPaintWaxSeal(
-        canvas,
-        Offset(bounds.right - radius * .55, bounds.bottom - radius * .7),
-        radius,
-        opacity: visibility,
-      );
-    }
     if (prominence > 0) {
       final y = ui.lerpDouble(centerY + 26, 54, collapse)!;
       canvas.drawLine(
@@ -829,8 +879,7 @@ class _DatePaperPainter extends CustomPainter {
       centerY != oldDelegate.centerY ||
       cordY != oldDelegate.cordY ||
       prominence != oldDelegate.prominence ||
-      collapse != oldDelegate.collapse ||
-      sealed != oldDelegate.sealed;
+      collapse != oldDelegate.collapse;
 }
 
 /// A loop of ink drawn around today's date, a little uneven and overrunning

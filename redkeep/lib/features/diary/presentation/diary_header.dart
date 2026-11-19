@@ -1,5 +1,6 @@
 import '../../../core/presentation/directional_drag.dart';
 import 'diary_style.dart';
+import '../domain/diary_day_details.dart';
 import '../domain/diary_period.dart';
 import '../domain/diary_raven.dart';
 import '../domain/diary_timeline.dart';
@@ -26,7 +27,8 @@ class DiaryHeaderDelegate extends SliverPersistentHeaderDelegate {
     this.onDayDragEnd,
     this.onDayDragCancel,
     this.allowDayDrag,
-    this.written = const {},
+    this.onSelectedTap,
+    this.moods = const {},
     this.ravenLetter,
   });
 
@@ -49,8 +51,11 @@ class DiaryHeaderDelegate extends SliverPersistentHeaderDelegate {
   final ValueChanged<double>? onDayDragUpdate, onDayDragEnd;
   final HorizontalDragGate? allowDayDrag;
 
-  /// Days with writing, and the letter the cord's raven brings, if any.
-  final Set<DiaryPeriod> written;
+  /// Tapping the selected day's tab: choosing that day's mood.
+  final VoidCallback? onSelectedTap;
+
+  /// Each day's mood, and the letter the cord's raven brings, if any.
+  final Map<DiaryPeriod, DiaryMood> moods;
   final DiaryRavenLetter? ravenLetter;
 
   @override
@@ -104,7 +109,9 @@ class DiaryHeaderDelegate extends SliverPersistentHeaderDelegate {
                       onDayDragEnd: onDayDragEnd,
                       onDayDragCancel: onDayDragCancel,
                       allowDayDrag: allowDayDrag,
-                      written: written,
+                      onSelectedTap: onSelectedTap,
+                      selectedTapHint: 'Choose mood',
+                      moods: moods,
                       raven: true,
                       ravenLetter: ravenLetter,
                     ),
@@ -166,7 +173,8 @@ class DiaryHeaderDelegate extends SliverPersistentHeaderDelegate {
       oldDelegate.controlsHeight != controlsHeight ||
       oldDelegate.onDateChanged != onDateChanged ||
       oldDelegate.onPickDate != onPickDate ||
-      oldDelegate.written != written ||
+      oldDelegate.onSelectedTap != onSelectedTap ||
+      oldDelegate.moods != moods ||
       oldDelegate.ravenLetter != ravenLetter;
 }
 

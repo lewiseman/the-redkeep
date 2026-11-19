@@ -38,11 +38,6 @@ final diaryCalendarMoodsProvider =
       (ref) => ref.watch(diaryRepositoryProvider).watchMoods(),
       retry: (_, _) => null,
     );
-final diaryCalendarHeadingsProvider =
-    StreamProvider.autoDispose<Map<DiaryPeriod, String>>(
-      (ref) => ref.watch(diaryRepositoryProvider).watchHeadings(),
-      retry: (_, _) => null,
-    );
 final diaryEntriesProvider = StreamProvider.autoDispose
     .family<List<DiaryListing>, DiaryPeriod>(
       (ref, date) =>
@@ -85,6 +80,22 @@ class DiaryActions extends Notifier<bool> {
       keep.close();
     }
   }
+
+  /// Sets or clears [date]'s mood, keeping its saved title and themes.
+  Future<void> setMood(DiaryPeriod date, DiaryMood? mood) =>
+      run((repository) async {
+        final day = await repository.watchDay(date).first;
+        if (day.mood == mood) return;
+        await repository.saveDay(
+          DiaryDay(
+            date: date,
+            heading: day.heading,
+            mood: mood,
+            themes: day.themes,
+            revision: day.revision,
+          ),
+        );
+      });
 
   Future<String> create(DiaryPeriod date) => run((repository) async {
     final id = ref.read(diaryIdProvider)();

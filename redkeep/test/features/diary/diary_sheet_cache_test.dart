@@ -104,7 +104,7 @@ void main() {
       await mount();
       expect(find.text('Original writing'), findsNothing);
       expect(find.text('Updated writing'), findsOneWidget);
-      expect(find.byType(DiaryTitlePrompt), findsOneWidget);
+      expect(find.byType(DiaryWritingPrompt), findsOneWidget);
       final lightInk = tester
           .widget<Text>(find.text('Updated writing'))
           .style!
@@ -153,9 +153,7 @@ void main() {
     },
   );
 
-  testWidgets('cached live content follows action state', (
-    tester,
-  ) async {
+  testWidgets('cached live content follows action state', (tester) async {
     final db = AppDatabase(NativeDatabase.memory());
     addTearDown(db.close);
     await tester.pumpWidget(
@@ -175,18 +173,27 @@ void main() {
     final container = ProviderScope.containerOf(
       tester.element(find.byType(DiaryDayContent)),
     );
-    DiaryTitlePrompt title() => tester.widget(find.byType(DiaryTitlePrompt));
-    expect(title().onTap, isNotNull);
+    bool absorbing() => tester
+        .widget<AbsorbPointer>(
+          find
+              .ancestor(
+                of: find.byType(DiaryWritingPrompt),
+                matching: find.byType(AbsorbPointer),
+              )
+              .first,
+        )
+        .absorbing;
+    expect(absorbing(), isFalse);
     final gate = Completer<void>();
     final action = container
         .read(diaryActionsProvider.notifier)
         .run((_) => gate.future);
     await tester.pump();
-    expect(title().onTap, isNull);
+    expect(absorbing(), isTrue);
     gate.complete();
     await action;
     await tester.pump();
-    expect(title().onTap, isNotNull);
+    expect(absorbing(), isFalse);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });

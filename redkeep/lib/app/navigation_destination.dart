@@ -86,11 +86,6 @@ String _destination(String location) {
   if (diaryDay != null && DiaryPeriod.tryParse(diaryDay[1]!)?.isDay == true) {
     return location;
   }
-  final diaryTitle = RegExp(r'^/diary/([a-z0-9-]+)/title$')
-      .firstMatch(location);
-  if (diaryTitle != null && DiaryPeriod.tryParse(diaryTitle[1]!) != null) {
-    return location;
-  }
   // A diary day itself is reader state at /diary, never an address.
   final diary = RegExp(
     r'^/diary/(?:calendar/([a-z0-9-]+)|([a-z0-9-]+)/entries/[0-9a-f]{32}(?:/(?:edit|photos))?)$',
@@ -156,7 +151,6 @@ const newNoteLocation = '/notes/write';
 String diaryDayLocation(DiaryPeriod date) =>
     date.isDay ? '/diary/day/${date.key}' : AppDestination.unavailable.location;
 
-String diaryTitleLocation(DiaryPeriod date) => '/diary/${date.key}/title';
 String diaryCalendarLocation(DiaryPeriod date) => '/diary/calendar/${date.key}';
 String diaryEntryLocation(DiaryPeriod date, String id, {bool edit = false}) =>
     isDiaryId(id)

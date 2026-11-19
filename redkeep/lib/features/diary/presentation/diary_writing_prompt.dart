@@ -2,8 +2,6 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../../../core/presentation/diary_typography.dart';
-
 /// Ruled writing lines that open the editor. Optional text follows the lines.
 class DiaryWritingPrompt extends StatefulWidget {
   const DiaryWritingPrompt({super.key, required this.onTap, this.text});
@@ -176,87 +174,6 @@ class _WritingLinesPainter extends CustomPainter {
   @override
   bool shouldRepaint(_WritingLinesPainter oldDelegate) =>
       lines != oldDelegate.lines || color != oldDelegate.color;
-}
-
-/// A blank day title uses the same pen strokes as the body invitation.
-class DiaryTitlePrompt extends StatelessWidget {
-  const DiaryTitlePrompt({
-    super.key,
-    required this.onTap,
-    this.title = '',
-    this.periodName = 'day',
-  });
-
-  final VoidCallback? onTap;
-  final String title;
-  final String periodName;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return Semantics(
-      button: true,
-      enabled: onTap != null,
-      label: title.isEmpty
-          ? 'Edit $periodName details'
-          : 'Edit $periodName details: $title',
-      onTap: onTap,
-      excludeSemantics: true,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          key: const ValueKey('diary-day-title'),
-          onTap: onTap,
-          excludeFromSemantics: true,
-          borderRadius: BorderRadius.circular(4),
-          splashColor: colors.primary.withValues(alpha: .06),
-          highlightColor: colors.primary.withValues(alpha: .03),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 48),
-            child: title.isNotEmpty
-                ? Align(
-                    alignment: AlignmentDirectional.centerStart,
-                    child: Text(
-                      title,
-                      style: DiaryTypography.of(context).title
-                          .copyWith(color: colors.onSurface),
-                    ),
-                  )
-                : LayoutBuilder(
-                    builder: (context, constraints) {
-                      final spacing = MediaQuery.textScalerOf(context)
-                          .scale(30.6);
-                      return CustomPaint(
-                        painter: _WritingLinesPainter(
-                          lines: [
-                            diaryPenStroke(
-                              1,
-                              constraints.maxWidth - 1,
-                              spacing - 2,
-                              0,
-                            ),
-                            diaryPenStroke(
-                              2,
-                              constraints.maxWidth / 2,
-                              spacing * 2 - 2,
-                              1,
-                            ),
-                          ],
-                          color: colors.onSurfaceVariant.withValues(
-                            alpha: colors.brightness == Brightness.dark
-                                ? .42
-                                : .30,
-                          ),
-                        ),
-                        child: SizedBox(height: spacing * 2 + 4),
-                      );
-                    },
-                  ),
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 // Bake a drifting centerline and uneven pen pressure into one filled shape.

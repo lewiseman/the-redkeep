@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import '../../../core/presentation/rendering_policy.dart';
+import '../domain/diary_day_details.dart';
 import '../domain/diary_period.dart';
 import '../domain/diary_raven.dart';
 import '../domain/diary_timeline.dart';
@@ -81,7 +82,7 @@ class DiaryCalendarCurtain extends StatelessWidget {
     required this.onLiftUpdate,
     required this.onLiftEnd,
     required this.onLiftCancel,
-    this.written = const {},
+    this.moods = const {},
     this.ravenLetter,
   });
 
@@ -110,8 +111,8 @@ class DiaryCalendarCurtain extends StatelessWidget {
   final VoidCallback onLiftStart, onLiftCancel;
   final ValueChanged<double> onLiftUpdate, onLiftEnd;
 
-  /// Days with writing, and the letter the cord's raven brings along.
-  final Set<DiaryPeriod> written;
+  /// Each day's mood, and the letter the cord's raven brings along.
+  final Map<DiaryPeriod, DiaryMood> moods;
   final DiaryRavenLetter? ravenLetter;
 
   /// The page and its date tab follow the finger exactly.
@@ -221,7 +222,7 @@ class DiaryCalendarCurtain extends StatelessWidget {
                             enabled: open,
                             onDateChanged: onDateChosen,
                             onSelectedTap: onReturn,
-                            written: written,
+                            moods: moods,
                             raven: true,
                             ravenLetter: ravenLetter,
                             edgeDrop: edge - shift,

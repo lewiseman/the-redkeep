@@ -31,6 +31,13 @@ enum DiaryCalendarLens {
   bool get isGrid => this == day || this == week;
 }
 
+/// The zoom dial floats this far above the calendar's foot.
+const diaryCalendarDialMargin = 14.0;
+
+/// Room each lens leaves below its content, so the last of it can scroll
+/// clear of the floating dial.
+const diaryCalendarDialClearance = 84.0;
+
 /// Marks the month a calendar region shows, so a pinch can zoom into
 /// whichever month sits under the fingers.
 @immutable
@@ -44,14 +51,8 @@ int _ordinal(int year, int month, int day) => year * 10000 + month * 100 + day;
 /// Saved pages and moods indexed once per data change, so every cell lookup
 /// is an integer hash instead of building a period key string.
 class DiaryCalendarMarks {
-  DiaryCalendarMarks(
-    Set<DiaryPeriod> saved,
-    Map<DiaryPeriod, DiaryMood> moods, [
-    Map<DiaryPeriod, String> headings = const {},
-  ]) : _pages = {for (final period in saved) period.key},
-       _headings = {
-         for (final MapEntry(:key, :value) in headings.entries) key.key: value,
-       } {
+  DiaryCalendarMarks(Set<DiaryPeriod> saved, Map<DiaryPeriod, DiaryMood> moods)
+    : _pages = {for (final period in saved) period.key} {
     for (final period in saved) {
       switch (period.kind) {
         case DiaryPeriodKind.day:
@@ -77,7 +78,6 @@ class DiaryCalendarMarks {
   static final empty = DiaryCalendarMarks(const {}, const {});
 
   final Set<String> _pages;
-  final Map<String, String> _headings;
   final _days = <int>{};
   final _moods = <int, DiaryMood>{};
   final _monthDays = <int, int>{};
@@ -89,7 +89,6 @@ class DiaryCalendarMarks {
   DiaryMood? mood(DateTime date) =>
       _moods[_ordinal(date.year, date.month, date.day)];
   bool hasPage(DiaryPeriod period) => _pages.contains(period.key);
-  String? heading(DiaryPeriod period) => _headings[period.key];
   int daysInMonth(int year, int month) => _monthDays[year * 100 + month] ?? 0;
   int daysInYear(int year) => _yearDays[year] ?? 0;
   int weeksInYear(int year) => _yearWeeks[year] ?? 0;
@@ -220,7 +219,12 @@ class _DiaryCalendarMonthsState extends State<DiaryCalendarMonths> {
         // bring any of them into view on its first frame.
         return SingleChildScrollView(
           key: ValueKey('calendar-months-${widget.year}'),
-          padding: EdgeInsets.fromLTRB(inset, 12, inset, 32),
+          padding: EdgeInsets.fromLTRB(
+            inset,
+            12,
+            inset,
+            diaryCalendarDialClearance,
+          ),
           child: Column(
             children: [
               for (var row = 0; row < rows; row++)
@@ -536,7 +540,12 @@ class DiaryCalendarYearOverview extends StatelessWidget {
     );
     return ListView(
       key: ValueKey('calendar-year-overview-$year'),
-      padding: EdgeInsets.fromLTRB(inset + 4, 16, inset + 4, 32),
+      padding: EdgeInsets.fromLTRB(
+        inset + 4,
+        16,
+        inset + 4,
+        diaryCalendarDialClearance,
+      ),
       children: [
         CustomPaint(
           painter: DiaryPaperStamp(
@@ -571,17 +580,6 @@ class DiaryCalendarYearOverview extends StatelessWidget {
                     color: colors.primary,
                   ),
                 ),
-                if (marks.heading(period) case final heading?)
-                  Text(
-                    heading,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontStyle: FontStyle.italic,
-                      color: colors.onSurface.withValues(alpha: .8),
-                    ),
-                  ),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 18,
@@ -812,7 +810,6 @@ class DiaryCalendarWeekCard extends StatelessWidget {
     final period = DiaryPeriod.week(DiaryPeriod.fromComponents(monday).start);
     final sunday = TimeHelper.addDays(monday, 6);
     final saved = marks.hasPage(period);
-    final heading = marks.heading(period);
     final current = period.isCurrent(lastDate);
     final isSelected = selected == period;
     final week = isoWeekNumber(monday);
@@ -860,19 +857,6 @@ class DiaryCalendarWeekCard extends StatelessWidget {
               DiaryPeriodAction(kind: period.kind, saved: saved),
             ],
           ),
-          if (heading != null) ...[
-            const SizedBox(height: 6),
-            Text(
-              heading,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 14,
-                fontStyle: FontStyle.italic,
-                color: colors.onSurface.withValues(alpha: .8),
-              ),
-            ),
-          ],
           const SizedBox(height: 14),
           Row(
             children: [
@@ -901,7 +885,6 @@ class DiaryCalendarWeekCard extends StatelessWidget {
         'Week $week',
         period.label(locale),
         '${plural(count, 'day')} written',
-        if (heading != null) 'titled $heading',
         if (current) 'This week',
       ].join(', '),
       onTap: () => onSelect(period),

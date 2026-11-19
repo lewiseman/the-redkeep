@@ -203,7 +203,6 @@ void main() {
         '/diary',
         '/diary/search',
         '/diary/calendar/2024-02-29',
-        '/diary/2026-11-01/title',
         '/diary/2026-11-01/entries/$id',
         '/diary/2026-11-01/entries/$id/edit',
       ]) {
@@ -216,6 +215,8 @@ void main() {
         // A day is reader state at /diary, not an address.
         '/diary/2026-11-01',
         '/diary/2026-02-29',
+        // Day titles are no longer edited.
+        '/diary/2026-11-01/title',
         '/diary/2026-02-29/title',
         '/diary/calendar/2026-11-01/title',
         '/diary/2026-11-01/title/extra',

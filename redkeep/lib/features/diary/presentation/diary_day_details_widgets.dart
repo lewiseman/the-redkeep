@@ -238,3 +238,46 @@ class _InkCircle extends CustomPainter {
   bool shouldRepaint(_InkCircle oldDelegate) =>
       color != oldDelegate.color || seed != oldDelegate.seed;
 }
+
+/// The result of [showDiaryMoodSheet]: the mood to keep, null to clear it.
+typedef DiaryMoodChoice = ({DiaryMood? mood});
+
+/// Asks how a day felt. Resolves to the new choice, or null when dismissed.
+/// Tapping the circled face again clears the mood.
+Future<DiaryMoodChoice?> showDiaryMoodSheet(
+  BuildContext context, {
+  required String dateLabel,
+  DiaryMood? current,
+}) => showModalBottomSheet<DiaryMoodChoice>(
+  context: context,
+  // Above the shell's floating bar.
+  useRootNavigator: true,
+  isScrollControlled: true,
+  useSafeArea: true,
+  showDragHandle: true,
+  constraints: const BoxConstraints(maxWidth: 560),
+  builder: (context) => SingleChildScrollView(
+    key: const ValueKey('diary-mood-sheet'),
+    padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          dateLabel,
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            fontSize: 13,
+          ),
+        ),
+        const SizedBox(height: 4),
+        const DiaryDetailsLabel(text: 'How did it feel?'),
+        const SizedBox(height: 12),
+        DiaryMoodPicker(
+          selected: current,
+          onChanged: (mood) => Navigator.of(context).pop((mood: mood)),
+        ),
+      ],
+    ),
+  ),
+);

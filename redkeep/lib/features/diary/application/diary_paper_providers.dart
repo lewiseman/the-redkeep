@@ -9,14 +9,12 @@ import 'diary_providers.dart';
 class DiaryPaperDay {
   const DiaryPaperDay({
     required this.date,
-    this.heading = '',
     this.mood,
     this.entries = const [],
     this.loading = false,
     this.failed = false,
   });
   final DiaryPeriod date;
-  final String heading;
   final DiaryMood? mood;
   final List<DiaryEntry> entries;
   final bool loading, failed;
@@ -34,7 +32,6 @@ final diaryPaperDayProvider = Provider.autoDispose
       ];
       return DiaryPaperDay(
         date: date,
-        heading: day.value?.heading ?? '',
         mood: day.value?.mood,
         entries: [
           for (final document in documents)

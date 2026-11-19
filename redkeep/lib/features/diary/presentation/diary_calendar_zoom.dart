@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 
+import '../../../core/presentation/rendering_policy.dart';
 import 'diary_calendar_overview.dart';
 import 'diary_style.dart';
 
@@ -278,7 +279,7 @@ class _PinchRecognizer extends ScaleGestureRecognizer {
   }
 }
 
-/// A small dial beside search: four notches from the year to days, and a
+/// A small dial floating at the calendar's foot: four notches from the year to days, and a
 /// bead that rides the zoom as it happens. Tapping steps one lens out (from
 /// the year it dives back to days); dragging along it scrubs the zoom.
 class DiaryCalendarZoomDial extends StatelessWidget {
@@ -304,6 +305,7 @@ class DiaryCalendarZoomDial extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final simple = RenderingPolicyScope.of(context).simplerEffects;
     final scaler = MediaQuery.textScalerOf(context).clamp(maxScaleFactor: 1.8);
     final values = DiaryCalendarLens.values;
     final deeper = lens.depth < DiaryZoom.deepest
@@ -328,9 +330,17 @@ class DiaryCalendarZoomDial extends StatelessWidget {
         onHorizontalDragEnd: (details) =>
             onScrubEnd(details.primaryVelocity ?? 0),
         onHorizontalDragCancel: () => onScrubEnd(0),
+        // It floats over the calendar's foot: opaque enough to read over
+        // the days scrolling beneath, lifted by a soft shadow.
         child: Material(
-          color: colors.surface.withValues(alpha: .7),
-          shape: const StadiumBorder(),
+          color: colors.surface.withValues(alpha: simple ? 1 : .94),
+          elevation: simple ? 0 : 3,
+          shadowColor: colors.shadow.withValues(alpha: .35),
+          shape: StadiumBorder(
+            side: BorderSide(
+              color: colors.outlineVariant.withValues(alpha: .5),
+            ),
+          ),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             onTap: onTap,

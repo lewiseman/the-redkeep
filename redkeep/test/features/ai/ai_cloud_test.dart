@@ -39,46 +39,19 @@ void main() {
   });
   tearDown(() => db.close());
 
-  test('usage is priced and summed per month', () async {
-    final container = scope(
-      testAiSettings.copyWith(
-        prices: {'test-model': const AiPrice(input: 1, output: 2)},
-      ),
-    );
-    fake.usage = const AiUsage(inputTokens: 1000000, outputTokens: 500000);
-    await container
-        .read(aiCloudProvider)
-        .chat(system: 's', user: 'u', outputTokens: 10);
-    final ledger = container.read(aiSpendLedgerProvider);
-    expect(await ledger.spent(), closeTo(2, 1e-6));
-    now = DateTime(2026, 12, 1);
-    expect(await ledger.spent(), 0);
+  test('no spending limit ever holds back a request', () async {
+    final saved = AiCloudSettings.tryParse({
+      ...testAiSettings.toJson(),
+      'monthlyLimitUsd': 1,
+    });
+    final container = scope(saved);
+    fake.usage = const AiUsage(inputTokens: 1000000, outputTokens: 1000000);
+    final cloud = container.read(aiCloudProvider);
+    for (var i = 0; i < 3; i++) {
+      await cloud.chat(system: 's', user: 'u', outputTokens: 100000);
+    }
+    expect(fake.requests, hasLength(3));
   });
-
-  test(
-    'a call that could pass the monthly limit is refused before sending',
-    () async {
-      final container = scope(
-        testAiSettings.copyWith(
-          monthlyLimitUsd: 1,
-          prices: {'test-model': const AiPrice(input: 1, output: 1000)},
-        ),
-      );
-      await expectLater(
-        container
-            .read(aiCloudProvider)
-            .chat(system: 's', user: 'u', outputTokens: 2000),
-        throwsA(
-          isA<AiProviderFailure>().having(
-            (f) => f.kind,
-            'kind',
-            AiProviderFailureKind.spendLimit,
-          ),
-        ),
-      );
-      expect(fake.requests, isEmpty);
-    },
-  );
 
   test('a capability the provider lacks never sends a request', () async {
     final container = scope(

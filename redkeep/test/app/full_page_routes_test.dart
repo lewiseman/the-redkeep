@@ -26,7 +26,7 @@ void main() {
   }
 
   // These start timers of their own, so check the routes without building them.
-  testWidgets('Grand Maestar routes cover the shell', (tester) async {
+  testWidgets('Settings routes cover the shell', (tester) async {
     final router = await pumpApp(tester, initialLocation: '/more');
     for (final location in ['/settings/brain']) {
       final route = router.configuration.findMatch(Uri.parse(location)).last;
@@ -48,11 +48,11 @@ void main() {
   });
 
   // Each opens pages the way the app does, then expects to step back through
-  // them one at a time. Grand Maestar leaves timers running, so the
+  // them one at a time. Settings leaves timers running, so the
   // tree is torn down and those timers flushed at the end.
   final journeys = <(String, String, List<(String, bool)>, Type)>[
     ('Appearance from More', '/more', [('/settings', true)], MorePage),
-    ('Grand Maestar from More', '/more', [('/settings/brain', true)], MorePage),
+    ('Settings from More', '/more', [('/settings/brain', true)], MorePage),
     ('Watchlist from More', '/more', [('/watchlist', true)], MorePage),
     (
       'a page inside the shell',

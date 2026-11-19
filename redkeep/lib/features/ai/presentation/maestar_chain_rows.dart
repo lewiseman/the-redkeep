@@ -8,7 +8,7 @@ import '../domain/ai_provider.dart';
 import 'maestar_study.dart';
 
 /// One skill hung on the chain: its metal link on a rail running down the
-/// left, the model in serif, and its price in a quiet line beneath.
+/// left, the model in serif, and its state in a quiet line beneath.
 class ModelChainRow extends StatelessWidget {
   const ModelChainRow({
     super.key,
@@ -27,7 +27,7 @@ class ModelChainRow extends StatelessWidget {
   /// The chosen model, or null when the link is unforged.
   final String? model;
 
-  /// A short line under the model: its price, or why the link is off.
+  /// A short line under the model: forged, or why the link is off.
   final String detail;
   final bool offered, first, last;
   final VoidCallback? onTap;
@@ -230,22 +230,18 @@ class _RailPainter extends CustomPainter {
       old.color != color || old.first != first || old.last != last;
 }
 
-/// Editing one link: the model, a pick from the provider, and its price.
+/// Editing one link: the model, or a pick from the provider.
 class ModelEditorSheet extends StatefulWidget {
   const ModelEditorSheet({
     super.key,
     required this.capability,
     required this.controller,
-    required this.priceLabel,
     required this.onPick,
-    required this.onPrice,
   });
 
   final AiCapability capability;
   final TextEditingController controller;
-  final String? Function() priceLabel;
   final Future<void> Function() onPick;
-  final Future<void> Function() onPrice;
 
   @override
   State<ModelEditorSheet> createState() => _ModelEditorSheetState();
@@ -268,7 +264,6 @@ class _ModelEditorSheetState extends State<ModelEditorSheet> {
             listenable: widget.controller,
             builder: (context, _) {
               final model = widget.controller.text.trim();
-              final price = widget.priceLabel();
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -350,28 +345,6 @@ class _ModelEditorSheetState extends State<ModelEditorSheet> {
                       label: const Text('Choose from your provider'),
                     ),
                   ),
-                  if (price != null) ...[
-                    Divider(color: palette.rule, height: 24),
-                    Row(
-                      children: [
-                        Icon(Icons.sell_outlined, size: 18, color: metal),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            price,
-                            style: TextStyle(color: palette.ink, fontSize: 14),
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: () async {
-                            await widget.onPrice();
-                            if (mounted) setState(() {});
-                          },
-                          child: const Text('Change'),
-                        ),
-                      ],
-                    ),
-                  ],
                   const SizedBox(height: 16),
                   FilledButton(
                     onPressed: () => Navigator.pop(context),

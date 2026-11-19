@@ -11,13 +11,6 @@ import 'package:redkeep/features/ai/domain/ai_provider.dart';
 
 import '../../support/fake_ai_provider.dart';
 
-const _anthropic = AiCloudSettings(
-  presetId: 'anthropic',
-  baseUrl: 'https://anthropic.example/v1',
-  token: 'secret-token',
-  models: {AiCapability.chat: 'claude-test'},
-);
-
 void main() {
   late List<http.BaseRequest> sent;
   late List<Duration> waits;
@@ -80,65 +73,36 @@ void main() {
     expect(body['messages'][1]['content'], 'Hello');
   });
 
-  test(
-    'images go as data URLs to OpenAI and base64 blocks to Anthropic',
-    () async {
-      final image = AiImageInput(
-        Uint8List.fromList([1, 2, 3]),
-        mime: 'image/png',
-      );
-      var ai = client(
-        (_, _) => json({
-          'choices': [
-            {
-              'message': {'content': '{}'},
-            },
-          ],
-        }),
-      );
-      await ai.chat(
-        testAiSettings,
-        AiChatRequest(
-          model: 'm',
-          system: 's',
-          user: 'Describe',
-          outputTokens: 10,
-          images: [image],
-        ),
-      );
-      final parts =
-          (jsonDecode((sent.single as http.Request).body)
-                  as Map)['messages'][1]['content']
-              as List;
-      expect(parts.last['image_url']['url'], 'data:image/png;base64,AQID');
-
-      ai = client(
-        (_, _) => json({
-          'content': [
-            {'type': 'text', 'text': 'Ok'},
-          ],
-          'usage': {'input_tokens': 7, 'output_tokens': 2},
-        }),
-      );
-      final result = await ai.chat(
-        _anthropic,
-        AiChatRequest(
-          model: 'claude-test',
-          system: 's',
-          user: 'Describe',
-          outputTokens: 10,
-          images: [image],
-        ),
-      );
-      final request = sent.single as http.Request;
-      expect(request.url.path, '/v1/messages');
-      expect(request.headers['x-api-key'], 'secret-token');
-      final content =
-          (jsonDecode(request.body) as Map)['messages'][0]['content'] as List;
-      expect(content.first['source']['data'], 'AQID');
-      expect(result.usage.inputTokens, 7);
-    },
-  );
+  test('images go as data URLs', () async {
+    final image = AiImageInput(
+      Uint8List.fromList([1, 2, 3]),
+      mime: 'image/png',
+    );
+    final ai = client(
+      (_, _) => json({
+        'choices': [
+          {
+            'message': {'content': '{}'},
+          },
+        ],
+      }),
+    );
+    await ai.chat(
+      testAiSettings,
+      AiChatRequest(
+        model: 'm',
+        system: 's',
+        user: 'Describe',
+        outputTokens: 10,
+        images: [image],
+      ),
+    );
+    final parts =
+        (jsonDecode((sent.single as http.Request).body)
+                as Map)['messages'][1]['content']
+            as List;
+    expect(parts.last['image_url']['url'], 'data:image/png;base64,AQID');
+  });
 
   test('transcription uploads one file and returns plain text', () async {
     late http.MultipartRequest upload;
@@ -162,23 +126,36 @@ void main() {
     expect(upload.files.single.filename, 'speech.wav');
   });
 
-  test('Anthropic has no speech, and sends nothing', () async {
-    final ai = client((_, _) => json({}));
-    for (final call in <Future<Object?> Function()>[
-      () => ai.transcribe(_anthropic, 'm', Uint8List(4)),
-    ]) {
-      await expectLater(
-        call(),
-        throwsA(
-          isA<AiProviderFailure>().having(
-            (f) => f.kind,
-            'kind',
-            AiProviderFailureKind.unsupported,
-          ),
-        ),
-      );
-    }
-    expect(sent, isEmpty);
+  test('a saved provider no longer offered speaks OpenAI as Custom', () async {
+    final saved = AiCloudSettings.tryParse({
+      'presetId': 'anthropic',
+      'baseUrl': 'https://anthropic.example/v1',
+      'token': 'secret-token',
+      'models': {'chat': 'claude-test'},
+    })!;
+    expect(saved.presetId, 'custom');
+    final ai = client(
+      (_, _) => json({
+        'choices': [
+          {
+            'message': {'content': 'Ok'},
+          },
+        ],
+      }),
+    );
+    await ai.chat(
+      saved,
+      const AiChatRequest(
+        model: 'claude-test',
+        system: 's',
+        user: 'u',
+        outputTokens: 10,
+      ),
+    );
+    final request = sent.single as http.Request;
+    expect(request.url.path, '/v1/chat/completions');
+    expect(request.headers['authorization'], 'Bearer secret-token');
+    expect(request.headers.containsKey('x-api-key'), isFalse);
   });
 
   test('rate limits back off, honouring Retry-After, then succeed', () async {

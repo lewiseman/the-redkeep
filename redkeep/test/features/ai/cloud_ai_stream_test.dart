@@ -8,13 +8,6 @@ import 'package:redkeep/features/ai/domain/ai_provider.dart';
 
 import '../../support/fake_ai_provider.dart';
 
-const _anthropic = AiCloudSettings(
-  presetId: 'anthropic',
-  baseUrl: 'https://anthropic.example/v1',
-  token: 'secret-token',
-  models: {AiCapability.chat: 'claude-test'},
-);
-
 const _request = AiChatRequest(
   model: 'test-model',
   system: 'Edit the note.',
@@ -109,62 +102,6 @@ void main() {
     expect(sent.last.containsKey('stream_options'), isFalse);
     expect(sent.last.containsKey('temperature'), isFalse);
   });
-
-  test(
-    'Anthropic text deltas stream with usage, and running out fails',
-    () async {
-      final pieces = await client([
-        (
-          200,
-          _events([
-            {
-              'type': 'message_start',
-              'message': {
-                'usage': {'input_tokens': 20},
-              },
-            },
-            {
-              'type': 'content_block_delta',
-              'delta': {'type': 'text_delta', 'text': 'Kept '},
-            },
-            {
-              'type': 'content_block_delta',
-              'delta': {'type': 'text_delta', 'text': 'words'},
-            },
-            {
-              'type': 'message_delta',
-              'delta': {'stop_reason': 'end_turn'},
-              'usage': {'output_tokens': 4},
-            },
-          ]),
-        ),
-      ]).chatStream(_anthropic, _request).toList();
-      expect(pieces.map((p) => p.text).join(), 'Kept words');
-      expect(pieces.last.usage?.inputTokens, 20);
-      expect(pieces.last.usage?.outputTokens, 4);
-
-      await expectLater(
-        client([
-          (
-            200,
-            _events([
-              {
-                'type': 'message_delta',
-                'delta': {'stop_reason': 'max_tokens'},
-              },
-            ]),
-          ),
-        ]).chatStream(_anthropic, _request).toList(),
-        throwsA(
-          isA<AiProviderFailure>().having(
-            (f) => f.kind,
-            'kind',
-            AiProviderFailureKind.truncated,
-          ),
-        ),
-      );
-    },
-  );
 
   test('a bad key fails before anything streams', () async {
     await expectLater(

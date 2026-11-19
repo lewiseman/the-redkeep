@@ -48,14 +48,14 @@ void main() {
     // Side by side, in reading order, low on the page within thumb reach.
     final watchlist = tester.getCenter(find.text('Watchlist'));
     final appearance = tester.getCenter(find.text('Appearance'));
-    final maestar = tester.getCenter(find.text('Grand Maestar'));
+    final maestar = tester.getCenter(find.text('Settings'));
     expect(maestar.dx, lessThan(appearance.dx));
     expect(appearance.dx, lessThan(watchlist.dx));
     final height =
         tester.view.physicalSize.height / tester.view.devicePixelRatio;
     expect(watchlist.dy, greaterThan(height / 2));
     expect(
-      find.bySemanticsLabel(RegExp(r'^Grand Maestar, .+')),
+      find.bySemanticsLabel(RegExp(r'^Settings, .+')),
       findsOneWidget,
     );
     expect(find.byType(SyncAccountCard), findsNothing);
@@ -71,14 +71,14 @@ void main() {
     expect(find.byType(WatchlistPage), findsOneWidget);
     router.pop();
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Grand Maestar'));
+    await tester.tap(find.text('Settings'));
     await tester.pumpAndSettle();
     expect(find.byType(AiSettingsPage), findsOneWidget);
     expect(find.text('Phone'), findsNothing);
     expect(aiProvider.requests, isEmpty);
     router.pop();
     await tester.pumpAndSettle();
-    expect(find.text('Grand Maestar'), findsOneWidget);
+    expect(find.text('Settings'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
     await tester.pumpAndSettle();
@@ -129,7 +129,7 @@ void main() {
   );
 
   testWidgets(
-    'Appearance resolves local downloaded art; Grand Maestar uses bundled branding',
+    'Appearance resolves local downloaded art; Settings uses bundled branding',
     (tester) async {
       await pumpApp(tester, initialLocation: '/more');
       final artwork = tester.widget<LocalArtwork>(appearanceArtwork());
@@ -219,7 +219,7 @@ void main() {
           appearanceArtwork(),
           showArtwork ? findsOneWidget : findsNothing,
         );
-        for (final label in ['Watchlist', 'Appearance', 'Grand Maestar']) {
+        for (final label in ['Watchlist', 'Appearance', 'Settings']) {
           final entry = find.text(label);
           await tester.ensureVisible(entry);
           await tester.pumpAndSettle();

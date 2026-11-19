@@ -13,14 +13,13 @@ import '../application/ai_cloud.dart';
 import '../domain/ai_provider.dart';
 import '../domain/ai_provider_catalog.dart';
 import 'maestar_chain_rows.dart';
-import 'maestar_key_purse.dart';
+import 'maestar_key.dart';
 import 'maestar_parts.dart';
 import 'maestar_study.dart';
 
 const _portrait = AssetImage('assets/branding/grand_maestar.png');
 
-/// Grand Maestar: the one cloud AI provider, its models and the monthly
-/// spending limit. Everything stays on this phone.
+/// Settings: the one cloud AI provider and its models. Everything stays on this phone.
 class AiSettingsPage extends ConsumerWidget {
   const AiSettingsPage({super.key});
 
@@ -32,11 +31,11 @@ class AiSettingsPage extends ConsumerWidget {
       backgroundColor: palette.ground,
       body: settings.when(
         loading: () => Scaffold(
-          appBar: AppBar(title: const Text('Grand Maestar')),
+          appBar: AppBar(title: const Text('Settings')),
           body: const Center(child: CircularProgressIndicator()),
         ),
         error: (_, _) => Scaffold(
-          appBar: AppBar(title: const Text('Grand Maestar')),
+          appBar: AppBar(title: const Text('Settings')),
           body: Center(
             child: Padding(
               padding: const EdgeInsets.all(24),
@@ -81,9 +80,6 @@ class _AiSettingsFormState extends ConsumerState<_AiSettingsForm>
   late String _savedJson = jsonEncode((widget.saved ?? _draft).toJson());
   late final _baseUrl = TextEditingController(text: _draft.baseUrl);
   late final _token = TextEditingController(text: _draft.token);
-  late final _limit = TextEditingController(
-    text: _money(_draft.monthlyLimitUsd),
-  );
   late final _models = {
     for (final capability in _modelCapabilities)
       capability: TextEditingController(text: _draft.models[capability] ?? ''),
@@ -104,19 +100,17 @@ class _AiSettingsFormState extends ConsumerState<_AiSettingsForm>
   Completer<void>? _abort;
   AiCapability? _selected;
 
-  /// Vision uses the chat model, so it has no field of its own.
+  /// The links that can be forged. Images ride on the writing model, so they
+  /// have no model of their own and no row here.
   static const _modelCapabilities = [
     AiCapability.chat,
     AiCapability.transcription,
   ];
 
-  static String _money(double value) =>
-      value == value.roundToDouble() ? value.toStringAsFixed(0) : '$value';
-
   @override
   void initState() {
     super.initState();
-    for (final controller in [_baseUrl, _token, _limit, ..._models.values]) {
+    for (final controller in [_baseUrl, _token, ..._models.values]) {
       controller.addListener(_edited);
     }
   }
@@ -130,7 +124,6 @@ class _AiSettingsFormState extends ConsumerState<_AiSettingsForm>
     _cancelRequest();
     _baseUrl.dispose();
     _token.dispose();
-    _limit.dispose();
     for (final controller in _models.values) {
       controller.dispose();
     }
@@ -153,7 +146,6 @@ class _AiSettingsFormState extends ConsumerState<_AiSettingsForm>
         if (entry.value.text.trim().isNotEmpty)
           entry.key: entry.value.text.trim(),
     },
-    monthlyLimitUsd: double.tryParse(_limit.text.trim()) ?? 0,
   );
 
   bool get _dirty =>
@@ -163,8 +155,7 @@ class _AiSettingsFormState extends ConsumerState<_AiSettingsForm>
     if (id == _draft.presetId) return;
     final preset = aiProviderPreset(id) ?? customAiProviderPreset;
     setState(() {
-      _draft = AiCloudSettings.fromPreset(preset)
-          .copyWith(monthlyLimitUsd: _draft.monthlyLimitUsd);
+      _draft = AiCloudSettings.fromPreset(preset);
       _baseUrl.text = preset.baseUrl;
       _token.clear();
       for (final capability in _modelCapabilities) {
@@ -179,11 +170,6 @@ class _AiSettingsFormState extends ConsumerState<_AiSettingsForm>
 
   Future<void> _save() async {
     final next = _read();
-    final limit = double.tryParse(_limit.text.trim());
-    if (limit == null || limit.isNaN || limit < 0) {
-      setState(() => _message = 'Enter a monthly limit in dollars, or 0.');
-      return;
-    }
     setState(() {
       _busy = true;
       _message = null;
@@ -298,34 +284,6 @@ class _AiSettingsFormState extends ConsumerState<_AiSettingsForm>
     }
   }
 
-  Future<void> _editPrice(String model, AiCapability capability) async {
-    final result = await showDialog<AiPrice>(
-      context: context,
-      builder: (context) => _PriceDialog(
-        model: model,
-        capability: capability,
-        price: _draft.priceFor(model),
-      ),
-    );
-    if (result != null && mounted) {
-      setState(
-        () =>
-            _draft = _draft.copyWith(prices: {..._draft.prices, model: result}),
-      );
-    }
-  }
-
-  String? _priceLabel(AiCapability capability) {
-    final model = _models[capability]?.text.trim() ?? '';
-    if (model.isEmpty) return null;
-    final price = _draft.priceFor(model);
-    String usd(double v) => '\$${v.toStringAsFixed(v < 1 ? 3 : 2)}';
-    return switch (capability) {
-      AiCapability.transcription => '${usd(price.unit)} per minute',
-      _ => '${usd(price.input)} in · ${usd(price.output)} out per M tokens',
-    };
-  }
-
   Widget _chainRow(
     AiCapability capability,
     AiProviderPreset preset, {
@@ -334,30 +292,17 @@ class _AiSettingsFormState extends ConsumerState<_AiSettingsForm>
     required double highlight,
   }) {
     final offered = preset.capabilities.contains(capability);
-    if (capability == AiCapability.vision) {
-      final writing = _models[AiCapability.chat]!.text.trim();
-      return ModelChainRow(
-        capability: capability,
-        model: offered && writing.isNotEmpty ? writing : null,
-        detail: offered
-            ? 'Rides on the writing model'
-            : 'Not offered by ${preset.name}',
-        offered: offered,
-        first: first,
-        last: last,
-        highlight: highlight,
-      );
-    }
     final model = _models[capability]!.text.trim();
     return ModelChainRow(
       capability: capability,
       model: model.isEmpty ? null : model,
       detail: !offered
           ? 'Not offered by ${preset.name}'
-          : _priceLabel(capability) ??
-                (capability == AiCapability.chat
-                    ? 'Required'
-                    : 'Off until you add a model'),
+          : model.isNotEmpty
+          ? 'Forged'
+          : capability == AiCapability.chat
+          ? 'Required'
+          : 'Off until you add a model',
       offered: offered,
       first: first,
       last: last,
@@ -374,12 +319,7 @@ class _AiSettingsFormState extends ConsumerState<_AiSettingsForm>
         builder: (context) => ModelEditorSheet(
           capability: capability,
           controller: _models[capability]!,
-          priceLabel: () => _priceLabel(capability),
           onPick: () => _pickModel(capability),
-          onPrice: () async {
-            final model = _models[capability]!.text.trim();
-            if (model.isNotEmpty) await _editPrice(model, capability);
-          },
         ),
       );
 
@@ -417,14 +357,6 @@ class _AiSettingsFormState extends ConsumerState<_AiSettingsForm>
         _available = null;
       });
     }
-  }
-
-  Future<void> _otherLimit() async {
-    final amount = await showDialog<double>(
-      context: context,
-      builder: (context) => _LimitDialog(initial: _limit.text),
-    );
-    if (amount != null && mounted) _limit.text = _money(amount);
   }
 
   /// A link of the chain was touched: bring its card into view and let it glow.
@@ -467,9 +399,6 @@ class _AiSettingsFormState extends ConsumerState<_AiSettingsForm>
     final preset = _draft.preset;
     final saved = widget.saved;
     final keyRejected = ref.watch(aiKeyStatusProvider);
-    final spent = ref.watch(aiMonthSpendProvider).value ?? 0;
-    final savedLimit = saved?.monthlyLimitUsd ?? 0;
-    final liveLimit = double.tryParse(_limit.text.trim()) ?? 0;
     final status = ref.watch(maestarStatusProvider);
     final palette = MorePalette.of(context);
     final policy = RenderingPolicyScope.of(context);
@@ -482,7 +411,7 @@ class _AiSettingsFormState extends ConsumerState<_AiSettingsForm>
     final content = <Widget>[
       // The Maestar's name and the state of the chain.
       Text(
-        'Grand Maestar',
+        'Settings',
         textAlign: TextAlign.center,
         style: typography.title.copyWith(color: palette.ink, fontSize: 40),
       ),
@@ -541,11 +470,6 @@ class _AiSettingsFormState extends ConsumerState<_AiSettingsForm>
           icon: Icons.key_off_outlined,
           text: 'Your provider rejected the key. Check it below, then save.',
         ),
-      if (saved != null && savedLimit > 0 && spent >= savedLimit)
-        const MaestarNotice(
-          icon: Icons.savings_outlined,
-          text: 'This month’s spending limit is reached, so AI requests are paused. Raise the limit to continue.',
-        ),
 
       MaestarSection(
         numeral: 'I',
@@ -592,44 +516,20 @@ class _AiSettingsFormState extends ConsumerState<_AiSettingsForm>
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                for (final (i, capability) in maestarLinks.indexed)
+                for (final (i, capability) in _modelCapabilities.indexed)
                   KeyedSubtree(
                     key: _cardKeys[capability],
                     child: _chainRow(
                       capability,
                       preset,
                       first: i == 0,
-                      last: i == maestarLinks.length - 1,
+                      last: i == _modelCapabilities.length - 1,
                       highlight: _selected == capability ? glow : 0,
                     ),
                   ),
               ],
             );
           },
-        ),
-      ),
-
-      MaestarSection(
-        numeral: 'IV',
-        eyebrow: 'The purse',
-        title: 'Monthly spending',
-        subtitle: 'An estimate. Your provider’s bill is the final word.',
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 280),
-                child: PurseGauge(spent: spent, limit: liveLimit),
-              ),
-            ),
-            const SizedBox(height: 24),
-            LimitCoins(
-              limit: liveLimit,
-              onChoose: (value) => _limit.text = _money(value),
-              onOther: _otherLimit,
-            ),
-          ],
         ),
       ),
 
@@ -693,7 +593,7 @@ class _AiSettingsFormState extends ConsumerState<_AiSettingsForm>
                               opacity: ((collapse - .6) / .4).clamp(0.0, 1.0),
                               child: Center(
                                 child: Text(
-                                  'Grand Maestar',
+                                  'Settings',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: Theme.of(context).textTheme.titleMedium
@@ -825,124 +725,4 @@ class _SaveBar extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Owns its fields, so they outlive the dialog's closing animation.
-class _LimitDialog extends StatefulWidget {
-  const _LimitDialog({required this.initial});
-  final String initial;
-  @override
-  State<_LimitDialog> createState() => _LimitDialogState();
-}
-
-class _LimitDialogState extends State<_LimitDialog> {
-  late final _field = TextEditingController(text: widget.initial);
-
-  @override
-  void dispose() {
-    _field.dispose();
-    super.dispose();
-  }
-
-  void _use() {
-    final amount = double.tryParse(_field.text.trim());
-    if (amount == null || amount.isNaN || amount < 0) return;
-    Navigator.pop(context, amount);
-  }
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Monthly limit'),
-    content: TextField(
-      key: const ValueKey('ai-monthly-limit'),
-      controller: _field,
-      autofocus: true,
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      decoration: const InputDecoration(
-        labelText: 'USD per month (0 for no limit)',
-        prefixText: r'$',
-      ),
-      onSubmitted: (_) => _use(),
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('Cancel'),
-      ),
-      FilledButton(onPressed: _use, child: const Text('Use limit')),
-    ],
-  );
-}
-
-class _PriceDialog extends StatefulWidget {
-  const _PriceDialog({
-    required this.model,
-    required this.capability,
-    required this.price,
-  });
-  final String model;
-  final AiCapability capability;
-  final AiPrice price;
-  @override
-  State<_PriceDialog> createState() => _PriceDialogState();
-}
-
-class _PriceDialogState extends State<_PriceDialog> {
-  bool get _perUnit => widget.capability == AiCapability.transcription;
-  late final _first = TextEditingController(
-    text: '${_perUnit ? widget.price.unit : widget.price.input}',
-  );
-  late final _second = TextEditingController(text: '${widget.price.output}');
-
-  @override
-  void dispose() {
-    _first.dispose();
-    _second.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: Text('Price for ${widget.model}'),
-    content: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        TextField(
-          controller: _first,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: InputDecoration(
-            labelText: widget.capability == AiCapability.transcription
-                ? 'USD per minute of audio'
-                : 'USD per million input tokens',
-          ),
-        ),
-        if (!_perUnit)
-          TextField(
-            controller: _second,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(
-              labelText: 'USD per million output tokens',
-            ),
-          ),
-      ],
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('Cancel'),
-      ),
-      FilledButton(
-        onPressed: () {
-          final a = double.tryParse(_first.text.trim());
-          final b = double.tryParse(_second.text.trim()) ?? 0;
-          if (a == null || a < 0 || b < 0) return;
-          Navigator.pop(
-            context,
-            _perUnit ? AiPrice(unit: a) : AiPrice(input: a, output: b),
-          );
-        },
-        child: const Text('Use price'),
-      ),
-    ],
-  );
 }

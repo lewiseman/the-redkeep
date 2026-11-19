@@ -1,14 +1,11 @@
-import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
-import '../../../app/storage_providers.dart';
 import '../../sync/application/sync_providers.dart' show networkServiceProvider;
 import '../data/ai_provider_store.dart';
-import '../data/ai_spend_ledger.dart';
 import '../data/cloud_ai_client.dart';
 import '../domain/ai_conversation.dart';
 import '../domain/ai_provider.dart';
@@ -50,15 +47,6 @@ final aiCloudClientProvider = Provider<AiCloudClient>((ref) {
   ref.onDispose(transport.close);
   return CloudAiClient(transport);
 });
-final aiSpendLedgerProvider = Provider<AiSpendLedger>(
-  (ref) => AiSpendLedger(
-    ref.watch(appDatabaseProvider),
-    clock: ref.watch(aiClockProvider),
-  ),
-);
-final aiMonthSpendProvider = StreamProvider<double>(
-  (ref) => ref.watch(aiSpendLedgerProvider).watchSpent(),
-);
 
 /// The one cloud provider, or null before the person adds one.
 final aiCloudSettingsProvider =
@@ -109,8 +97,8 @@ final aiCapabilitiesProvider = Provider<Set<AiCapability>>((ref) {
 
 final aiCloudProvider = Provider<AiCloud>(AiCloud.new);
 
-/// Every cloud call goes through here: capability, spending limit, the call,
-/// then usage. A missing capability fails before anything is sent.
+/// Every cloud call goes through here. A missing capability fails before
+/// anything is sent.
 class AiCloud {
   AiCloud(this.ref);
   final Ref ref;
@@ -131,20 +119,9 @@ class AiCloud {
     return (settings: settings, model: model);
   }
 
-  Future<T> _run<T>(
-    AiCloudSettings settings,
-    String model,
-    double Function(AiPrice price) estimate,
-    Future<AiResult<T>> Function() call,
-  ) async {
-    final price = settings.priceFor(model);
-    await ref
-        .read(aiSpendLedgerProvider)
-        .check(settings.monthlyLimitUsd, estimate(price));
+  Future<T> _run<T>(Future<AiResult<T>> Function() call) async {
     try {
-      final result = await call();
-      await ref.read(aiSpendLedgerProvider).record(result.usage, price);
-      return result.value;
+      return (await call()).value;
     } on AiProviderFailure catch (failure) {
       if (failure.kind == AiProviderFailureKind.badToken && ref.mounted) {
         ref.read(aiKeyStatusProvider.notifier).rejected();
@@ -152,8 +129,6 @@ class AiCloud {
       rethrow;
     }
   }
-
-  static int _tokens(String text) => (utf8.encode(text).length / 3).ceil();
 
   Future<String> chat({
     required String system,
@@ -179,12 +154,6 @@ class AiCloud {
       timeout: timeout,
     );
     final text = await _run(
-      ready.settings,
-      ready.model,
-      (price) => AiUsage(
-        inputTokens: _tokens(system) + _tokens(user) + images.length * 1600,
-        outputTokens: outputTokens,
-      ).cost(price),
       () => ref
           .read(aiCloudClientProvider)
           .chat(ready.settings, request, abort: abort),
@@ -192,8 +161,7 @@ class AiCloud {
     return stripSurroundingCodeFence(text);
   }
 
-  /// [chat] as it is written: yields the answer's text piece by piece. What
-  /// was used is recorded once it ends, including when it is stopped early.
+  /// [chat] as it is written: yields the answer's text piece by piece.
   Stream<String> chatStream({
     required String system,
     required String user,
@@ -203,15 +171,6 @@ class AiCloud {
     Duration? timeout,
   }) async* {
     final ready = await _ready(AiCapability.chat);
-    final price = ready.settings.priceFor(ready.model);
-    final ledger = ref.read(aiSpendLedgerProvider);
-    await ledger.check(
-      ready.settings.monthlyLimitUsd,
-      AiUsage(
-        inputTokens: _tokens(system) + _tokens(user),
-        outputTokens: outputTokens,
-      ).cost(price),
-    );
     final request = AiChatRequest(
       model: ready.model,
       system: system,
@@ -220,44 +179,22 @@ class AiCloud {
       temperature: temperature,
       timeout: timeout,
     );
-    final written = StringBuffer();
-    AiUsage? usage;
     try {
       await for (final piece
           in ref
               .read(aiCloudClientProvider)
               .chatStream(ready.settings, request, abort: abort)) {
-        if (piece.usage != null) usage = piece.usage;
-        if (piece.text.isEmpty) continue;
-        written.write(piece.text);
-        yield piece.text;
+        if (piece.text.isNotEmpty) yield piece.text;
       }
     } on AiProviderFailure catch (failure) {
       if (failure.kind == AiProviderFailureKind.badToken && ref.mounted) {
         ref.read(aiKeyStatusProvider.notifier).rejected();
       }
       rethrow;
-    } finally {
-      // Providers that report nothing, or a stopped answer, are estimated.
-      if (usage != null || written.isNotEmpty) {
-        try {
-          await ledger.record(
-            usage ??
-                AiUsage(
-                  inputTokens: _tokens(system) + _tokens(user),
-                  outputTokens: _tokens(written.toString()),
-                ),
-            price,
-          );
-        } catch (_) {
-          /* The answer stands even if the ledger could not be written. */
-        }
-      }
     }
   }
 
-  /// One conversation turn with tools. The estimate counts every earlier
-  /// exchange, so long conversations stop before the limit, not after.
+  /// One conversation turn with tools.
   Future<AiConverseReply> converse({
     required String system,
     required List<AiExchange> history,
@@ -279,30 +216,7 @@ class AiCloud {
       temperature: temperature,
       timeout: timeout,
     );
-    final sent = StringBuffer(system)..write(user);
-    for (final tool in tools) {
-      sent
-        ..write(tool.description)
-        ..write(jsonEncode(tool.parameters));
-    }
-    for (final exchange in history) {
-      sent
-        ..write(exchange.user)
-        ..write(exchange.reply);
-      for (final call in exchange.calls) {
-        sent.write(jsonEncode(call.arguments));
-      }
-      for (final result in exchange.results) {
-        sent.write(result.content);
-      }
-    }
     return _run(
-      ready.settings,
-      ready.model,
-      (price) => AiUsage(
-        inputTokens: _tokens(sent.toString()),
-        outputTokens: outputTokens,
-      ).cost(price),
       () => ref
           .read(aiCloudClientProvider)
           .converse(ready.settings, request, abort: abort),
@@ -316,9 +230,6 @@ class AiCloud {
   }) async {
     final ready = await _ready(AiCapability.transcription);
     return _run(
-      ready.settings,
-      ready.model,
-      (price) => AiUsage(seconds: seconds).cost(price),
       () => ref
           .read(aiCloudClientProvider)
           .transcribe(

@@ -3,8 +3,6 @@ import 'dart:typed_data';
 import 'ai_conversation.dart';
 import 'ai_provider_catalog.dart';
 
-enum AiProviderFormat { openAiCompatible, anthropic }
-
 /// What one provider can do. A missing capability means that feature simply
 /// does not run; nothing is routed anywhere else.
 enum AiCapability {
@@ -30,7 +28,6 @@ enum AiProviderFailureKind {
   cancelled,
   notConfigured,
   unsupported,
-  spendLimit,
 }
 
 /// Messages are fixed text. Response bodies, prompts and tokens never reach them.
@@ -50,8 +47,9 @@ class AiProviderFailure implements Exception {
     AiProviderFailureKind.badUrl =>
       'This provider URL must be a plain https:// address.',
     AiProviderFailureKind.badToken =>
-      'The provider rejected your key. Check it in Grand Maestar.',
-    AiProviderFailureKind.notFound => 'The provider could not find this model or URL. Check them in Grand Maestar.',
+      'The provider rejected your key. Check it in Settings.',
+    AiProviderFailureKind.notFound =>
+      'The provider could not find this model or URL. Check them in Settings.',
     AiProviderFailureKind.rateLimited => 'The provider is rate limiting requests or your quota ran out. Try again later.',
     AiProviderFailureKind.rejected =>
       'The provider rejected this request. Try another model.',
@@ -65,32 +63,12 @@ class AiProviderFailure implements Exception {
       'The provider sent an answer Redkeep could not read.',
     AiProviderFailureKind.cancelled => 'The request was cancelled.',
     AiProviderFailureKind.notConfigured =>
-      'Add an AI provider and key in Grand Maestar first.',
+      'Add an AI provider and key in Settings first.',
     AiProviderFailureKind.unsupported =>
       'Your AI provider does not offer this feature.',
-    AiProviderFailureKind.spendLimit =>
-      'This month’s AI spending limit is reached. Raise it in Grand Maestar.',
   };
   @override
   String toString() => 'AiProviderFailure(${kind.name})';
-}
-
-/// USD prices. Tokens are priced per million; audio per minute.
-class AiPrice {
-  const AiPrice({this.input = 0, this.output = 0, this.unit = 0});
-  final double input, output, unit;
-  Map<String, double> toJson() => {
-    'input': input,
-    'output': output,
-    'unit': unit,
-  };
-  static AiPrice? tryParse(Object? value) => value is Map
-      ? AiPrice(
-          input: (value['input'] as num?)?.toDouble() ?? 0,
-          output: (value['output'] as num?)?.toDouble() ?? 0,
-          unit: (value['unit'] as num?)?.toDouble() ?? 0,
-        )
-      : null;
 }
 
 /// The single provider the person configured. Stored only in protected storage.
@@ -100,8 +78,6 @@ class AiCloudSettings {
     required this.baseUrl,
     this.token = '',
     this.models = const {},
-    this.prices = const {},
-    this.monthlyLimitUsd = 5,
   });
 
   factory AiCloudSettings.fromPreset(AiProviderPreset preset) =>
@@ -116,15 +92,8 @@ class AiCloudSettings {
   /// One model per capability. A blank or missing model turns it off.
   final Map<AiCapability, String> models;
 
-  /// Overrides for [AiProviderPreset.prices], keyed by model name.
-  final Map<String, AiPrice> prices;
-
-  /// Zero means no limit.
-  final double monthlyLimitUsd;
-
   AiProviderPreset get preset =>
       aiProviderPreset(presetId) ?? customAiProviderPreset;
-  AiProviderFormat get format => preset.format;
   String get name => preset.name;
   bool get configured =>
       baseUrl.trim().isNotEmpty && (!preset.tokenRequired || token.isNotEmpty);
@@ -143,23 +112,16 @@ class AiCloudSettings {
                 model(AiCapability.chat) != null
           : model(capability) != null);
 
-  AiPrice priceFor(String model) =>
-      prices[model] ?? preset.prices[model] ?? fallbackAiPrice;
-
   AiCloudSettings copyWith({
     String? presetId,
     String? baseUrl,
     String? token,
     Map<AiCapability, String>? models,
-    Map<String, AiPrice>? prices,
-    double? monthlyLimitUsd,
   }) => AiCloudSettings(
     presetId: presetId ?? this.presetId,
     baseUrl: baseUrl ?? this.baseUrl,
     token: token ?? this.token,
     models: models ?? this.models,
-    prices: prices ?? this.prices,
-    monthlyLimitUsd: monthlyLimitUsd ?? this.monthlyLimitUsd,
   );
 
   Map<String, Object?> toJson() => {
@@ -167,17 +129,16 @@ class AiCloudSettings {
     'baseUrl': baseUrl,
     'token': token,
     'models': {for (final e in models.entries) e.key.name: e.value},
-    'prices': {for (final e in prices.entries) e.key: e.value.toJson()},
-    'monthlyLimitUsd': monthlyLimitUsd,
   };
 
   static AiCloudSettings? tryParse(Object? value) {
     if (value is! Map) return null;
     final presetId = value['presetId'], baseUrl = value['baseUrl'];
     if (presetId is! String || baseUrl is! String) return null;
-    final models = value['models'], prices = value['prices'];
+    final models = value['models'];
     return AiCloudSettings(
-      presetId: presetId,
+      // A provider that is no longer offered keeps its URL and key as Custom.
+      presetId: aiProviderPreset(presetId)?.id ?? customAiProviderPreset.id,
       baseUrl: baseUrl,
       token: value['token'] as String? ?? '',
       models: {
@@ -186,18 +147,11 @@ class AiCloudSettings {
             if (models[capability.name] is String)
               capability: models[capability.name] as String,
       },
-      prices: {
-        if (prices is Map)
-          for (final entry in prices.entries)
-            if (entry.key is String && AiPrice.tryParse(entry.value) != null)
-              entry.key as String: AiPrice.tryParse(entry.value)!,
-      },
-      monthlyLimitUsd: (value['monthlyLimitUsd'] as num?)?.toDouble() ?? 5,
     );
   }
 }
 
-/// What a finished call used, for the spending ledger.
+/// What a finished call used, as the provider reported it.
 class AiUsage {
   const AiUsage({
     this.inputTokens = 0,
@@ -206,11 +160,6 @@ class AiUsage {
   });
   final int inputTokens, outputTokens;
   final double seconds;
-
-  double cost(AiPrice price) =>
-      inputTokens * price.input / 1e6 +
-      outputTokens * price.output / 1e6 +
-      seconds / 60 * price.unit;
 }
 
 class AiImageInput {
@@ -254,8 +203,8 @@ class AiStreamPiece {
   final AiUsage? usage;
 }
 
-/// OpenAI conventions are the baseline. Adapters override what differs and
-/// throw [AiProviderFailureKind.unsupported] for what a provider lacks.
+/// Every provider speaks the OpenAI-compatible API. A provider that lacks a
+/// feature fails with [AiProviderFailureKind.unsupported].
 /// Completing an abort future stops the request with a cancelled failure.
 abstract interface class AiCloudClient {
   Future<AiResult<String>> chat(

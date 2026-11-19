@@ -5,32 +5,22 @@ class AiProviderPreset {
     required this.id,
     required this.name,
     required this.baseUrl,
-    this.format = AiProviderFormat.openAiCompatible,
     this.tokenLimitParameter = 'max_tokens',
     this.tokenRequired = true,
     this.keyUrl,
     this.capabilities = const {AiCapability.chat},
     this.defaultModels = const {},
-    this.prices = const {},
   });
   final String id, name, baseUrl, tokenLimitParameter;
 
   /// Where a person creates a key. Opens in their browser.
   final String? keyUrl;
-  final AiProviderFormat format;
   final bool tokenRequired;
 
   /// What this provider's API offers. Anything else never runs.
   final Set<AiCapability> capabilities;
   final Map<AiCapability, String> defaultModels;
-
-  /// Known USD prices by model. Editable in Grand Maestar.
-  final Map<String, AiPrice> prices;
 }
-
-/// Used for models without a known price. Deliberately on the high side so a
-/// spending limit errs toward stopping early.
-const fallbackAiPrice = AiPrice(input: 5, output: 20, unit: .1);
 
 const customAiProviderPreset = AiProviderPreset(
   id: 'custom',
@@ -44,7 +34,8 @@ const customAiProviderPreset = AiProviderPreset(
   },
 );
 
-/// URLs stay editable. Model lists come from each provider.
+/// OpenAI-compatible providers only. URLs stay editable. Model lists come
+/// from each provider.
 const aiProviderCatalog = <AiProviderPreset>[
   AiProviderPreset(
     id: 'openai',
@@ -61,24 +52,6 @@ const aiProviderCatalog = <AiProviderPreset>[
       AiCapability.chat: 'gpt-5-mini',
       AiCapability.transcription: 'gpt-4o-mini-transcribe',
     },
-    prices: {
-      'gpt-5-mini': AiPrice(input: .25, output: 2),
-      'gpt-5-nano': AiPrice(input: .05, output: .4),
-      'gpt-5': AiPrice(input: 1.25, output: 10),
-      'gpt-4.1-mini': AiPrice(input: .4, output: 1.6),
-      'gpt-4o-mini': AiPrice(input: .15, output: .6),
-      'gpt-4o-mini-transcribe': AiPrice(unit: .003),
-      'gpt-4o-transcribe': AiPrice(unit: .006),
-      'whisper-1': AiPrice(unit: .006),
-    },
-  ),
-  AiProviderPreset(
-    id: 'anthropic',
-    name: 'Anthropic',
-    baseUrl: 'https://api.anthropic.com/v1',
-    keyUrl: 'https://console.anthropic.com/settings/keys',
-    format: AiProviderFormat.anthropic,
-    capabilities: {AiCapability.chat, AiCapability.vision},
   ),
   AiProviderPreset(
     id: 'gemini',

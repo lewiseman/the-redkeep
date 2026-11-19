@@ -32,7 +32,7 @@ IconData maestarIcon(AiCapability capability) => switch (capability) {
   AiCapability.transcription => Icons.graphic_eq_rounded,
 };
 
-/// The open header of Grand Maestar: a candlelit study with the Maestar's
+/// The open header of Settings: a candlelit study with the Maestar's
 /// portrait and the chain whose links are forged by the chosen models.
 ///
 /// Every animation here settles: the candle is lit once when the page opens,

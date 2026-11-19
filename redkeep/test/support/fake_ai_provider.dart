@@ -15,7 +15,6 @@ const testAiSettings = AiCloudSettings(
     AiCapability.chat: 'test-model',
     AiCapability.transcription: 'test-transcribe',
   },
-  monthlyLimitUsd: 0,
 );
 
 class MemoryAiProviders implements ProtectedAiProviders {

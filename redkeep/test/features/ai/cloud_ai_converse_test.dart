@@ -9,13 +9,6 @@ import 'package:redkeep/features/ai/domain/ai_provider.dart';
 
 import '../../support/fake_ai_provider.dart';
 
-const _anthropic = AiCloudSettings(
-  presetId: 'anthropic',
-  baseUrl: 'https://anthropic.example/v1',
-  token: 'secret-token',
-  models: {AiCapability.chat: 'claude-test'},
-);
-
 const _tool = AiToolSpec(
   name: 'edit_note',
   description: 'Change the note.',
@@ -116,46 +109,6 @@ void main() {
     });
     expect(messages[3]['tool_call_id'], 'call.1');
     expect(messages[4]['content'], 'Now add a quiz');
-  });
-
-  test('Anthropic turns put tool results before the next message', () async {
-    final ai = client({
-      'stop_reason': 'tool_use',
-      'content': [
-        {'type': 'text', 'text': 'Adding a quiz.'},
-        {
-          'type': 'tool_use',
-          'id': 'toolu_2',
-          'name': 'edit_note',
-          'input': {'instruction': 'Add a quiz'},
-        },
-      ],
-      'usage': {'input_tokens': 30, 'output_tokens': 7},
-    });
-    final result = await ai.converse(_anthropic, _request);
-    expect(result.value.text, 'Adding a quiz.');
-    expect(result.value.calls.single.name, 'edit_note');
-    final body = jsonDecode(sent.body) as Map;
-    expect(sent.url.path, '/v1/messages');
-    expect(body['system'], 'Be the Maester.');
-    expect(body['tools'].single['input_schema']['required'], ['instruction']);
-    final messages = body['messages'] as List;
-    expect(messages.map((m) => m['role']), ['user', 'assistant', 'user']);
-    // Ids from another provider are made plain.
-    expect(messages[1]['content'][1], {
-      'type': 'tool_use',
-      'id': 'call_1',
-      'name': 'edit_note',
-      'input': {'instruction': 'Darker'},
-    });
-    expect(messages[2]['content'], [
-      {
-        'type': 'tool_result',
-        'tool_use_id': 'call_1',
-        'content': 'The person kept this change.',
-      },
-      {'type': 'text', 'text': 'Now add a quiz'},
-    ]);
   });
 
   test(

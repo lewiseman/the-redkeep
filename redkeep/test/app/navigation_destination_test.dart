@@ -4,7 +4,7 @@ import 'package:redkeep/app/navigation_destination.dart';
 
 void main() {
   test(
-    'Grand Maestar is addressable through gates; old AI sub-pages are not',
+    'Settings is addressable through gates; old AI sub-pages are not',
     () {
       for (final path in ['/settings/brain']) {
         expect(validatedNavigationLocation(path), path);

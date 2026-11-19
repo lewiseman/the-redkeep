@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -14,6 +14,7 @@ import '../../assets/presentation/local_artwork.dart';
 import '../../sync/presentation/sync_material.dart';
 import '../domain/catalog_title.dart';
 import '../domain/watch_title.dart';
+import 'stamp_feel.dart';
 import 'watch_host.dart';
 import 'watch_title_extras.dart';
 import 'watch_wall.dart';
@@ -78,7 +79,7 @@ class _StampRackState extends State<StampRack>
     while (_clicked < _clicks.length &&
         _rattle.value >= _delay + _clicks[_clicked] * (1 - _delay)) {
       _clicked++;
-      HapticFeedback.selectionClick();
+      StampFeel.click();
     }
   }
 
@@ -160,7 +161,8 @@ class _StampRackState extends State<StampRack>
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
-                              for (final s in WatchStatus.values)
+                              // Right to left, so Planned sits at the right.
+                              for (final s in WatchStatus.values.reversed)
                                 Expanded(
                                   child: AnimatedBuilder(
                                     animation: _rattle,
@@ -488,7 +490,7 @@ class _StampKeyState extends State<_StampKey>
   void _landing() {
     if (!_landed && _thump.value >= _impact) {
       _landed = true;
-      HapticFeedback.heavyImpact();
+      StampFeel.thud();
     }
   }
 
@@ -497,7 +499,7 @@ class _StampKeyState extends State<_StampKey>
       _landed = false;
       _thump.forward(from: 0);
     } else {
-      HapticFeedback.heavyImpact();
+      StampFeel.thud();
     }
     widget.onStamp();
   }
@@ -525,7 +527,7 @@ class _StampKeyState extends State<_StampKey>
       child: Draggable<WatchStatus>(
         data: status,
         affinity: Axis.vertical,
-        onDragStarted: HapticFeedback.selectionClick,
+        onDragStarted: StampFeel.lift,
         feedback: Material(
           type: MaterialType.transparency,
           child: Transform.rotate(
@@ -1087,8 +1089,399 @@ class _DiePainter extends CustomPainter {
       old.colors != colors || old.ink != ink || old.inked != inked;
 }
 
-/// The title's lists as a small glass chip: tap to add it to one, or to
-/// change which hold it.
+/// The height every pill in the title's row of actions shares.
+const _actionHeight = 48.0;
+
+/// The title's actions in one row of pills, alike in height and shape but
+/// each dressed for its job: the trailer as a little cinema screen, the
+/// lists as glass, the official site as quiet paper. The row scrolls
+/// sideways and fades out at both ends, and opens with the trailer in the
+/// middle, as the thing most worth reaching for.
+class TitleActions extends StatefulWidget {
+  const TitleActions({
+    super.key,
+    required this.lists,
+    this.trailer,
+    this.onSite,
+  });
+
+  final ({String label, VoidCallback open})? trailer;
+  final Widget lists;
+  final VoidCallback? onSite;
+
+  @override
+  State<TitleActions> createState() => _TitleActionsState();
+}
+
+class _TitleActionsState extends State<TitleActions> {
+  final _trailer = GlobalKey();
+  final _row = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Once laid out, bring the trailer to the middle of the row, moving
+    // only the row and never the page around it.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final box = _trailer.currentContext?.findRenderObject();
+      if (box is! RenderBox || !_row.hasClients || !mounted) return;
+      final reveal = RenderAbstractViewport.of(box).getOffsetToReveal(box, .5);
+      final position = _row.position;
+      _row.jumpTo(
+        reveal.offset.clamp(position.minScrollExtent, position.maxScrollExtent),
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _row.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final trailer = widget.trailer;
+    final onSite = widget.onSite;
+    // Each pill keeps its own width, up to a point.
+    Widget pill(Widget child) => ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 260),
+      child: child,
+    );
+    final children = [
+      pill(widget.lists),
+      if (trailer != null)
+        pill(
+          _TrailerPill(
+            key: _trailer,
+            label: trailer.label,
+            onTap: trailer.open,
+          ),
+        ),
+      if (onSite != null) pill(_SitePill(onTap: onSite)),
+    ];
+    return ShaderMask(
+      blendMode: BlendMode.dstIn,
+      shaderCallback: (bounds) => const LinearGradient(
+        colors: [
+          Colors.transparent,
+          Colors.white,
+          Colors.white,
+          Colors.transparent,
+        ],
+        stops: [0, .08, .92, 1],
+      ).createShader(bounds),
+      child: LayoutBuilder(
+        builder: (context, box) => SingleChildScrollView(
+          controller: _row,
+          scrollDirection: Axis.horizontal,
+          // Nothing shows past the faded ends; the padding keeps the pills'
+          // shadows inside.
+          // Room to scroll the end pills clear of the fade.
+          padding: const EdgeInsets.fromLTRB(28, 8, 28, 16),
+          child: ConstrainedBox(
+            // Short rows sit centred.
+            constraints: BoxConstraints(minWidth: box.maxWidth - 56),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                for (final (i, child) in children.indexed) ...[
+                  if (i > 0) const SizedBox(width: 8),
+                  child,
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The trailer, as a vintage film reel: dark metal with a brass rim and
+/// round windows through it, and a cream glass hub with the play mark.
+/// Tapped, the reel spins up like a projector starting, and the trailer
+/// opens. A little larger than its neighbours: the row's focus.
+class _TrailerPill extends StatefulWidget {
+  const _TrailerPill({super.key, required this.label, required this.onTap});
+  final String label;
+  final VoidCallback onTap;
+
+  static const size = 56.0;
+  static const metal = Color(0xff1d1a14);
+  static const cream = Color(0xfff3ead6);
+
+  @override
+  State<_TrailerPill> createState() => _TrailerPillState();
+}
+
+class _TrailerPillState extends State<_TrailerPill>
+    with SingleTickerProviderStateMixin {
+  late final _spin = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 700),
+  );
+
+  Future<void> _play() async {
+    HapticFeedback.lightImpact();
+    if (RenderingPolicyScope.of(context).animate) {
+      // Let the reel get going before the trailer takes over.
+      _spin.forward(from: 0);
+      await Future<void>.delayed(const Duration(milliseconds: 280));
+      if (!mounted) return;
+    }
+    widget.onTap();
+  }
+
+  @override
+  void dispose() {
+    _spin.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = CushionColors.of(context);
+    final ground = MorePalette.of(context).ground;
+    return Semantics(
+      container: true,
+      button: true,
+      label: widget.label,
+      excludeSemantics: true,
+      onTap: widget.onTap,
+      child: Tooltip(
+        message: widget.label,
+        excludeFromSemantics: true,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: _play,
+          child: Springy(
+            depth: .08,
+            child: SizedBox.square(
+              dimension: _TrailerPill.size,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // The reel turns; the hub and its play mark stay upright.
+                  AnimatedBuilder(
+                    animation: _spin,
+                    builder: (context, _) => CustomPaint(
+                      size: const Size.square(_TrailerPill.size),
+                      painter: _ReelPainter(
+                        colors: colors,
+                        ground: ground,
+                        turn: Curves.easeOutCubic.transform(_spin.value),
+                      ),
+                    ),
+                  ),
+                  CustomPaint(
+                    size: const Size.square(24),
+                    painter: _HubPainter(colors),
+                    child: const SizedBox.square(
+                      dimension: 24,
+                      child: Icon(
+                        Icons.play_arrow_rounded,
+                        color: _TrailerPill.metal,
+                        size: 18,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A film reel seen face on: dark metal lit from above, a brass rim, and
+/// six round windows through which the page shows, turned by [turn].
+class _ReelPainter extends CustomPainter {
+  const _ReelPainter({
+    required this.colors,
+    required this.ground,
+    required this.turn,
+  });
+
+  final CushionColors colors;
+  final Color ground;
+
+  /// 0 to 1, one full turn.
+  final double turn;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final c = colors;
+    final centre = size.center(Offset.zero);
+    final r = size.shortestSide / 2;
+    final disc = Rect.fromCircle(center: centre, radius: r);
+    if (!c.simple) {
+      // A short, crisp shadow, as the cushions cast.
+      canvas.drawCircle(
+        centre.translate(0, 3),
+        r,
+        Paint()..color = c.shadow.withValues(alpha: c.dark ? .4 : .16),
+      );
+      canvas.drawCircle(
+        centre.translate(0, 1.2),
+        r,
+        Paint()..color = c.shadow.withValues(alpha: c.dark ? .5 : .22),
+      );
+    }
+    // The metal face.
+    canvas.drawCircle(
+      centre,
+      r,
+      Paint()
+        ..shader = RadialGradient(
+          center: const Alignment(-.3, -.45),
+          radius: 1.05,
+          colors: c.simple
+              ? const [_TrailerPill.metal, _TrailerPill.metal]
+              : const [Color(0xff4a4234), Color(0xff26221a), Color(0xff121009)],
+          stops: c.simple ? null : const [0, .55, 1],
+        ).createShader(disc),
+    );
+    canvas.save();
+    canvas.translate(centre.dx, centre.dy);
+    canvas.rotate(turn * math.pi * 2);
+    // Six windows through the reel, with a dark lip where the metal is cut.
+    for (var i = 0; i < 6; i++) {
+      final angle = i * math.pi / 3 - math.pi / 2;
+      final at = Offset(math.cos(angle), math.sin(angle)) * (r * .58);
+      final window = r * .14;
+      canvas.drawCircle(
+        at,
+        window + 1.2,
+        Paint()..color = const Color(0xff0b0a07),
+      );
+      canvas.drawCircle(at, window, Paint()..color = ground);
+      if (!c.simple) {
+        canvas.drawArc(
+          Rect.fromCircle(center: at, radius: window),
+          math.pi * .15,
+          math.pi * .7,
+          false,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.4
+            ..color = Colors.black.withValues(alpha: .25),
+        );
+      }
+    }
+    canvas.restore();
+    // The brass rim, catching the light as the reel turns.
+    final rim = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = r * .1;
+    rim.shader = c.simple
+        ? null
+        : SweepGradient(
+            transform: GradientRotation(turn * math.pi * 2),
+            colors: const [
+              Color(0xfff5dfa0),
+              Color(0xffb08a3c),
+              Color(0xff6e5420),
+              Color(0xffb08a3c),
+              Color(0xfff5dfa0),
+            ],
+          ).createShader(disc);
+    if (c.simple) rim.color = const Color(0xffb08a3c);
+    canvas.drawCircle(centre, r - r * .05, rim);
+    if (c.simple) return;
+    // A sheen across the metal.
+    canvas.drawArc(
+      Rect.fromCircle(center: centre, radius: r * .82),
+      math.pi * 1.08,
+      math.pi * .5,
+      false,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.4
+        ..strokeCap = StrokeCap.round
+        ..color = Colors.white.withValues(alpha: .18),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_ReelPainter old) =>
+      old.colors != colors || old.ground != ground || old.turn != turn;
+}
+
+/// The reel's hub: a cream glass bead holding the play mark.
+class _HubPainter extends CustomPainter {
+  const _HubPainter(this.colors);
+  final CushionColors colors;
+
+  @override
+  void paint(Canvas canvas, Size size) => paintGlass(
+    canvas,
+    RRect.fromRectAndRadius(
+      Offset.zero & size,
+      Radius.circular(size.shortestSide / 2),
+    ),
+    colors: colors,
+    tint: _TrailerPill.cream,
+    fill: .95,
+    lift: .5,
+  );
+
+  @override
+  bool shouldRepaint(_HubPainter old) => old.colors != colors;
+}
+
+/// The official site, as a quiet round of paper with a hairline and a
+/// globe.
+class _SitePill extends StatelessWidget {
+  const _SitePill({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = MorePalette.of(context);
+    return Semantics(
+      container: true,
+      button: true,
+      label: 'Official site',
+      excludeSemantics: true,
+      onTap: onTap,
+      child: Tooltip(
+        message: 'Official site',
+        excludeFromSemantics: true,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            HapticFeedback.lightImpact();
+            onTap();
+          },
+          child: Springy(
+            depth: .08,
+            child: Container(
+              width: _actionHeight,
+              height: _actionHeight,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: palette.paper,
+                shape: BoxShape.circle,
+                border: Border.all(color: palette.rule),
+              ),
+              child: Icon(
+                Icons.language_rounded,
+                size: 20,
+                color: palette.ink.withValues(alpha: .75),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The title's lists as a round glass bead with a bookmark, and how many
+/// hold it: tap to add it to one, or to change which.
 class ListsChip extends StatelessWidget {
   const ListsChip({super.key, required this.lists, required this.onTap});
 
@@ -1105,43 +1498,61 @@ class ListsChip extends StatelessWidget {
       label: lists.isEmpty ? 'Lists, add to a list' : 'Lists, $label',
       excludeSemantics: true,
       onTap: onTap,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () {
-          HapticFeedback.lightImpact();
-          onTap();
-        },
-        child: Springy(
-          depth: .08,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 44),
+      child: Tooltip(
+        message: label,
+        excludeFromSemantics: true,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            HapticFeedback.lightImpact();
+            onTap();
+          },
+          child: Springy(
+            depth: .1,
             child: CustomPaint(
               painter: _ChipPainter(cushion),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(14, 10, 16, 10),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+              child: SizedBox.square(
+                dimension: _actionHeight,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  alignment: Alignment.center,
                   children: [
                     Icon(
                       lists.isEmpty
                           ? Icons.bookmark_add_outlined
-                          : Icons.bookmarks_rounded,
-                      size: 18,
+                          : Icons.bookmark_rounded,
+                      size: 22,
                       color: cushion.tint,
                     ),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        label,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: cushion.ink,
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w600,
+                    // How many lists hold it, as a small bead on the rim.
+                    if (lists.isNotEmpty)
+                      Positioned(
+                        right: 2,
+                        top: 2,
+                        child: Container(
+                          constraints: const BoxConstraints(minWidth: 18),
+                          height: 18,
+                          padding: const EdgeInsets.symmetric(horizontal: 5),
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: cushion.tint,
+                            borderRadius: BorderRadius.circular(9),
+                            border: Border.all(
+                              color: cushion.paper,
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Text(
+                            '${lists.length}',
+                            textScaler: TextScaler.noScaling,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
                   ],
                 ),
               ),

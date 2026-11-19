@@ -202,6 +202,22 @@ class _NowShowingState extends State<_NowShowing> {
     super.dispose();
   }
 
+  /// Which photo is in front, read from the scroll offset itself. Cards are
+  /// built during the deck's first layout, when the restored offset is known
+  /// but [PageController.page] is not yet, and nothing notifies afterwards,
+  /// so falling back to page 0 there would leave the fan bent around the
+  /// wrong photo after coming back to the page.
+  double _page() {
+    if (!_deck.hasClients) return _deck.initialPage.toDouble();
+    final position = _deck.position;
+    if (!position.hasPixels || !position.hasViewportDimension) {
+      return _deck.initialPage.toDouble();
+    }
+    final extent = position.viewportDimension * _deck.viewportFraction;
+    if (extent <= 0) return _deck.initialPage.toDouble();
+    return position.pixels / extent;
+  }
+
   @override
   Widget build(BuildContext context) {
     final titles = widget.row.titles;
@@ -243,11 +259,7 @@ class _NowShowingState extends State<_NowShowing> {
                     animation: _deck,
                     child: photo,
                     builder: (context, child) {
-                      var page = 0.0;
-                      if (_deck.hasClients && _deck.position.haveDimensions) {
-                        page = _deck.page ?? 0;
-                      }
-                      final d = (i - page).clamp(-1.6, 1.6);
+                      final d = (i - _page()).clamp(-1.6, 1.6);
                       final away = d.abs();
                       return Transform.translate(
                         offset: Offset(0, 30 * away * away),

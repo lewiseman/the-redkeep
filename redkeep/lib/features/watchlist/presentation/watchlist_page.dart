@@ -10,6 +10,7 @@ import '../../../core/presentation/rendering_policy.dart';
 import '../../sync/presentation/sync_material.dart';
 import '../application/watchlist_providers.dart';
 import '../domain/watch_title.dart';
+import 'stamp_feel.dart';
 import 'watch_explore_parts.dart';
 import 'watch_header.dart';
 import 'watch_list_sheet.dart';
@@ -255,7 +256,7 @@ class _Wall extends ConsumerWidget {
     WatchTitle title,
   ) async {
     final lifting = title.status == WatchStatus.completed;
-    HapticFeedback.heavyImpact();
+    StampFeel.thud();
     // The stamp slamming down (or lifting off) is the confirmation; a
     // second double tap undoes it.
     await runWatchAction(

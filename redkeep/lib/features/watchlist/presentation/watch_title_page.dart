@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -12,6 +11,7 @@ import '../../sync/presentation/sync_material.dart';
 import '../application/watchlist_providers.dart';
 import '../domain/catalog_title.dart';
 import '../domain/watch_title.dart';
+import 'stamp_feel.dart';
 import 'watch_list_sheet.dart';
 import 'watch_seasons.dart';
 import 'watch_title_extras.dart';
@@ -186,7 +186,7 @@ class _Details extends ConsumerWidget {
           // Drop a stamp from the rack onto the polaroid to print it.
           DragTarget<WatchStatus>(
             onAcceptWithDetails: (drop) {
-              HapticFeedback.heavyImpact();
+              StampFeel.thud();
               WatchTitlePage.stamp(
                 context,
                 ref,
@@ -225,7 +225,7 @@ class _Details extends ConsumerWidget {
                         ? 'Lift the watched stamp'
                         : 'Stamp watched',
                     onDoubleTap: () {
-                      HapticFeedback.heavyImpact();
+                      StampFeel.thud();
                       WatchTitlePage.stamp(
                         context,
                         ref,
@@ -257,44 +257,24 @@ class _Details extends ConsumerWidget {
               ),
             ),
           ],
-          const SizedBox(height: 14),
-          ListsChip(
-            lists: lists ?? const [],
-            onTap: () => showWatchListSheet(context, title),
-          ),
-          if (trailer != null || homepage != null) ...[
-            const SizedBox(height: 16),
-            Wrap(
-              alignment: WrapAlignment.center,
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                if (trailer != null)
-                  FilledButton.tonalIcon(
-                    onPressed: () => openTitleLink(context, trailer.url),
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size(48, 48),
-                    ),
-                    icon: const Icon(Icons.play_arrow_rounded),
-                    label: Text(
-                      trailer.type == 'Trailer'
-                          ? 'Play trailer'
-                          : 'Play ${trailer.type?.toLowerCase() ?? 'video'}',
-                    ),
+          const SizedBox(height: 16),
+          TitleActions(
+            trailer: trailer == null
+                ? null
+                : (
+                    label: trailer.type == 'Trailer'
+                        ? 'Play trailer'
+                        : 'Play ${trailer.type?.toLowerCase() ?? 'video'}',
+                    open: () => openTitleLink(context, trailer.url),
                   ),
-                if (homepage != null)
-                  TextButton.icon(
-                    onPressed: () =>
-                        openTitleLink(context, Uri.parse(homepage)),
-                    style: TextButton.styleFrom(
-                      minimumSize: const Size(48, 48),
-                    ),
-                    icon: const Icon(Icons.open_in_new),
-                    label: const Text('Official site'),
-                  ),
-              ],
+            lists: ListsChip(
+              lists: lists ?? const [],
+              onTap: () => showWatchListSheet(context, title),
             ),
-          ],
+            onSite: homepage == null
+                ? null
+                : () => openTitleLink(context, Uri.parse(homepage)),
+          ),
         ],
       ),
     );

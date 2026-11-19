@@ -81,6 +81,8 @@ void main() {
         '/3/trending/all/week' => [
           summary(1, 'Paddington 2'),
           summary(5, 'Saved Already'),
+          summary(7, 'Heat'),
+          summary(8, 'Jaws'),
         ],
         '/3/movie/popular' => [summary(2, 'The Thing')],
         '/3/tv/popular' => [summary(3, 'Severance', media: 'tv')],
@@ -226,6 +228,69 @@ void main() {
         isEmpty,
         reason: 'taken back off the wall',
       );
+    });
+
+    pageTest('the trending fan keeps its shape when the page comes back', (
+      tester,
+    ) async {
+      await openSearch(tester);
+      Finder deck() => find
+          .descendant(
+            of: find.byType(ExploreView),
+            matching: find.byType(PageView),
+          )
+          .first;
+      await tester.scrollUntilVisible(
+        find.text('Paddington 2'),
+        200,
+        scrollable: find
+            .descendant(
+              of: find.byType(ExploreView),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      await Scrollable.ensureVisible(tester.element(deck()), alignment: .2);
+      await tester.pumpAndSettle();
+      // Swipe along until the first photo has gone by.
+      for (
+        var i = 0;
+        i < 3 && find.text('Paddington 2').evaluate().isNotEmpty;
+        i++
+      ) {
+        await tester.dragFrom(
+          tester.getTopLeft(deck()) + const Offset(300, 60),
+          Offset(-tester.getSize(deck()).width * .54, 0),
+        );
+        await tester.pumpAndSettle();
+      }
+      expect(find.text('Paddington 2'), findsNothing, reason: 'swiped past');
+
+      double lean(String title) {
+        final tilt = tester.widget<Transform>(
+          find
+              .ancestor(
+                of: find.text(title),
+                matching: find.byWidgetPredicate(
+                  (w) =>
+                      w is Transform && w.alignment == Alignment.bottomCenter,
+                ),
+              )
+              .first,
+        );
+        return tilt.transform.storage[1];
+      }
+
+      final front = ['Heat', 'Jaws'].firstWhere((t) => lean(t).abs() < .01);
+
+      // Leave browsing and come back, so the deck is built afresh.
+      await tester.enterText(find.byType(TextField), 'alien');
+      await tester.pumpAndSettle(const Duration(milliseconds: 400));
+      await tester.tap(find.byTooltip('Clear'));
+      await tester.pumpAndSettle();
+
+      expect(find.text(front), findsOneWidget);
+      expect(lean(front), closeTo(0, .01), reason: 'still fanned around it');
     });
 
     pageTest('typing replaces browsing with results', (tester) async {

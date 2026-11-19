@@ -311,7 +311,7 @@ void main() {
 
     expect(find.text('The Matrix'), findsOneWidget);
     expect(find.text('1999 · Film · 2h 16m · R'), findsOneWidget);
-    expect(find.text('Play trailer'), findsOneWidget);
+    expect(find.bySemanticsLabel('Play trailer'), findsOneWidget);
 
     // The stamp rack is always under the thumb.
     await tester.tap(find.bySemanticsLabel('Watching'));

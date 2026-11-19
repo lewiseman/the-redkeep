@@ -16,10 +16,13 @@ import 'package:intl/intl.dart';
 
 import '../../../app/navigation_destination.dart';
 import '../../../core/presentation/paper_surface.dart';
+import '../../ai/application/ai_cloud.dart' show aiCapabilitiesProvider;
+import '../../ai/domain/ai_provider.dart' show AiCapability;
 import '../application/note_maester_controller.dart';
 import '../application/note_reading_checklist.dart';
 import '../application/notes_providers.dart';
 import '../domain/note_document.dart';
+import '../domain/note_rich_markdown.dart';
 import 'note_markdown_preview.dart';
 import 'note_paper.dart';
 import 'note_action_dialog.dart';
@@ -50,6 +53,12 @@ class _NoteReadViewState extends ConsumerState<NoteReadView> {
 
   /// The Maester's input is open in place of the dock.
   bool _asking = false;
+
+  /// The words the input was opened for; null asks about the whole note.
+  String? _askWords;
+
+  /// What is selected in the note's body right now.
+  String _selected = '';
   final _ask = TextEditingController();
   final _askFocus = FocusNode(debugLabel: 'note-maester');
 
@@ -83,6 +92,10 @@ class _NoteReadViewState extends ConsumerState<NoteReadView> {
       }
     });
     final maester = ref.watch(noteMaesterProvider(widget.id));
+    // The Maester needs an AI provider that can write.
+    final connected = ref
+        .watch(aiCapabilitiesProvider)
+        .contains(AiCapability.chat);
     ref.listen(noteMaesterProvider(widget.id).select((s) => s.error), (
       _,
       error,
@@ -264,13 +277,21 @@ class _NoteReadViewState extends ConsumerState<NoteReadView> {
                                       emptyText: '',
                                     )
                                   else
-                                    NoteMarkdownPreview(
-                                      key: ValueKey((
-                                        shown.id,
-                                        layout?.revision ?? shown.revision,
-                                      )),
-                                      text: layout?.body ?? shown.text.body,
-                                      readingNoteId: shown.id,
+                                    // One selection across the whole body,
+                                    // whose menu offers the Maester.
+                                    SelectionArea(
+                                      onSelectionChanged: (content) =>
+                                          _selected = content?.plainText ?? '',
+                                      contextMenuBuilder: _contextMenu,
+                                      child: NoteMarkdownPreview(
+                                        key: ValueKey((
+                                          shown.id,
+                                          layout?.revision ?? shown.revision,
+                                        )),
+                                        text: layout?.body ?? shown.text.body,
+                                        readingNoteId: shown.id,
+                                        selectable: false,
+                                      ),
                                     ),
                                   NoteFileTags(
                                     attachments: shown.details.attachments,
@@ -292,6 +313,7 @@ class _NoteReadViewState extends ConsumerState<NoteReadView> {
                         focusNode: _askFocus,
                         working: maester.working,
                         error: maester.error,
+                        selection: _askWords != null,
                         onSend: _sendAsk,
                         onStop: ref
                             .read(noteMaesterProvider(widget.id).notifier)
@@ -304,7 +326,7 @@ class _NoteReadViewState extends ConsumerState<NoteReadView> {
                         note!.details.background['type'],
                       ),
                       working: maester.working,
-                      onAi: _openAi,
+                      onAi: connected || maester.working ? _openAi : null,
                       // Writing waits until the Maester is done.
                       onEdit: maester.working ? null : _edit,
                       actions: NoteActionsMenu(
@@ -347,8 +369,12 @@ class _NoteReadViewState extends ConsumerState<NoteReadView> {
   }
 
   /// The Maester's input opens over the dock, with the keyboard up.
-  void _openAi() {
-    setState(() => _asking = true);
+  void _openAi({String? words}) {
+    setState(() {
+      _asking = true;
+      // Tapping the Maester while it writes shows the request in progress.
+      if (!ref.read(noteMaesterProvider(widget.id)).working) _askWords = words;
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && !ref.read(noteMaesterProvider(widget.id)).working) {
         _askFocus.requestFocus();
@@ -367,10 +393,53 @@ class _NoteReadViewState extends ConsumerState<NoteReadView> {
     final maester = ref.read(noteMaesterProvider(widget.id).notifier);
     if (_ask.text.trim().isEmpty) return;
     _askFocus.unfocus();
-    if (await maester.rewriteNote(_ask.text) && mounted) {
+    final words = _askWords;
+    final sent = await maester.rewriteNote(
+      _ask.text,
+      part: words == null
+          ? null
+          : (body) {
+              final split = markdownAroundWords(body, words);
+              if (split == null) {
+                throw const FormatException(
+                  'That selection could not be found in the note. Select it again.',
+                );
+              }
+              return NoteMaesterPassage(
+                before: split.before,
+                text: split.text,
+                after: split.after,
+              );
+            },
+    );
+    if (sent && mounted) {
       _ask.clear();
       if (_asking) setState(() => _asking = false);
     }
+  }
+
+  /// The usual selection menu, with the Maester for the selected words.
+  Widget _contextMenu(BuildContext context, SelectableRegionState state) {
+    final words = _selected.trim();
+    final offer =
+        ref.read(aiCapabilitiesProvider).contains(AiCapability.chat) &&
+        words.isNotEmpty &&
+        !ref.read(noteMaesterProvider(widget.id)).working;
+    return AdaptiveTextSelectionToolbar.buttonItems(
+      anchors: state.contextMenuAnchors,
+      buttonItems: [
+        ...state.contextMenuButtonItems,
+        if (offer)
+          ContextMenuButtonItem(
+            label: 'Ask Maester',
+            onPressed: () {
+              state.hideToolbar();
+              state.clearSelection();
+              _openAi(words: words);
+            },
+          ),
+      ],
+    );
   }
 
   /// Scanning has its own page; added words are told on the paper, which

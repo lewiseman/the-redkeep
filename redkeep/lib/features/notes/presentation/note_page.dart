@@ -85,8 +85,7 @@ class _NotePageState extends ConsumerState<NotePage> {
 
   @override
   Widget build(BuildContext context) {
-    // The Maester's request belongs to the page: it carries on between
-    // reading and editing, and leaving the note stops it.
+    // The Maester's request belongs to the page: leaving the note stops it.
     ref.listen(noteMaesterProvider(widget.id), (_, _) {});
     return _build(context);
   }

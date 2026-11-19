@@ -82,9 +82,22 @@ class NoteAiButton extends StatelessWidget {
     onPressed: onPressed,
     style: noteBarButtonStyle(context)
         .copyWith(padding: const WidgetStatePropertyAll(EdgeInsets.zero)),
-    icon: Opacity(
-      opacity: onPressed == null ? .5 : 1,
-      child: NoteMaesterMark(working: working),
-    ),
+    // Without a way to reach the Maester, the seal is drawn in grey.
+    icon: onPressed == null
+        ? Opacity(
+            opacity: .5,
+            child: ColorFiltered(
+              colorFilter: const ColorFilter.matrix(_grayscale),
+              child: NoteMaesterMark(working: working),
+            ),
+          )
+        : NoteMaesterMark(working: working),
   );
 }
+
+const _grayscale = <double>[
+  0.2126, 0.7152, 0.0722, 0, 0, //
+  0.2126, 0.7152, 0.0722, 0, 0, //
+  0.2126, 0.7152, 0.0722, 0, 0, //
+  0, 0, 0, 1, 0,
+];

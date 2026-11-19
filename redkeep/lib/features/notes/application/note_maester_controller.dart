@@ -10,7 +10,6 @@ import '../../ai/domain/ai_provider.dart';
 import '../domain/note_document.dart';
 import '../domain/note_rich_markdown.dart';
 import '../domain/transform_contract.dart';
-import 'note_editor_controller.dart';
 import 'notes_providers.dart';
 
 /// The most writing the Maester rewrites at once, in UTF-8 bytes.
@@ -83,9 +82,13 @@ class NoteMaesterController extends Notifier<NoteMaesterState> {
     if (state.error != null) state = NoteMaesterState(working: state.working);
   }
 
-  /// Rewrites the saved note as [instruction] asks. Its body clears and the
-  /// new one streams in, then replaces it.
-  Future<bool> rewriteNote(String instruction) async {
+  /// Rewrites the saved note as [instruction] asks: all of it, or the
+  /// [part] of its body that function picks. That part clears as the new
+  /// words stream in, then they replace it.
+  Future<bool> rewriteNote(
+    String instruction, {
+    NoteMaesterPassage Function(String body)? part,
+  }) async {
     final opened = await ref.read(notesRepositoryProvider).openDocument(id);
     final note = opened.note;
     if (note == null || !opened.available) {
@@ -94,9 +97,18 @@ class NoteMaesterController extends Notifier<NoteMaesterState> {
       }
       return false;
     }
+    final NoteMaesterPassage passage;
+    try {
+      passage =
+          part?.call(note.text.body) ??
+          NoteMaesterPassage(text: note.text.body);
+    } on FormatException catch (error) {
+      if (ref.mounted) state = NoteMaesterState(error: error.message);
+      return false;
+    }
     return _rewrite(
       instruction,
-      NoteMaesterPassage(text: note.text.body),
+      passage,
       keep: (body) async {
         try {
           await ref
@@ -112,34 +124,6 @@ class NoteMaesterController extends Notifier<NoteMaesterState> {
             'This note changed while the Maester wrote, so nothing was changed.',
           );
         }
-      },
-    );
-  }
-
-  /// Rewrites [passage] of the open writing in place. The editor holds
-  /// still meanwhile; its writing must not change before the result lands.
-  Future<bool> rewriteWriting(
-    String instruction,
-    NoteMaesterPassage passage,
-  ) async {
-    final editor = noteEditorProvider(id);
-    final expected = ref.read(editor).value?.editVersion;
-    if (expected == null) return false;
-    return _rewrite(
-      instruction,
-      passage,
-      keep: (body) async {
-        final current = ref.read(editor).value;
-        if (current == null || current.editVersion != expected) {
-          throw const FormatException(
-            'This note changed while the Maester wrote, so nothing was changed.',
-          );
-        }
-        final controller = ref.read(editor.notifier);
-        controller.edit(
-          PlainTextDocument(title: current.text.title, body: body),
-        );
-        await controller.save();
       },
     );
   }
@@ -163,8 +147,8 @@ class NoteMaesterController extends Notifier<NoteMaesterState> {
       return false;
     }
     final abort = _abort = Completer<void>();
-    // The part being rewritten clears straight away.
-    state = NoteMaesterState(working: true, preview: passage.join(''));
+    // The note stays as it is until the answer starts arriving.
+    state = const NoteMaesterState(working: true);
     final written = StringBuffer();
     var shownAt = DateTime.fromMillisecondsSinceEpoch(0);
     try {

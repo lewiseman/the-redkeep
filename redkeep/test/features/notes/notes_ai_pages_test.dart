@@ -5,7 +5,6 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:redkeep/app/navigation_destination.dart';
 import 'package:redkeep/features/appearance/domain/appearance_preferences.dart';
@@ -16,6 +15,7 @@ import '../../support/fake_ai_provider.dart';
 import '../../support/notes_ai_harness.dart';
 import '../../support/pump_app.dart';
 
+import 'package:redkeep/features/notes/presentation/note_maester_composer.dart';
 import 'package:redkeep/features/notes/presentation/note_read_page.dart';
 import 'package:redkeep/features/notes/presentation/note_scan_page.dart';
 import 'package:redkeep/features/notes/presentation/note_tag_picker.dart';
@@ -87,7 +87,7 @@ void main() {
           expect(input, findsNothing);
           expect(find.byKey(const ValueKey('note-read-dock')), findsOneWidget);
           await startEditing(tester);
-          // Writing has no Maester button; it is offered for a selection.
+          // Writing has no Maester; it is offered while reading.
           expect(find.byTooltip('Close editor'), findsOneWidget);
           expect(find.byTooltip('Ask the Maester'), findsNothing);
           expect(tester.takeException(), isNull);
@@ -286,8 +286,8 @@ void main() {
       final working = find.byKey(const ValueKey('note-maester-working'));
       await settle(tester, working);
 
-      // The note clears while the Maester writes.
-      expect(find.text(original), findsNothing);
+      // The note stays until the answer starts arriving.
+      expect(find.text(original), findsOneWidget);
       expect(find.text('The Maester is writing…'), findsOneWidget);
       expect(jsonDecode(h.aiProvider.requests.single.user), {
         'text': original,
@@ -295,7 +295,18 @@ void main() {
       });
 
       stream.add('- [ ] Plant tomatoes');
-      await settle(tester, find.textContaining('Plant tomatoes'));
+      for (
+        var i = 0;
+        i < 50 && find.text(original).evaluate().isNotEmpty;
+        i++
+      ) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        );
+        await tester.pump();
+      }
+      // The old text clears as the new text streams in.
+      expect(find.text(original), findsNothing);
       expect(find.textContaining('Plant tomatoes'), findsOneWidget);
       // Nothing is saved until the Maester has finished.
       expect(
@@ -380,13 +391,50 @@ void main() {
     }
   });
 
-  testWidgets('Ask Maester on a selection rewrites only that part', (
+  testWidgets('without an AI provider the Maester is greyed out and absent', (
     tester,
   ) async {
-    const passage = 'Plant tomatoes in the raised bed.';
+    await h.save(body: 'Plant tomatoes in the raised bed.');
+    try {
+      await pumpApp(
+        tester,
+        notes: h.repository,
+        database: h.db,
+        aiProvider: h.aiProvider,
+        aiSettings: null,
+        initialLocation: noteLocation(notesTestId),
+      );
+      await tester.pumpAndSettle();
+      final button = find.ancestor(
+        of: find.byType(NoteMaesterMark),
+        matching: find.byType(IconButton),
+      );
+      expect(tester.widget<IconButton>(button).onPressed, isNull);
+      expect(
+        find.descendant(of: button, matching: find.byType(ColorFiltered)),
+        findsOneWidget,
+      );
+
+      final word = find.textContaining('Plant tomatoes', findRichText: true);
+      await tester.longPressAt(
+        tester.getTopLeft(word.first) + const Offset(70, 10),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Copy'), findsOneWidget);
+      expect(find.text('Ask Maester'), findsNothing);
+      expect(tester.takeException(), isNull);
+    } finally {
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpAndSettle();
+    }
+  });
+
+  testWidgets('Ask Maester on a reading selection rewrites only that part', (
+    tester,
+  ) async {
     const rest = 'Water them every morning.';
-    await h.save(body: '$passage\n\n$rest');
-    h.aiProvider.reply = 'Sow basil in pots.';
+    await h.save(body: 'Plant tomatoes in the raised bed.\n\n$rest');
+    h.aiProvider.reply = 'basil';
     try {
       await pumpApp(
         tester,
@@ -397,26 +445,19 @@ void main() {
         initialLocation: noteLocation(notesTestId),
       );
       await tester.pumpAndSettle();
-      await startEditing(tester);
-      final quill = tester.widget<QuillEditor>(find.byType(QuillEditor));
-      quill.focusNode.requestFocus();
-      await tester.pump();
-      quill.controller.updateSelection(
-        const TextSelection(baseOffset: 0, extentOffset: passage.length),
-        ChangeSource.local,
+      // Long press selects a word and brings up the selection menu.
+      final word = find.textContaining('Plant tomatoes', findRichText: true);
+      await tester.longPressAt(
+        tester.getTopLeft(word.first) + const Offset(70, 10),
       );
-      await tester.pump();
-      tester
-          .state<QuillRawEditorState>(find.byType(QuillRawEditor))
-          .showToolbar();
       await tester.pumpAndSettle();
+      expect(find.text('Ask Maester'), findsOneWidget);
       await tester.tap(find.text('Ask Maester'));
       await tester.pumpAndSettle();
       expect(find.text('How should this part change?'), findsOneWidget);
 
-      await ask(tester, 'Make it about basil');
-      await settle(tester, find.textContaining('Sow basil'));
-      for (var i = 0; i < 20; i++) {
+      await ask(tester, 'Make it basil');
+      for (var i = 0; i < 40; i++) {
         final body = (await h.repository.openDocument(notesTestId))
             .note!
             .text
@@ -427,14 +468,16 @@ void main() {
         );
         await tester.pump();
       }
-      // Only the selection was sent and replaced.
-      expect(jsonDecode(h.aiProvider.requests.single.user), {
-        'text': passage,
-        'intent': 'Make it about basil',
-      });
+      final sent = jsonDecode(h.aiProvider.requests.single.user) as Map;
+      expect(sent['intent'], 'Make it basil');
+      // Only the long-pressed word was sent and replaced.
+      expect(sent['text'], isNot(contains(' ')));
       expect(
         (await h.repository.openDocument(notesTestId)).note!.text.body,
-        'Sow basil in pots.\n\n$rest',
+        'Plant tomatoes in the raised bed.\n\n$rest'.replaceFirst(
+          sent['text'] as String,
+          'basil',
+        ),
       );
       expect(tester.takeException(), isNull);
     } finally {

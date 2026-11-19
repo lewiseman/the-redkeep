@@ -487,3 +487,30 @@ const _passageStart = '', _passageEnd = '';
     after: markdown.substring(close + 1),
   );
 }
+
+/// [markdownAround] for words as a reader sees them, e.g. a selection of the
+/// rendered note: found in [markdown] by its words, whatever the spacing or
+/// list markers between them. Null when the words are not in the note.
+({String before, String text, String after})? markdownAroundWords(
+  String markdown,
+  String words,
+) {
+  // List markers are drawn beside the text, so a selection may hold them.
+  final marker = RegExp(r'^(?:•|\d{1,9}\.)$');
+  final parts = [
+    for (final word in words.trim().split(RegExp(r'\s+')))
+      if (word.isNotEmpty && !marker.hasMatch(word)) RegExp.escape(word),
+  ];
+  if (parts.isEmpty) return null;
+  final delta = richDocumentFor(markdown);
+  final plain = StringBuffer();
+  for (final op in delta.toList()) {
+    final data = op.data;
+    // Embeds take one place in the document.
+    plain.write(data is String ? data : '￼');
+  }
+  final match = RegExp(parts.join(r'\s+(?:(?:•|\d{1,9}\.)\s+)?'))
+      .firstMatch(plain.toString());
+  if (match == null) return null;
+  return markdownAround(delta, match.start, match.end);
+}

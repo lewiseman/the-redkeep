@@ -217,7 +217,7 @@ void main() {
         of: markdown,
         matching: find.byWidgetPredicate(
           (widget) =>
-              widget is SelectableText &&
+              widget is Text &&
               widget.textSpan?.toPlainText() == 'Paragraph 299.',
         ),
       );

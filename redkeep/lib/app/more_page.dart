@@ -163,7 +163,7 @@ class _MorePageState extends ConsumerState<MorePage>
                       child: MoreShelf(
                         items: [
                           MoreShelfItem(
-                            title: 'Grand Maestar',
+                            title: 'Settings',
                             tint: colors.secondary,
                             status: maestar.label,
                             ready: maestar.ready,

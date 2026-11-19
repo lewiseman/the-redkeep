@@ -7,14 +7,12 @@ import '../../ai/application/ai_jobs.dart';
 import '../../ai/domain/ai_operation.dart';
 import '../application/note_ai_controller.dart';
 import '../application/note_ai_sources.dart';
-import '../application/note_maester_controller.dart';
 import '../domain/note_help_contract.dart';
 import 'note_action_dialog.dart';
 import 'note_actions_menu.dart';
 import 'note_ai_sheet.dart';
 import 'note_app_bar.dart';
 import 'note_format_bar.dart';
-import 'note_maester_composer.dart';
 import 'note_markdown_preview.dart';
 import 'note_typography.dart';
 import '../domain/note_rich_markdown.dart';
@@ -79,11 +77,6 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
   NoteAiLanding? _landing;
   late final AppLifecycleListener _lifecycle;
 
-  /// The writing the Maester's input was opened for, while it is open.
-  TextSelection? _asking;
-  final _ask = TextEditingController();
-  final _askFocus = FocusNode(debugLabel: 'note-maester');
-
   @override
   void initState() {
     super.initState();
@@ -134,9 +127,6 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
   /// Saves before closing, or asks whether to delete a cleared note.
   Future<void> _finish(VoidCallback leave) async {
     if (_leaving) return;
-    // Leaving writing drops a rewrite in progress; the writing stays as it
-    // was.
-    ref.read(noteMaesterProvider(widget.id).notifier).stop();
     _leaving = true;
     try {
       final provider = noteEditorProvider(widget.id);
@@ -192,8 +182,6 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
     _rich?.dispose();
     _richFocus.dispose();
     _richScroll.dispose();
-    _ask.dispose();
-    _askFocus.dispose();
     super.dispose();
   }
 
@@ -206,21 +194,6 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
       // AI results, sync imports, dictation and Discard replace the body.
       if (_bodyText != text.body) setState(() => _loadBody(text.body));
     });
-    ref.listen(noteMaesterProvider(widget.id), (previous, next) {
-      if (next.preview case final preview?) {
-        if (preview != previous?.preview) _showPreview(preview);
-      } else if (previous?.preview != null) {
-        // Done, stopped or failed: the editor shows its writing again.
-        final current = ref.read(noteEditorProvider(widget.id)).value;
-        if (current != null) setState(() => _loadBody(current.text.body));
-      }
-      if (next.error case final error? when _asking == null) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error)));
-        ref.read(noteMaesterProvider(widget.id).notifier).clearError();
-      }
-    });
-    final maester = ref.watch(noteMaesterProvider(widget.id));
     final editor = ref.watch(noteEditorProvider(widget.id));
     final value = editor.value;
     final controller = ref.read(noteEditorProvider(widget.id).notifier);
@@ -232,8 +205,6 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
     // Room for the floating tools; on top of the keyboard the paper simply
     // ends above them.
     final toolsExtent = keyboardOpen ? 0.0 : NoteFormatBar.capsuleExtent;
-    // Room the Maester's input takes on top of the keyboard.
-    final keyboardTools = _asking != null ? 96.0 : NoteFormatBar.rowHeight;
     final paperColor = NoteColors.fromBackground(
       Theme.of(context).colorScheme,
       details.background,
@@ -244,16 +215,13 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
       child: PopScope(
         canPop: false,
         onPopInvokedWithResult: (didPop, _) {
-          if (didPop) return;
-          // Back closes the Maester's input first.
-          _asking != null ? _closeAsk() : _finish(widget.onBack);
+          if (!didPop) _finish(widget.onBack);
         },
         child: NotePageFrost(
           child: Scaffold(
             appBar: NoteAppBar(
               backTooltip: 'Close editor',
-              onBack: () =>
-                  _asking != null ? _closeAsk() : _finish(widget.onBack),
+              onBack: () => _finish(widget.onBack),
               actions: [
                 // Writing keeps the bar to Back and the note's actions; the
                 // Maester is offered while reading.
@@ -283,7 +251,7 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
                   Positioned.fill(
                     child: Padding(
                       padding: EdgeInsets.only(
-                        bottom: keyboardOpen ? keyboardTools : 0,
+                        bottom: keyboardOpen ? NoteFormatBar.rowHeight : 0,
                       ),
                       child: editor.when(
                         loading: () => NotePaper(
@@ -345,9 +313,7 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
                             _loadBody(state.text.body);
                             _loaded = true;
                           }
-                          // The writing holds still while the Maester
-                          // rewrites it.
-                          _rich?.readOnly = maester.working;
+                          _rich?.readOnly = false;
                           return NotePaper(
                             key: widget.paperKey,
                             color: paperColor,
@@ -370,7 +336,6 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
                                           key: const ValueKey('note-title'),
                                           controller: _title,
                                           focusNode: _titleFocus,
-                                          readOnly: maester.working,
                                           style: _titleStyle,
                                           decoration: InputDecoration(
                                             labelText: 'Title',
@@ -441,7 +406,6 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
                                             minHeight: 120,
                                             textCapitalization:
                                                 TextCapitalization.sentences,
-                                            contextMenuBuilder: _contextMenu,
                                           ),
                                         ),
                                       ),
@@ -513,24 +477,7 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
                   // of the reading dock; its tools wake once the note loads.
                   // Neutral like the dock; only the paper takes the
                   // note's color.
-                  if (!editor.hasError && _asking != null)
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      child: NoteMaesterComposer(
-                        controller: _ask,
-                        focusNode: _askFocus,
-                        selection: true,
-                        working: maester.working,
-                        error: maester.error,
-                        onSend: _sendAsk,
-                        onStop: ref
-                            .read(noteMaesterProvider(widget.id).notifier)
-                            .stop,
-                      ),
-                    )
-                  else if (!editor.hasError)
+                  if (!editor.hasError)
                     Positioned(
                       left: 0,
                       right: 0,
@@ -581,91 +528,6 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
         ),
       ),
     );
-  }
-
-  /// The editor's usual selection menu, with the Maester for a selection.
-  Widget _contextMenu(BuildContext context, QuillRawEditorState state) {
-    final selection = _rich?.selection;
-    final offer =
-        selection != null &&
-        !selection.isCollapsed &&
-        !(_rich?.readOnly ?? true) &&
-        !ref.read(noteMaesterProvider(widget.id)).working;
-    return TextFieldTapRegion(
-      child: AdaptiveTextSelectionToolbar.buttonItems(
-        anchors: state.contextMenuAnchors,
-        buttonItems: [
-          ...state.contextMenuButtonItems,
-          if (offer)
-            ContextMenuButtonItem(
-              label: 'Ask Maester',
-              onPressed: () {
-                state.hideToolbar();
-                _openAsk(selection);
-              },
-            ),
-        ],
-      ),
-    );
-  }
-
-  void _openAsk(TextSelection selection) {
-    setState(() => _asking = selection);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _askFocus.requestFocus();
-    });
-  }
-
-  void _closeAsk() {
-    _askFocus.unfocus();
-    ref.read(noteMaesterProvider(widget.id).notifier).clearError();
-    setState(() => _asking = null);
-  }
-
-  /// Only the selected writing clears and the new words stream in there.
-  Future<void> _sendAsk() async {
-    final selection = _asking;
-    final rich = _rich;
-    if (selection == null || rich == null || _ask.text.trim().isEmpty) return;
-    final maester = ref.read(noteMaesterProvider(widget.id).notifier);
-    // Writing still on its way into the editor state is taken first.
-    final written = markdownFromRich(rich.document.toDelta());
-    if (written != _richMarkdown) {
-      _richMarkdown = written;
-      _edit(ref.read(noteEditorProvider(widget.id).notifier));
-    }
-    final NoteMaesterPassage passage;
-    try {
-      final split = markdownAround(
-        rich.document.toDelta(),
-        selection.start,
-        selection.end,
-      );
-      passage = NoteMaesterPassage(
-        before: split.before,
-        text: split.text,
-        after: split.after,
-      );
-    } on FormatException catch (error) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(error.message)));
-      return;
-    }
-    _askFocus.unfocus();
-    if (await maester.rewriteWriting(_ask.text, passage) && mounted) {
-      _ask.clear();
-      if (_asking != null) setState(() => _asking = null);
-    }
-  }
-
-  /// Shows the Maester's writing as it arrives, without it counting as an
-  /// edit until it is finished.
-  void _showPreview(String markdown) {
-    final rich = _rich;
-    if (rich == null) return;
-    _richChanges?.cancel();
-    _richChanges = null;
-    rich.document = Document.fromDelta(richDocumentFor(markdown));
   }
 
   Future<void> _editTool(Future<void> Function() action) async {

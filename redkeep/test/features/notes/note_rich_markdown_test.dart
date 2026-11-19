@@ -174,4 +174,14 @@ void main() {
       );
     });
   });
+
+  test('markdownAroundWords finds a reader selection across list markers', () {
+    const note = 'Intro **bold words** here\n\n- milk\n- bread';
+    final split = markdownAroundWords(note, 'bold words here\n•\nmilk');
+    expect(split, isNotNull);
+    expect(split!.text, 'bold words** here\n\n- milk');
+    expect(split.before, 'Intro **');
+    expect(split.after, '\n- bread');
+    expect(markdownAroundWords(note, 'not in it'), isNull);
+  });
 }

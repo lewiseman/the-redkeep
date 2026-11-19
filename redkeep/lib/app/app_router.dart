@@ -27,7 +27,6 @@ import '../features/onboarding/application/onboarding_controller.dart';
 import '../features/onboarding/application/onboarding_restore.dart';
 import '../features/onboarding/presentation/onboarding_page.dart';
 import '../features/notes/presentation/note_page.dart';
-import '../features/notes/presentation/note_scan_page.dart';
 import '../features/stock_photos/domain/stock_photo.dart';
 import '../features/stock_photos/presentation/stock_photo_preview_page.dart';
 import '../features/stock_photos/presentation/stock_photo_search_page.dart';
@@ -215,17 +214,6 @@ GoRouter createAppRouter(Ref ref) {
                   state,
                   NotePage(
                     key: ValueKey(state.pathParameters['id']),
-                    id: state.pathParameters['id']!,
-                  ),
-                ),
-              ),
-              // Scanning returns its kept result to the note that opened it.
-              GoRoute(
-                path: ':id/scan',
-                pageBuilder: (context, state) => _page(
-                  state,
-                  NoteScanPage(
-                    key: ValueKey(state.uri.path),
                     id: state.pathParameters['id']!,
                   ),
                 ),

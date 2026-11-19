@@ -268,30 +268,6 @@ void main() {
   });
 
   test(
-    'scan uploads the selected image only and appends reviewed corrections',
-    () async {
-      final path = await h.media.write(h.remote.generated);
-      h.remote.output = '{"text":"Meet Sam at 3pm [?]","readable":true,"check":[{"text":"Meet Sam at 3pm","confidence":0.9}]}';
-      final attachment = NoteAttachment(path: path, type: 'image/png');
-      await actions().start(
-        AiOperation.noteScan,
-        notesTestId,
-        scope: notesJobScope,
-        image: attachment,
-      );
-      expect(h.remote.submissions.single['images'], 1);
-      final saved = (await actions().apply(
-        job(),
-        scope: notesJobScope,
-        reviewedText: 'Meet Sam at 3pm Friday',
-      ))!;
-      expect(saved.text.body, endsWith('Meet Sam at 3pm Friday'));
-      expect(saved.details.attachments.single.path, path);
-      expect(await h.media.scanOriginal(path), 'Meet Sam at 3pm [?]');
-    },
-  );
-
-  test(
     'image answers preserve separate evidence and insert only after review',
     () async {
       final path = await h.media.write(h.remote.generated);

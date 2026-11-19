@@ -26,13 +26,6 @@ enum NoteAiTool {
     'Explore a photo',
     'See details, read text',
     Color(0xFF527C9C),
-  ),
-  scan(
-    'Scan a page',
-    'Take a photo. Check the words. Add them.',
-    'Read a page',
-    'Photo to written words',
-    Color(0xFF527C9C),
   );
 
   const NoteAiTool(
@@ -53,7 +46,6 @@ enum NoteAiTool {
     template => 'Template added to your note',
     writing => 'Your note was rewritten',
     image => 'Added to the end of your note',
-    scan => 'Page added to the end of your note',
   };
 }
 
@@ -169,19 +161,6 @@ class _ToolPainter extends CustomPainter {
         canvas.drawCircle(const Offset(59, 57), 11, Paint()..color = paper);
         canvas.drawCircle(const Offset(59, 57), 11, stroke);
         line(67, 65, 74, 72);
-      case NoteAiTool.scan:
-        sheet(22, 14, 36, 51);
-        lines(29, 29, 22, 4);
-        line(10, 27, 10, 10);
-        line(10, 10, 27, 10);
-        line(53, 10, 70, 10);
-        line(70, 10, 70, 27);
-        line(10, 53, 10, 70);
-        line(10, 70, 27, 70);
-        line(53, 70, 70, 70);
-        line(70, 70, 70, 53);
-        canvas.drawRect(const Rect.fromLTWH(6, 37, 68, 7), fill);
-        line(6, 40, 74, 40);
       case NoteAiTool.template:
         sheet(14, 12, 49, 57);
         line(23, 25, 49, 25);

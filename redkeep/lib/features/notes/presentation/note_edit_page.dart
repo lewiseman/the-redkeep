@@ -10,7 +10,6 @@ import '../application/note_ai_sources.dart';
 import '../domain/note_help_contract.dart';
 import 'note_action_dialog.dart';
 import 'note_actions_menu.dart';
-import 'note_ai_sheet.dart';
 import 'note_app_bar.dart';
 import 'note_format_bar.dart';
 import 'note_markdown_preview.dart';
@@ -74,7 +73,6 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
 
   /// Keeps a title request alive; leaving the editor cancels it.
   ProviderSubscription<AiJobState>? _titleJob;
-  NoteAiLanding? _landing;
   late final AppLifecycleListener _lifecycle;
 
   @override
@@ -237,7 +235,6 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
                         : _togglePin,
                     onBackground: value == null ? null : _background,
                     onTags: value == null ? null : _tags,
-                    onScan: value == null ? null : _scan,
                     onDelete: value == null || saved == null ? null : _delete,
                   ),
                 ),
@@ -512,15 +509,6 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
                         ),
                       ),
                     ),
-                  // Only the seal itself takes touches; writing continues below.
-                  Positioned.fill(
-                    child: NoteAiLandingHost(
-                      landing: _landing,
-                      details: details,
-                      onDismissed: () => setState(() => _landing = null),
-                      child: const SizedBox.expand(),
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -576,15 +564,6 @@ class _NoteEditViewState extends ConsumerState<NoteEditView> {
         .read(noteEditorProvider(widget.id).notifier)
         .editDetails(latest.details.copy(background: background));
   });
-
-  /// Scanning has its own page; the reviewed words join this draft.
-  Future<void> _scan() async {
-    FocusScope.of(context).unfocus();
-    final landing = await context.push<NoteAiLanding>(
-      noteScanLocation(widget.id),
-    );
-    if (mounted && landing != null) setState(() => _landing = landing);
-  }
 
   Future<void> _tags() => _editTool(() async {
     final value = ref.read(noteEditorProvider(widget.id)).requireValue;

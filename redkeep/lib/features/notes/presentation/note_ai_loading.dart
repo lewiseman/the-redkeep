@@ -53,7 +53,6 @@ String noteAiPhaseTitle(NoteAiTool tool, String phase) => switch (phase) {
     NoteAiTool.template => 'Building your template…',
     NoteAiTool.writing => 'Improving your note…',
     NoteAiTool.image => 'Reading your image…',
-    NoteAiTool.scan => 'Reading your page…',
   },
 };
 

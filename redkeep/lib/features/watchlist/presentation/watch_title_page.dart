@@ -386,7 +386,6 @@ class _Details extends ConsumerWidget {
         const TitleHeading('Where to watch'),
         WatchHere(
           groups: watch,
-          footnote: 'In $region, from JustWatch via TMDB.',
         ),
       ],
       if (title.recommendations.isNotEmpty) ...[

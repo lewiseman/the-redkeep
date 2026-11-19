@@ -15,7 +15,6 @@ import '../data/note_media_store.dart';
 import '../domain/note_document.dart';
 import '../domain/note_help_contract.dart';
 import '../domain/note_image_contract.dart';
-import '../domain/note_scan_contract.dart';
 import '../domain/transform_contract.dart';
 import 'note_ai_sources.dart';
 import 'note_editor_controller.dart';
@@ -68,7 +67,6 @@ class NoteAiController {
       if (!{
         AiOperation.noteTemplate,
         AiOperation.noteDraft,
-        AiOperation.noteScan,
       }.contains(operation)) {
         throw const FormatException('Write something in this note first.');
       }
@@ -110,12 +108,11 @@ class NoteAiController {
         prompt = NoteTemplateSource(topic).request();
       case AiOperation.noteDraft:
         prompt = NoteDraftSource(topic).request();
-      case AiOperation.noteImage || AiOperation.noteScan:
+      case AiOperation.noteImage:
         if (image == null || !image.isImage) {
           throw const FormatException('Choose an image first.');
         }
-        if (operation == AiOperation.noteImage &&
-            !note!.details.attachments.any((a) => a.path == image.path)) {
+        if (!note!.details.attachments.any((a) => a.path == image.path)) {
           throw const FormatException('This image is no longer attached.');
         }
         final file = await ref.read(noteMediaStoreProvider).resolve(image.path);
@@ -136,12 +133,8 @@ class NoteAiController {
           'imageSha': digest,
           'image': image.toMap(),
         });
-        if (operation == AiOperation.noteImage) {
-          NoteImageRequest.validate(mode, question);
-          prompt = jsonEncode({'mode': mode, 'question': question});
-        } else {
-          prompt = noteScanPrompt;
-        }
+        NoteImageRequest.validate(mode, question);
+        prompt = jsonEncode({'mode': mode, 'question': question});
       default:
         if (!transformOperations.containsKey(operation.wireName)) {
           throw const FormatException('Unsupported notes tool.');
@@ -216,7 +209,7 @@ class NoteAiController {
         opened.note?.details.copy(tags: opened.note!.tags) ??
         editing?.details ??
         const NoteDetails();
-    // AI answers and scanned pages are plain words, never formatting.
+    // AI answers are plain words, never formatting.
     String append(String value) => [
       if (text.body.isNotEmpty) text.body,
       markdownFromPlainText(value),
@@ -237,26 +230,6 @@ class NoteAiController {
             template.body,
           ].join('\n\n'),
         );
-      case AiOperation.noteScan:
-        final scan = NoteScanResult.parse(job.text!);
-        final value = reviewedText ?? scan.text;
-        if (value.replaceAll('[?]', '').trim().isEmpty ||
-            value.runes.length > noteScanTextChars) {
-          throw const FormatException('Check the scanned text first.');
-        }
-        text = PlainTextDocument(title: text.title, body: append(value));
-        final image = NoteAttachment.fromMap(
-          Map<String, dynamic>.from(source['image'] as Map),
-        );
-        details = details.copy(
-          attachments: [
-            ...details.attachments.where((a) => a.path != image.path),
-            image,
-          ],
-        );
-        await ref
-            .read(noteMediaStoreProvider)
-            .writeScanOriginal(image.path, scan.text);
       case AiOperation.noteImage:
         final answer = NoteImageAnswer.parse(job.text!);
         final value = reviewedText ?? answer.insertion;

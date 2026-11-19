@@ -50,14 +50,6 @@ enum AiOperation {
     768,
     4096,
     '$noteImageSystem\nReturn exactly these four string keys: {"observations":"…","text":"…","inference":"…","answer":"…"}',
-  ),
-  noteScan(
-    'scan-note-image',
-    true,
-    'scanContract',
-    2048,
-    12288,
-    '$noteScanSystem\nReturn exactly: {"text":"…","readable":true}',
   );
 
   const AiOperation(
@@ -73,7 +65,7 @@ enum AiOperation {
   /// False for paused features that never run.
   final bool available;
   bool get isNote => name.startsWith('note');
-  bool get imageInput => this == noteImage || this == noteScan;
+  bool get imageInput => this == noteImage;
   String get label => switch (this) {
     noteRewrite => 'Rewrite note',
     noteExpand => 'Expand note',
@@ -86,7 +78,6 @@ enum AiOperation {
     noteTemplate => 'Starting template',
     noteDraft => 'Draft a note',
     noteImage => 'Ask about an image',
-    noteScan => 'Scan a page',
   };
   int get inputBytes => switch (this) {
     noteTags => 6000,

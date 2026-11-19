@@ -7,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../ai/domain/ai_operation.dart';
 import '../domain/note_help_contract.dart';
 import '../domain/note_image_contract.dart';
-import '../domain/note_scan_contract.dart';
 import '../domain/transform_contract.dart';
 import 'note_editor_controller.dart';
 import 'notes_providers.dart';
@@ -70,8 +69,6 @@ void validateNoteAiOutput(
       }
     case AiOperation.noteImage:
       NoteImageAnswer.parse(text);
-    case AiOperation.noteScan:
-      NoteScanResult.parse(text);
     default:
       if (!validTransformOutput(text)) {
         throw const FormatException(

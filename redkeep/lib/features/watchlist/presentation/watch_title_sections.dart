@@ -483,10 +483,9 @@ class _TicketPainter extends CustomPainter {
 /// Where to see it: services as glass chips under Stream, Rent and Buy,
 /// all centred.
 class WatchHere extends StatelessWidget {
-  const WatchHere({super.key, required this.groups, required this.footnote});
+  const WatchHere({super.key, required this.groups});
 
   final List<(String, List<String>)> groups;
-  final String footnote;
 
   @override
   Widget build(BuildContext context) {
@@ -537,11 +536,6 @@ class WatchHere extends StatelessWidget {
             ),
             const SizedBox(height: 16),
           ],
-          Text(
-            footnote,
-            textAlign: TextAlign.center,
-            style: TextStyle(color: palette.muted, fontSize: 12),
-          ),
         ],
       ),
     );

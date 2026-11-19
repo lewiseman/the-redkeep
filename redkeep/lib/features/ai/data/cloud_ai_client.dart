@@ -427,6 +427,20 @@ class _StreamWatch {
 
 int _int(Object? value) => value is num ? value.toInt() : 0;
 
+/// The person's message: plain text, or text followed by its images.
+Object _userContent(AiChatRequest request) => request.images.isEmpty
+    ? request.user
+    : [
+        {'type': 'text', 'text': request.user},
+        for (final image in request.images)
+          {
+            'type': 'image_url',
+            'image_url': {
+              'url': 'data:${image.mime};base64,${base64Encode(image.bytes)}',
+            },
+          },
+      ];
+
 /// OpenAI-compatible API: chat completions, audio transcriptions, image
 /// generations and the model list. The only format Redkeep speaks.
 class CloudAiClient implements AiCloudClient {
@@ -444,22 +458,7 @@ class CloudAiClient implements AiCloudClient {
       settings.preset.tokenLimitParameter: request.outputTokens,
       'messages': [
         {'role': 'system', 'content': request.system},
-        {
-          'role': 'user',
-          'content': request.images.isEmpty
-              ? request.user
-              : [
-                  {'type': 'text', 'text': request.user},
-                  for (final image in request.images)
-                    {
-                      'type': 'image_url',
-                      'image_url': {
-                        'url':
-                            'data:${image.mime};base64,${base64Encode(image.bytes)}',
-                      },
-                    },
-                ],
-        },
+        {'role': 'user', 'content': _userContent(request)},
       ],
       if (temperature) 'temperature': request.temperature,
       if (temperature && request.topP != 1) 'top_p': request.topP,
@@ -512,7 +511,7 @@ class CloudAiClient implements AiCloudClient {
       settings.preset.tokenLimitParameter: request.outputTokens,
       'messages': [
         {'role': 'system', 'content': request.system},
-        {'role': 'user', 'content': request.user},
+        {'role': 'user', 'content': _userContent(request)},
       ],
       'stream': true,
       if (full) 'stream_options': {'include_usage': true},

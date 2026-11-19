@@ -1,11 +1,6 @@
 export 'note_ai_desk.dart'
     show showNoteAiTools, NoteAiLanding, NoteAiLandingHost;
 
-import 'dart:io';
-
-import 'note_scan_stage.dart';
-import 'note_scan_parts.dart';
-
 import 'dart:async';
 import 'dart:convert';
 
@@ -19,12 +14,10 @@ import '../application/note_ai_controller.dart';
 import '../application/note_ai_sources.dart';
 import '../application/note_editor_controller.dart';
 import '../application/notes_providers.dart';
-import '../data/note_media_store.dart';
 import '../domain/note_document.dart';
 import '../domain/note_help_contract.dart';
 import '../domain/note_image_contract.dart';
 import '../domain/note_rich_markdown.dart';
-import '../domain/note_scan_contract.dart';
 import '../domain/transform_contract.dart';
 import 'note_ai_desk.dart';
 import 'note_ai_folio.dart';
@@ -35,7 +28,6 @@ import 'note_writing_widgets.dart';
 NoteAiTool noteToolForJob(AiJob job) => switch (job.operation) {
   AiOperation.noteTemplate => NoteAiTool.template,
   AiOperation.noteImage => NoteAiTool.image,
-  AiOperation.noteScan => NoteAiTool.scan,
   _ => NoteAiTool.writing,
 };
 
@@ -113,7 +105,6 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
   AiOperation get _operation => switch (widget.tool) {
     NoteAiTool.template => AiOperation.noteTemplate,
     NoteAiTool.image => AiOperation.noteImage,
-    NoteAiTool.scan => AiOperation.noteScan,
     _ => _writing,
   };
   bool _matches(AiJob job) =>
@@ -143,9 +134,7 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
         .apply(
           job,
           scope: _scope,
-          reviewedText:
-              (job.operation == AiOperation.noteScan ||
-                  job.operation == AiOperation.noteImage)
+          reviewedText: job.operation == AiOperation.noteImage
               ? _review.text
               : null,
         );
@@ -158,7 +147,6 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
           tool: widget.tool,
           message: _landedMessage(job.operation),
           appended: const {
-            AiOperation.noteScan,
             AiOperation.noteImage,
             AiOperation.noteTemplate,
           }.contains(job.operation),
@@ -267,9 +255,7 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
     if (widget.id != null && isNoteId(widget.id!)) {
       ref.watch(noteDocumentProvider(widget.id!));
     }
-    final loading =
-        (_working || mine && !job.terminal && state.busy) &&
-        widget.tool != NoteAiTool.scan;
+    final loading = _working || mine && !job.terminal && state.busy;
     final phase = mine ? job.phase : 'preparing';
     final onCancel = mine && !job.terminal
         ? ref.read(_jobs.notifier).cancel
@@ -336,7 +322,7 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
     final note = widget.id == null || !isNoteId(widget.id!)
         ? null
         : ref.watch(noteDocumentProvider(widget.id!)).value?.note;
-    final hasFolio = subject != null && widget.tool != NoteAiTool.scan;
+    final hasFolio = subject != null;
     final customWriting =
         widget.tool == NoteAiTool.writing && _writing == AiOperation.noteCustom;
     final instructionTooLong =
@@ -469,115 +455,15 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
             decoration: const InputDecoration(labelText: 'Your question'),
           ),
       ],
-      if (widget.tool == NoteAiTool.scan) ...[
-        _scanStage(_image?.path),
-        for (final image
-            in note?.details.attachments.where((a) => a.isImage) ??
-                const <NoteAttachment>[])
-          TextButton(
-            onPressed: () => setState(() => _image = image),
-            child: Text('Use attached page: ${image.filename}'),
-          ),
-        if (_image != null)
-          FutureBuilder<String?>(
-            future: ref.read(noteMediaStoreProvider).scanOriginal(_image!.path),
-            builder: (_, snapshot) => snapshot.data == null
-                ? const SizedBox.shrink()
-                : NoteAiDetails(
-                    snapshot.data!,
-                    title: 'Original reading from this page',
-                  ),
-          ),
-      ],
       const SizedBox(height: 18),
       FilledButton.icon(
         key: const ValueKey('notes-ai-generate'),
         onPressed: missingInput || instructionTooLong ? null : _generate,
         icon: const Icon(Icons.auto_awesome_rounded),
-        label: Text(switch (widget.tool) {
-          NoteAiTool.scan => 'Read the page',
-          _ => 'Write it on the page',
-        }),
+        label: const Text('Write it on the page'),
       ),
     ];
   }
-
-  Future<void> _pickImage(bool camera) => _run(() async {
-    final image = await ref
-        .read(noteMediaStoreProvider)
-        .pickPhoto(widget.id!, camera: camera);
-    if (mounted && image != null) setState(() => _image = image);
-  });
-  Widget _retainedScanStage(AiJob job, bool complete) {
-    try {
-      final image = NoteAttachment.fromMap(
-        Map<String, dynamic>.from(noteTaskSource(job.source)['image'] as Map),
-      );
-      return _scanStage(
-        image.path,
-        analyzing: !job.terminal,
-        compact: complete,
-      );
-    } catch (_) {
-      return const Text(
-        'The retained page snapshot is unavailable. Clear this task and choose the page again.',
-      );
-    }
-  }
-
-  Widget _scanStage(
-    String? path, {
-    bool analyzing = false,
-    bool compact = false,
-  }) => FutureBuilder<File?>(
-    future: path == null
-        ? Future.value(null)
-        : ref.read(noteMediaStoreProvider).resolve(path),
-    builder: (context, snapshot) => NoteScanStage(
-      page: snapshot.data?.path,
-      analyzing: analyzing,
-      compact: compact,
-      empty: path == null
-          ? NoteScanEmpty(
-              onCamera: () => _pickImage(true),
-              onGallery: () => _pickImage(false),
-            )
-          : null,
-      overlay: analyzing
-          ? NoteScanReading(
-              phase: 'running',
-              onStop: ref.read(_jobs.notifier).cancel,
-            )
-          : path == null || compact
-          ? null
-          : NoteScanToolbar(
-              children: [
-                NoteScanTool(
-                  icon: Icons.camera_alt_outlined,
-                  tooltip: 'Retake photo',
-                  onPressed: () => _pickImage(true),
-                ),
-                NoteScanTool(
-                  icon: Icons.photo_library_outlined,
-                  tooltip: 'Choose another image',
-                  onPressed: () => _pickImage(false),
-                ),
-                NoteScanTool(
-                  icon: Icons.rotate_90_degrees_cw_outlined,
-                  tooltip: 'Rotate page',
-                  onPressed: _image == null
-                      ? null
-                      : () => _run(() async {
-                          final rotated = await ref
-                              .read(noteMediaStoreProvider)
-                              .rotate(_image!);
-                          if (mounted) setState(() => _image = rotated);
-                        }),
-                ),
-              ],
-            ),
-    ),
-  );
 
   Future<void> _discard(AiJobs controller) => _run(() async {
     await controller.clear();
@@ -593,16 +479,10 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
     final controller = ref.read(_jobs.notifier);
     final complete = job.phase == 'completed' && job.text != null;
     return [
-      if (job.operation == AiOperation.noteScan)
-        Padding(
-          padding: const EdgeInsets.only(bottom: 16),
-          child: _retainedScanStage(job, complete),
-        ),
       if (complete)
         ..._result(job, onDiscard: () => _discard(controller))
       else ...[
-        if (job.operation != AiOperation.noteScan)
-          _folio(status: 'Unchanged', child: _page()),
+        _folio(status: 'Unchanged', child: _page()),
         if (job.phase == 'cancelled')
           const Text('Stopped. Your note is unchanged.')
         else if (job.terminal)
@@ -664,40 +544,7 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
           ),
         ),
     ];
-    if (job.operation == AiOperation.noteScan) {
-      final scan = NoteScanResult.parse(job.text!);
-      if (_reviewedJob != job.id) {
-        _review.text = scan.text;
-        _reviewedJob = job.id;
-      }
-      result.addAll([
-        if (!scan.readable || scan.unreadableMarks > 0)
-          Text(
-            'Check unclear words marked [?]. ${scan.unreadableMarks} unreadable places.',
-          ),
-        if (scan.disagreements.isNotEmpty)
-          Text(
-            'Check these names and numbers: ${scan.disagreements.join(', ')}',
-          ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _review,
-          minLines: 6,
-          maxLines: 16,
-          maxLength: 6000,
-          decoration: const InputDecoration(
-            labelText: 'Check and correct the words',
-          ),
-        ),
-        _livePreview(),
-        if (scan.check != null)
-          NoteAiDetails(
-            scan.check!.map((line) => line.text).join('\n'),
-            title: 'Second reading',
-          ),
-        NoteAiDetails(scan.text, title: 'Original reading'),
-      ]);
-    } else if (job.operation == AiOperation.noteImage) {
+    if (job.operation == AiOperation.noteImage) {
       final answer = NoteImageAnswer.parse(job.text!);
       if (_reviewedJob != job.id) {
         _review.text = answer.insertion;
@@ -796,8 +643,7 @@ class _NoteAiToolPageState extends ConsumerState<NoteAiToolPage> {
         onPressed: canApply ? () => _apply(job) : null,
         icon: const Icon(Icons.check_rounded),
         label: Text(
-          job.operation == AiOperation.noteScan ||
-                  job.operation == AiOperation.noteImage
+          job.operation == AiOperation.noteImage
               ? 'Add to note'
               : 'Keep in note',
         ),

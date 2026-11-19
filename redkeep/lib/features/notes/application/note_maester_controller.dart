@@ -5,9 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../ai/application/ai_cloud.dart';
 import '../../ai/application/ai_jobs.dart' show aiErrorMessage;
-import '../../ai/domain/ai_operation.dart';
+import '../../ai/domain/note_operation_prompts.dart';
 import '../../ai/domain/ai_provider.dart';
 import '../domain/note_document.dart';
+import '../domain/note_maester_attachment.dart';
+import '../domain/note_maester_reply.dart';
 import '../domain/note_rich_markdown.dart';
 import '../domain/transform_contract.dart';
 import 'notes_providers.dart';
@@ -32,13 +34,21 @@ class NoteMaesterPassage {
 }
 
 class NoteMaesterState {
-  const NoteMaesterState({this.working = false, this.preview, this.error});
+  const NoteMaesterState({
+    this.working = false,
+    this.preview,
+    this.previewTitle,
+    this.error,
+  });
 
   /// The Maester is writing; editing waits until it is done.
   final bool working;
 
   /// The body as it is being rewritten. Null shows the note itself.
   final String? preview;
+
+  /// The title as it is being rewritten. Null shows the note's own.
+  final String? previewTitle;
 
   /// Why the last request changed nothing.
   final String? error;
@@ -82,12 +92,15 @@ class NoteMaesterController extends Notifier<NoteMaesterState> {
     if (state.error != null) state = NoteMaesterState(working: state.working);
   }
 
-  /// Rewrites the saved note as [instruction] asks: all of it, or the
-  /// [part] of its body that function picks. That part clears as the new
-  /// words stream in, then they replace it.
+  /// Rewrites the saved note as [instruction] asks: its title, its body or
+  /// both, as the Maester decides from the request. The body is all of it,
+  /// or the [part] that function picks; that part clears as the new words
+  /// stream in, then they replace it. [attachments] go with the request;
+  /// with them, an empty [instruction] adds what they contain.
   Future<bool> rewriteNote(
     String instruction, {
     NoteMaesterPassage Function(String body)? part,
+    List<NoteMaesterAttachment> attachments = const [],
   }) async {
     final opened = await ref.read(notesRepositoryProvider).openDocument(id);
     final note = opened.note;
@@ -109,14 +122,16 @@ class NoteMaesterController extends Notifier<NoteMaesterState> {
     return _rewrite(
       instruction,
       passage,
-      keep: (body) async {
+      title: note.text.title,
+      attachments: attachments,
+      keep: (title, body) async {
         try {
           await ref
               .read(notesRepositoryProvider)
               .applyProposal(
                 id,
                 note.revision,
-                text: PlainTextDocument(title: note.text.title, body: body),
+                text: PlainTextDocument(title: title, body: body),
                 details: note.details.copy(tags: note.tags),
               );
         } on NoteException {
@@ -131,12 +146,29 @@ class NoteMaesterController extends Notifier<NoteMaesterState> {
   Future<bool> _rewrite(
     String instruction,
     NoteMaesterPassage passage, {
-    required Future<void> Function(String body) keep,
+    required String title,
+    required List<NoteMaesterAttachment> attachments,
+    required Future<void> Function(String title, String body) keep,
   }) async {
-    final ask = instruction.trim();
+    final typed = instruction.trim();
+    final ask = typed.isEmpty && attachments.isNotEmpty
+        ? noteMaesterAttachmentIntent
+        : typed;
     if (state.working || ask.isEmpty) return false;
+    final images = [
+      for (final attachment in attachments)
+        if (attachment.bytes case final bytes?)
+          AiImageInput(bytes, mime: 'image/png'),
+    ];
+    final files = [
+      for (final attachment in attachments)
+        if (attachment.text case final text?)
+          {'name': attachment.name, 'text': text},
+    ];
     final problem = utf8.encode(ask).length > transformIntentBytes
         ? 'Keep the request to at most $transformIntentBytes bytes.'
+        : attachments.length > noteMaesterAttachmentLimit
+        ? 'Attach at most $noteMaesterAttachmentLimit photos or files.'
         : utf8.encode(passage.text).length > noteMaesterTextBytes
         ? passage.whole
               ? 'This note is too long to rewrite at once. Select a part of it while editing.'
@@ -155,8 +187,16 @@ class NoteMaesterController extends Notifier<NoteMaesterState> {
       final stream = ref
           .read(aiCloudProvider)
           .chatStream(
-            system: AiOperation.noteCustom.system,
-            user: jsonEncode({'text': passage.text, 'intent': ask}),
+            system: attachments.isEmpty
+                ? noteMaesterSystem
+                : '$noteMaesterSystem\n\n$noteAttachmentRules',
+            user: jsonEncode({
+              'title': title,
+              'text': passage.text,
+              'intent': ask,
+              if (files.isNotEmpty) 'files': files,
+            }),
+            images: images,
             outputTokens: noteMaesterOutputTokens,
             abort: abort.future,
           );
@@ -166,20 +206,36 @@ class NoteMaesterController extends Notifier<NoteMaesterState> {
         final now = DateTime.now();
         if (now.difference(shownAt) >= _frame) {
           shownAt = now;
+          final reply = NoteMaesterReply.read(written.toString());
           state = NoteMaesterState(
             working: true,
-            preview: passage.join(_streaming(written.toString())),
+            preview: reply.text == null ? null : passage.join(reply.text!),
+            previewTitle: reply.title,
           );
         }
       }
       if (!ref.mounted || abort.isCompleted) return false;
-      final replacement = _finished(written.toString(), passage);
-      final body = passage.join(replacement);
-      if (!richCompatible(body)) {
+      final reply = NoteMaesterReply.read(written.toString(), complete: true);
+      final newTitle = reply.title == null
+          ? null
+          : checkedNoteMaesterTitle(reply.title!);
+      final body = reply.text == null
+          ? null
+          : passage.join(_finished(reply.text!, passage));
+      if (newTitle == null && body == null) {
+        throw const FormatException(
+          'The Maester did not change anything. Try asking another way.',
+        );
+      }
+      if (body != null && !richCompatible(body)) {
         throw const FormatException(richIncompatibleMessage);
       }
-      state = NoteMaesterState(working: true, preview: body);
-      await keep(body);
+      state = NoteMaesterState(
+        working: true,
+        preview: body,
+        previewTitle: newTitle,
+      );
+      await keep(newTitle ?? title, body ?? passage.join(passage.text));
       if (ref.mounted) state = const NoteMaesterState();
       return true;
     } catch (error) {
@@ -195,10 +251,6 @@ class NoteMaesterController extends Notifier<NoteMaesterState> {
     }
   }
 }
-
-/// While streaming, an opening code fence some models add is not shown.
-String _streaming(String text) =>
-    text.replaceFirst(RegExp(r'^\s*```[A-Za-z0-9_-]*[ \t]*(\r?\n|$)'), '');
 
 /// The finished replacement, checked like every AI edit of a note.
 String _finished(String text, NoteMaesterPassage passage) {

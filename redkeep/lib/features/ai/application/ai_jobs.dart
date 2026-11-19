@@ -120,7 +120,7 @@ class AiJobs extends Notifier<AiJobState> {
     final cloud = ref.read(aiCloudProvider);
     final operation = job.operation;
     final images = switch (operation) {
-      AiOperation.noteImage || AiOperation.noteScan => [
+      AiOperation.noteImage => [
         AiImageInput(await _noteUpload(job), mime: 'image/png'),
       ],
       _ => const <AiImageInput>[],
@@ -134,13 +134,11 @@ class AiJobs extends Notifier<AiJobState> {
       images: images,
       abort: abort,
     );
-    return operation == AiOperation.noteScan ? _scanResult(text) : text;
+    return text;
   }
 
   static String _userMessage(AiOperation operation, String prompt) {
     switch (operation) {
-      case AiOperation.noteScan:
-        return 'Transcribe this page.';
       case AiOperation.noteImage:
         final value = jsonDecode(prompt) as Map;
         return switch (value['mode']) {
@@ -153,23 +151,6 @@ class AiJobs extends Notifier<AiJobState> {
       default:
         return prompt;
     }
-  }
-
-  /// Cloud models only read the page; there is no second reader to compare.
-  static String _scanResult(String text) {
-    try {
-      final value = jsonDecode(text);
-      if (value is Map) {
-        return jsonEncode({
-          'text': value['text'],
-          'readable': value['readable'],
-          'check': null,
-        });
-      }
-    } on FormatException {
-      /* Rejected by validation. */
-    }
-    return text;
   }
 
   Future<Uint8List> _noteUpload(AiJob job) async {

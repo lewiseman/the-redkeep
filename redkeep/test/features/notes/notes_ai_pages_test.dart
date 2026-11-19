@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,9 +16,12 @@ import '../../support/fake_ai_provider.dart';
 import '../../support/notes_ai_harness.dart';
 import '../../support/pump_app.dart';
 
+import 'package:image/image.dart' as img;
+import 'package:redkeep/features/ai/domain/note_operation_prompts.dart';
+import 'package:redkeep/features/notes/data/note_maester_picker.dart';
+import 'package:redkeep/features/notes/domain/note_maester_attachment.dart';
 import 'package:redkeep/features/notes/presentation/note_maester_composer.dart';
 import 'package:redkeep/features/notes/presentation/note_read_page.dart';
-import 'package:redkeep/features/notes/presentation/note_scan_page.dart';
 import 'package:redkeep/features/notes/presentation/note_tag_picker.dart';
 
 import 'package:redkeep/core/media/compress_image.dart';
@@ -290,6 +294,7 @@ void main() {
       expect(find.text(original), findsOneWidget);
       expect(find.text('The Maester is writing…'), findsOneWidget);
       expect(jsonDecode(h.aiProvider.requests.single.user), {
+        'title': 'Garden',
         'text': original,
         'intent': 'Make it a checklist',
       });
@@ -344,6 +349,77 @@ void main() {
         '- [ ] Plant tomatoes\n- [ ] Water each morning',
       );
       expect(edit(), isNotNull);
+      expect(tester.takeException(), isNull);
+    } finally {
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpAndSettle();
+    }
+  });
+
+  testWidgets('the Maester changes the title, the text, or both, as asked', (
+    tester,
+  ) async {
+    const original = 'Plant tomatoes in the raised bed.';
+    await h.save(body: original);
+    Future<String> saved(String Function(PlainTextDocument) part) async =>
+        part((await h.repository.openDocument(notesTestId)).note!.text);
+    try {
+      await pumpApp(
+        tester,
+        notes: h.repository,
+        database: h.db,
+        aiProvider: h.aiProvider,
+        aiSettings: testAiSettings,
+        initialLocation: noteLocation(notesTestId),
+      );
+      Future<void> request(String words, String reply, String until) async {
+        h.aiProvider.reply = reply;
+        await tester.tap(find.byTooltip('Ask the Maester'));
+        await tester.pumpAndSettle();
+        await ask(tester, words);
+        for (var i = 0; i < 50; i++) {
+          if ((await saved((t) => '${t.title}|${t.body}')).contains(until)) {
+            break;
+          }
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 20)),
+          );
+          await tester.pump();
+        }
+        await tester.pumpAndSettle();
+      }
+
+      // Only the title: the writing stays exactly as it was.
+      await request('Call it Tomato plan', '<<TITLE>> Tomato plan', 'Tomato');
+      expect(h.aiProvider.requests.last.system, startsWith(noteMaesterSystem));
+      expect(await saved((t) => t.title), 'Tomato plan');
+      expect(await saved((t) => t.body), original);
+      expect(
+        tester
+            .widget<SelectableText>(
+              find.byKey(const ValueKey('note-read-title')),
+            )
+            .data,
+        'Tomato plan',
+      );
+
+      // Both at once.
+      await request(
+        'Rename it and make a checklist',
+        '<<TITLE>> Raised bed\n<<TEXT>>\n- [ ] Plant tomatoes',
+        'Raised bed',
+      );
+      expect(await saved((t) => t.title), 'Raised bed');
+      expect(await saved((t) => t.body), '- [ ] Plant tomatoes');
+      expect(
+        jsonDecode(h.aiProvider.requests.last.user)['title'],
+        'Tomato plan',
+      );
+
+      // Only the writing: the title stays.
+      await request('Shorter', '<<TEXT>>\n- [ ] Tomatoes', 'Tomatoes');
+      expect(await saved((t) => t.title), 'Raised bed');
+      expect(await saved((t) => t.body), '- [ ] Tomatoes');
       expect(tester.takeException(), isNull);
     } finally {
       await tester.pumpWidget(const SizedBox());
@@ -709,32 +785,141 @@ void main() {
   );
 
   testWidgets(
-    'scanning opens its own page from note actions while reading and editing',
+    'photos and files attached to the Maester go with the note; sending them alone adds them',
     (tester) async {
+      tester.view.physicalSize = const Size(320, 760);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearAllTestValues);
+      await h.save(body: 'Shopping');
+      h.aiProvider.reply = 'Shopping\n\nMeet Sam at 3pm';
+      final picker = _FakeMaesterPicker();
+      final png = Uint8List.fromList(
+        img.encodePng(img.Image(width: 4, height: 4)),
+      );
       try {
-        final router = await pumpApp(
+        await pumpApp(
           tester,
           notes: h.repository,
           database: h.db,
           aiProvider: h.aiProvider,
           aiSettings: testAiSettings,
-          noteMedia: h.media,
           initialLocation: noteLocation(notesTestId),
+          overrides: [noteMaesterPickerProvider.overrideWithValue(picker)],
         );
-        for (final editing in [false, true]) {
-          if (editing) await startEditing(tester);
-          await tester.tap(find.byTooltip('Note actions'));
+        await tester.tap(find.byTooltip('Ask the Maester'));
+        await tester.pumpAndSettle();
+        final send = find.byKey(const ValueKey('note-maester-send'));
+        expect(tester.widget<IconButton>(send).onPressed, isNull);
+
+        // The tray takes the keyboard's place, and back brings the keyboard
+        // back, with the input staying where it is throughout.
+        final composer = find.byKey(const ValueKey('note-maester-composer'));
+        final tray = find.byKey(const ValueKey('note-maester-tray'));
+        final input = find.byKey(const ValueKey('note-maester-input'));
+        // The input keeps its caret; only the keyboard comes and goes.
+        bool typing() =>
+            tester.widget<TextField>(input).focusNode!.hasFocus &&
+            tester.testTextInput.isVisible;
+        tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+        addTearDown(tester.view.resetViewInsets);
+        await tester.pumpAndSettle();
+        final place = tester.getRect(composer);
+        expect(typing(), isTrue);
+        await tester.tap(find.byKey(const ValueKey('note-maester-attach')));
+        await tester.pump();
+        expect(typing(), isFalse);
+        expect(tester.getRect(composer), place);
+        tester.view.viewInsets = const FakeViewPadding(bottom: 120);
+        await tester.pump();
+        expect(tester.getRect(composer), place);
+        tester.view.viewInsets = FakeViewPadding.zero;
+        await tester.pumpAndSettle();
+        expect(tray, findsOneWidget);
+        expect(tester.getRect(composer), place);
+        expect(tester.getRect(tray).top, greaterThan(place.bottom));
+        await tester.binding.handlePopRoute();
+        await tester.pump();
+        expect(typing(), isTrue);
+        expect(tester.getRect(composer), place);
+        tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+        await tester.pumpAndSettle();
+        expect(tray, findsNothing);
+        expect(tester.getRect(composer), place);
+        // From here no keyboard is shown, as when it closes with the tray.
+        tester.view.viewInsets = FakeViewPadding.zero;
+        await tester.pumpAndSettle();
+
+        Future<void> attach(String item) async {
+          await tester.tap(find.byKey(const ValueKey('note-maester-attach')));
           await tester.pumpAndSettle();
-          await tester.tap(find.text('Scan a page'));
+          await tester.tap(find.byKey(ValueKey('note-maester-$item')));
           await tester.pumpAndSettle();
-          expect(router.state.uri.path, noteScanLocation(notesTestId));
-          expect(find.byType(NoteScanPage), findsOneWidget);
-          expect(find.text('Read the page'), findsOneWidget);
-          expect(tester.takeException(), isNull);
-          await tester.tap(find.byType(BackButton));
-          await tester.pumpAndSettle();
-          expect(router.state.uri.path, noteLocation(notesTestId));
         }
+
+        picker.next = [NoteMaesterAttachment.image('page.png', png)];
+        await attach('camera');
+        picker.next = [NoteMaesterAttachment.image('extra.png', png)];
+        await attach('photos');
+        picker.next = [NoteMaesterAttachment.text('list.txt', 'eggs')];
+        await attach('files');
+        expect(find.byTooltip('Remove page.png'), findsOneWidget);
+        expect(find.byTooltip('Remove list.txt'), findsOneWidget);
+        expect(
+          find.text('What should the Maester do with it?'),
+          findsOneWidget,
+        );
+
+        // One is taken off again before sending.
+        await tester.tap(find.byTooltip('Remove extra.png'));
+        await tester.pumpAndSettle();
+        expect(find.byTooltip('Remove extra.png'), findsNothing);
+
+        // A file that cannot be read is told, and nothing else changes.
+        picker.failure = const FormatException('This file is empty.');
+        await attach('files');
+        expect(find.text('This file is empty.'), findsOneWidget);
+        expect(find.byTooltip('Remove list.txt'), findsOneWidget);
+
+        // With nothing typed, the attachments are added to the note.
+        expect(tester.widget<IconButton>(send).onPressed, isNotNull);
+        await tester.tap(send);
+        for (var i = 0; i < 50; i++) {
+          final body = (await h.repository.openDocument(notesTestId))
+              .note!
+              .text
+              .body;
+          if (body.contains('Sam')) break;
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 20)),
+          );
+          await tester.pump();
+        }
+        await tester.pumpAndSettle();
+        final request = h.aiProvider.requests.single;
+        expect(jsonDecode(request.user), {
+          'title': 'Garden',
+          'text': 'Shopping',
+          'intent': noteMaesterAttachmentIntent,
+          'files': [
+            {'name': 'list.txt', 'text': 'eggs'},
+          ],
+        });
+        expect(request.images.single.bytes, png);
+        expect(request.images.single.mime, 'image/png');
+        expect(request.system, endsWith(noteAttachmentRules));
+        expect(
+          (await h.repository.openDocument(notesTestId)).note!.text.body,
+          'Shopping\n\nMeet Sam at 3pm',
+        );
+
+        // Sent attachments are not kept for the next request.
+        expect(find.byKey(const ValueKey('note-maester-input')), findsNothing);
+        await tester.tap(find.byTooltip('Ask the Maester'));
+        await tester.pumpAndSettle();
+        expect(find.byTooltip('Remove page.png'), findsNothing);
+        expect(tester.takeException(), isNull);
       } finally {
         await tester.pumpWidget(const SizedBox());
         await tester.pumpAndSettle();
@@ -747,4 +932,33 @@ void main() {
 Future<void> startEditing(WidgetTester tester) async {
   tester.widget<NoteReadView>(find.byType(NoteReadView)).onEdit();
   await tester.pumpAndSettle();
+}
+
+/// Hands back what a test sets, as if the person picked it.
+class _FakeMaesterPicker implements NoteMaesterPicker {
+  List<NoteMaesterAttachment> next = const [];
+  Object? failure;
+
+  List<NoteMaesterAttachment> _pick() {
+    final error = failure;
+    failure = null;
+    if (error != null) throw error;
+    final picked = next;
+    next = const [];
+    return picked;
+  }
+
+  @override
+  Future<NoteMaesterAttachment?> takePhoto() async {
+    final picked = _pick();
+    return picked.isEmpty ? null : picked.first;
+  }
+
+  @override
+  Future<List<NoteMaesterAttachment>> choosePhotos({
+    required int limit,
+  }) async => _pick().take(limit).toList();
+
+  @override
+  Future<List<NoteMaesterAttachment>> chooseFiles() async => _pick();
 }

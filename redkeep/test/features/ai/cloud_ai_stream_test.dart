@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -101,6 +102,41 @@ void main() {
     expect(pieces.map((p) => p.text).join(), 'Fine');
     expect(sent.last.containsKey('stream_options'), isFalse);
     expect(sent.last.containsKey('temperature'), isFalse);
+  });
+
+  test('attached images stream with the text of the request', () async {
+    await client([
+          (
+            200,
+            _events([
+              {
+                'choices': [
+                  {
+                    'delta': {'content': 'Read'},
+                  },
+                ],
+              },
+              '[DONE]',
+            ]),
+          ),
+        ])
+        .chatStream(
+          testAiSettings,
+          AiChatRequest(
+            model: 'test-model',
+            system: 'Edit the note.',
+            user: _request.user,
+            outputTokens: 100,
+            images: [
+              AiImageInput(Uint8List.fromList([1, 2, 3]), mime: 'image/png'),
+            ],
+          ),
+        )
+        .toList();
+
+    final parts = (sent.single['messages'] as List).last['content'] as List;
+    expect(parts.first, {'type': 'text', 'text': _request.user});
+    expect(parts.last['image_url']['url'], 'data:image/png;base64,AQID');
   });
 
   test('a bad key fails before anything streams', () async {

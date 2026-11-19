@@ -167,16 +167,20 @@ class AiCloud {
     required String user,
     required int outputTokens,
     double temperature = 0,
+    List<AiImageInput> images = const [],
     Future<void>? abort,
     Duration? timeout,
   }) async* {
-    final ready = await _ready(AiCapability.chat);
+    final ready = await _ready(
+      images.isEmpty ? AiCapability.chat : AiCapability.vision,
+    );
     final request = AiChatRequest(
       model: ready.model,
       system: system,
       user: user,
       outputTokens: outputTokens,
       temperature: temperature,
+      images: images,
       timeout: timeout,
     );
     try {

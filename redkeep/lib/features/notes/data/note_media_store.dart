@@ -315,18 +315,6 @@ class NoteMediaStore {
     }
   }
 
-  Future<void> writeScanOriginal(String path, String text) async {
-    final f = await file('$path.scan.json');
-    _check();
-    await f.writeAsString(jsonEncode({'text': text}), flush: true);
-  }
-
-  Future<String?> scanOriginal(String path) async {
-    final f = await resolve('$path.scan.json');
-    if (f == null) return null;
-    return (jsonDecode(await f.readAsString()) as Map)['text'] as String?;
-  }
-
   Future<void> reconcile() async {
     _check();
     final keep = <String>{};

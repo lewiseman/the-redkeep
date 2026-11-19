@@ -394,3 +394,21 @@ not added to the Flutter bundle.
 
 Release order: publish `watchlist_rack.webp` through the website hosting
 process before releasing the updated mobile catalog.
+
+## Watchlist rubber stamp — 19 November 2026
+
+One stamp image serves all five statuses; the app tints its knob, fills its
+label and inks its rubber per status. The user generated it (a varnished oak
+rubber stamp with a blank cream label, transparent background) and supplied it
+in chat as a 1254×1254 WebP of 231,410 bytes. It was cropped to the stamp's
+own bounds (868×1153 from x 193, y 36), resized to 360×478 with cubic
+interpolation, and encoded with `cwebp -q 92 -m 6 -alpha_q 100 -exact`.
+`website/public/art/watchlist_stamp.webp` is that file: 360×478 WebP,
+56,490 bytes, SHA-256
+`a864b1a126898d279f44d6f196a0c27095c35bb13a9bcafae615081757fafa5e`.
+It is registered as `watchlist.stamp`, revision `v1`, installed at
+`watchlist/stamp-v1.webp` through the existing verified download flow. It is
+not added to the Flutter bundle.
+
+Release order: publish `watchlist_stamp.webp` through the website hosting
+process before releasing the updated mobile catalog.

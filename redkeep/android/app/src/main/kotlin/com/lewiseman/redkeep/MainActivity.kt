@@ -66,6 +66,19 @@ class MainActivity : FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
+        // Settings: an app cannot switch its own notifications off, so it
+        // opens Android's page for them.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "redkeep/notifications").setMethodCallHandler { call, result ->
+            when (call.method) {
+                "openSettings" -> {
+                    try {
+                        startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                        result.success(true)
+                    } catch (e: Exception) { result.success(false) }
+                }
+                else -> result.notImplemented()
+            }
+        }
         WidgetRefresh.publishPreviews(this)
         EventChannel(flutterEngine.dartExecutor.binaryMessenger, "redkeep/pcm_events").setStreamHandler(object : EventChannel.StreamHandler {
             override fun onListen(arguments: Any?, events: EventChannel.EventSink) { sink = events }

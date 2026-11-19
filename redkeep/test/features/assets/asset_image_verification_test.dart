@@ -255,11 +255,12 @@ void main() {
       final catalog = AssetCatalog.parse(
         await File('assets/catalog/presentation-v1.json').readAsString(),
       );
-      expect(catalog.assets, hasLength(23));
+      expect(catalog.assets, hasLength(24));
       expect(catalog.asset('more.watchlist').sourcePath, 'more_watchlist.webp');
       expect(catalog.asset('more.watchlist').path, 'more/watchlist-v1.webp');
       expect(catalog.asset('watchlist.rack').sourcePath, 'watchlist_rack.webp');
       expect(catalog.asset('watchlist.rack').path, 'watchlist/rack-v1.webp');
+      expect(catalog.asset('watchlist.stamp').path, 'watchlist/stamp-v1.webp');
       expect(
         catalog.asset('more.appearance').sourcePath,
         'more_appearance.png',

@@ -32,14 +32,75 @@ Color stampInk(WatchStatus status) => switch (status) {
 /// with the page fading away behind them. Tap one to stamp
 /// the title, or lift it up onto the poster and let go. The inked one is
 /// the title's status; tapping it again lifts the status off.
-class StampRack extends StatelessWidget {
+class StampRack extends StatefulWidget {
   const StampRack({super.key, required this.status, required this.onStamp});
 
   final WatchStatus? status;
   final ValueChanged<WatchStatus> onStamp;
 
   @override
+  State<StampRack> createState() => _StampRackState();
+}
+
+/// When the status changes the rack rattles: the stamps wobble in their
+/// slots, each its own way, the rack gives a little shudder, and the phone
+/// clicks a few times as they settle, like wood clattering on wood.
+class _StampRackState extends State<StampRack>
+    with SingleTickerProviderStateMixin {
+  late final _rattle = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 620),
+  )..addListener(_clatter);
+
+  /// The clicks of the stamps settling, as fractions of the rattle.
+  static const _clicks = [.2, .38, .56];
+  int _clicked = _clicks.length;
+
+  /// Started a little after the change, so it follows the thump's landing.
+  static const _delay = .32;
+
+  @override
+  void didUpdateWidget(StampRack old) {
+    super.didUpdateWidget(old);
+    if (old.status != widget.status) _start();
+  }
+
+  void _start() {
+    _clicked = 0;
+    if (RenderingPolicyScope.of(context).animate) {
+      _rattle.forward(from: 0);
+    } else {
+      _clicked = _clicks.length;
+    }
+  }
+
+  void _clatter() {
+    while (_clicked < _clicks.length &&
+        _rattle.value >= _delay + _clicks[_clicked] * (1 - _delay)) {
+      _clicked++;
+      HapticFeedback.selectionClick();
+    }
+  }
+
+  @override
+  void dispose() {
+    _rattle.dispose();
+    super.dispose();
+  }
+
+  /// How much the rattle has left in it at this moment, -1 to 1, swinging
+  /// [cycles] times and dying away; 0 before it starts and once it is over.
+  double _swing(double cycles, {double phase = 0}) {
+    final v = _rattle.value;
+    if (!_rattle.isAnimating || v < _delay) return 0;
+    final t = (v - _delay) / (1 - _delay);
+    return math.sin((t * cycles + phase) * math.pi * 2) * math.pow(1 - t, 2);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final status = widget.status;
+    final onStamp = widget.onStamp;
     final scale = MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.5);
     final ground = MorePalette.of(context).ground;
     return DecoratedBox(
@@ -70,60 +131,83 @@ class StampRack extends StatelessWidget {
                 builder: (context, box) {
                   final width = box.maxWidth;
                   final height = width * _Rack.aspect;
-                  return Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      // The wooden rack the stamps stand in.
-                      Positioned(
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        height: height,
-                        child: const _RackImage(),
-                      ),
-                      // One stamp over each slot, its rubber down past the
-                      // slot's front lip.
-                      Padding(
-                        padding: EdgeInsets.fromLTRB(
-                          width * _Rack.inset,
-                          0,
-                          width * _Rack.inset,
-                          height * (1 - _Rack.seat),
+                  return AnimatedBuilder(
+                    animation: _rattle,
+                    builder: (context, child) => Transform.translate(
+                      offset: Offset(_swing(5) * 1.6, 0),
+                      child: child,
+                    ),
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        // The wooden rack the stamps stand in.
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          height: height,
+                          child: const _RackImage(),
                         ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            for (final s in WatchStatus.values)
-                              Expanded(
-                                child: _StampKey(
-                                  status: s,
-                                  inked: s == status,
-                                  scale: scale,
-                                  onStamp: () => onStamp(s),
+                        // One stamp over each slot, its rubber down past the
+                        // slot's front lip.
+                        Padding(
+                          padding: EdgeInsets.fromLTRB(
+                            width * _Rack.inset,
+                            0,
+                            width * _Rack.inset,
+                            height * (1 - _Rack.seat),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              for (final s in WatchStatus.values)
+                                Expanded(
+                                  child: AnimatedBuilder(
+                                    animation: _rattle,
+                                    // Each wobbles its own way, the stamp just
+                                    // printed least.
+                                    builder: (context, child) =>
+                                        Transform.rotate(
+                                          alignment: Alignment.bottomCenter,
+                                          angle:
+                                              _swing(
+                                                4 + s.index * .35,
+                                                phase: s.index * .21,
+                                              ) *
+                                              (s == status ? .015 : .05),
+                                          child: child,
+                                        ),
+                                    child: _StampKey(
+                                      status: s,
+                                      inked: s == status,
+                                      scale: scale,
+                                      onStamp: () => onStamp(s),
+                                    ),
+                                  ),
                                 ),
-                              ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                      // The rack's front again, over the stamps' feet, so
-                      // each sits down in its slot.
-                      Positioned(
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        height: height * (1 - _Rack.lip),
-                        child: IgnorePointer(
-                          child: ClipRect(
-                            child: OverflowBox(
-                              alignment: Alignment.bottomCenter,
-                              minHeight: height,
-                              maxHeight: height,
-                              child: const _RackImage(),
+                        // The rack's front again, over the stamps' feet, so
+                        // each sits down in its slot.
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          height: height * (1 - _Rack.lip),
+                          child: IgnorePointer(
+                            child: ClipRect(
+                              child: OverflowBox(
+                                alignment: Alignment.bottomCenter,
+                                minHeight: height,
+                                maxHeight: height,
+                                child: const _RackImage(),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   );
                 },
               ),
@@ -139,17 +223,14 @@ class StampRack extends StatelessWidget {
 /// to scroll their last part clear of it.
 double stampRackHeight(BuildContext context) {
   final media = MediaQuery.of(context);
-  final scale = media.textScaler.scale(1).clamp(1.0, 1.5);
   final width = math.min(media.size.width - 32, 560.0);
   final rack = width * _Rack.aspect;
+  // Each stamp is as wide as its slot's share of the rack.
+  final cell = width * (1 - _Rack.inset * 2) / WatchStatus.values.length - 4;
+  final stamp = cell / _StampArt.aspect;
   // The fade above, the stamps standing over the rack, and the rack's front.
-  const knob = 21.0, neck = 10.0, block = 12.0, die = 7.0;
   return 28 +
-      knob +
-      neck +
-      block +
-      21 * scale +
-      die +
+      stamp +
       rack * (1 - _Rack.seat) +
       math.max(10.0, media.padding.bottom);
 }
@@ -490,13 +571,217 @@ class _StampKeyState extends State<_StampKey>
   }
 }
 
-/// A wooden rubber stamp, as it stands in a rack: a turned and varnished
+/// Where things are on the stamp picture, as fractions of its box.
+abstract final class _StampArt {
+  static const artwork = 'watchlist.stamp';
+
+  /// Width over height of the picture.
+  static const aspect = 868 / 1153;
+
+  /// The varnished dome of the knob.
+  static const dome = Rect.fromLTRB(.155, 0, .835, .325);
+
+  /// The paper label on the block's face.
+  static const label = Rect.fromLTRB(.0841, .7112, .9136, .9055);
+
+  /// The rubber die at the foot.
+  static const rubber = Rect.fromLTRB(.0357, .9688, .963, 1);
+}
+
+/// A colour filter that turns the picture to [ink] while keeping its light
+/// and shade: grain and varnish highlights survive, transparency too.
+ColorFilter _lacquer(Color ink) {
+  const gain = 1.9;
+  final r = ink.r * gain, g = ink.g * gain, b = ink.b * gain;
+  return ColorFilter.matrix([
+    .3 * r, .59 * r, .11 * r, 0, 0, //
+    .3 * g, .59 * g, .11 * g, 0, 0,
+    .3 * b, .59 * b, .11 * b, 0, 0,
+    0, 0, 0, 1, 0,
+  ]);
+}
+
+/// One rubber stamp picture, dressed per status: its knob lacquered in the
+/// status's ink, the status printed on its label, and its rubber dry or,
+/// on the title's own stamp, wet with ink and its label filled. Each leans
+/// its own small way.
+class _Stamp extends ConsumerWidget {
+  const _Stamp({
+    required this.status,
+    required this.inked,
+    required this.scale,
+  });
+
+  final WatchStatus status;
+  final bool inked;
+  final double scale;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final cushion = CushionColors.of(context);
+    final policy = RenderingPolicyScope.of(context);
+    final ink = stampInk(status);
+    final lean = cushion.simple ? 0.0 : ((status.index * 7) % 5 - 2) * .006;
+    final art = ref.watch(localArtworkFileProvider(_StampArt.artwork));
+    final Widget body;
+    switch (art) {
+      case AsyncData(:final value):
+        body = _pictured(context, value, ink, cushion, policy);
+      case AsyncError():
+        Future.microtask(
+          ref.read(bootstrapControllerProvider.notifier).artworkFailed,
+        );
+        body = _drawn();
+      default:
+        body = _drawn();
+    }
+    return AnimatedSlide(
+      duration: policy.duration,
+      curve: Curves.easeOut,
+      offset: Offset(0, inked ? .03 : 0),
+      child: Transform.rotate(
+        angle: lean,
+        alignment: Alignment.bottomCenter,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          child: AspectRatio(aspectRatio: _StampArt.aspect, child: body),
+        ),
+      ),
+    );
+  }
+
+  Widget _drawn() => FittedBox(
+    child: SizedBox(
+      width: 64,
+      child: _DrawnStamp(status: status, inked: inked, scale: scale),
+    ),
+  );
+
+  Widget _pictured(
+    BuildContext context,
+    Uri file,
+    Color ink,
+    CushionColors cushion,
+    RenderingPolicy policy,
+  ) {
+    return LayoutBuilder(
+      builder: (context, box) {
+        final w = box.maxWidth, h = box.maxHeight;
+        final pixels = (w * MediaQuery.devicePixelRatioOf(context))
+            .ceil()
+            .clamp(1, 360);
+        final picture = Image(
+          image: ResizeImage(FileImage(File.fromUri(file)), width: pixels),
+          fit: BoxFit.fill,
+          gaplessPlayback: true,
+          excludeFromSemantics: true,
+        );
+        Rect at(Rect fraction) => Rect.fromLTRB(
+          fraction.left * w,
+          fraction.top * h,
+          fraction.right * w,
+          fraction.bottom * h,
+        );
+        final dome = at(_StampArt.dome);
+        final label = at(_StampArt.label);
+        final rubber = at(_StampArt.rubber);
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned.fill(child: picture),
+            // The knob, lacquered in the status's ink: fully on the title's
+            // stamp, more softly on the rest.
+            Positioned.fill(
+              child: ClipOval(
+                clipper: _RectClipper(dome),
+                child: AnimatedOpacity(
+                  duration: policy.duration,
+                  opacity: inked ? .95 : .62,
+                  child: ColorFiltered(
+                    colorFilter: _lacquer(ink),
+                    child: picture,
+                  ),
+                ),
+              ),
+            ),
+            // The status on the label; filled with ink on the title's stamp.
+            Positioned.fromRect(
+              rect: label,
+              child: AnimatedContainer(
+                duration: policy.duration,
+                alignment: Alignment.center,
+                padding: EdgeInsets.symmetric(
+                  horizontal: label.width * .06,
+                  vertical: label.height * .12,
+                ),
+                decoration: BoxDecoration(
+                  color: inked ? ink : Colors.transparent,
+                  borderRadius: BorderRadius.circular(label.height * .08),
+                ),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    status.label.toUpperCase(),
+                    maxLines: 1,
+                    textScaler: TextScaler.linear(scale),
+                    style: TextStyle(
+                      color: inked ? Colors.white : ink,
+                      fontSize: 12,
+                      letterSpacing: 1.1,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            // The rubber: wet with fresh ink on the title's stamp.
+            if (inked)
+              Positioned.fromRect(
+                rect: rubber,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Color.lerp(ink, Colors.black, .12),
+                    borderRadius: const BorderRadius.vertical(
+                      bottom: Radius.circular(2),
+                    ),
+                    boxShadow: cushion.simple
+                        ? null
+                        : [
+                            BoxShadow(
+                              color: ink.withValues(alpha: .5),
+                              blurRadius: 6,
+                            ),
+                          ],
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// Clips to one rectangle of its box, as an oval.
+class _RectClipper extends CustomClipper<Rect> {
+  const _RectClipper(this.rect);
+  final Rect rect;
+
+  @override
+  Rect getClip(Size size) => rect;
+
+  @override
+  bool shouldReclip(_RectClipper old) => old.rect != rect;
+}
+
+/// A drawn wooden rubber stamp, standing in while the picture is read: a
+/// turned and varnished
 /// knob with a cap in its ink's colour, a grooved neck, a bevelled block
 /// with a paper index label, and a foam-backed rubber die beneath. The
 /// title's stamp has its label filled and its rubber wet with fresh ink,
 /// and sits a little lower in its slot. Each leans its own small way.
-class _Stamp extends StatelessWidget {
-  const _Stamp({
+class _DrawnStamp extends StatelessWidget {
+  const _DrawnStamp({
     required this.status,
     required this.inked,
     required this.scale,

@@ -208,6 +208,15 @@
       "bytes": 52570,
       "sha256": "82300dda40cd04d1739f432bc8df063437ca809b8eaccbd1a166b0d394cd110b",
       "provenance": "tool/assets/PROVENANCE.md"
+    },
+    {
+      "key": "watchlist.stamp",
+      "revision": "v1",
+      "path": "watchlist/stamp-v1.webp",
+      "sourcePath": "watchlist_stamp.webp",
+      "bytes": 56490,
+      "sha256": "a864b1a126898d279f44d6f196a0c27095c35bb13a9bcafae615081757fafa5e",
+      "provenance": "tool/assets/PROVENANCE.md"
     }
   ]
 }

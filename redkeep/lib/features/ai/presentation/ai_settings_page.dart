@@ -13,6 +13,7 @@ import '../application/ai_cloud.dart';
 import '../domain/ai_provider.dart';
 import '../domain/ai_provider_catalog.dart';
 import 'maestar_chain_rows.dart';
+import '../../more/presentation/notifications_switch.dart';
 import 'maestar_key.dart';
 import 'maestar_parts.dart';
 import 'maestar_study.dart';
@@ -530,6 +531,16 @@ class _AiSettingsFormState extends ConsumerState<_AiSettingsForm>
               ],
             );
           },
+        ),
+      ),
+
+      const MaestarSection(
+        numeral: 'IV',
+        eyebrow: 'The ravens',
+        title: 'Notifications',
+        child: MaestarCard(
+          padding: EdgeInsets.fromLTRB(16, 4, 8, 4),
+          child: NotificationsSwitch(),
         ),
       ),
 

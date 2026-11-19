@@ -1,13 +1,11 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/presentation/diary_typography.dart';
+import '../../../core/presentation/pen_squiggle.dart';
 import '../../../core/presentation/rendering_policy.dart';
-import '../../more/application/maestar_status.dart';
 import '../../sync/presentation/sync_material.dart';
 import '../application/ai_cloud.dart';
 import '../domain/ai_provider.dart';
@@ -15,12 +13,14 @@ import '../domain/ai_provider_catalog.dart';
 import 'maestar_chain_rows.dart';
 import '../../more/presentation/notifications_switch.dart';
 import 'maestar_key.dart';
-import 'maestar_parts.dart';
 import 'maestar_study.dart';
+import 'settings_parts.dart';
 
 const _portrait = AssetImage('assets/branding/grand_maestar.png');
 
-/// Settings: the one cloud AI provider and its models. Everything stays on this phone.
+/// Settings: the Maestar's study, the one OpenAI-compatible service and its
+/// models, notifications, the small print and the maker's mark. Each change
+/// is kept the moment it is made; there is nothing to remember to save.
 class AiSettingsPage extends ConsumerWidget {
   const AiSettingsPage({super.key});
 
@@ -56,46 +56,32 @@ class AiSettingsPage extends ConsumerWidget {
             ),
           ),
         ),
-        data: (value) => _AiSettingsForm(
-          key: ValueKey(value == null ? 'new' : 'saved'),
-          saved: value,
-        ),
+        data: (value) => _AiSettingsForm(saved: value),
       ),
     );
   }
 }
 
 class _AiSettingsForm extends ConsumerStatefulWidget {
-  const _AiSettingsForm({super.key, required this.saved});
+  const _AiSettingsForm({required this.saved});
+
+  /// The settings on the phone; null until a service is first kept.
   final AiCloudSettings? saved;
   @override
   ConsumerState<_AiSettingsForm> createState() => _AiSettingsFormState();
 }
 
-enum _Check { idle, checking, connected, failed }
-
 class _AiSettingsFormState extends ConsumerState<_AiSettingsForm>
     with SingleTickerProviderStateMixin {
-  late AiCloudSettings _draft =
-      widget.saved ?? AiCloud.starter(aiProviderCatalog.first.id);
-  late String _savedJson = jsonEncode((widget.saved ?? _draft).toJson());
-  late final _baseUrl = TextEditingController(text: _draft.baseUrl);
-  late final _token = TextEditingController(text: _draft.token);
-  late final _models = {
-    for (final capability in _modelCapabilities)
-      capability: TextEditingController(text: _draft.models[capability] ?? ''),
-  };
   late final _cardKeys = {
-    for (final capability in maestarLinks) capability: GlobalKey(),
+    for (final capability in _modelCapabilities) capability: GlobalKey(),
   };
   late final _pulse = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1600),
   );
   final _scroll = ScrollController();
-  bool _busy = false;
-  String? _message;
-  _Check _check = _Check.idle;
+  KeyState _check = KeyState.idle;
   String? _checkMessage;
   List<String>? _available;
   Completer<void>? _abort;
@@ -108,26 +94,26 @@ class _AiSettingsFormState extends ConsumerState<_AiSettingsForm>
     AiCapability.transcription,
   ];
 
-  @override
-  void initState() {
-    super.initState();
-    for (final controller in [_baseUrl, _token, ..._models.values]) {
-      controller.addListener(_edited);
-    }
-  }
+  /// What is on the phone, or what a first service starts from.
+  AiCloudSettings get _settings =>
+      widget.saved ?? AiCloud.starter(aiProviderCatalog.first.id);
 
-  void _edited() {
-    if (mounted) setState(() {});
+  @override
+  void didUpdateWidget(_AiSettingsForm old) {
+    super.didUpdateWidget(old);
+    final before = old.saved, after = widget.saved;
+    // A different address or key has not been checked.
+    if (before?.baseUrl != after?.baseUrl || before?.token != after?.token) {
+      _cancelRequest();
+      _check = KeyState.idle;
+      _checkMessage = null;
+      _available = null;
+    }
   }
 
   @override
   void dispose() {
     _cancelRequest();
-    _baseUrl.dispose();
-    _token.dispose();
-    for (final controller in _models.values) {
-      controller.dispose();
-    }
     _pulse.dispose();
     _scroll.dispose();
     super.dispose();
@@ -139,232 +125,193 @@ class _AiSettingsFormState extends ConsumerState<_AiSettingsForm>
     _abort = null;
   }
 
-  AiCloudSettings _read() => _draft.copyWith(
-    baseUrl: _baseUrl.text.trim(),
-    token: _token.text.trim(),
-    models: {
-      for (final entry in _models.entries)
-        if (entry.value.text.trim().isNotEmpty)
-          entry.key: entry.value.text.trim(),
-    },
-  );
-
-  bool get _dirty =>
-      widget.saved == null || jsonEncode(_read().toJson()) != _savedJson;
-
-  void _choosePreset(String id) {
-    if (id == _draft.presetId) return;
-    final preset = aiProviderPreset(id) ?? customAiProviderPreset;
-    setState(() {
-      _draft = AiCloudSettings.fromPreset(preset);
-      _baseUrl.text = preset.baseUrl;
-      _token.clear();
-      for (final capability in _modelCapabilities) {
-        _models[capability]!.text = preset.defaultModels[capability] ?? '';
-      }
-      _available = null;
-      _check = _Check.idle;
-      _checkMessage = null;
-      _message = null;
-    });
-  }
-
-  Future<void> _save() async {
-    final next = _read();
-    setState(() {
-      _busy = true;
-      _message = null;
-    });
+  /// Keeps [next] on the phone; returns a message when it could not.
+  Future<String?> _keep(AiCloudSettings next) async {
     try {
       await ref.read(aiCloudSettingsProvider.notifier).save(next);
-      if (mounted) {
-        setState(() {
-          _savedJson = jsonEncode(next.toJson());
-          _message = 'Saved.';
-        });
-      }
+      return null;
     } on AiProviderFailure catch (failure) {
-      if (mounted) setState(() => _message = failure.message);
+      return failure.message;
     } catch (_) {
-      if (mounted) {
-        setState(
-          () => _message = 'Could not save. Unlock the phone and retry.',
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _busy = false);
+      return 'Could not keep it. Unlock the phone and try again.';
     }
   }
 
-  /// Lists the provider's models, which also checks the URL and key.
-  Future<void> _test() async {
+  /// Keeps a new address and key, recognising the service from the
+  /// address, then checks the key straight away.
+  Future<String?> _keepKey(String address, String token) async {
+    final current = _settings;
+    final preset = aiProviderPresetForAddress(address);
+    final changedService = preset.id != current.presetId;
+    final next = AiCloudSettings(
+      presetId: preset.id,
+      baseUrl: address,
+      token: token,
+      // A different service starts from its own models, when it has any.
+      models: changedService && preset.defaultModels.isNotEmpty
+          ? preset.defaultModels
+          : current.models,
+    );
+    final error = await _keep(next);
+    if (error == null && token.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_models());
+      });
+    }
+    return error;
+  }
+
+  Future<String?> _keepModel(AiCapability capability, String? model) {
+    final current = _settings;
+    return _keep(
+      current.copyWith(
+        models: {
+          for (final e in current.models.entries)
+            if (e.key != capability) e.key: e.value,
+          if (model != null && model.trim().isNotEmpty)
+            capability: model.trim(),
+        },
+      ),
+    );
+  }
+
+  Future<void> _forget() async {
+    _cancelRequest();
+    await ref.read(aiCloudSettingsProvider.notifier).clear();
+  }
+
+  /// Lists the provider's models, which also checks the address and key.
+  Future<List<String>> _models() async {
+    final known = _available;
+    if (known != null) return known;
     _cancelRequest();
     final abort = _abort = Completer<void>();
-    setState(() {
-      _busy = true;
-      _check = _Check.checking;
-      _checkMessage = 'Checking your key…';
-    });
-    try {
-      final models = await ref
-          .read(aiCloudProvider)
-          .listModels(_read(), abort: abort.future);
-      if (!mounted) return;
+    if (mounted) {
       setState(() {
-        _available = models;
-        _check = _Check.connected;
-        _checkMessage = 'Connected. ${models.length} models available.';
+        _check = KeyState.checking;
+        _checkMessage = 'Checking your key…';
       });
+    }
+    try {
+      final models = [
+        ...await ref
+            .read(aiCloudProvider)
+            .listModels(_settings, abort: abort.future),
+      ]..sort();
+      if (mounted) {
+        setState(() {
+          _available = models;
+          _check = KeyState.accepted;
+          _checkMessage = models.length == 1
+              ? 'Accepted. 1 model to choose from.'
+              : 'Accepted. ${models.length} models to choose from.';
+        });
+      }
+      return models;
     } on AiProviderFailure catch (failure) {
       if (mounted) {
         setState(() {
-          _check = _Check.failed;
+          _check = KeyState.rejected;
           _checkMessage = failure.message;
         });
       }
+      rethrow;
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _check = KeyState.rejected;
+          _checkMessage = 'Could not reach your service. Try again.';
+        });
+      }
+      rethrow;
     } finally {
       if (identical(_abort, abort)) _abort = null;
-      if (mounted) setState(() => _busy = false);
     }
   }
 
-  Future<void> _pickModel(AiCapability capability) async {
-    if (_available == null) await _test();
-    final models = _available;
-    if (!mounted || models == null || models.isEmpty) return;
-    final chosen = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (context) =>
-          ModelPicker(models: models, title: '${capability.label} model'),
-    );
-    if (chosen != null && mounted) {
-      setState(() => _models[capability]!.text = chosen);
-    }
-  }
-
-  Future<void> _openKeyPage(String url) async {
-    var opened = false;
+  Future<void> _recheck() async {
+    _available = null;
     try {
-      opened = await launchUrl(
-        Uri.parse(url),
-        mode: LaunchMode.externalApplication,
-      );
+      await _models();
     } catch (_) {
-      opened = false;
-    }
-    if (!opened && mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Open $url in your browser.')));
+      /* Shown in the key's status line. */
     }
   }
 
-  Future<void> _remove() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Remove this provider?'),
-        content: const Text(
-          'Its key is deleted from this phone. AI features stop until you add a provider again.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Keep'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Remove'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed == true) {
-      await ref.read(aiCloudSettingsProvider.notifier).clear();
-    }
-  }
+  Future<void> _openKey() => showPaperSheet<void>(
+    context,
+    (context) => KeySheet(
+      address: _settings.baseUrl,
+      token: _settings.token,
+      onKeep: _keepKey,
+      onForget: widget.saved == null ? null : _forget,
+    ),
+  );
 
-  Widget _chainRow(
-    AiCapability capability,
-    AiProviderPreset preset, {
-    required bool first,
-    required bool last,
-    required double highlight,
-  }) {
-    final offered = preset.capabilities.contains(capability);
-    final model = _models[capability]!.text.trim();
-    return ModelChainRow(
+  Future<void> _openModel(AiCapability capability) => showPaperSheet<void>(
+    context,
+    (context) => ModelSheet(
       capability: capability,
-      model: model.isEmpty ? null : model,
-      detail: !offered
-          ? 'Not offered by ${preset.name}'
-          : model.isNotEmpty
-          ? 'Forged'
-          : capability == AiCapability.chat
-          ? 'Required'
-          : 'Off until you add a model',
-      offered: offered,
-      first: first,
-      last: last,
-      highlight: highlight,
-      onTap: offered && !_busy ? () => _openEditor(capability) : null,
-    );
+      current: _settings.model(capability),
+      providerName: _serviceName,
+      load: _models,
+      onChoose: (model) => _keepModel(capability, model),
+    ),
+  );
+
+  String get _serviceName {
+    final preset = aiProviderPresetForAddress(_settings.baseUrl);
+    return preset == customAiProviderPreset ? 'your service' : preset.name;
   }
 
-  Future<void> _openEditor(AiCapability capability) =>
-      showModalBottomSheet<void>(
-        context: context,
-        isScrollControlled: true,
-        showDragHandle: true,
-        builder: (context) => ModelEditorSheet(
-          capability: capability,
-          controller: _models[capability]!,
-          onPick: () => _pickModel(capability),
-        ),
-      );
-
-  String _keyStatus(AiProviderPreset preset, bool rejected) {
-    if (_check != _Check.idle && _checkMessage != null) return _checkMessage!;
-    if (rejected) return 'Your provider rejected this key.';
-    if (_token.text.trim().isEmpty) {
-      return preset.tokenRequired
-          ? 'Needed before the Maestar can answer.'
-          : 'Optional for ${preset.name}.';
+  String _keyStatus(bool rejected) {
+    final message = _checkMessage;
+    if (_check != KeyState.idle && message != null) return message;
+    if (rejected) return 'Your service turned this key away. Check it.';
+    if (_settings.token.isEmpty) {
+      return _settings.preset.tokenRequired
+          ? 'Add a key before the Maestar can answer.'
+          : 'A key is optional for this service.';
     }
     return 'Not checked yet.';
   }
 
-  Future<void> _openKeyEditor(AiProviderPreset preset) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (context) => KeyEditorSheet(
-        providerName: preset.name,
-        baseUrl: _baseUrl,
-        token: _token,
-        tokenRequired: preset.tokenRequired,
-        onGetKey: preset.keyUrl == null
-            ? null
-            : () => _openKeyPage(preset.keyUrl!),
-      ),
+  Widget _chainRow(
+    AiCapability capability, {
+    required bool first,
+    required bool last,
+    required double highlight,
+  }) {
+    final settings = _settings;
+    final offered = settings.preset.capabilities.contains(capability);
+    final model = settings.model(capability);
+    return ModelChainRow(
+      capability: capability,
+      model: model,
+      detail: !offered
+          ? 'Not offered by ${settings.preset.name}'
+          : model != null
+          ? 'Forged'
+          : capability == AiCapability.chat
+          ? 'Needed for writing help'
+          : 'Off until you choose a model',
+      offered: offered,
+      first: first,
+      last: last,
+      highlight: highlight,
+      onTap: offered ? () => _openModel(capability) : null,
     );
-    // A changed key has not been checked.
-    if (mounted && _check != _Check.checking) {
-      setState(() {
-        _check = _Check.idle;
-        _checkMessage = null;
-        _available = null;
-      });
-    }
   }
 
-  /// A link of the chain was touched: bring its card into view and let it glow.
+  /// A link of the chain was touched: bring its row into view and let it
+  /// glow. Images ride on the writing link.
   void _showLink(AiCapability capability) {
+    final shown = capability == AiCapability.vision
+        ? AiCapability.chat
+        : capability;
     final policy = RenderingPolicyScope.of(context);
     setState(() => _selected = capability);
-    final card = _cardKeys[capability]!.currentContext;
+    final card = _cardKeys[shown]?.currentContext;
     if (card != null) {
       unawaited(
         Scrollable.ensureVisible(
@@ -380,134 +327,59 @@ class _AiSettingsFormState extends ConsumerState<_AiSettingsForm>
     if (policy.animate) _pulse.forward(from: 0);
   }
 
-  String _linkCaption(AiCloudSettings draft) {
-    final selected = _selected;
-    if (selected == null) return 'Your own key, kept on this phone.';
-    final model = selected == AiCapability.vision
-        ? draft.model(AiCapability.chat)
-        : draft.model(selected);
-    final metal = maestarMetalName(selected);
-    return draft.supports(selected)
-        ? '${selected.label} · $metal · $model'
-        : !draft.preset.capabilities.contains(selected)
-        ? '${selected.label} · $metal · not offered by ${draft.name}'
-        : '${selected.label} · $metal · unforged';
-  }
-
   @override
   Widget build(BuildContext context) {
-    final draft = _read();
-    final preset = _draft.preset;
-    final saved = widget.saved;
+    final settings = _settings;
     final keyRejected = ref.watch(aiKeyStatusProvider);
-    final status = ref.watch(maestarStatusProvider);
     final palette = MorePalette.of(context);
     final policy = RenderingPolicyScope.of(context);
     final media = MediaQuery.of(context);
     final heroHeight =
         (media.size.height < 700 ? 300.0 : 380.0) + media.padding.top;
-    final forged = {...maestarLinks.where(draft.supports)};
+    final forged = {...maestarLinks.where(settings.supports)};
     final typography = DiaryTypography.of(context);
 
     final content = <Widget>[
-      // The Maestar's name and the state of the chain.
-      Text(
-        'Settings',
-        textAlign: TextAlign.center,
-        style: typography.title.copyWith(color: palette.ink, fontSize: 40),
+      // Just the page's name: the study above is decoration, and what
+      // follows says what each part is for.
+      Semantics(
+        header: true,
+        child: Text(
+          'Settings',
+          textAlign: TextAlign.center,
+          style: typography.title.copyWith(color: palette.ink, fontSize: 44),
+        ),
       ),
-      const SizedBox(height: 8),
       Center(
-        child: Semantics(
-          liveRegion: true,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(99),
-              color: (status.ready ? palette.accent : palette.muted).withValues(
-                alpha: .1,
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 7,
-                  height: 7,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: status.ready ? palette.accent : palette.muted,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Text(
-                    status.label,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: status.ready ? palette.accent : palette.muted,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+        child: ExcludeSemantics(
+          child: CustomPaint(
+            size: const Size(120, 12),
+            painter: PenSquiggle(palette.accent, 1),
           ),
         ),
       ),
-      const SizedBox(height: 10),
-      AnimatedSwitcher(
-        duration: policy.duration,
-        child: Text(
-          _linkCaption(draft),
-          key: ValueKey(_selected),
-          textAlign: TextAlign.center,
-          style: TextStyle(color: palette.muted, fontSize: 13, height: 1.45),
-        ),
-      ),
-      if (keyRejected)
-        const MaestarNotice(
-          icon: Icons.key_off_outlined,
-          text: 'Your provider rejected the key. Check it below, then save.',
-        ),
 
-      MaestarSection(
-        numeral: 'I',
-        eyebrow: 'The seal',
-        title: 'Choose a provider',
-        subtitle: 'The pips under each seal show which links that provider can forge.',
-        child: ProviderSeals(
-          selected: _draft.presetId,
-          onSelect: _busy ? null : _choosePreset,
-        ),
+      const SettingsHeading(
+        'Your key',
+        note: 'Any OpenAI-compatible service. Your key never leaves this phone, except to reach it.',
+      ),
+      KeyCard(
+        address: settings.baseUrl,
+        token: settings.token,
+        status: _keyStatus(keyRejected),
+        state: keyRejected && _check == KeyState.idle
+            ? KeyState.rejected
+            : _check,
+        onEdit: _openKey,
+        onCheck: _check == KeyState.checking ? null : _recheck,
       ),
 
-      MaestarSection(
-        numeral: 'II',
-        eyebrow: 'The key',
-        title: 'Address and key',
-        child: KeyRow(
-          providerName: preset.name,
-          token: _token.text.trim(),
-          address: _baseUrl.text.trim().replaceFirst(RegExp(r'^https?://'), ''),
-          status: _keyStatus(preset, keyRejected),
-          checking: _check == _Check.checking,
-          accepted: _check == _Check.connected,
-          rejected: _check == _Check.failed || keyRejected,
-          onEdit: _busy ? null : () => _openKeyEditor(preset),
-          onTest: _busy ? null : _test,
-          onGetKey: _token.text.trim().isEmpty && preset.keyUrl != null
-              ? () => _openKeyPage(preset.keyUrl!)
-              : null,
-        ),
+      const SettingsHeading(
+        'The chain',
+        note: 'One model for each skill. Touch a link to change it.',
       ),
-
-      MaestarSection(
-        numeral: 'III',
-        eyebrow: 'The chain',
-        title: 'Forge the links',
-        subtitle: 'One model per skill. Touch a link to change it.',
+      SettingsCushion(
+        padding: const EdgeInsets.fromLTRB(4, 8, 8, 8),
         child: AnimatedBuilder(
           animation: _pulse,
           builder: (context, _) {
@@ -522,10 +394,14 @@ class _AiSettingsFormState extends ConsumerState<_AiSettingsForm>
                     key: _cardKeys[capability],
                     child: _chainRow(
                       capability,
-                      preset,
                       first: i == 0,
                       last: i == _modelCapabilities.length - 1,
-                      highlight: _selected == capability ? glow : 0,
+                      highlight:
+                          _selected == capability ||
+                              (_selected == AiCapability.vision &&
+                                  capability == AiCapability.chat)
+                          ? glow
+                          : 0,
                     ),
                   ),
               ],
@@ -534,34 +410,26 @@ class _AiSettingsFormState extends ConsumerState<_AiSettingsForm>
         ),
       ),
 
-      const MaestarSection(
-        numeral: 'IV',
-        eyebrow: 'The ravens',
-        title: 'Notifications',
-        child: MaestarCard(
-          padding: EdgeInsets.fromLTRB(16, 4, 8, 4),
-          child: NotificationsSwitch(),
-        ),
+      const SettingsHeading(
+        'Ravens',
+        note: 'What may reach you when Redkeep is closed.',
+      ),
+      const SettingsCushion(
+        padding: EdgeInsets.fromLTRB(18, 4, 10, 4),
+        child: NotificationsSwitch(),
       ),
 
-      if (saved != null) ...[
-        const SizedBox(height: 28),
-        Center(
-          child: TextButton.icon(
-            onPressed: _busy ? null : _remove,
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.error,
-            ),
-            icon: const Icon(Icons.link_off_rounded, size: 18),
-            label: const Text('Remove provider'),
-          ),
-        ),
-      ],
+      const SettingsHeading('The small print'),
+      const SmallPrint(),
+
+      const BuiltBy(),
     ];
 
-    return Column(
+    final barBottom = media.padding.top + kToolbarHeight;
+    final scrollAway = heroHeight - barBottom;
+    return Stack(
       children: [
-        Expanded(
+        Positioned.fill(
           child: CustomScrollView(
             key: const ValueKey('ai-settings'),
             controller: _scroll,
@@ -607,8 +475,10 @@ class _AiSettingsFormState extends ConsumerState<_AiSettingsForm>
                                   'Settings',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context).textTheme.titleMedium
-                                      ?.copyWith(color: palette.ink),
+                                  style: typography.title.copyWith(
+                                    color: palette.ink,
+                                    fontSize: 26,
+                                  ),
                                 ),
                               ),
                             ),
@@ -622,14 +492,13 @@ class _AiSettingsFormState extends ConsumerState<_AiSettingsForm>
               SliverToBoxAdapter(
                 child: SafeArea(
                   top: false,
-                  bottom: false,
                   child: Center(
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(
                         maxWidth: MoreSurface.contentWidth,
                       ),
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: content,
@@ -642,98 +511,38 @@ class _AiSettingsFormState extends ConsumerState<_AiSettingsForm>
             ],
           ),
         ),
-        _SaveBar(
-          dirty: _dirty,
-          busy: _busy,
-          isNew: saved == null,
-          message: _message,
-          onSave: _busy ? null : _save,
-        ),
-      ],
-    );
-  }
-}
-
-/// Always within reach: what is unsaved, and the button that seals it.
-class _SaveBar extends StatelessWidget {
-  const _SaveBar({
-    required this.dirty,
-    required this.busy,
-    required this.isNew,
-    required this.message,
-    required this.onSave,
-  });
-
-  final bool dirty, busy, isNew;
-  final String? message;
-  final VoidCallback? onSave;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = MorePalette.of(context);
-    final text =
-        message ??
-        (isNew
-            ? 'Not saved yet'
-            : dirty
-            ? 'Unsaved changes'
-            : 'Everything is saved');
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: palette.paper,
-        border: Border(top: BorderSide(color: palette.rule)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: MoreSurface.contentWidth,
-            ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 10, 16, 10),
-              child: Row(
-                children: [
-                  if (dirty && message == null) ...[
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: palette.accent,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                  ],
-                  Expanded(
-                    child: Semantics(
-                      liveRegion: true,
-                      child: Text(
-                        text,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: palette.muted, fontSize: 13),
-                      ),
+        // Once the study has gone, the bar thins away below its edge, so the
+        // page passes under it without a line.
+        Positioned(
+          top: barBottom,
+          left: 0,
+          right: 0,
+          height: 30,
+          child: IgnorePointer(
+            child: AnimatedBuilder(
+              animation: _scroll,
+              builder: (context, _) {
+                final offset = _scroll.hasClients ? _scroll.offset : 0.0;
+                final shown = ((offset - scrollAway + 24) / 24).clamp(0.0, 1.0);
+                if (shown == 0) return const SizedBox.shrink();
+                return DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      stops: const [0, .25, .5, .75, 1],
+                      colors: [
+                        for (final a in const [1.0, .82, .5, .18, 0.0])
+                          palette.ground.withValues(alpha: a * shown),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  dirty
-                      ? FilledButton(
-                          key: const ValueKey('ai-provider-save'),
-                          onPressed: onSave,
-                          child: Text(busy ? 'Saving…' : 'Save'),
-                        )
-                      : OutlinedButton(
-                          key: const ValueKey('ai-provider-save'),
-                          onPressed: onSave,
-                          child: const Text('Save'),
-                        ),
-                ],
-              ),
+                );
+              },
             ),
           ),
         ),
-      ),
+      ],
     );
   }
 }

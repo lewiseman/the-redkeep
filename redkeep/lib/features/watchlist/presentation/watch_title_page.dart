@@ -384,9 +384,7 @@ class _Details extends ConsumerWidget {
       ],
       if (watch.isNotEmpty) ...[
         const TitleHeading('Where to watch'),
-        WatchHere(
-          groups: watch,
-        ),
+        WatchHere(groups: watch),
       ],
       if (title.recommendations.isNotEmpty) ...[
         const TitleHeading('More like this'),

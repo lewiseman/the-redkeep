@@ -99,3 +99,17 @@ const aiProviderCatalog = <AiProviderPreset>[
 
 AiProviderPreset? aiProviderPreset(String id) =>
     aiProviderCatalog.where((p) => p.id == id).firstOrNull;
+
+/// The known service an address belongs to, or Custom. Redkeep speaks only
+/// the OpenAI-compatible API, so the person gives an address rather than
+/// choosing from a list; a known one still gets its own token parameter,
+/// features and key page.
+AiProviderPreset aiProviderPresetForAddress(String address) {
+  final host = Uri.tryParse(address.trim())?.host.toLowerCase() ?? '';
+  if (host.isEmpty) return customAiProviderPreset;
+  for (final preset in aiProviderCatalog) {
+    if (preset.baseUrl.isEmpty) continue;
+    if (Uri.parse(preset.baseUrl).host == host) return preset;
+  }
+  return customAiProviderPreset;
+}

@@ -2,11 +2,11 @@ import 'dart:io';
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/bootstrap/bootstrap_providers.dart';
 import '../../../core/presentation/rendering_policy.dart';
+import '../../../core/presentation/system_overlay.dart';
 import '../../sync/application/sync_providers.dart';
 import '../data/note_media_store.dart';
 import '../domain/note_document.dart';
@@ -78,13 +78,13 @@ class NoteScene extends ConsumerWidget {
             surfaceTintColor: Colors.transparent,
             // Status bar icons follow what is behind them: the top of the
             // artwork, or else the paper.
-            systemOverlayStyle:
-                ThemeData.estimateBrightnessForColor(
-                      header ?? colors.background,
-                    ) ==
-                    Brightness.light
-                ? SystemUiOverlayStyle.dark
-                : SystemUiOverlayStyle.light,
+            // The navigation bar sits over the paper itself.
+            systemOverlayStyle: systemOverlayOn(header ?? colors.background)
+                .copyWith(
+                  systemNavigationBarIconBrightness: systemOverlayOn(
+                    colors.background,
+                  ).systemNavigationBarIconBrightness,
+                ),
           ),
         ),
         child: NoteChrome(

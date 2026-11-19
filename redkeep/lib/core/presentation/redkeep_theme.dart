@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../features/appearance/domain/appearance_preferences.dart';
 import 'diary_typography.dart';
+import 'system_overlay.dart';
 
 @immutable
 class PaperColors extends ThemeExtension<PaperColors> {
@@ -107,14 +107,7 @@ abstract final class RedkeepTheme {
         backgroundColor: background,
         foregroundColor: ink,
         scrolledUnderElevation: 0,
-        systemOverlayStyle: SystemUiOverlayStyle(
-          statusBarColor: Colors.transparent,
-          statusBarIconBrightness: dark ? Brightness.light : Brightness.dark,
-          statusBarBrightness: brightness,
-          systemNavigationBarIconBrightness: dark
-              ? Brightness.light
-              : Brightness.dark,
-        ),
+        systemOverlayStyle: systemOverlayFor(brightness),
       ),
       extensions: [
         PaperColors(sheet: paper, edge: scheme.outline),

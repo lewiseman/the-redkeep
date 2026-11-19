@@ -10,6 +10,7 @@ import '../core/presentation/redkeep_theme.dart';
 import '../core/presentation/diary_typography.dart';
 import '../features/appearance/application/appearance_typography.dart';
 import '../core/presentation/rendering_policy.dart';
+import '../core/presentation/system_overlay.dart';
 import '../features/appearance/application/appearance_controller.dart';
 import '../features/appearance/domain/appearance_preferences.dart';
 import 'app_router.dart';
@@ -62,7 +63,7 @@ class RedkeepApp extends ConsumerWidget {
         preferences: appearance.loaded
             ? appearance.preferences
             : const AppearancePreferences(reduceMotion: true),
-        child: SyncHost(child: child!),
+        child: SystemOverlayFallback(child: SyncHost(child: child!)),
       ),
     );
   }

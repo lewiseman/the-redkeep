@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/navigation_destination.dart';
 import '../../../core/presentation/cushion.dart';
+import '../../../core/presentation/pen_squiggle.dart';
 import '../../../core/presentation/rendering_policy.dart';
 import '../../sync/presentation/sync_material.dart';
 import '../application/explore_providers.dart';
@@ -12,7 +13,6 @@ import '../application/watchlist_providers.dart';
 import '../domain/catalog_title.dart';
 import '../domain/explore.dart';
 import 'watch_explore_parts.dart';
-import 'watch_header.dart';
 import 'watch_wall.dart';
 import 'watch_widgets.dart';
 

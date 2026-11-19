@@ -1,89 +1,132 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/presentation/cushion.dart';
 import '../../../core/presentation/diary_typography.dart';
+import '../../../core/presentation/rendering_policy.dart';
 import '../../sync/presentation/sync_material.dart';
+import '../domain/ai_provider_catalog.dart';
+import 'settings_parts.dart';
 
 const _brass = Color(0xFFD4A84B);
 
-/// The provider key as one quiet row: a brass key, the key itself masked, the
-/// address it opens, and whether the provider has accepted it.
-class KeyRow extends StatelessWidget {
-  const KeyRow({
+/// Where the key stands with the provider.
+enum KeyState { idle, checking, accepted, rejected }
+
+/// Shows a key as a few letters each end, never the whole of it.
+String maskKey(String token) {
+  if (token.isEmpty) return '';
+  if (token.length <= 8) return '•' * token.length;
+  return '${token.substring(0, 3)}••••${token.substring(token.length - 4)}';
+}
+
+/// The address with its scheme dropped, as people say it.
+String plainAddress(String address) =>
+    address.trim().replaceFirst(RegExp(r'^https?://'), '');
+
+/// The provider key in its cushion: a brass key that shines once the
+/// provider accepts it, the key masked, the address it opens, and a line
+/// saying where things stand, with a glass pill to check it again.
+class KeyCard extends StatelessWidget {
+  const KeyCard({
     super.key,
-    required this.providerName,
-    required this.token,
     required this.address,
+    required this.token,
     required this.status,
-    required this.checking,
-    required this.accepted,
-    required this.rejected,
+    required this.state,
     required this.onEdit,
-    required this.onTest,
-    this.onGetKey,
+    required this.onCheck,
   });
 
-  final String providerName, token, address, status;
-  final bool checking, accepted, rejected;
-  final VoidCallback? onEdit, onTest, onGetKey;
-
-  static String mask(String token) {
-    if (token.isEmpty) return '';
-    if (token.length <= 8) return '•' * token.length;
-    return '${token.substring(0, 3)}••••${token.substring(token.length - 4)}';
-  }
+  final String address, token, status;
+  final KeyState state;
+  final VoidCallback? onEdit, onCheck;
 
   @override
   Widget build(BuildContext context) {
     final palette = MorePalette.of(context);
     final colors = Theme.of(context).colorScheme;
     final serif = DiaryTypography.of(context).body.fontFamily;
+    final preset = aiProviderPresetForAddress(address);
+    final known = preset != customAiProviderPreset;
     final hasKey = token.isNotEmpty;
-    final statusColor = rejected
-        ? colors.error
-        : accepted
-        ? palette.accent
-        : palette.muted;
     final engraved = Color.lerp(_brass, palette.ink, .4)!;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    final tone = switch (state) {
+      KeyState.rejected => colors.error,
+      KeyState.accepted => palette.accent,
+      _ => palette.muted,
+    };
+    final stacked = MediaQuery.textScalerOf(context).scale(1) > 1.4;
+    final statusLine = Row(
       children: [
-        Semantics(
-          button: true,
-          label:
-              '$providerName key. ${hasKey ? 'Key added' : 'No key'}. $address. $status',
-          excludeSemantics: true,
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
+        _Pip(color: tone, busy: state == KeyState.checking),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Semantics(
+            liveRegion: true,
+            child: Text(
+              status,
+              style: TextStyle(color: tone, fontSize: 13, height: 1.35),
+            ),
+          ),
+        ),
+      ],
+    );
+    final check = GlassPill(
+      key: const ValueKey('ai-key-check'),
+      label: 'Check',
+      icon: Icons.vpn_key_outlined,
+      filled: false,
+      compact: true,
+      busy: state == KeyState.checking,
+      onPressed: hasKey ? onCheck : null,
+    );
+    return SettingsCushion(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Semantics(
+            button: onEdit != null,
+            label: [
+              known ? '${preset.name} key' : 'Your key',
+              hasKey ? 'Key added' : 'No key yet',
+              plainAddress(address),
+              'Edit',
+            ].join('. '),
+            excludeSemantics: true,
+            onTap: onEdit,
+            child: GestureDetector(
               key: const ValueKey('ai-provider-key-row'),
-              borderRadius: BorderRadius.circular(16),
+              behavior: HitTestBehavior.opaque,
               onTap: onEdit,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(0, 10, 8, 10),
+              child: Springy(
+                enabled: onEdit != null,
+                depth: .03,
                 child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SizedBox(
-                      width: 52,
-                      height: 52,
+                    SizedBox.square(
+                      dimension: 54,
                       child: CustomPaint(
-                        painter: _BrassKeyPainter(
+                        painter: BrassKeyPainter(
                           present: hasKey,
-                          accepted: accepted,
+                          accepted: state == KeyState.accepted,
                           faint: palette.ink,
                           glow: palette.accent,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 18),
+                    const SizedBox(width: 14),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '${providerName.toUpperCase()} KEY',
+                            known
+                                ? preset.name.toUpperCase()
+                                : 'OPENAI-COMPATIBLE',
                             style: TextStyle(
                               color: engraved,
                               fontSize: 10.5,
@@ -91,9 +134,9 @@ class KeyRow extends StatelessWidget {
                               fontWeight: FontWeight.w700,
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 3),
                           Text(
-                            hasKey ? mask(token) : 'Add your key',
+                            hasKey ? maskKey(token) : 'Add your key',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -107,100 +150,97 @@ class KeyRow extends StatelessWidget {
                               color: hasKey ? palette.ink : palette.muted,
                             ),
                           ),
-                          const SizedBox(height: 3),
                           Text(
-                            address,
-                            maxLines: 2,
+                            plainAddress(address),
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               color: palette.muted,
                               fontSize: 12.5,
-                              height: 1.4,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Semantics(
-                            liveRegion: true,
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 4),
-                                  child: checking
-                                      ? SizedBox.square(
-                                          dimension: 10,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 1.6,
-                                            color: palette.muted,
-                                          ),
-                                        )
-                                      : Container(
-                                          width: 7,
-                                          height: 7,
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            color: statusColor,
-                                          ),
-                                        ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    status,
-                                    style: TextStyle(
-                                      color: statusColor,
-                                      fontSize: 12.5,
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                ),
-                              ],
                             ),
                           ),
                         ],
                       ),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 14),
-                      child: Icon(
-                        Icons.chevron_right_rounded,
-                        color: palette.muted.withValues(alpha: .7),
-                      ),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      color: palette.muted,
+                      size: 22,
                     ),
                   ],
                 ),
               ),
             ),
           ),
-        ),
-        Padding(
-          padding: const EdgeInsetsDirectional.only(start: 58),
-          child: Wrap(
-            spacing: 4,
-            children: [
-              TextButton.icon(
-                key: const ValueKey('ai-provider-test'),
-                onPressed: onTest,
-                icon: const Icon(Icons.key_rounded, size: 18),
-                label: const Text('Test key'),
-              ),
-              if (onGetKey != null)
-                TextButton.icon(
-                  onPressed: onGetKey,
-                  icon: const Icon(Icons.open_in_new_rounded, size: 16),
-                  label: Text('Get a $providerName key'),
-                ),
-            ],
-          ),
-        ),
-      ],
+          const SizedBox(height: 12),
+          Divider(height: 1, color: palette.rule),
+          const SizedBox(height: 10),
+          // Side by side, unless large text needs the whole width.
+          if (stacked) ...[
+            statusLine,
+            const SizedBox(height: 8),
+            Align(alignment: Alignment.centerRight, child: check),
+          ] else
+            Row(
+              children: [
+                Expanded(child: statusLine),
+                const SizedBox(width: 8),
+                check,
+              ],
+            ),
+        ],
+      ),
     );
   }
 }
 
+/// A small glass drop in the status colour; it breathes while checking.
+class _Pip extends StatelessWidget {
+  const _Pip({required this.color, required this.busy});
+  final Color color;
+  final bool busy;
+
+  @override
+  Widget build(BuildContext context) {
+    final cushion = CushionColors.of(context);
+    final pip = CustomPaint(
+      size: const Size.square(12),
+      painter: _PipPainter(cushion, color),
+    );
+    if (!busy || !RenderingPolicyScope.of(context).animate) return pip;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: .4, end: 1),
+      duration: const Duration(milliseconds: 700),
+      curve: Curves.easeInOut,
+      builder: (context, t, child) => Opacity(opacity: t, child: child),
+      child: pip,
+    );
+  }
+}
+
+class _PipPainter extends CustomPainter {
+  const _PipPainter(this.colors, this.tint);
+  final CushionColors colors;
+  final Color tint;
+
+  @override
+  void paint(Canvas canvas, Size size) => paintGlass(
+    canvas,
+    RRect.fromRectAndRadius(Offset.zero & size, Radius.circular(size.width)),
+    colors: colors,
+    tint: tint,
+    fill: .85,
+    lift: .5,
+  );
+
+  @override
+  bool shouldRepaint(_PipPainter old) =>
+      old.colors != colors || old.tint != tint;
+}
+
 /// An old brass key, lying at an angle. Accepted keys catch the light.
-class _BrassKeyPainter extends CustomPainter {
-  const _BrassKeyPainter({
+class BrassKeyPainter extends CustomPainter {
+  const BrassKeyPainter({
     required this.present,
     required this.accepted,
     required this.faint,
@@ -285,111 +325,293 @@ class _BrassKeyPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_BrassKeyPainter old) =>
+  bool shouldRepaint(BrassKeyPainter old) =>
       old.present != present ||
       old.accepted != accepted ||
       old.faint != faint ||
       old.glow != glow;
 }
 
-/// Editing the address and key, away from the page.
-class KeyEditorSheet extends StatefulWidget {
-  const KeyEditorSheet({
+/// The address and key, on a sheet of paper. Keeping them saves them at
+/// once; nothing waits on a Save button. A known address is recognised as
+/// it is typed, with a way to its key page. Forgetting the key asks first,
+/// on the sheet itself.
+class KeySheet extends StatefulWidget {
+  const KeySheet({
     super.key,
-    required this.providerName,
-    required this.baseUrl,
+    required this.address,
     required this.token,
-    required this.tokenRequired,
-    this.onGetKey,
+    required this.onKeep,
+    this.onForget,
   });
 
-  final String providerName;
-  final TextEditingController baseUrl, token;
-  final bool tokenRequired;
-  final VoidCallback? onGetKey;
+  final String address, token;
+
+  /// Saves; returns a message when it could not.
+  final Future<String?> Function(String address, String token) onKeep;
+
+  /// Deletes the key from the phone. Null before there is one.
+  final Future<void> Function()? onForget;
 
   @override
-  State<KeyEditorSheet> createState() => _KeyEditorSheetState();
+  State<KeySheet> createState() => _KeySheetState();
 }
 
-class _KeyEditorSheetState extends State<KeyEditorSheet> {
-  bool _hide = true;
+class _KeySheetState extends State<KeySheet> {
+  late final _address = TextEditingController(text: widget.address);
+  late final _token = TextEditingController(text: widget.token);
+  bool _hidden = true;
+  bool _busy = false;
+  bool _forgetting = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _address.addListener(() => setState(() => _error = null));
+  }
+
+  @override
+  void dispose() {
+    _address.dispose();
+    _token.dispose();
+    super.dispose();
+  }
+
+  Future<void> _keep() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    final error = await widget.onKeep(_address.text.trim(), _token.text.trim());
+    if (!mounted) return;
+    if (error == null) {
+      Navigator.pop(context);
+    } else {
+      setState(() {
+        _busy = false;
+        _error = error;
+      });
+    }
+  }
+
+  Future<void> _forget() async {
+    setState(() => _busy = true);
+    await widget.onForget!();
+    if (mounted) Navigator.pop(context);
+  }
+
+  Future<void> _openKeyPage(String url) async {
+    var opened = false;
+    try {
+      opened = await launchUrl(
+        Uri.parse(url),
+        mode: LaunchMode.externalApplication,
+      );
+    } catch (_) {
+      opened = false;
+    }
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Open $url in your browser.')));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final palette = MorePalette.of(context);
-    final serif = DiaryTypography.of(context).body.fontFamily;
-    InputDecoration field(String label, {Widget? suffix}) => InputDecoration(
-      labelText: label,
-      suffixIcon: suffix,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-    );
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: SafeArea(
-        top: false,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+    final colors = Theme.of(context).colorScheme;
+    final preset = aiProviderPresetForAddress(_address.text);
+    final known = preset != customAiProviderPreset;
+    final keyUrl = preset.keyUrl;
+    final error = _error;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
             children: [
-              Text(
-                '${widget.providerName} key',
-                style: TextStyle(
-                  fontFamily: serif,
-                  fontSize: 22,
-                  color: palette.ink,
-                ),
-              ),
-              Text(
-                'Kept on this phone. Sent only to your provider.',
-                style: TextStyle(color: palette.muted, fontSize: 13),
-              ),
-              const SizedBox(height: 20),
-              TextField(
-                key: const ValueKey('ai-provider-token'),
-                controller: widget.token,
-                obscureText: _hide,
-                autocorrect: false,
-                enableSuggestions: false,
-                decoration: field(
-                  widget.tokenRequired ? 'API key' : 'API key (optional)',
-                  suffix: IconButton(
-                    tooltip: _hide ? 'Show key' : 'Hide key',
-                    onPressed: () => setState(() => _hide = !_hide),
-                    icon: Icon(
-                      _hide
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Semantics(
+                      header: true,
+                      child: Text(
+                        'Your key',
+                        style: settingsHand(context, size: 34),
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Any OpenAI-compatible service. Kept only on this phone.',
+                      style: TextStyle(
+                        color: palette.muted,
+                        fontSize: 13,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 12),
-              TextField(
-                key: const ValueKey('ai-provider-url'),
-                controller: widget.baseUrl,
-                keyboardType: TextInputType.url,
-                autocorrect: false,
-                decoration: field('API address (https://)'),
-              ),
-              if (widget.onGetKey != null)
-                Align(
-                  alignment: AlignmentDirectional.centerStart,
-                  child: TextButton.icon(
-                    onPressed: widget.onGetKey,
-                    icon: const Icon(Icons.open_in_new_rounded, size: 16),
-                    label: Text('Get a ${widget.providerName} key'),
+              SizedBox.square(
+                dimension: 64,
+                child: CustomPaint(
+                  painter: BrassKeyPainter(
+                    present: _token.text.trim().isNotEmpty,
+                    accepted: false,
+                    faint: palette.ink,
+                    glow: palette.accent,
                   ),
                 ),
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Done'),
               ),
             ],
           ),
-        ),
+          const SizedBox(height: 22),
+          InkedField(
+            fieldKey: const ValueKey('ai-provider-url'),
+            label: 'Address',
+            controller: _address,
+            hint: 'https://api.openai.com/v1',
+            keyboardType: TextInputType.url,
+          ),
+          const SizedBox(height: 8),
+          AnimatedSwitcher(
+            duration: RenderingPolicyScope.of(context).duration,
+            child: Row(
+              key: ValueKey(preset.id),
+              children: [
+                Icon(
+                  known ? Icons.verified_outlined : Icons.hub_outlined,
+                  size: 15,
+                  color: known ? palette.accent : palette.muted,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    known ? 'Recognised: ${preset.name}' : 'Your own service',
+                    style: TextStyle(
+                      color: known ? palette.accent : palette.muted,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                if (keyUrl != null)
+                  TextButton.icon(
+                    onPressed: () => unawaited(_openKeyPage(keyUrl)),
+                    style: TextButton.styleFrom(
+                      foregroundColor: palette.accent,
+                      minimumSize: const Size(48, 40),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    icon: const Icon(Icons.north_east_rounded, size: 16),
+                    label: const Text('Get a key'),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          InkedField(
+            fieldKey: const ValueKey('ai-provider-token'),
+            label: 'Key',
+            controller: _token,
+            hint: 'sk-…',
+            obscure: _hidden,
+            monospace: true,
+            onChanged: (_) => setState(() {}),
+            trailing: IconButton(
+              tooltip: _hidden ? 'Show key' : 'Hide key',
+              color: palette.muted,
+              onPressed: () => setState(() => _hidden = !_hidden),
+              icon: Icon(
+                _hidden
+                    ? Icons.visibility_outlined
+                    : Icons.visibility_off_outlined,
+              ),
+            ),
+          ),
+          if (error != null) ...[
+            const SizedBox(height: 14),
+            Semantics(
+              liveRegion: true,
+              child: Text(
+                error,
+                style: TextStyle(color: colors.error, fontSize: 13),
+              ),
+            ),
+          ],
+          const SizedBox(height: 26),
+          GlassPill(
+            key: const ValueKey('ai-key-keep'),
+            label: 'Keep it',
+            icon: Icons.check_rounded,
+            wide: true,
+            busy: _busy && !_forgetting,
+            onPressed: _busy || _address.text.trim().isEmpty ? null : _keep,
+          ),
+          if (widget.onForget != null) ...[
+            const SizedBox(height: 10),
+            AnimatedSize(
+              duration: RenderingPolicyScope.of(context).duration,
+              child: _forgetting
+                  ? Column(
+                      children: [
+                        Text(
+                          'Delete this key from the phone? AI stops until you add one again.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: palette.muted,
+                            fontSize: 13,
+                            height: 1.4,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: GlassPill(
+                                label: 'Keep it',
+                                filled: false,
+                                compact: true,
+                                onPressed: _busy
+                                    ? null
+                                    : () => setState(() => _forgetting = false),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: GlassPill(
+                                key: const ValueKey('ai-key-forget-confirm'),
+                                label: 'Forget it',
+                                compact: true,
+                                tint: colors.error,
+                                busy: _busy,
+                                onPressed: _busy ? null : _forget,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    )
+                  : Center(
+                      child: TextButton.icon(
+                        key: const ValueKey('ai-key-forget'),
+                        onPressed: _busy
+                            ? null
+                            : () => setState(() => _forgetting = true),
+                        style: TextButton.styleFrom(
+                          foregroundColor: colors.error,
+                          minimumSize: const Size(48, 48),
+                        ),
+                        icon: const Icon(Icons.link_off_rounded, size: 18),
+                        label: const Text('Forget this key'),
+                      ),
+                    ),
+            ),
+          ],
+        ],
       ),
     );
   }

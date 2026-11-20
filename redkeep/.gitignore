@@ -49,3 +49,5 @@ app.*.map.json
 
 # Python release tooling.
 /scripts/__pycache__/
+
+prod.json

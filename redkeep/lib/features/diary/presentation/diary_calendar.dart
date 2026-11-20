@@ -516,7 +516,8 @@ class DiaryCalendar extends StatelessWidget {
     required double collapse,
   }) {
     final paper = _DatePaperPainter.sizeFor(tabWidth, prominence, collapse);
-    final size = ui.lerpDouble(12, 16, prominence)!;
+    // The day in focus wears its mood larger than its neighbours.
+    final size = ui.lerpDouble(14, 24, prominence)!;
     final box = size * 1.6;
     final center = Offset(
       tabWidth / 2 + paper.width / 2 - size * .3,

@@ -56,22 +56,24 @@ class ReleaseTests(unittest.TestCase):
     def test_apk_metadata_and_hash(self):
         signature = "Signer #1 certificate SHA-256 digest: abc123\n"
         badging = ("package: name='com.lewiseman.redkeep' versionCode='2' versionName='0.1.0'\n"
-                   "sdkVersion:'30'\nnative-code: 'arm64-v8a'\n")
+                   "sdkVersion:'28'\nnative-code: 'arm64-v8a' 'armeabi-v7a' 'x86_64'\n")
         with tempfile.TemporaryDirectory() as directory:
             apk = Path(directory) / "redkeep-arm64-v8a.apk"
             with zipfile.ZipFile(apk, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-                archive.writestr("lib/arm64-v8a/libfixture.so", b"native library fixture" * 50)
+                for abi in release.ABIS:
+                    archive.writestr(f"lib/{abi}/libfixture.so", b"native library fixture" * 50)
             with patch.object(release, "run", side_effect=[signature, badging]):
                 info = release.inspect_apk(apk, Path(directory), "0.1.0", 2)
             self.assertEqual(info["sha256"], hashlib.sha256(apk.read_bytes()).hexdigest())
-            self.assertEqual(info["architectures"], ["arm64-v8a"])
-            self.assertEqual(info["minSdk"], 30)
+            self.assertEqual(info["architectures"], ["arm64-v8a", "armeabi-v7a", "x86_64"])
+            self.assertEqual(info["minSdk"], 28)
             self.assertTrue(info["nativeLibraryCompression"])
             self.assertEqual(info["sizeBytes"], apk.stat().st_size)
             for invalid in (badging.replace("versionCode='2'", "versionCode='1'"),
                             badging.replace("com.lewiseman.redkeep", "com.other.app"),
-                            badging.replace("'arm64-v8a'", "'arm64-v8a' 'x86_64'"),
-                            badging.replace("sdkVersion:'30'", "sdkVersion:'29'")):
+                            badging.replace(" 'x86_64'", ""),
+                            badging.replace("'x86_64'", "'x86_64' 'x86'"),
+                            badging.replace("sdkVersion:'28'", "sdkVersion:'30'")):
                 with self.subTest(badging=invalid), patch.object(release, "run", side_effect=[signature, invalid]):
                     with self.assertRaises(release.ReleaseError):
                         release.inspect_apk(apk, Path(directory), "0.1.0", 2)

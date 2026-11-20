@@ -30,13 +30,7 @@ android {
         applicationId = "com.lewiseman.redkeep"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        // M03: LiteRT-LM native assets support Android 11+ on ARM64 only.
-        minSdk = 30
-        ndk {
-            // Clear Flutter's pre-populated ABI defaults before restricting.
-            abiFilters.clear()
-            abiFilters += "arm64-v8a"
-        }
+        minSdk = 28
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

@@ -7,8 +7,9 @@ the public `lewiseman/the-redkeep` repository. The permanent download URL is:
 
 Every release contains `redkeep-arm64-v8a.apk`, `redkeep-arm64-v8a.apk.sha256`,
 and `release.json`. Keep the APK filename for future releases so website links
-continue to work. Supported phones run **Android 11+ (API 30) on ARM64**.
-The Gradle configuration builds ARM64 only; ARM32 and x86_64 are not shipped.
+continue to work. Supported phones run **Android 9+ (API 28)**. The APK is
+universal: it ships ARM64, ARM32 (`armeabi-v7a`) and x86_64 native libraries.
+The filename still says `arm64-v8a` only to keep existing download links stable.
 
 ## Local prerequisites
 
@@ -40,11 +41,10 @@ python3 scripts/release_android.py
 ```
 
 The release tests are offline. The script resolves locked Flutter dependencies,
-builds a signed ARM64 APK using `env.json`, and verifies its signature,
+builds a signed universal APK using `env.json`, and verifies its signature,
 package ID, actual Android version code, minimum SDK, architecture, and SHA-256.
 It rejects Android debug signing keys. Native library packaging stays as configured.
-The existing Gradle configuration already restricts the APK to ARM64. The script
-does not add conflicting ABI splits, so build `1` is Android version code `1`.
+The script does not use ABI splits, so build `1` is Android version code `1`.
 
 Output goes to ignored `build/releases/v1.0.0+1/`, including generated release notes.
 The script also refreshes `../website/src/release.json` with the verified APK's

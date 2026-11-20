@@ -25,6 +25,8 @@ REPOSITORY = "lewiseman/the-redkeep"
 APK_NAME = "redkeep-arm64-v8a.apk"
 DOWNLOAD_URL = f"https://github.com/{REPOSITORY}/releases/latest/download/{APK_NAME}"
 PACKAGE_ID = "com.lewiseman.redkeep"
+MIN_SDK = 28
+ABIS = ["arm64-v8a", "armeabi-v7a", "x86_64"]
 
 
 class ReleaseError(Exception):
@@ -132,16 +134,16 @@ def inspect_apk(apk, tools, version_name, build_number):
     native = re.search(r"^native-code: (.+)$", badging, re.M)
     if not sdk or not native or not certificate:
         raise ReleaseError("Could not verify APK platform requirements or signing certificate.")
-    if int(sdk[1]) != 30:
-        raise ReleaseError("Expected Redkeep's Android 11+ (API 30) platform requirement.")
+    if int(sdk[1]) != MIN_SDK:
+        raise ReleaseError(f"Expected Redkeep's Android 9+ (API {MIN_SDK}) platform requirement.")
     abis = re.findall(r"'([^']+)'", native[1])
-    if abis != ["arm64-v8a"]:
-        raise ReleaseError(f"Expected Redkeep's Android ARM64 build, got {abis}.")
+    if sorted(abis) != sorted(ABIS):
+        raise ReleaseError(f"Expected Redkeep's universal build ({', '.join(ABIS)}), got {abis}.")
     with zipfile.ZipFile(apk) as archive:
         libraries = [entry for entry in archive.infolist()
                      if entry.filename.startswith("lib/") and entry.filename.endswith(".so")]
-        if not libraries or any(not entry.filename.startswith("lib/arm64-v8a/") for entry in libraries):
-            raise ReleaseError("The APK must contain only ARM64 native libraries.")
+        if not libraries or any(entry.filename.split("/")[1] not in ABIS for entry in libraries):
+            raise ReleaseError("The APK contains native libraries for an unexpected architecture.")
         compressed = all(entry.compress_type == zipfile.ZIP_DEFLATED for entry in libraries)
     hasher = hashlib.sha256()
     with apk.open("rb") as stream:
@@ -265,13 +267,13 @@ def main():
                 raise ReleaseError(f"BUILD must exceed the latest release's {previous_metadata['buildNumber']} so Android can install updates.")
     print(f"Building Redkeep {version} from {source_commit[:12]}" + (" (includes local changes)" if dirty else ""), flush=True)
     run("flutter", "pub", "get", "--enforce-lockfile")
-    # Gradle already restricts this app to ARM64; ABI splits conflict with that filter.
-    run("flutter", "build", "apk", "--release", "--target-platform=android-arm64",
+    # One universal APK keeps the stable download URL; ABI splits would need several.
+    run("flutter", "build", "apk", "--release",
         "--dart-define-from-file=env.json", f"--build-name={version_name}", f"--build-number={build_number}")
     apk = ROOT / "build/app/outputs/flutter-apk/app-release.apk"
     metadata = {"version": version_name, "buildNumber": build_number, "tag": tag,
                 "downloadUrl": DOWNLOAD_URL,
-                "artifactName": APK_NAME, "buildType": "arm64", "sourceCommit": source_commit,
+                "artifactName": APK_NAME, "buildType": "universal", "sourceCommit": source_commit,
                 "sourceDirty": dirty, **inspect_apk(apk, tools, version_name, build_number)}
     if client and (run("git", "status", "--porcelain", "--", ".", capture=True)
                    or run("git", "rev-parse", "HEAD", capture=True) != source_commit):
@@ -289,12 +291,10 @@ def main():
     notes = args.notes_file.read_text() if args.notes_file else (
         f"Redkeep {version_name} (build {build_number}) for Android.\n\n"
         f"Download **{APK_NAME}** below and open it on your phone. Allow your browser or file manager to install apps if Android asks.\n\n"
-        f"- Android 11+ (API {metadata['minSdk']}); 64-bit ARM (arm64-v8a).\n"
+        f"- Android 9+ (API {metadata['minSdk']}); {', '.join(metadata['architectures'])}.\n"
         f"- Download: {metadata['sizeBytes'] / 1_000_000:.1f} MB.\n"
-        "- ARM32 and x86_64 are unsupported by the current on-device AI runtime.\n"
         "- Signed with Redkeep's release key; install future builds over this app to keep your writing.\n"
         "- Artwork ships inside the app; writing stays on your device.\n"
-        "- AI model weights download separately when selected in the app.\n"
         "- Google Drive backup requires Google sign-in.\n\n"
         f"Source: `{source_commit}`.\n\n"
         f"Verify the download with `shasum -a 256 -c {APK_NAME}.sha256`.\n")

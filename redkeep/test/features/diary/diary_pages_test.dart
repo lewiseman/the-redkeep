@@ -5,6 +5,7 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:redkeep/core/presentation/emoji_sphere/emoji_catalog.dart';
 import 'package:redkeep/app/navigation_destination.dart';
 import 'package:redkeep/core/storage/app_database.dart';
 import 'package:redkeep/features/appearance/domain/appearance_preferences.dart';
@@ -122,31 +123,36 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  Future<void> pickMood(WidgetTester tester, String name) async {
-    final mood = find.byKey(ValueKey('diary-day-mood-$name'));
-    await tester.ensureVisible(mood);
-    await tester.pumpAndSettle();
-    await tester.tap(mood);
+  /// Searches the open mood picker's emoji sphere for [query].
+  Future<void> pickMood(WidgetTester tester, String query) async {
+    await tester.enterText(
+      find.byKey(const ValueKey('emoji-sphere-search')),
+      query,
+    );
     await tester.pumpAndSettle();
   }
 
-  /// Picks a face in the open mood sheet and lets the save reach the database.
-  Future<void> chooseMood(WidgetTester tester, String name) async {
-    await pickMood(tester, name);
+  /// Lets a mood save reach the database.
+  Future<void> settleSave(WidgetTester tester) async {
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 50)),
     );
     await tester.pumpAndSettle();
   }
 
-  bool? moodSelected(WidgetTester tester, String name) => tester
-      .widget<DiaryInkAction>(
-        find.descendant(
-          of: find.byKey(ValueKey('diary-day-mood-$name')),
-          matching: find.byType(DiaryInkAction),
-        ),
-      )
-      .selected;
+  /// Finds a mood in the open picker and goes back, which keeps it.
+  Future<void> chooseMood(WidgetTester tester, String query) async {
+    await pickMood(tester, query);
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    await settleSave(tester);
+  }
+
+  /// The open picker's sphere has [mood] in its lens.
+  Finder moodOnOffer(DiaryMood mood) => find.descendant(
+    of: find.byKey(const ValueKey('diary-mood-picker')),
+    matching: find.text(EmojiCatalog.bundled().find(mood.emoji)!.name),
+  );
 
   Future<DiaryDay> storedDay(WidgetTester tester) async =>
       (await tester.runAsync(() => repo.watchDay(date).first))!;
@@ -298,10 +304,21 @@ void main() {
       expect(find.byKey(const ValueKey('diary-calendar-mood')), findsNothing);
 
       await tap(tester, 'Choose mood');
-      expect(find.byKey(const ValueKey('diary-mood-sheet')), findsOneWidget);
-      expect(moodSelected(tester, 'calm'), isFalse);
+      expect(find.byKey(const ValueKey('diary-mood-picker')), findsOneWidget);
+      // The sphere opens on the first preset, but leaving it untouched
+      // sets nothing; with no mood there is nothing to clear.
+      expect(moodOnOffer(DiaryMood.happy), findsOneWidget);
+      expect(find.byKey(const ValueKey('diary-mood-clear')), findsNothing);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+      expect(find.byKey(const ValueKey('diary-mood-picker')), findsNothing);
+      expect((await storedDay(tester)).mood, isNull);
+
+      // Turning to a mood and going back keeps it.
+      await tap(tester, 'Choose mood');
       await chooseMood(tester, 'calm');
-      expect(find.byKey(const ValueKey('diary-mood-sheet')), findsNothing);
+      expect(find.byKey(const ValueKey('diary-mood-picker')), findsNothing);
       expectDiaryDay(tester, router, date);
       final saved = await storedDay(tester);
       expect(saved.mood, DiaryMood.calm);
@@ -317,16 +334,32 @@ void main() {
       // The mood lives on the tab only, not as a line on the page.
       expect(liveText('😌 Calm'), findsNothing);
 
-      // Dismissing the sheet changes nothing.
+      // A tap on the solid middle keeps the picker; one on the faded edge
+      // closes it, changing nothing while the sphere is untouched...
       await tap(tester, 'Choose mood');
-      expect(moodSelected(tester, 'calm'), isTrue);
+      expect(moodOnOffer(DiaryMood.calm), findsOneWidget);
+      await tester.tap(find.text('How did it feel?'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('diary-mood-picker')), findsOneWidget);
       await tester.tapAt(const Offset(10, 10));
       await tester.pumpAndSettle();
+      await settleSave(tester);
+      expect(find.byKey(const ValueKey('diary-mood-picker')), findsNothing);
       expect((await storedDay(tester)).mood, DiaryMood.calm);
 
-      // Tapping the circled face again rubs it out.
+      // ...and keeping whatever was turned into the lens.
       await tap(tester, 'Choose mood');
-      await chooseMood(tester, 'calm');
+      await pickMood(tester, 'tired');
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+      expect((await storedDay(tester)).mood, DiaryMood.tired);
+
+      // Clearing rubs it out.
+      await tap(tester, 'Choose mood');
+      await tester.tap(find.byKey(const ValueKey('diary-mood-clear')));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
       expect((await storedDay(tester)).mood, isNull);
       expect((await storedDay(tester)).heading, 'A kept title');
       expect(find.byKey(const ValueKey('diary-calendar-mood')), findsNothing);

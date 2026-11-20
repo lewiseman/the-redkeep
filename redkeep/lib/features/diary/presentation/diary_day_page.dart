@@ -282,9 +282,8 @@ class _DiaryPageState extends ConsumerState<DiaryDayPage>
     final date = _selectedDate;
     _choosingMood = true;
     try {
-      final choice = await showDiaryMoodSheet(
+      final choice = await showDiaryMoodPicker(
         context,
-        dateLabel: date.label(Localizations.localeOf(context).toString()),
         current: ref.read(diaryCalendarMoodsProvider).value?[date],
       );
       if (choice == null || !mounted) return;

@@ -1,15 +1,11 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:redkeep/core/presentation/rendering_policy.dart';
 import 'package:redkeep/core/storage/app_database.dart';
-import 'package:redkeep/features/appearance/domain/appearance_preferences.dart';
 import 'package:redkeep/features/diary/data/drift_diary_repository.dart';
 import 'package:redkeep/features/diary/domain/diary_day_details.dart';
 import 'package:redkeep/features/diary/domain/diary_document.dart';
 import 'package:redkeep/features/diary/domain/diary_period.dart';
-import 'package:redkeep/features/diary/presentation/diary_day_details_widgets.dart';
 
 void main() {
   group('emoji validation', () {
@@ -113,95 +109,5 @@ void main() {
         expect(row.mood, '👩‍❤️‍👨');
       },
     );
-  });
-
-  group('picker', () {
-    Future<List<DiaryMood?>> pump(
-      WidgetTester tester, {
-      DiaryMood? selected,
-    }) async {
-      final changes = <DiaryMood?>[];
-      tester.view.physicalSize = const Size(320, 640);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.reset);
-      await tester.pumpWidget(
-        MaterialApp(
-          builder: (context, child) => RenderingPolicyScope(
-            policy: RenderingPolicy(
-              osReducedMotion: true,
-              preferences: const AppearancePreferences(),
-            ),
-            child: child!,
-          ),
-          home: Scaffold(
-            body: Padding(
-              padding: const EdgeInsets.all(16),
-              child: StatefulBuilder(
-                builder: (context, setState) => DiaryMoodPicker(
-                  selected: selected,
-                  onChanged: (mood) => setState(() {
-                    changes.add(mood);
-                    selected = mood;
-                  }),
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-      return changes;
-    }
-
-    testWidgets('presets stay one tap; Other opens the full picker', (
-      tester,
-    ) async {
-      final changes = await pump(tester);
-      expect(tester.takeException(), isNull);
-      await tester.tap(find.byKey(const ValueKey('diary-day-mood-calm')));
-      await tester.pump();
-      expect(changes.last, DiaryMood.calm);
-
-      await tester.tap(find.byKey(const ValueKey('diary-day-mood-other')));
-      await tester.pumpAndSettle();
-      expect(find.text('Pick any emoji'), findsOneWidget);
-      expect(find.byKey(const ValueKey('diary-emoji-picker')), findsOneWidget);
-      // Smileys open first; the second smiley is not a preset.
-      await tester.tap(find.text('😃').first);
-      await tester.pumpAndSettle();
-      expect(find.text('Pick any emoji'), findsNothing);
-      expect(changes.last?.emoji, '😃');
-      expect(changes.last?.isPreset, isFalse);
-      // The chosen emoji now sits circled in the Other slot.
-      expect(
-        find.descendant(
-          of: find.byKey(const ValueKey('diary-day-mood-other')),
-          matching: find.text('😃'),
-        ),
-        findsOneWidget,
-      );
-    });
-
-    testWidgets('closing the picker keeps the current mood', (tester) async {
-      final changes = await pump(tester, selected: DiaryMood.fromEmoji('🥳'));
-      await tester.tap(find.byKey(const ValueKey('diary-day-mood-other')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Close'));
-      await tester.pumpAndSettle();
-      expect(changes, isEmpty);
-      expect(find.text('🥳'), findsOneWidget);
-    });
-
-    testWidgets('large text wraps all six choices without overflow', (
-      tester,
-    ) async {
-      tester.platformDispatcher.textScaleFactorTestValue = 3;
-      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
-      await pump(tester);
-      expect(tester.takeException(), isNull);
-      expect(
-        find.byKey(const ValueKey('diary-day-mood-other')),
-        findsOneWidget,
-      );
-    });
   });
 }

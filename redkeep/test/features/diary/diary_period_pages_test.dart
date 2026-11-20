@@ -66,10 +66,9 @@ void main() {
               .hitTestable()
               .first;
           await _tap(tester, tab);
-          await _tap(
-            tester,
-            find.byKey(const ValueKey('diary-day-mood-happy')),
-          );
+          // The mood sphere opens on 😊; tapping it in the lens picks it
+          // and saves the period.
+          await _tap(tester, find.byKey(const ValueKey('emoji-sphere')));
           // Let the save reach the database.
           await tester.runAsync(
             () => Future<void>.delayed(const Duration(milliseconds: 50)),

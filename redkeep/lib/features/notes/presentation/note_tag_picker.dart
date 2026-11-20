@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'dart:convert';
 
+import '../../../core/presentation/emoji_sphere/emoji_sphere.dart';
 import '../../ai/application/ai_cloud.dart' show aiCapabilitiesProvider;
 import '../../ai/application/ai_jobs.dart';
 import '../../ai/domain/ai_operation.dart';
@@ -50,7 +51,6 @@ class NoteTagPicker extends ConsumerStatefulWidget {
 
 class _NoteTagPickerState extends ConsumerState<NoteTagPicker> {
   final _query = TextEditingController();
-  final _customEmoji = TextEditingController();
   late final _localTags = <String, NoteTag>{
     for (final tag
         in widget.currentTags.map(NoteTag.tryParse).whereType<NoteTag>())
@@ -58,53 +58,46 @@ class _NoteTagPickerState extends ConsumerState<NoteTagPicker> {
   };
   late final _selected = Map<String, NoteTag>.of(_localTags);
   String _emoji = '🏷️';
-  String? _emojiError, _aiError;
+  String? _aiError;
   bool _showEmojis = false;
 
   String get _aiScope => noteAiScope('tags', widget.noteId);
 
+  /// Placed nearest the centre of the emoji sphere.
   static const _emojis = [
-    ('🏷️', 'Label'),
-    ('💡', 'Idea'),
-    ('📝', 'Writing'),
-    ('💼', 'Work'),
-    ('🌱', 'Growth'),
-    ('🏡', 'Home'),
-    ('❤️', 'Love'),
-    ('✨', 'Sparkles'),
-    ('📚', 'Books'),
-    ('🎯', 'Goal'),
-    ('🧠', 'Mind'),
-    ('☕', 'Coffee'),
-    ('🎨', 'Art'),
-    ('🎵', 'Music'),
-    ('📷', 'Photos'),
-    ('🌍', 'Travel'),
-    ('🏃', 'Fitness'),
-    ('🍜', 'Food'),
-    ('💰', 'Money'),
-    ('🛠️', 'Projects'),
-    ('🌿', 'Nature'),
-    ('🌙', 'Night'),
-    ('☀️', 'Sun'),
-    ('🔥', 'Fire'),
-    ('🧘', 'Calm'),
-    ('🎉', 'Celebration'),
-    ('🐾', 'Animals'),
-    ('💭', 'Thoughts'),
+    '🏷️',
+    '💡',
+    '📝',
+    '💼',
+    '🌱',
+    '🏡',
+    '❤️',
+    '✨',
+    '📚',
+    '🎯',
+    '🧠',
+    '☕',
+    '🎨',
+    '🎵',
+    '📷',
+    '🌍',
+    '🏃',
+    '🍜',
+    '💰',
+    '🛠️',
+    '🌿',
+    '🌙',
+    '☀️',
+    '🔥',
+    '🧘',
+    '🎉',
+    '🐾',
+    '💭',
   ];
-  static final _emojiPattern = RegExp(
-    r'[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2300}-\u{23FF}'
-    r'\u{2190}-\u{21FF}\u{24C2}\u{25A0}-\u{25FF}\u{2934}-\u{2935}'
-    r'\u{2B00}-\u{2BFF}\u{20E3}\u{00A9}\u{00AE}\u{203C}\u{2049}'
-    r'\u{3030}\u{303D}\u{3297}\u{3299}]',
-    unicode: true,
-  );
 
   @override
   void dispose() {
     _query.dispose();
-    _customEmoji.dispose();
     super.dispose();
   }
 
@@ -139,9 +132,7 @@ class _NoteTagPickerState extends ConsumerState<NoteTagPicker> {
 
   void _createTag() {
     final name = _query.text.trim();
-    if (name.isEmpty || name.toLowerCase() == 'all' || _emojiError != null) {
-      return;
-    }
+    if (name.isEmpty || name.toLowerCase() == 'all') return;
     final tag = NoteTag(name: name, emoji: _emoji);
     setState(() {
       _localTags[tag.key] = tag;
@@ -156,18 +147,7 @@ class _NoteTagPickerState extends ConsumerState<NoteTagPicker> {
     FocusScope.of(context).unfocus();
     setState(() {
       _emoji = emoji;
-      _customEmoji.text = emoji;
-      _emojiError = null;
       _showEmojis = false;
-    });
-  }
-
-  void _readEmoji(String value) {
-    final emoji = value.trim();
-    final valid = emoji.characters.length == 1 && _emojiPattern.hasMatch(emoji);
-    setState(() {
-      _emojiError = valid ? null : 'Choose one emoji.';
-      if (valid) _emoji = emoji;
     });
   }
 
@@ -244,10 +224,7 @@ class _NoteTagPickerState extends ConsumerState<NoteTagPicker> {
                         maxLength: 32,
                         textCapitalization: TextCapitalization.sentences,
                         textInputAction: TextInputAction.done,
-                        onChanged: (_) => setState(() {
-                          _showEmojis = false;
-                          _emojiError = null;
-                        }),
+                        onChanged: (_) => setState(() => _showEmojis = false),
                         onSubmitted: (_) {
                           if (canCreate) _createTag();
                         },
@@ -268,7 +245,6 @@ class _NoteTagPickerState extends ConsumerState<NoteTagPicker> {
                                   onPressed: () => setState(() {
                                     _query.clear();
                                     _showEmojis = false;
-                                    _emojiError = null;
                                   }),
                                   icon: const Icon(
                                     Icons.close_rounded,
@@ -510,7 +486,7 @@ class _NoteTagPickerState extends ConsumerState<NoteTagPicker> {
         builder: (context, constraints) {
           final largeText = MediaQuery.textScalerOf(context).scale(14) > 20;
           final create = TextButton(
-            onPressed: _emojiError == null ? _createTag : null,
+            onPressed: _createTag,
             child: const Text('Create'),
           );
           final details = Row(
@@ -527,11 +503,7 @@ class _NoteTagPickerState extends ConsumerState<NoteTagPicker> {
                     child: InkWell(
                       onTap: () {
                         FocusScope.of(context).unfocus();
-                        setState(() {
-                          _showEmojis = !_showEmojis;
-                          _customEmoji.text = _emoji;
-                          _emojiError = null;
-                        });
+                        setState(() => _showEmojis = !_showEmojis);
                       },
                       child: SizedBox.square(
                         dimension: 52,
@@ -582,59 +554,16 @@ class _NoteTagPickerState extends ConsumerState<NoteTagPicker> {
   }
 
   Widget _emojiChooser() {
-    final colors = Theme.of(context).colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Wrap(
-          spacing: 4,
-          runSpacing: 4,
-          children: [
-            for (final (emoji, label) in _emojis)
-              Semantics(
-                selected: _emoji == emoji,
-                child: TextButton(
-                  onPressed: () => _chooseEmoji(emoji),
-                  style: TextButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    minimumSize: const Size.square(44),
-                    backgroundColor: _emoji == emoji
-                        ? colors.primaryContainer
-                        : null,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: Text(
-                    emoji,
-                    semanticsLabel: label,
-                    style: const TextStyle(fontSize: 24),
-                  ),
-                ),
-              ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          key: const ValueKey('custom-tag-emoji'),
-          controller: _customEmoji,
-          maxLength: 1,
-          autocorrect: false,
-          enableSuggestions: false,
-          textInputAction: TextInputAction.done,
-          onChanged: _readEmoji,
-          onSubmitted: (value) {
-            _readEmoji(value);
-            if (_emojiError == null) _chooseEmoji(value.trim());
-          },
-          decoration: InputDecoration(
-            labelText: 'Or type your own emoji',
-            counterText: '',
-            errorText: _emojiError,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-          ),
-        ),
-      ],
+    return Center(
+      child: EmojiSphere(
+        key: const ValueKey('tag-emoji-sphere'),
+        selected: _emoji,
+        favorites: _emojis,
+        maxDiameter: 260,
+        // Turning the sphere picks; tapping the centre emoji closes it.
+        onChanged: (entry) => setState(() => _emoji = entry.emoji),
+        onConfirm: (entry) => _chooseEmoji(entry.emoji),
+      ),
     );
   }
 }

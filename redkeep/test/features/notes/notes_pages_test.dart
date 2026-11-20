@@ -1085,6 +1085,50 @@ void main() {
     );
   });
 
+  noteTest('a new tag takes its emoji from the emoji sphere', (tester) async {
+    await seed();
+    await pumpApp(tester, initialLocation: noteLocation(id), notes: repo);
+    await tap(tester, 'Edit tags');
+    await tester.enterText(
+      find.byKey(const ValueKey('tag-search')),
+      'mornings',
+    );
+    await tester.pumpAndSettle();
+    final emojiButton = find.byTooltip('Choose tag emoji');
+    expect(
+      find.descendant(of: emojiButton, matching: find.text('🏷️')),
+      findsOneWidget,
+    );
+    await tester.tap(emojiButton);
+    await tester.pumpAndSettle();
+    final sphere = find.byKey(const ValueKey('tag-emoji-sphere'));
+    expect(sphere, findsOneWidget);
+    await tester.enterText(
+      find.descendant(
+        of: sphere,
+        matching: find.byKey(const ValueKey('emoji-sphere-search')),
+      ),
+      'coffee',
+    );
+    await tester.pumpAndSettle();
+    // Turning the sphere picks; tapping its centre puts it away.
+    expect(
+      find.descendant(of: emojiButton, matching: find.text('☕')),
+      findsOneWidget,
+    );
+    final ball = find.byKey(const ValueKey('emoji-sphere'));
+    await tester.ensureVisible(ball);
+    await tester.pumpAndSettle();
+    final centre = tester.getCenter(ball);
+    await tester.tapAt(centre);
+    await tester.pumpAndSettle();
+    expect(sphere, findsNothing);
+    await tap(tester, 'Create');
+    await tap(tester, 'Apply tags');
+    expect((await repo.openDocument(id)).note!.tags, ['☕#mornings']);
+    expect(tester.takeException(), isNull);
+  });
+
   noteTest(
     'pin, tags, combined filters and explicit trash restoration/deletion',
     (tester) async {

@@ -1,29 +1,12 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../app/bootstrap/bootstrap_controller.dart';
-import '../../../app/bootstrap/bootstrap_providers.dart';
+import '../../assets/presentation/local_artwork.dart';
 
-final bookImageProvider = FutureProvider.autoDispose
-    .family<ImageProvider, (String, int)>((ref, request) async {
-      final uri = await (await ref.watch(assetResolverProvider))
-          .resolve(request.$1);
-      final provider = ResizeImage(
-        FileImage(File.fromUri(uri)),
-        width: request.$2,
-      );
-      await provider.evict();
-      if (ref.mounted) {
-        ref.onDispose(() {
-          provider.evict();
-        });
-      }
-      return provider;
-    }, retry: (_, _) => null);
+/// Onboarding book artwork, bundled with the app, decoded at [width] pixels.
+ImageProvider bookImage(String key, int width) =>
+    artworkImage(key, width: width);
 
-class BookFileImage extends ConsumerStatefulWidget {
+class BookFileImage extends StatelessWidget {
   const BookFileImage({
     super.key,
     required this.assetKey,
@@ -37,42 +20,15 @@ class BookFileImage extends ConsumerStatefulWidget {
   final Alignment alignment;
 
   @override
-  ConsumerState<BookFileImage> createState() => _BookFileImageState();
-}
-
-class _BookFileImageState extends ConsumerState<BookFileImage> {
-  ImageProvider? _provider;
-
-  @override
-  Widget build(BuildContext context) {
-    final artwork = ref.watch(
-      bookImageProvider((widget.assetKey, widget.cacheWidth)),
-    );
-    if (artwork.hasError) return const BookArtworkFailure();
-    // Keep the Image mounted while a new decode size resolves. Otherwise the
-    // loading placeholder discards its frame before gaplessPlayback can help.
-    _provider = artwork.asData?.value ?? _provider;
-    return ExcludeSemantics(
-      child: _provider == null
-          ? const SizedBox.expand()
-          : Image(
-              image: _provider!,
-              fit: widget.fit,
-              alignment: widget.alignment,
-              gaplessPlayback: true,
-              excludeFromSemantics: true,
-              errorBuilder: (_, _, _) => const BookArtworkFailure(),
-            ),
-    );
-  }
-}
-
-class BookArtworkFailure extends ConsumerWidget {
-  const BookArtworkFailure({super.key});
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final controller = ref.read(bootstrapControllerProvider.notifier);
-    Future.microtask(controller.artworkFailed);
-    return const SizedBox.expand();
-  }
+  Widget build(BuildContext context) => ExcludeSemantics(
+    child: Image(
+      image: bookImage(assetKey, cacheWidth),
+      fit: fit,
+      alignment: alignment,
+      // Keep the current frame while a new decode size resolves.
+      gaplessPlayback: true,
+      excludeFromSemantics: true,
+      errorBuilder: (_, _, _) => const SizedBox.expand(),
+    ),
+  );
 }

@@ -128,51 +128,50 @@ void main() {
     },
   );
 
-  testWidgets(
-    'Appearance resolves local downloaded art; Settings uses bundled branding',
-    (tester) async {
-      await pumpApp(tester, initialLocation: '/more');
-      final artwork = tester.widget<LocalArtwork>(appearanceArtwork());
-      expect(artwork.assetKey, 'more.appearance');
-      final appearance = tester.widget<Image>(
-        find.descendant(of: appearanceArtwork(), matching: find.byType(Image)),
-      );
-      final local =
-          (appearance.image as ResizeImage).imageProvider as FileImage;
-      expect(local.file.uri.scheme, 'file');
-      expect(
-        local.file.readAsBytesSync(),
-        File('../website/public/art/more_appearance.png').readAsBytesSync(),
-      );
-      final watchlist = tester.widget<Image>(
-        find.descendant(
-          of: find.byWidgetPredicate(
-            (widget) =>
-                widget is LocalArtwork && widget.assetKey == 'more.watchlist',
-          ),
-          matching: find.byType(Image),
+  testWidgets('Appearance and Settings use bundled artwork', (tester) async {
+    await pumpApp(tester, initialLocation: '/more');
+    final artwork = tester.widget<LocalArtwork>(appearanceArtwork());
+    expect(artwork.assetKey, 'more.appearance');
+    String bundled(Finder artwork) =>
+        ((tester
+                            .widget<Image>(
+                              find.descendant(
+                                of: artwork,
+                                matching: find.byType(Image),
+                              ),
+                            )
+                            .image
+                        as ResizeImage)
+                    .imageProvider
+                as AssetImage)
+            .assetName;
+    expect(
+      bundled(appearanceArtwork()),
+      'assets/images/more/appearance-v1.png',
+    );
+    expect(
+      bundled(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is LocalArtwork && widget.assetKey == 'more.watchlist',
         ),
-      );
-      expect(
-        ((watchlist.image as ResizeImage).imageProvider as FileImage).file
-            .readAsBytesSync(),
-        File('../website/public/art/more_watchlist.webp').readAsBytesSync(),
-      );
-      final branding = tester.widget<Image>(
-        find.byWidgetPredicate((widget) {
-          if (widget is! Image || widget.image is! ResizeImage) return false;
-          final source = (widget.image as ResizeImage).imageProvider;
-          return source is AssetImage &&
-              source.assetName == 'assets/branding/grand_maestar.png';
-        }),
-      );
-      expect(branding.fit, BoxFit.contain);
-      expect(branding.excludeFromSemantics, isTrue);
-      expect(tester.takeException(), isNull);
-      await tester.pumpWidget(const SizedBox());
-      await tester.pumpAndSettle();
-    },
-  );
+      ),
+      'assets/images/more/watchlist-v1.webp',
+    );
+    final branding = tester.widget<Image>(
+      find.byWidgetPredicate((widget) {
+        if (widget is! Image || widget.image is! ResizeImage) return false;
+        final source = (widget.image as ResizeImage).imageProvider;
+        return source is AssetImage &&
+            source.assetName == 'assets/branding/grand_maestar.png';
+      }),
+    );
+    expect(branding.fit, BoxFit.contain);
+    expect(branding.excludeFromSemantics, isTrue);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+  });
 
   for (final theme in [AppTheme.light, AppTheme.dark]) {
     for (final layout in [

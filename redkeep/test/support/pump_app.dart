@@ -35,7 +35,6 @@ import 'package:redkeep/features/notes/domain/notes_repository.dart';
 
 import 'fake_appearance_repository.dart';
 import 'fake_ai_provider.dart';
-import 'fake_required_assets.dart';
 import 'fake_onboarding_repository.dart';
 
 import 'package:redkeep/features/ai/application/ai_cloud.dart';
@@ -49,7 +48,6 @@ Future<GoRouter> pumpApp(
   AppearanceFontLoader fontLoader = fakeAppearanceFontLoader,
   FakeAppearanceRepository? repository,
   FakeOnboardingRepository? onboarding,
-  FakeRequiredAssets? assets,
   NotesRepository? notes,
   NoteMediaStore? noteMedia,
   String Function()? noteId,
@@ -92,9 +90,6 @@ Future<GoRouter> pumpApp(
         appearanceRepositoryProvider.overrideWithValue(preferences),
         onboardingRepositoryProvider.overrideWithValue(
           onboarding ?? FakeOnboardingRepository(),
-        ),
-        requiredAssetsProvider.overrideWith(
-          (ref) async => assets ?? FakeRequiredAssets(),
         ),
         releaseSplashProvider.overrideWithValue(() {}),
         startupArtworkProvider.overrideWith((_) async {}),

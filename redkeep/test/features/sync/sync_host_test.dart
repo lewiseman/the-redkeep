@@ -17,7 +17,6 @@ import '../../support/fake_appearance_fonts.dart';
 import '../../support/fake_appearance_repository.dart';
 import '../../support/fake_backup.dart';
 import '../../support/fake_onboarding_repository.dart';
-import '../../support/fake_required_assets.dart';
 import 'sync_ui_test.dart' show MemoryResetStorage;
 
 void main() {
@@ -40,9 +39,6 @@ void main() {
             appearanceRepositoryProvider.overrideWithValue(appearance),
             onboardingRepositoryProvider.overrideWithValue(
               FakeOnboardingRepository(),
-            ),
-            requiredAssetsProvider.overrideWith(
-              (ref) async => FakeRequiredAssets(),
             ),
             releaseSplashProvider.overrideWithValue(() {}),
             startupArtworkProvider.overrideWith((_) async {}),

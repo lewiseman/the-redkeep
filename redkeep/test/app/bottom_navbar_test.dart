@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,7 +5,6 @@ import 'package:redkeep/app/bottom_navbar.dart';
 import 'package:redkeep/core/presentation/redkeep_theme.dart';
 import 'package:redkeep/core/presentation/rendering_policy.dart';
 import 'package:redkeep/features/appearance/domain/appearance_preferences.dart';
-import 'package:redkeep/features/assets/presentation/local_artwork.dart';
 
 void main() {
   Future<void> pumpBar(
@@ -21,12 +18,6 @@ void main() {
     addTearDown(tester.view.reset);
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          // Artwork stays loading; layout does not depend on it.
-          localArtworkFileProvider.overrideWith(
-            (ref, _) => Completer<Uri>().future,
-          ),
-        ],
         child: MaterialApp(
           theme: RedkeepTheme.light,
           home: MediaQuery.withClampedTextScaling(

@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:redkeep/app/bootstrap/bootstrap_providers.dart';
 import 'package:redkeep/app/more_page.dart';
 import 'package:redkeep/app/writing_shell.dart';
 import 'package:redkeep/core/presentation/redkeep_theme.dart';
@@ -18,7 +17,6 @@ import 'package:redkeep/features/sync/presentation/sync_card.dart';
 import 'package:sync_wise/sync_wise.dart';
 
 import '../../support/fake_backup.dart';
-import '../../support/fake_required_assets.dart';
 
 class NamedOnboarding extends OnboardingController {
   @override
@@ -59,9 +57,6 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          requiredAssetsProvider.overrideWith(
-            (ref) async => FakeRequiredAssets(),
-          ),
           syncBackendProvider.overrideWithValue(backend),
           backupEngineProvider.overrideWithValue(AsyncData(engine)),
           backupStateProvider.overrideWith(() => FixedBackupState(backup)),

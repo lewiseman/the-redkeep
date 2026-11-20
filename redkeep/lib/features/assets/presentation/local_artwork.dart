@@ -1,34 +1,23 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../app/bootstrap/bootstrap_controller.dart';
-import '../../../app/bootstrap/bootstrap_providers.dart';
+import '../domain/app_artwork.dart';
 
 const _standardWidth = 120, _highResolutionWidth = 360;
 
-final localArtworkFileProvider = FutureProvider.autoDispose.family<Uri, String>(
-  (ref, key) async {
-    final uri = await (await ref.watch(assetResolverProvider)).resolve(key);
-    // FileImage's cache key omits file metadata; evict same-path replacements.
-    for (final width in const [_standardWidth, _highResolutionWidth]) {
-      if (!ref.mounted) break;
-      await ResizeImage(FileImage(File.fromUri(uri)), width: width).evict();
-    }
-    return uri;
-  },
-  // Required-file errors must close entry immediately, before user-led repair.
-  retry: (_, _) => null,
-);
+/// A bundled artwork image decoded at [width] pixels wide.
+ImageProvider artworkImage(String key, {required int width}) {
+  final path = appArtwork[key];
+  if (path == null) throw ArgumentError.value(key, 'key', 'Unknown artwork');
+  return ResizeImage(AssetImage(path), width: width);
+}
 
-ImageProvider localArtworkImage(Uri uri, {bool highResolution = false}) =>
-    ResizeImage(
-      FileImage(File.fromUri(uri)),
+ImageProvider localArtworkImage(String key, {bool highResolution = false}) =>
+    artworkImage(
+      key,
       width: highResolution ? _highResolutionWidth : _standardWidth,
     );
 
-class LocalArtwork extends ConsumerWidget {
+class LocalArtwork extends StatelessWidget {
   const LocalArtwork({
     super.key,
     required this.assetKey,
@@ -42,30 +31,18 @@ class LocalArtwork extends ConsumerWidget {
   final bool highResolution;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final asset = ref.watch(localArtworkFileProvider(assetKey));
-    return SizedBox(
-      width: dimension,
-      height: dimension,
-      child: asset.when(
-        loading: () => const SizedBox.shrink(),
-        error: (_, _) => _failed(ref),
-        data: (uri) => ExcludeSemantics(
-          child: Image(
-            image: localArtworkImage(uri, highResolution: highResolution),
-            errorBuilder: (_, _, _) => _failed(ref),
-          ),
+  Widget build(BuildContext context) => SizedBox(
+    width: dimension,
+    height: dimension,
+    child: ExcludeSemantics(
+      child: Image(
+        image: localArtworkImage(assetKey, highResolution: highResolution),
+        gaplessPlayback: true,
+        errorBuilder: (_, _, _) => const Icon(
+          Icons.broken_image_outlined,
+          semanticLabel: 'Artwork unavailable',
         ),
       ),
-    );
-  }
-
-  Widget _failed(WidgetRef ref) {
-    final controller = ref.read(bootstrapControllerProvider.notifier);
-    Future.microtask(controller.artworkFailed);
-    return const Icon(
-      Icons.broken_image_outlined,
-      semanticLabel: 'Artwork unavailable',
-    );
-  }
+    ),
+  );
 }

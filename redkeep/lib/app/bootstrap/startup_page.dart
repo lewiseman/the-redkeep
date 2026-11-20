@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/presentation/rendering_policy.dart';
-import '../../features/assets/domain/asset_catalog.dart';
 import '../../features/diary/presentation/diary_paper_stamp.dart';
 import '../../features/diary/presentation/photos/diary_photo_entry_book.dart'
     show DiaryAlbumMarginPainter;
@@ -119,8 +118,8 @@ class _ArtworkPaper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Most launches finish here, so only the logo shows and no sheet flashes.
-    if (state.stage == BootstrapStage.checking) {
+    // Launches normally show only the logo; the sheet is for a failed open.
+    if (state.stage != BootstrapStage.localError) {
       return Semantics(
         liveRegion: true,
         label: 'Opening Redkeep',
@@ -160,7 +159,7 @@ class _ArtworkPaper extends StatelessWidget {
           foregroundPainter: const DiaryAlbumMarginPainter(ink: _ink),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(28, 24, 22, 20),
-            child: _ArtworkStatus(state: state),
+            child: const _ArtworkStatus(),
           ),
         ),
       ],
@@ -169,28 +168,11 @@ class _ArtworkPaper extends StatelessWidget {
 }
 
 class _ArtworkStatus extends ConsumerWidget {
-  const _ArtworkStatus({required this.state});
-
-  final BootstrapState state;
+  const _ArtworkStatus();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final controller = ref.read(bootstrapControllerProvider.notifier);
-    // A finished page stays visible briefly as onboarding fades in over it.
-    final ready = state.stage == BootstrapStage.ready;
-    final preparing = state.stage == BootstrapStage.preparing;
-    final downloading =
-        ready || preparing || state.stage == BootstrapStage.downloading;
-    final localError = state.stage == BootstrapStage.localError;
-    final progress = state.progress;
-    final fraction = ready || preparing
-        ? 1.0
-        : progress == null || progress.totalBytes <= 0
-        ? 0.0
-        : (progress.completedBytes / progress.totalBytes).clamp(0.0, 1.0);
-    final percent = '${(fraction * 100).floor()}%';
-    final (title, line) = _copy(state);
-
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -202,124 +184,31 @@ class _ArtworkStatus extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                title,
+                "Redkeep couldn't open",
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.titleLarge!
                     .copyWith(color: _ink, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 6),
-              Text(
-                line,
+              const Text(
+                'Your writing is safe. Please try again.',
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: _mutedInk,
-                  fontSize: 14,
-                  height: 1.4,
-                ),
+                style: TextStyle(color: _mutedInk, fontSize: 14, height: 1.4),
               ),
             ],
           ),
         ),
         const SizedBox(height: 16),
-        // The bar and the button share a slot so the sheet keeps its height.
-        ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 52),
-          child: Center(
-            child: downloading
-                ? Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      LinearProgressIndicator(
-                        value: fraction,
-                        minHeight: 6,
-                        borderRadius: BorderRadius.circular(16),
-                        color: _purple,
-                        backgroundColor: _ink.withValues(alpha: .12),
-                        stopIndicatorRadius: 0,
-                        semanticsLabel: 'Setup progress',
-                        semanticsValue: percent,
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        progress != null
-                            ? '$percent · ${_bytes(progress.completedBytes)} of ${_bytes(progress.totalBytes)}'
-                            : ready || preparing
-                            ? percent
-                            : 'Connecting…',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: _mutedInk,
-                          fontSize: 13,
-                          height: 1.4,
-                          fontFeatures: [FontFeature.tabularFigures()],
-                        ),
-                      ),
-                    ],
-                  )
-                : SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: _purple,
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size(0, 52),
-                      ),
-                      onPressed: localError
-                          ? controller.repair
-                          : controller.download,
-                      child: const Text(
-                        'Try again',
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
+        FilledButton(
+          style: FilledButton.styleFrom(
+            backgroundColor: _purple,
+            foregroundColor: Colors.white,
+            minimumSize: const Size(0, 52),
           ),
+          onPressed: controller.check,
+          child: const Text('Try again', textAlign: TextAlign.center),
         ),
       ],
     );
   }
-}
-
-String _bytes(int bytes) {
-  if (bytes < 1024) return '$bytes B';
-  if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-  return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-}
-
-(String, String) _copy(BootstrapState state) {
-  const space = 'Free up some space, then try again.';
-  if (state.stage == BootstrapStage.localError) {
-    return (
-      "Redkeep couldn't open",
-      state.failure == AssetFailure.storage
-          ? 'Your writing is safe. $space'
-          : 'Your writing is safe. Please try again.',
-    );
-  }
-  if (state.stage == BootstrapStage.download) {
-    return switch (state.failure) {
-      AssetFailure.storage => (
-        'Not enough space',
-        '$space Your progress is saved.',
-      ),
-      AssetFailure.configuration || AssetFailure.catalog => (
-        'Redkeep needs an update',
-        'Install the latest version to finish setting up.',
-      ),
-      AssetFailure.integrity => (
-        'Setup paused',
-        'Something went wrong. Please try again.',
-      ),
-      null => ('Getting things ready', 'This only happens once.'),
-      _ => (
-        'Setup paused',
-        'Check your connection and try again. Your progress is saved.',
-      ),
-    };
-  }
-  if (state.stage == BootstrapStage.preparing) {
-    return ('Getting things ready', 'Preparing your artwork.');
-  }
-  return ('Getting things ready', 'This only happens once.');
 }

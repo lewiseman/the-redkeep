@@ -1,11 +1,9 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:redkeep/features/appearance/domain/appearance_preferences.dart';
-import 'package:redkeep/features/assets/domain/asset_catalog.dart';
 import 'package:redkeep/features/onboarding/presentation/book_artwork.dart';
 import 'package:redkeep/features/onboarding/presentation/onboarding_book.dart';
 import 'package:redkeep/features/onboarding/presentation/onboarding_page.dart';
@@ -13,24 +11,8 @@ import 'package:redkeep/features/onboarding/presentation/onboarding_controls.dar
 
 import '../../support/fake_appearance_repository.dart';
 import '../../support/fake_onboarding_repository.dart';
-import '../../support/fake_required_assets.dart';
 import '../../support/pump_app.dart';
 import '../../support/onboarding_navigation.dart';
-
-class _ObservingAssets extends FakeRequiredAssets {
-  final resolved = <String>[];
-  String? failedKey;
-  Uri? brokenImage;
-  @override
-  Future<Uri> resolve(String key) async {
-    resolved.add(key);
-    if (key == failedKey) {
-      if (brokenImage != null) return brokenImage!;
-      throw const AssetException(AssetFailure.integrity);
-    }
-    return super.resolve(key);
-  }
-}
 
 Future<void> _tap(WidgetTester tester, String label) async {
   final finder = find.text(label);
@@ -420,12 +402,10 @@ void main() {
             );
             tester.view.viewInsets = FakeViewPadding(bottom: 100);
             tester.platformDispatcher.textScaleFactorTestValue = 3;
-            final assets = _ObservingAssets();
             await pumpApp(
               tester,
               repository: appearance,
               onboarding: FakeOnboardingRepository(completed: false),
-              assets: assets,
             );
             final background = tester.widget<Image>(
               find.byKey(const ValueKey('onboarding-background')),
@@ -434,10 +414,6 @@ void main() {
               ((background.image as ResizeImage).imageProvider as AssetImage)
                   .assetName,
               'assets/branding/ink-paper.webp',
-            );
-            expect(
-              assets.resolved,
-              isNot(contains('onboarding.background.ink')),
             );
             await navigateChapter(tester, 1);
             await navigateChapter(tester, 1);
@@ -525,58 +501,6 @@ void main() {
       },
     );
   }
-  for (final key in [
-    'onboarding.material.paper',
-    'onboarding.material.binding',
-  ]) {
-    testWidgets('$key decoder failure closes entry safely', (tester) async {
-      final temp = Directory.systemTemp.createTempSync(
-        'redkeep-texture-corrupt-',
-      );
-      addTearDown(() => temp.deleteSync(recursive: true));
-      final file = File('${temp.path}/texture.webp')
-        ..writeAsBytesSync([1, 2, 3]);
-      final assets = _ObservingAssets()
-        ..failedKey = key
-        ..brokenImage = file.uri;
-      final router = await pumpApp(
-        tester,
-        onboarding: FakeOnboardingRepository(completed: false),
-        assets: assets,
-        initialLocation: '/settings',
-      );
-      await _decodeVisible(tester);
-      expect(find.text('Try again'), findsOneWidget);
-      expect(
-        router.routeInformationProvider.value.uri.queryParameters['continue'],
-        '/settings',
-      );
-      expect(tester.takeException(), isNull);
-    });
-  }
-
-  testWidgets(
-    'cover preload failure uses repair without an unhandled error or saved name',
-    (tester) async {
-      final assets = _ObservingAssets()..failedKey = 'onboarding.cover';
-      final repository = FakeOnboardingRepository(completed: false);
-      final router = await pumpApp(
-        tester,
-        onboarding: repository,
-        assets: assets,
-        initialLocation: '/settings',
-      );
-      await _tap(tester, "Let's begin");
-      expect(find.text('Try again'), findsOneWidget);
-      expect(repository.saves, 0);
-      expect(
-        router.routeInformationProvider.value.uri.queryParameters['continue'],
-        '/settings',
-      );
-      expect(tester.takeException(), isNull);
-    },
-  );
-
   testWidgets(
     'live reduction completes an in-flight cover fold without saving a name',
     (tester) async {
@@ -598,42 +522,4 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
-  for (final corrupt in [false, true]) {
-    testWidgets(
-      '${corrupt ? 'decoder error' : 'missing image'} preserves continuation through repair',
-      (tester) async {
-        final assets = _ObservingAssets()
-          ..failedKey = 'onboarding.chapter.notes';
-        if (corrupt) {
-          final temp = Directory.systemTemp.createTempSync(
-            'redkeep-widget-corrupt-',
-          );
-          addTearDown(() => temp.deleteSync(recursive: true));
-          final file = File('${temp.path}/notes.webp')
-            ..writeAsBytesSync([1, 2, 3]);
-          assets.brokenImage = file.uri;
-        }
-        final repository = FakeOnboardingRepository(completed: false);
-        final router = await pumpApp(
-          tester,
-          onboarding: repository,
-          assets: assets,
-          initialLocation: '/settings',
-        );
-        if (corrupt) await _decodeVisible(tester);
-        expect(find.text('Try again'), findsOneWidget);
-        expect(
-          router.routeInformationProvider.value.uri.queryParameters['continue'],
-          '/settings',
-        );
-        expect(repository.completed, false);
-        assets.failedKey = null;
-        await _tap(tester, 'Try again');
-        expect(find.byType(OnboardingPage), findsOneWidget);
-        await _decodeVisible(tester);
-        expect(repository.saves, 0);
-        expect(tester.takeException(), isNull);
-      },
-    );
-  }
 }

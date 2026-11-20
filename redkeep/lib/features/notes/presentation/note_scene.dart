@@ -1,12 +1,11 @@
-import 'dart:io';
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../app/bootstrap/bootstrap_providers.dart';
 import '../../../core/presentation/rendering_policy.dart';
 import '../../../core/presentation/system_overlay.dart';
+import '../../assets/domain/app_artwork.dart';
 import '../../sync/application/sync_providers.dart';
 import '../data/note_media_store.dart';
 import '../domain/note_document.dart';
@@ -16,28 +15,26 @@ import 'note_ai_palette.dart';
 
 final noteBackgroundImageProvider = FutureProvider.autoDispose
     .family<ImageProvider?, String>((ref, key) async {
-      File? file;
-      if (key.startsWith('note_media/')) {
-        file = await ref.watch(noteMediaStoreProvider).resolve(key);
-        // A restore brings backgrounds back after the journal itself.
-        if (file == null) {
-          ref.listen(restoredMediaProvider, (_, next) {
-            if (next.value == key) ref.invalidateSelf();
-          });
-        }
-      } else {
-        final uri = await (await ref.watch(assetResolverProvider)).resolve(key);
-        file = File.fromUri(uri);
+      if (!key.startsWith('note_media/')) {
+        final path = appArtwork[key];
+        return path == null ? null : _sized(AssetImage(path));
       }
-      return file == null
-          ? null
-          : ResizeImage(
-              FileImage(file),
-              width: 2048,
-              height: 2048,
-              policy: ResizeImagePolicy.fit,
-            );
+      final file = await ref.watch(noteMediaStoreProvider).resolve(key);
+      // A restore brings backgrounds back after the journal itself.
+      if (file == null) {
+        ref.listen(restoredMediaProvider, (_, next) {
+          if (next.value == key) ref.invalidateSelf();
+        });
+      }
+      return file == null ? null : _sized(FileImage(file));
     });
+
+ImageProvider _sized(ImageProvider image) => ResizeImage(
+  image,
+  width: 2048,
+  height: 2048,
+  policy: ResizeImagePolicy.fit,
+);
 
 class NoteScene extends ConsumerWidget {
   const NoteScene({

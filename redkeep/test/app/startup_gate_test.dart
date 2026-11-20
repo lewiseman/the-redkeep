@@ -7,8 +7,6 @@ import 'package:redkeep/features/diary/application/diary_providers.dart';
 
 import '../support/empty_diary_repository.dart';
 
-import 'dart:async';
-
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,20 +20,16 @@ import 'package:redkeep/app/redkeep_app.dart';
 import 'package:redkeep/app/storage_providers.dart';
 import 'package:redkeep/core/storage/app_database.dart';
 import 'package:redkeep/features/appearance/domain/appearance_preferences.dart';
-import 'package:redkeep/features/assets/domain/asset_catalog.dart';
 
 import '../support/fake_appearance_repository.dart';
-import '../support/fake_required_assets.dart';
 import '../support/fake_onboarding_repository.dart';
 
 import 'package:redkeep/features/onboarding/application/onboarding_controller.dart';
 
 void main() {
   Future<void> pump(
-    WidgetTester tester,
-    FakeRequiredAssets assets, {
+    WidgetTester tester, {
     Future<void> Function()? checks,
-    Future<void> Function()? warmArtwork,
     AppTheme theme = AppTheme.system,
   }) async {
     final appearance = FakeAppearanceRepository(
@@ -57,22 +51,17 @@ void main() {
           onboardingRepositoryProvider.overrideWithValue(
             FakeOnboardingRepository(),
           ),
-          requiredAssetsProvider.overrideWith((_) async => assets),
           bootstrapCoordinatorProvider.overrideWith(
             (ref) => BootstrapCoordinator(
               localChecks: () async {
                 await checks?.call();
                 await ref.read(onboardingControllerProvider.notifier).load();
               },
-              loadAssets: () async => assets,
             ),
           ),
           releaseSplashProvider.overrideWithValue(() {}),
           initialNavigationLocationProvider.overrideWithValue('/settings'),
-          if (warmArtwork != null)
-            startupArtworkProvider.overrideWith((_) {
-              return warmArtwork();
-            }),
+          startupArtworkProvider.overrideWith((_) async {}),
         ],
         child: const RedkeepApp(),
       ),
@@ -85,16 +74,28 @@ void main() {
     await tester.pump(Duration.zero);
   }
 
+  testWidgets('a direct destination opens without a setup page', (
+    tester,
+  ) async {
+    await pump(tester);
+    expect(find.text('Theme'), findsOneWidget);
+    expect(find.text('Getting things ready'), findsNothing);
+    expect(find.byType(LinearProgressIndicator), findsNothing);
+    expect(tester.takeException(), isNull);
+    await unmount(tester);
+  });
+
   testWidgets(
-    'missing required artwork blocks a direct destination; retry restores it',
+    'a local failure blocks a direct destination; retry restores it',
     (tester) async {
-      final assets = FakeRequiredAssets()
-        ..missing = ['test.one']
-        ..downloadError = const AssetException(AssetFailure.network);
-      await pump(tester, assets);
-      // The required artwork starts by itself; a failure waits for the reader.
-      expect(assets.downloads, 1);
-      expect(find.text('Setup paused'), findsOneWidget);
+      var fail = true;
+      await pump(
+        tester,
+        checks: () async {
+          if (fail) throw StateError('settings/database failed');
+        },
+      );
+      expect(find.text("Redkeep couldn't open"), findsOneWidget);
       for (final entry in {
         'startup-background': 'assets/branding/ink-paper.webp',
         'startup-logo': 'assets/branding/grand_maestar.png',
@@ -106,8 +107,7 @@ void main() {
         );
       }
       expect(find.text('Theme'), findsNothing);
-      expect(find.textContaining('Skip'), findsNothing);
-      assets.downloadError = null;
+      fail = false;
       await tester.tap(find.text('Try again'));
       await tester.pumpAndSettle();
       expect(find.text('Theme'), findsOneWidget);
@@ -126,24 +126,6 @@ void main() {
     },
   );
 
-  testWidgets(
-    'resolver failure closes entry and repair restores the direct route',
-    (tester) async {
-      final assets = _UnavailableArtwork();
-      await pump(tester, assets);
-      await tester.pumpAndSettle();
-      expect(find.text("Redkeep couldn't open"), findsOneWidget);
-      expect(find.text('Theme'), findsNothing);
-      assets.available = true;
-      await tester.tap(find.text('Try again'));
-      await tester.pumpAndSettle();
-      expect(assets.verifyAll, isTrue);
-      expect(find.text('Theme'), findsOneWidget);
-      expect(tester.takeException(), isNull);
-      await unmount(tester);
-    },
-  );
-
   for (final theme in [AppTheme.light, AppTheme.dark]) {
     testWidgets(
       '$theme error/retry is usable with narrow screen, large text and insets',
@@ -156,12 +138,8 @@ void main() {
         addTearDown(tester.view.reset);
         addTearDown(tester.platformDispatcher.clearAllTestValues);
         var fail = true;
-        final assets = FakeRequiredAssets()
-          ..missing = ['test.one']
-          ..downloadError = const AssetException(AssetFailure.network);
         await pump(
           tester,
-          assets,
           theme: theme,
           checks: () async {
             if (fail) throw StateError('synthetic private error never shown');
@@ -173,70 +151,10 @@ void main() {
         fail = false;
         await tester.tap(find.text('Try again'));
         await tester.pumpAndSettle();
-        expect(find.text('Setup paused'), findsOneWidget);
-        await tester.ensureVisible(find.text('Try again'));
+        expect(find.text("Redkeep couldn't open"), findsNothing);
         expect(tester.takeException(), isNull);
         await unmount(tester);
       },
     );
-  }
-
-  testWidgets(
-    'download progress persists on the Flutter screen with reduced motion',
-    (tester) async {
-      final gate = Completer<void>();
-      final artwork = Completer<void>();
-      final assets = _SlowAssets(gate);
-      await pump(tester, assets, warmArtwork: () => artwork.future);
-      expect(find.text('50% · 1 B of 2 B'), findsOneWidget);
-      expect(
-        tester
-            .widget<LinearProgressIndicator>(
-              find.byType(LinearProgressIndicator),
-            )
-            .value,
-        .5,
-      );
-      expect(find.text('Theme'), findsNothing);
-      gate.complete();
-      await tester.pumpAndSettle();
-      expect(find.text('Preparing your artwork.'), findsOneWidget);
-      expect(find.text('100% · 2 B of 2 B'), findsOneWidget);
-      expect(
-        tester
-            .widget<LinearProgressIndicator>(
-              find.byType(LinearProgressIndicator),
-            )
-            .value,
-        1,
-      );
-      expect(find.text('Theme'), findsNothing);
-      artwork.complete();
-      await tester.pumpAndSettle();
-      expect(find.text('Theme'), findsOneWidget);
-      await unmount(tester);
-    },
-  );
-}
-
-class _SlowAssets extends FakeRequiredAssets {
-  _SlowAssets(this.gate) {
-    missing = ['test.one'];
-  }
-  final Completer<void> gate;
-  @override
-  Future<void> download(void Function(AssetProgress) onProgress) async {
-    onProgress(const AssetProgress(1, 2));
-    await gate.future;
-    missing = [];
-  }
-}
-
-class _UnavailableArtwork extends FakeRequiredAssets {
-  bool available = false;
-  @override
-  Future<Uri> resolve(String key) {
-    if (!available) throw const AssetException(AssetFailure.integrity);
-    return super.resolve(key);
   }
 }

@@ -12,8 +12,7 @@ final startupArtworkLimitProvider = Provider<Duration>(
   (ref) => const Duration(seconds: 4),
 );
 
-// Keep the first screen's verified providers alive through the splash and any
-// onboarding so the widgets can use their results without a second lookup.
+// Decode the first screen's artwork behind the splash so it appears at once.
 final startupArtworkProvider = FutureProvider<void>((ref) async {
   final location = validatedNavigationLocation(
     ref.watch(initialNavigationLocationProvider),
@@ -38,13 +37,10 @@ final startupArtworkProvider = FutureProvider<void>((ref) async {
       if (destination == '/notes') 'notes.add',
       if (destination == '/more') 'more.appearance',
     ])
-      ref.watch(localArtworkFileProvider(key).future).then(localArtworkImage),
+      localArtworkImage(key),
   ];
   await Future.wait(
-    images.map((image) async {
-      final provider = await image;
-      if (ref.mounted) await _decode(ref, provider);
-    }),
+    images.map((image) => _decode(ref, image)),
     eagerError: true,
   );
 }, retry: (_, _) => null);

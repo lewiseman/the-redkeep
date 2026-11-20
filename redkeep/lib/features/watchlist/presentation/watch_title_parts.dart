@@ -1,13 +1,9 @@
 import 'dart:math' as math;
 
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../app/bootstrap/bootstrap_controller.dart';
 import '../../../core/presentation/cushion.dart';
 import '../../../core/presentation/rendering_policy.dart';
 import '../../assets/presentation/local_artwork.dart';
@@ -252,15 +248,15 @@ abstract final class _Rack {
   static const seat = .35;
 }
 
-/// The rack, from its downloaded picture; the drawn one stands in while
-/// the file is read.
-class _RackImage extends ConsumerWidget {
+/// The rack, from its bundled picture; the drawn one stands in while
+/// the picture decodes.
+class _RackImage extends StatelessWidget {
   const _RackImage();
 
   static const artwork = 'watchlist.rack';
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final cushion = CushionColors.of(context);
     final drawn = CustomPaint(
       painter: _RackPainter(
@@ -274,28 +270,17 @@ class _RackImage extends ConsumerWidget {
         final pixels = (box.maxWidth * MediaQuery.devicePixelRatioOf(context))
             .ceil()
             .clamp(1, 1168);
-        return switch (ref.watch(localArtworkFileProvider(artwork))) {
-          AsyncData(:final value) => Image(
-            image: ResizeImage(FileImage(File.fromUri(value)), width: pixels),
-            fit: BoxFit.fill,
-            gaplessPlayback: true,
-            excludeFromSemantics: true,
-            errorBuilder: (_, _, _) => _failed(ref, drawn),
-          ),
-          AsyncError() => _failed(ref, drawn),
-          _ => drawn,
-        };
+        return Image(
+          image: artworkImage(artwork, width: pixels),
+          fit: BoxFit.fill,
+          gaplessPlayback: true,
+          excludeFromSemantics: true,
+          frameBuilder: (_, child, frame, synchronous) =>
+              frame == null && !synchronous ? drawn : child,
+          errorBuilder: (_, _, _) => drawn,
+        );
       },
     );
-  }
-
-  /// A missing or damaged picture sends the app to repair its artwork, as
-  /// every other picture does; the drawn rack shows meanwhile.
-  static Widget _failed(WidgetRef ref, Widget drawn) {
-    Future.microtask(
-      ref.read(bootstrapControllerProvider.notifier).artworkFailed,
-    );
-    return drawn;
   }
 }
 
@@ -607,7 +592,7 @@ ColorFilter _lacquer(Color ink) {
 /// status's ink, the status printed on its label, and its rubber dry or,
 /// on the title's own stamp, wet with ink and its label filled. Each leans
 /// its own small way.
-class _Stamp extends ConsumerWidget {
+class _Stamp extends StatelessWidget {
   const _Stamp({
     required this.status,
     required this.inked,
@@ -619,24 +604,12 @@ class _Stamp extends ConsumerWidget {
   final double scale;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final cushion = CushionColors.of(context);
     final policy = RenderingPolicyScope.of(context);
     final ink = stampInk(status);
     final lean = cushion.simple ? 0.0 : ((status.index * 7) % 5 - 2) * .006;
-    final art = ref.watch(localArtworkFileProvider(_StampArt.artwork));
-    final Widget body;
-    switch (art) {
-      case AsyncData(:final value):
-        body = _pictured(context, value, ink, cushion, policy);
-      case AsyncError():
-        Future.microtask(
-          ref.read(bootstrapControllerProvider.notifier).artworkFailed,
-        );
-        body = _drawn();
-      default:
-        body = _drawn();
-    }
+    final body = _pictured(context, ink, cushion, policy);
     return AnimatedSlide(
       duration: policy.duration,
       curve: Curves.easeOut,
@@ -661,7 +634,6 @@ class _Stamp extends ConsumerWidget {
 
   Widget _pictured(
     BuildContext context,
-    Uri file,
     Color ink,
     CushionColors cushion,
     RenderingPolicy policy,
@@ -673,10 +645,11 @@ class _Stamp extends ConsumerWidget {
             .ceil()
             .clamp(1, 360);
         final picture = Image(
-          image: ResizeImage(FileImage(File.fromUri(file)), width: pixels),
+          image: artworkImage(_StampArt.artwork, width: pixels),
           fit: BoxFit.fill,
           gaplessPlayback: true,
           excludeFromSemantics: true,
+          errorBuilder: (_, _, _) => _drawn(),
         );
         Rect at(Rect fraction) => Rect.fromLTRB(
           fraction.left * w,

@@ -7,7 +7,6 @@ import 'package:redkeep/app/bootstrap/bootstrap_providers.dart';
 
 import '../support/fake_appearance_repository.dart';
 import '../support/fake_onboarding_repository.dart';
-import '../support/fake_required_assets.dart';
 
 import '../support/pump_app.dart';
 
@@ -97,7 +96,6 @@ void main() {
         onboardingRepositoryProvider.overrideWithValue(
           FakeOnboardingRepository(),
         ),
-        requiredAssetsProvider.overrideWith((_) async => FakeRequiredAssets()),
         releaseSplashProvider.overrideWithValue(() {}),
       ],
     );

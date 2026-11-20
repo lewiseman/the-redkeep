@@ -17,9 +17,8 @@ The Gradle configuration builds ARM64 only; ARM32 and x86_64 are not shipped.
   `sdk.dir` in ignored `android/local.properties`.
 - A JDK. On macOS the script uses Android Studio's bundled JDK when `JAVA_HOME`
   is unset; otherwise configure `JAVA_HOME` and `PATH`.
-- The ignored `env.json` with the production HTTPS `ASSET_BASE_URL` and configured
-  `GOOGLE_SERVER_CLIENT_ID`. Artwork continues through the existing catalog,
-  download, verification, and local storage flow. AI features use cloud providers
+- The ignored `env.json` with a configured `GOOGLE_SERVER_CLIENT_ID`. Artwork is
+  bundled in the APK under `assets/images/`. AI features use cloud providers
   with each person's own API key, entered in the app; no keys or models ship in the APK.
 - The existing ignored `android/key.properties` with `storeFile`, `storePassword`,
   `keyAlias`, and `keyPassword`. Relative keystore paths resolve from `android/app/`.
@@ -99,7 +98,7 @@ To check the downloaded APK, place its checksum alongside it and run:
 shasum -a 256 -c redkeep-arm64-v8a.apk.sha256
 ```
 
-The first launch downloads and verifies the required artwork. Automated checks
+Automated checks
 verify packaging and release behavior; installation, OAuth, Drive sync, and cloud
 AI (an AI action and Recall search with a provider key) still need a
 release-device smoke test.

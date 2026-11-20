@@ -412,3 +412,14 @@ not added to the Flutter bundle.
 
 Release order: publish `watchlist_stamp.webp` through the website hosting
 process before releasing the updated mobile catalog.
+
+## Bundled artwork (2026-11-20)
+
+The app no longer downloads artwork. The download catalog, verification and
+startup download page are removed. The 22 images the app still shows are
+bundled under `assets/images/`, at the paths the catalog used, and listed by
+key in `lib/features/assets/domain/app_artwork.dart`. Each is a byte-for-byte
+copy of its `website/public/art/` source, checked against the SHA-256 the
+catalog recorded. `diary.header` (`diary_top_bg.png`) and
+`onboarding.chapter.appearance` (`appearance.jpg`) were no longer shown and are
+not bundled; their website copies are unchanged.

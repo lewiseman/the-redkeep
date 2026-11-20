@@ -7,23 +7,20 @@ import 'package:redkeep/app/bootstrap/bootstrap_coordinator.dart';
 import 'package:redkeep/app/bootstrap/bootstrap_providers.dart';
 import 'package:redkeep/app/bootstrap/startup_artwork.dart';
 import 'package:redkeep/app/storage_providers.dart';
-import 'package:redkeep/features/assets/domain/asset_catalog.dart';
 
 import '../support/fake_appearance_repository.dart';
-import '../support/fake_required_assets.dart';
 import '../support/fake_onboarding_repository.dart';
 
 import 'package:redkeep/features/onboarding/application/onboarding_controller.dart';
 
 void main() {
-  late FakeRequiredAssets assets;
   late FakeAppearanceRepository appearance;
   late ProviderContainer container;
   var releases = 0;
+  var checks = 0;
 
   BootstrapController start({
     Future<void> Function()? localChecks,
-    Future<RequiredAssets> Function()? loadAssets,
     Future<void> Function()? warmArtwork,
     Duration? limit,
     Duration? artworkLimit,
@@ -43,8 +40,10 @@ void main() {
         if (limit != null) localCheckLimitProvider.overrideWithValue(limit),
         bootstrapCoordinatorProvider.overrideWithValue(
           BootstrapCoordinator(
-            localChecks: localChecks ?? () async {},
-            loadAssets: loadAssets ?? () async => assets,
+            localChecks: () async {
+              checks++;
+              await localChecks?.call();
+            },
           ),
         ),
       ],
@@ -53,10 +52,12 @@ void main() {
     return container.read(bootstrapControllerProvider.notifier);
   }
 
+  BootstrapStage stage() => container.read(bootstrapControllerProvider).stage;
+
   setUp(() {
-    assets = FakeRequiredAssets();
     appearance = FakeAppearanceRepository();
     releases = 0;
+    checks = 0;
   });
   tearDown(() async {
     container.dispose();
@@ -73,7 +74,6 @@ void main() {
         overrides: [
           appearanceRepositoryProvider.overrideWithValue(appearance),
           onboardingRepositoryProvider.overrideWithValue(onboarding),
-          requiredAssetsProvider.overrideWith((_) async => assets),
           releaseSplashProvider.overrideWithValue(() => releases++),
           startupArtworkProvider.overrideWith((_) async {}),
           localCheckLimitProvider.overrideWithValue(
@@ -83,126 +83,48 @@ void main() {
       );
       final controller = container.read(bootstrapControllerProvider.notifier);
       await controller.check();
-      expect(
-        container.read(bootstrapControllerProvider).stage,
-        BootstrapStage.localError,
-      );
+      expect(stage(), BootstrapStage.localError);
       expect(container.read(onboardingControllerProvider).complete, isNull);
       expect(releases, 1);
-      expect(assets.checks, 0);
       await controller.check();
-      expect(assets.checks, 0);
+      expect(stage(), BootstrapStage.localError);
       gate.complete();
       await controller.check();
-      expect(
-        container.read(bootstrapControllerProvider).stage,
-        BootstrapStage.ready,
-      );
+      expect(stage(), BootstrapStage.ready);
       expect(container.read(onboardingControllerProvider).complete, isFalse);
-      expect(assets.checks, 1);
       expect(releases, 1);
     },
   );
 
   test(
-    'composed bootstrap retries a failed asset-store initialization explicitly',
+    'startup uses only local checks and opens with bundled artwork',
     () async {
-      var fail = true;
-      var attempts = 0;
-      container = ProviderContainer(
-        overrides: [
-          appearanceRepositoryProvider.overrideWithValue(appearance),
-          onboardingRepositoryProvider.overrideWithValue(
-            FakeOnboardingRepository(),
-          ),
-          releaseSplashProvider.overrideWithValue(() => releases++),
-          startupArtworkProvider.overrideWith((_) async {}),
-          requiredAssetsProvider.overrideWith((_) async {
-            attempts++;
-            if (fail) throw const AssetException(AssetFailure.storage);
-            return assets;
-          }),
-        ],
-      );
-      container.read(bootstrapControllerProvider);
-      final controller = container.read(bootstrapControllerProvider.notifier);
+      final controller = start();
       await controller.check();
-      expect(
-        container.read(bootstrapControllerProvider).stage,
-        BootstrapStage.localError,
-      );
-      expect(attempts, 1);
+      expect(stage(), BootstrapStage.ready);
+      expect(checks, 1);
       expect(releases, 1);
-      fail = false;
-      await controller.check();
-      expect(
-        container.read(bootstrapControllerProvider).stage,
-        BootstrapStage.ready,
-      );
-      expect(attempts, 2);
     },
   );
 
-  test('fresh offline stays gated; splash releases before any network; retry keeps progress', () async {
-    assets.missing = ['test.one'];
-    assets.downloadError = const AssetException(AssetFailure.network);
-    assets.onDownload = () => expect(releases, 1);
-    final controller = start();
-    final stages = <BootstrapState>[];
-    final subscription = container.listen(
-      bootstrapControllerProvider,
-      (_, next) => stages.add(next),
+  test('artwork finishes warming before the native splash releases', () async {
+    final warming = Completer<void>();
+    final decoded = Completer<void>();
+    final controller = start(
+      warmArtwork: () {
+        warming.complete();
+        return decoded.future;
+      },
     );
-    await controller.check();
-    expect(
-      container.read(bootstrapControllerProvider).stage,
-      BootstrapStage.download,
-    );
-    expect(
-      container.read(bootstrapControllerProvider).failure,
-      AssetFailure.network,
-    );
-    expect(assets.downloads, 1);
+    final check = controller.check();
+    await warming.future;
+    expect(releases, 0);
+    expect(stage(), BootstrapStage.checking);
+    decoded.complete();
+    await check;
     expect(releases, 1);
-    expect(stages.any((s) => s.progress?.completedBytes == 1), isTrue);
-    assets.downloadError = null;
-    await controller.download();
-    expect(
-      container.read(bootstrapControllerProvider).stage,
-      BootstrapStage.ready,
-    );
-    expect(releases, 1);
-    subscription.close();
+    expect(stage(), BootstrapStage.ready);
   });
-
-  test(
-    'installed artwork finishes warming before the native splash releases',
-    () async {
-      final warming = Completer<void>();
-      final decoded = Completer<void>();
-      final controller = start(
-        warmArtwork: () {
-          warming.complete();
-          return decoded.future;
-        },
-      );
-      final check = controller.check();
-      await warming.future;
-      expect(assets.checks, 1);
-      expect(releases, 0);
-      expect(
-        container.read(bootstrapControllerProvider).stage,
-        BootstrapStage.checking,
-      );
-      decoded.complete();
-      await check;
-      expect(releases, 1);
-      expect(
-        container.read(bootstrapControllerProvider).stage,
-        BootstrapStage.ready,
-      );
-    },
-  );
 
   test('artwork warmup timeout still opens the app', () async {
     final decoded = Completer<void>();
@@ -212,122 +134,50 @@ void main() {
     );
     await controller.check();
     expect(releases, 1);
-    expect(
-      container.read(bootstrapControllerProvider).stage,
-      BootstrapStage.ready,
-    );
+    expect(stage(), BootstrapStage.ready);
     decoded.completeError(StateError('late decode failure'));
     await Future<void>.delayed(Duration.zero);
-    expect(
-      container.read(bootstrapControllerProvider).stage,
-      BootstrapStage.ready,
-    );
+    expect(stage(), BootstrapStage.ready);
   });
 
-  test('an artwork load error can be repaired and warmed again', () async {
-    var warms = 0;
+  test('an artwork warmup error still opens the app', () async {
     final controller = start(
-      warmArtwork: () async {
-        if (++warms == 1) throw const AssetException(AssetFailure.integrity);
+      warmArtwork: () async => throw StateError('decode failed'),
+    );
+    await controller.check();
+    expect(stage(), BootstrapStage.ready);
+    expect(releases, 1);
+  });
+
+  test('local failure releases splash and can recover', () async {
+    var fail = true;
+    final controller = start(
+      localChecks: () async {
+        if (fail) throw StateError('settings/database failed');
       },
     );
     await controller.check();
-    final failed = container.read(bootstrapControllerProvider);
-    expect(failed.stage, BootstrapStage.localError);
-    expect(failed.failure, AssetFailure.integrity);
+    expect(stage(), BootstrapStage.localError);
     expect(releases, 1);
-
-    await controller.repair();
-    expect(warms, 2);
-    expect(assets.verifyAll, isTrue);
-    expect(releases, 1);
-    expect(
-      container.read(bootstrapControllerProvider).stage,
-      BootstrapStage.ready,
-    );
+    fail = false;
+    await controller.check();
+    expect(stage(), BootstrapStage.ready);
   });
 
-  test(
-    'complete offline startup uses only local checks and releases splash',
-    () async {
-      final controller = start();
-      await controller.check();
-      expect(
-        container.read(bootstrapControllerProvider).stage,
-        BootstrapStage.ready,
-      );
-      expect(assets.downloads, 0);
-      expect(assets.checks, 1);
-      expect(releases, 1);
-      controller.artworkFailed();
-      expect(
-        container.read(bootstrapControllerProvider).stage,
-        BootstrapStage.localError,
-      );
-      assets.missing = ['test.one'];
-      await controller.repair();
-      expect(assets.verifyAll, isTrue);
-      expect(assets.downloads, 1);
-      expect(
-        container.read(bootstrapControllerProvider).stage,
-        BootstrapStage.ready,
-      );
-    },
-  );
-
-  for (final error in [
-    StateError('settings/database failed'),
-    const AssetException(AssetFailure.catalog),
-    const AssetException(AssetFailure.storage),
-  ]) {
-    test('local failure releases splash and can recover: $error', () async {
-      var fail = true;
-      final controller = start(
-        localChecks: () async {
-          if (fail) throw error;
-        },
-      );
-      await controller.check();
-      expect(
-        container.read(bootstrapControllerProvider).stage,
-        BootstrapStage.localError,
-      );
-      expect(assets.downloads, 0);
-      expect(releases, 1);
-      fail = false;
-      await controller.check();
-      expect(
-        container.read(bootstrapControllerProvider).stage,
-        BootstrapStage.ready,
-      );
-    });
-  }
-
-  test('overall bound covers slow storage/catalog initialization and coalesces retry', () async {
-    final gate = Completer<RequiredAssets>();
-    var starts = 0;
+  test('overall bound covers slow local checks and coalesces retry', () async {
+    final gate = Completer<void>();
     final controller = start(
-      loadAssets: () {
-        starts++;
-        return gate.future;
-      },
+      localChecks: () => gate.future,
       limit: const Duration(milliseconds: 1),
     );
     await controller.check();
-    expect(
-      container.read(bootstrapControllerProvider).stage,
-      BootstrapStage.localError,
-    );
+    expect(stage(), BootstrapStage.localError);
     expect(releases, 1);
     await controller.check();
-    expect(starts, 1);
-    gate.complete(assets);
+    expect(checks, 1);
+    gate.complete();
     await controller.check();
-    expect(
-      container.read(bootstrapControllerProvider).stage,
-      BootstrapStage.ready,
-    );
-    expect(assets.checks, 1);
+    expect(stage(), BootstrapStage.ready);
   });
 
   test(

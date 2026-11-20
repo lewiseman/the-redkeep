@@ -170,25 +170,13 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
     if (_turning || _stage != _Stage.touring) return;
     setState(() => _stage = _Stage.closing);
     // Warm just the chosen cover before it is revealed halfway through the
-    // fold. The destination-sized provider stays stable as the keyboard opens.
+    // fold.
     unawaited(
-      ref
-          .read(
-            bookImageProvider((
-              'onboarding.cover',
-              onboardingCoverCacheWidth(context),
-            )).future,
-          )
-          .then<void>(
-            (provider) {
-              if (mounted) {
-                unawaited(precacheImage(provider, context, onError: (_, _) {}));
-              }
-            },
-            onError: (Object _, StackTrace _) {
-              // The watched resolver error uses the established repair gate.
-            },
-          ),
+      precacheImage(
+        bookImage('onboarding.cover', onboardingCoverCacheWidth(context)),
+        context,
+        onError: (_, _) {},
+      ),
     );
     try {
       if (_motion) {
@@ -300,14 +288,6 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
   Widget build(BuildContext context) {
     final state = ref.watch(onboardingControllerProvider);
     final policy = RenderingPolicyScope.of(context);
-    if (_stage != _Stage.touring) {
-      ref.watch(
-        bookImageProvider((
-          'onboarding.cover',
-          onboardingCoverCacheWidth(context),
-        )),
-      );
-    }
     ref.listen(onboardingRestoreProvider, (_, next) {
       if (_stage != _Stage.backup || _leavingBackup) return;
       if (next.phase == OnboardingRestorePhase.restored) {
@@ -434,10 +414,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
                         foregroundColor: const Color(0xFF715B83),
                         minimumSize: const Size(0, 48),
                       ),
-                      child: const Text(
-                        'Skip',
-                        style: TextStyle(fontSize: 16),
-                      ),
+                      child: const Text('Skip', style: TextStyle(fontSize: 16)),
                     )
                   : const SizedBox.shrink(key: ValueKey('no-skip')),
             ),

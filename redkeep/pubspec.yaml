@@ -1,7 +1,7 @@
 name: redkeep
 description: "Redkeep mobile writing app."
 publish_to: 'none'
-version: 0.0.3+3
+version: 0.0.4+4
 
 environment:
   sdk: ^3.13.4
@@ -56,6 +56,12 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/catalog/presentation-v1.json
+    - assets/images/appearance/
+    - assets/images/diary/
+    - assets/images/more/
+    - assets/images/navigation/
+    - assets/images/notes/
+    - assets/images/onboarding/
+    - assets/images/watchlist/
     - assets/branding/grand_maestar.png
     - assets/branding/ink-paper.webp

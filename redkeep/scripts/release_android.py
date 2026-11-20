@@ -230,11 +230,8 @@ def main():
             raise ReleaseError(f"Missing {file}; see docs/android-release.md. Never commit signing or OAuth configuration.")
     config = json.loads((ROOT / "env.json").read_text())
     oauth = config.get("GOOGLE_SERVER_CLIENT_ID", "")
-    location = urllib.parse.urlsplit(config.get("ASSET_BASE_URL", ""))
     if not oauth.endswith(".apps.googleusercontent.com") or oauth.startswith("YOUR_"):
         raise ReleaseError("env.json must include a configured GOOGLE_SERVER_CLIENT_ID for release sign-in.")
-    if location.scheme != "https" or not location.hostname or location.query or location.fragment or location.username or location.password:
-        raise ReleaseError("env.json must include an HTTPS ASSET_BASE_URL for the existing artwork download flow.")
     tmdb = config.get("TMDB_API_KEY", "")
     if not tmdb or tmdb.startswith("YOUR_"):
         raise ReleaseError("env.json must include a TMDB_API_KEY for the Watchlist.")
@@ -296,7 +293,7 @@ def main():
         f"- Download: {metadata['sizeBytes'] / 1_000_000:.1f} MB.\n"
         "- ARM32 and x86_64 are unsupported by the current on-device AI runtime.\n"
         "- Signed with Redkeep's release key; install future builds over this app to keep your writing.\n"
-        "- The first launch downloads and verifies the required artwork; writing stays on your device.\n"
+        "- Artwork ships inside the app; writing stays on your device.\n"
         "- AI model weights download separately when selected in the app.\n"
         "- Google Drive backup requires Google sign-in.\n\n"
         f"Source: `{source_commit}`.\n\n"
